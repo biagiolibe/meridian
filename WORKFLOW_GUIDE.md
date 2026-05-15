@@ -1,6 +1,6 @@
-# 🚀 Agentic Game Development: Guida al Metodo
+# 🚀 Meridian: Guida al Metodo di Sviluppo Agentico
 
-Questo documento è il tuo **punto di partenza**. Spiega come utilizzare questo modello per gestire lo sviluppo di un videogioco in "coppia" con agenti IA, mantenendo ordine, qualità e una visione chiara del progresso.
+Questo documento è il tuo **punto di partenza**. Spiega come utilizzare questo modello per gestire lo sviluppo di un progetto software in "coppia" con agenti IA, mantenendo ordine, qualità e una visione chiara del progresso.
 
 ---
 
@@ -19,7 +19,7 @@ Invece di chiedere all'agente di "aggiungere una feature", noi:
 | File | Funzione | Quando usarlo |
 |------|----------|---------------|
 | `PROJECT_PLAN.md` | La "Visione" e il Backlog | Quando pianifichi nuove macro-feature. |
-| `TECH_DESIGN.md` | La "Bibbia" tecnica | Quando definisci l'architettura (ECS, stati, plugin). |
+| `TECH_DESIGN.md` | La "Bibbia" tecnica | Quando definisci l'architettura e le convenzioni. |
 | `tasks/QUEUE.md` | La "Coda" di lavoro | Ogni giorno, per sapere cosa fare dopo e chi lo sta facendo. |
 | `tasks/NNN-task.md` | Il "Briefing" per l'agente | Quando sei pronto a delegare un pezzo di codice specifico. |
 
@@ -62,9 +62,9 @@ Una volta che l'agente ha finito:
 ## 💡 Consigli per il Successo
 
 - **Mantieni i Task Atomici**: Se un task richiede più di 2 ore, probabilmente può essere diviso in due task più piccoli.
-- **Isola i Moduli**: Più il tuo codice è modulare (Plugin, Componenti piccoli), più è facile per un agente lavorarci senza rompere il resto del gioco.
+- **Isola i Moduli**: Più il tuo codice è modulare (plugin, componenti, servizi piccoli), più è facile per un agente lavorarci senza rompere il resto del progetto.
 - **La Coda è Sacra**: Non iniziare 5 task contemporaneamente. Finiscine uno, archivialo, e passa al successivo.
 
 ---
 
-*Questo modello è stato estratto dal progetto "Black Quartz" per standardizzare lo sviluppo agentico di videogiochi 2D.*
+*Per bootstrappare un nuovo progetto: `/meridian-init`. Per creare un nuovo task: `/meridian-task`.*
