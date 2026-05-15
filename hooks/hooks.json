@@ -1,0 +1,16 @@
+{
+  "description": "Meridian — mostra il briefing della task queue all'inizio di ogni prompt in progetti Meridian",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/queue-briefing.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}
