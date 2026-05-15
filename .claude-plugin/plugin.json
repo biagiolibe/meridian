@@ -1,0 +1,9 @@
+{
+  "name": "meridian",
+  "version": "1.0.0",
+  "description": "Agentic development workflow — task queue, briefing automatico e comandi per progetti Meridian",
+  "author": {
+    "name": "Biagio Liberto",
+    "email": "biagioliberto.dev@gmail.com"
+  }
+}
