@@ -7,7 +7,11 @@ AI-Ready project management protocol — template source for the Meridian agenti
 ```
 templates/
   base/                        # Generic templates (all profiles)
+    CLAUDE.md
+    README.md
     PROJECT_PLAN.md
+    .gitignore
+    .claudeignore
     tasks/
       TASK_BLUEPRINT.md
       QUEUE.md
@@ -21,6 +25,19 @@ templates/
 
 WORKFLOW_GUIDE.md              # Methodology reference
 ```
+
+## Installation
+
+This repo is a Claude Code plugin. To install it as a local plugin:
+
+```
+/plugin marketplace add /path/to/meridian
+/plugin install meridian@meridian-local
+```
+
+The marketplace name (`meridian-local`) is derived by Claude Code from the directory name when a local path is added directly as a single-plugin source (no `.claude-plugin/marketplace.json` needed). After installing, `/meridian-init` and `/meridian-task` become available, and the queue-briefing hook activates automatically in any project.
+
+If you move this repo to a different path after installing, re-run `/plugin marketplace add` with the new path — the old registration keeps pointing at the stale location.
 
 ## Usage
 
