@@ -56,6 +56,12 @@ Una volta che l'agente ha finito:
 1. Verifica il codice (compili? funziona?).
 2. Sposta il task file in `tasks/done/`.
 3. Segna come `[x]` in `QUEUE.md` e in `PROJECT_PLAN.md`.
+4. Se questo era l'ultimo task aperto di una fase/sezione della Coda Attiva
+   (tutta la sezione è ora `[x]`), sposta quelle righe da `QUEUE.md` a
+   `tasks/QUEUE_ARCHIVE.md` (crealo se non esiste). `QUEUE.md` deve
+   contenere solo lavoro con qualcosa ancora aperto — è il file che ogni
+   agente rilegge a ogni sessione, quindi lasciarlo crescere con la storia
+   di decine di fasi chiuse è puro costo di contesto senza beneficio.
 
 ---
 
@@ -64,6 +70,7 @@ Una volta che l'agente ha finito:
 - **Mantieni i Task Atomici**: Se un task richiede più di 2 ore, probabilmente può essere diviso in due task più piccoli.
 - **Isola i Moduli**: Più il tuo codice è modulare (plugin, componenti, servizi piccoli), più è facile per un agente lavorarci senza rompere il resto del progetto.
 - **La Coda è Sacra**: Non iniziare 5 task contemporaneamente. Finiscine uno, archivialo, e passa al successivo.
+- **Tieni la Coda Snella**: man mano che il progetto cresce, `QUEUE.md` accumula fasi intere già chiuse. Spostale in `tasks/QUEUE_ARCHIVE.md` non appena una fase/sezione è tutta `[x]`, invece di aspettare che il file diventi enorme e costoso da rileggere a ogni sessione (vedi Fase D, punto 4). Lo stesso vale per documenti "snapshot" ormai superati da altri file (es. una `STATUS.md` non più aggiornata): se non è più referenziato da nessuna parte, cancellalo invece di lasciarlo lì.
 
 ---
 

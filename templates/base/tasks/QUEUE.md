@@ -2,11 +2,18 @@
 
 Questa è la coda di esecuzione operativa. I task sono ordinati per priorità.
 
+Le fasi/sezioni interamente chiuse (tutte `[x]`) vivono in
+`tasks/QUEUE_ARCHIVE.md`, non qui — questo file traccia solo lavoro con
+qualcosa ancora aperto, per tenere basso il costo di lettura a ogni
+sessione. Consulta l'archivio solo quando serve la storia/motivazione di
+una fase passata.
+
 ## Come usare questa coda
 
 - **Esecuzione**: Prendi il primo task `[ ]` disponibile.
 - **Aggiornamento**: Cambia `[ ]` in `[/]` quando inizi e in `[x]` quando finisci.
-- **Archiviazione**: A task completato, sposta il file in `tasks/done/`.
+- **Archiviazione file task**: A task completato, sposta il file in `tasks/done/`.
+- **Archiviazione coda**: Quando un'intera fase/sezione della Coda Attiva diventa `[x]`, sposta le sue righe in `tasks/QUEUE_ARCHIVE.md` (crealo se non esiste, riusando la stessa struttura a tabella di questo file) invece di lasciarle accumulare qui. Non aspettare che il file diventi enorme — archivia appena una fase si chiude.
 
 ## Priorità
 
