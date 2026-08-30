@@ -6,6 +6,22 @@
 QUEUE="tasks/QUEUE.md"
 [ -f "$QUEUE" ] || exit 0
 
+# Governed SDD queues use explicit lifecycle states rather than checkbox rows.
+# Keep the briefing compact; dependency eligibility remains a task/spec decision.
+if grep -q '^| Order | ID | Priority | Status | Review | Dependencies |' "$QUEUE"; then
+  ACTIVE=$(grep -m1 '^| [0-9].* | IN_PROGRESS |' "$QUEUE" | sed -E 's/^\| [0-9]+ \| ([^|]*)\|.*/\1/' | xargs)
+  REVIEW=$(grep -m1 '^| [0-9].* | READY_FOR_REVIEW |' "$QUEUE" | sed -E 's/^\| [0-9]+ \| ([^|]*)\|.*/\1/' | xargs)
+  PENDING=$(grep '^| [0-9].* | QUEUED |' "$QUEUE" | head -2 | sed -E 's/^\| [0-9]+ \| ([^|]*)\|.*/\1/' | xargs)
+  ACCEPTED=$(grep -c '^| [0-9].* | ACCEPTED |' "$QUEUE" 2>/dev/null)
+
+  echo "[Meridian Governed Queue]"
+  [ -n "$ACTIVE" ] && echo "  🔴 In corso: $ACTIVE" || echo "  ✅ Nessun task attivo"
+  [ -n "$REVIEW" ] && echo "  🔎 In review: $REVIEW"
+  [ -n "$PENDING" ] && echo "  ⏳ In coda: $PENDING"
+  echo "  ✅ Accepted: $ACCEPTED"
+  exit 0
+fi
+
 # Closed phases can be moved out of QUEUE.md into an archive file (same
 # directory) to keep the active queue short — completed-task counts should
 # still cover the whole project, so this is included whenever present.

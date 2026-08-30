@@ -4,6 +4,8 @@ description: "Crea un nuovo task file Meridian numerato e aggiorna QUEUE.md e PR
 
 Create a new Meridian task file for this project.
 
+If `PROJECT_WORKFLOW.md` exists, use governed SDD mode instead of the classic steps below: assign a stable `TASK-NNN` ID, create the task from `tasks/TASK_BLUEPRINT.md`, require explicit `Review`, `Dependencies`, governing documents, scope/non-goals, measurable acceptance criteria, and validation. Add a `QUEUED` row to `tasks/QUEUE.md`. Do not use checkbox status, move task files to `done/`, or select a task autonomously.
+
 ## Steps
 
 1. **Find the next task ID**: Look at the files in `tasks/` (excluding `done/`, `QUEUE.md`, `TASK_BLUEPRINT.md`). Find the highest existing NNN prefix and increment by 1. If no tasks exist yet, start at `001`.

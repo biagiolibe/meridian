@@ -4,6 +4,17 @@ Questo documento è il tuo **punto di partenza**. Spiega come utilizzare questo 
 
 ---
 
+## Modalità workflow
+
+Meridian offre due modalità.
+
+- **classic**: la coda leggera a checkbox descritta in questa guida; adatta a progetti piccoli o a iterazioni poco rischiose.
+- **governed-sdd**: usa `PROJECT_WORKFLOW.md`, ADR, task atomici con dipendenze, policy di review, worktree per task e reviewer-integrator. Usala quando vuoi che gli agenti possano ricevere soltanto un task ID senza dover ripetere ogni volta il processo operativo.
+
+Le regole complete della seconda modalità sono nei template `templates/workflows/governed-sdd/`; non mescolare gli stati checkbox della modalità classic con gli stati SDD.
+
+---
+
 ## 1. La Filosofia: "Pensa in Grande, Agisci in Piccolo"
 
 Il segreto per far lavorare bene un'IA in progetti complessi è **isolare il contesto**.
