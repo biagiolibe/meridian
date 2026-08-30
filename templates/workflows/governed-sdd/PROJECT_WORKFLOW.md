@@ -41,3 +41,11 @@ Every task declares `Review: REQUIRED` or `Review: NOT_REQUIRED`. The latter is 
 - The implementer may not merge, rebase, amend, or force-push unless explicitly authorized.
 - A reviewer-integrator merges only after `APPROVE`, required checks, and all forge gates are satisfied.
 - A forge approval cannot be supplied by the same identity that authored the PR. If an external approval is required but unavailable, leave the PR open and report `BLOCKED`.
+
+## Token discipline
+
+- Start from the task ID. Read the task, then only its cited governing documents and files needed to complete it; do not load whole backlogs, design folders, or unrelated source trees.
+- Keep each implementation, review, and audit in a separate chat. Use committed task reports and diffs as handoff evidence instead of replaying prior conversation.
+- State a plan in at most three bullets. Report progress only when state changes or a blocker appears.
+- Final reports contain only status, commit, changed files, acceptance-criteria evidence, validation results, and blockers; keep them within ten lines unless a failure needs more detail.
+- Set `Review: NOT_REQUIRED` only when the task meets its low-risk rule. Avoid parallel agents unless their worktrees and scopes are independent.

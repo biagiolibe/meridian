@@ -18,3 +18,7 @@ Read the target project's `PROJECT_WORKFLOW.md` and `AGENTS.md` before acting. I
 - Audit: read-only comparison of ADRs, specifications, tasks, queue, lifecycle state, and Git evidence.
 
 Keep domain-specific architecture in the target project, not in Meridian's generic workflow assets.
+
+## Token discipline
+
+Read the assigned task before its references, then load only documents and files that the task needs. Do not scan whole backlogs or replay earlier chats when the task report, commit, and diff provide the handoff evidence. Keep plans to three bullets and routine final reports to ten lines. Use review only when the task policy requires it.
