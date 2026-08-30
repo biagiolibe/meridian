@@ -109,6 +109,12 @@ QUEUED → IN_PROGRESS → ACCEPTED
 
 Only `ACCEPTED` tasks satisfy dependencies.
 
+## Token discipline
+
+Governed SDD intentionally adds a small per-task documentation baseline in exchange for less rediscovery and rework. Keep it efficient: start from the task ID, read only its cited documents and files, use separate chats per role/task, and hand off through commits, reports, and diffs rather than replaying conversations. Plans are capped at three bullets and routine final reports at ten lines.
+
+Do not use a reviewer for a valid `Review: NOT_REQUIRED` task, and do not run parallel agents unless their scopes and worktrees are independent.
+
 ## Agent roles and Git workflow
 
 - **Tech designer** writes ADRs/specifications and creates scoped tasks. It does not implement feature code unless explicitly assigned.

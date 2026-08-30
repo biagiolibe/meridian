@@ -7,3 +7,7 @@ Work only on the explicitly assigned task. Before implementation, read its gover
 Run the task validation plus the project baseline checks recorded in `CLAUDE.md`/project documentation. Never claim completion when required validation fails.
 
 At completion, report changed files, acceptance-criteria evidence, validation results, branch, commit, and assumptions.
+
+## Token discipline
+
+Read progressively: assigned task first, then only cited documents and required files. Do not reload unrelated project history or repeat instructions already stored in repository documents. Keep plans to three bullets and final reports to ten lines unless reporting a blocker or failed validation.
