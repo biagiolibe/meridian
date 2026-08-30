@@ -22,8 +22,12 @@ templates/
       TECH_DESIGN.md
     web-typescript/            # TypeScript web projects
       TECH_DESIGN.md
+  workflows/
+    governed-sdd/              # ADR/task/review overlay for gated SDD projects
 
 WORKFLOW_GUIDE.md              # Methodology reference
+skills/
+  meridian-governed-sdd/       # Codex-compatible governed workflow skill source
 ```
 
 ## Installation
@@ -43,7 +47,13 @@ If you move this repo to a different path after installing, re-run `/plugin mark
 
 From any project in Claude Code, run:
 
-- `/meridian-init` — Bootstrap a new project (picks a profile, copies templates, replaces placeholders)
+- `/meridian-init` — Bootstrap a new project (picks a profile and `classic` or `governed-sdd` workflow mode)
 - `/meridian-task` — Create a new numbered task file and update the queue
 
 The workflow is automatically applied in any project that has `PROJECT_PLAN.md` or `tasks/QUEUE.md` (via `~/.claude/CLAUDE.md`).
+
+## Governed SDD mode
+
+`governed-sdd` is the reusable version of Meridian's stricter delivery workflow: ADR precedence, atomic task dependencies, explicit review policy, dedicated task branches/worktrees, reviewer-integrator, and PR governance. It preserves the existing `classic` mode for lightweight projects.
+
+The Codex skill source lives at `skills/meridian-governed-sdd/`. Install or symlink that folder into your Codex skills directory to make `$meridian-governed-sdd` available; generated governed projects also contain `AGENTS.md` and `PROJECT_WORKFLOW.md`, so CLI and desktop agents follow the same repository rules.
