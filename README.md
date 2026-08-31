@@ -27,7 +27,8 @@ templates/
 
 WORKFLOW_GUIDE.md              # Methodology reference
 skills/
-  meridian-governed-sdd/       # Codex-compatible governed workflow skill source
+  meridian-governed-sdd/             # Codex-compatible governed workflow skill source
+  meridian-governed-sdd-claude-code/ # Claude Code-compatible governed workflow skill source
 ```
 
 ## Installation
@@ -136,6 +137,12 @@ $meridian-governed-sdd
 ```
 
 The skill helps bootstrap, design, implement, review/integrate, and audit the governed workflow. It does not replace project-specific rules.
+
+## Claude Code support
+
+Generated governed projects also work with Claude Code immediately because they contain `CLAUDE.md` and `PROJECT_WORKFLOW.md`, and `/meridian-init` / `/meridian-task` (this plugin's commands) already speak the governed-SDD lifecycle.
+
+For the same reusable, cross-project operations the Codex skill offers — bootstrap, design, implement, review/integrate, audit — the Claude Code counterpart is `skills/meridian-governed-sdd-claude-code/`. Since this repository is itself a Claude Code plugin, the skill loads automatically once the plugin is installed (see Installation above); no manual symlinking is needed. It routes to `/meridian-init` and `/meridian-task` where possible, reads `CLAUDE.md` (falling back to `AGENTS.md` for parity when a project targets both agents), and recommends running the reviewer-integrator step in an isolated context (a fresh chat, or a Task-tool subagent) instead of Codex's separate-invocation model.
 
 ## Existing projects
 
