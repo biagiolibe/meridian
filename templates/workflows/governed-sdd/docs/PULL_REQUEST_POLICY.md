@@ -1,5 +1,7 @@
 # Pull Request Policy
 
+Task context loading, reasoning selection, task shape, and completion handoffs are governed by `docs/CONTEXT_BUDGET_POLICY.md`, `tasks/TASK_BLUEPRINT.md`, and `docs/COMPLETION_REPORT_TEMPLATE.md`; this document defines review and forge integration only.
+
 For `Review: REQUIRED`, the reviewer-integrator may merge an existing PR only after `APPROVE`, the status-only `ACCEPTED` commit, and all required checks pass.
 
 For `Review: NOT_REQUIRED`, merge only after the implementation agent has validly recorded `ACCEPTED` and required checks pass.

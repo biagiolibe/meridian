@@ -4,8 +4,10 @@ Priority: [P0 / P1 / P2]
 Status: QUEUED
 Review: REQUIRED
 Dependencies: [none / TASK-ID, ...]
+Reasoning: medium
+Reasoning justification: [required for high/xhigh; omit for medium]
 
-## Governing specifications
+## Authority
 
 - [Path to ADR/specification that governs this task.]
 
@@ -13,9 +15,11 @@ Dependencies: [none / TASK-ID, ...]
 
 [Concrete outcome.]
 
-## Scope
+## Expected code surface
 
-[Included work and explicit dependencies only.]
+- Add or change: [exact module, file, documentation path, or bounded component.]
+- Preserve: [interfaces, invariants, and adjacent areas that must not change.]
+- Evidence needed: [tests, checks, manual inspection, or handoff evidence.]
 
 ## Out of scope
 
