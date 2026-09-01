@@ -6,22 +6,16 @@ AI-Ready project management protocol — template source for the Meridian agenti
 
 ```
 templates/
-  base/                        # Generic templates (all profiles)
+  base/                        # Generic templates, language/stack-agnostic
     CLAUDE.md
     README.md
     PROJECT_PLAN.md
+    TECH_DESIGN.md
     .gitignore
     .claudeignore
     tasks/
       TASK_BLUEPRINT.md
       QUEUE.md
-  profiles/
-    generic/                   # Any software project
-      TECH_DESIGN.md
-    game-rust-bevy/            # Rust games with Bevy engine
-      TECH_DESIGN.md
-    web-typescript/            # TypeScript web projects
-      TECH_DESIGN.md
   workflows/
     governed-sdd/              # ADR/task/review overlay for gated SDD projects
 
@@ -40,7 +34,7 @@ This repo is a Claude Code plugin. To install it as a local plugin:
 /plugin install meridian@meridian-local
 ```
 
-The marketplace name (`meridian-local`) is derived by Claude Code from the directory name when a local path is added directly as a single-plugin source (no `.claude-plugin/marketplace.json` needed). After installing, `/meridian-init` and `/meridian-task` become available, and the queue-briefing hook activates automatically in any project.
+The marketplace name (`meridian-local`) comes from `.claude-plugin/marketplace.json`, which declares this repo as a one-plugin marketplace (plugin `meridian`, source `./`). After installing, `/meridian-init` and `/meridian-task` become available, and the queue-briefing hook activates automatically in any project.
 
 If you move this repo to a different path after installing, re-run `/plugin marketplace add` with the new path — the old registration keeps pointing at the stale location.
 
@@ -61,7 +55,7 @@ From a project in Claude Code, run:
 /meridian-init
 ```
 
-Choose a stack profile and then a workflow mode. In `governed-sdd`, the initializer adds:
+Choose a workflow mode. In `governed-sdd`, the initializer adds:
 
 ```text
 PROJECT_WORKFLOW.md              # precedence, roles, lifecycle, Git rules
@@ -135,6 +129,14 @@ For reusable Meridian operations across projects, the Codex skill source is at `
 ```text
 $meridian-governed-sdd
 ```
+
+Codex has no plugin system to resolve the Meridian repo path automatically, so set `MERIDIAN_ROOT` once per machine to your local clone:
+
+```bash
+export MERIDIAN_ROOT=/path/to/meridian
+```
+
+The skill reads `$MERIDIAN_ROOT/templates/workflows/governed-sdd/` for its bootstrap assets. Without it set, the skill asks for the path instead of guessing one.
 
 The skill helps bootstrap, design, implement, review/integrate, and audit the governed workflow. It does not replace project-specific rules.
 
