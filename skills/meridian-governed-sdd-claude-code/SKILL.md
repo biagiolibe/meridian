@@ -11,7 +11,7 @@ Read the target project's `PROJECT_WORKFLOW.md` and `CLAUDE.md` before acting. I
 
 If governed documents are absent, bootstrap them rather than working ad hoc:
 
-- Prefer running this plugin's `/meridian-init` command with workflow mode `governed-sdd` — it also handles the base/profile templates (`PROJECT_PLAN.md`, `TECH_DESIGN.md`, etc.) and language settings in one pass.
+- Prefer running this plugin's `/meridian-init` command with workflow mode `governed-sdd` — it also handles the base templates (`PROJECT_PLAN.md`, `TECH_DESIGN.md`, etc.) and language settings in one pass.
 - Fall back to copying `templates/workflows/governed-sdd/` (`PROJECT_WORKFLOW.md`, `CLAUDE.md`, `AGENTS.md`, `docs/`, `tasks/`) directly only if `/meridian-init` isn't installed in this session.
 
 Never overlay the governed workflow onto an existing project without showing the diff and getting an explicit migration decision — the project may already have its own task queue, agent instructions, or branch policy.

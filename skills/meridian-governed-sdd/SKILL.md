@@ -7,7 +7,9 @@ description: Bootstrap or operate a project using Meridian's governed spec-drive
 
 Use this skill when the user asks to bootstrap a governed development workflow, create a governed atomic task, perform a review/integration, or audit SDD process conformance.
 
-Read the target project's `PROJECT_WORKFLOW.md` and `AGENTS.md` before acting. If they are absent, use Meridian's `templates/workflows/governed-sdd/` assets to bootstrap them without replacing an existing workflow unless the user explicitly requests migration.
+Read the target project's `PROJECT_WORKFLOW.md` and `AGENTS.md` before acting. If they are absent, bootstrap them from Meridian's own template source, without replacing an existing workflow unless the user explicitly requests migration.
+
+The Meridian template source is at `$MERIDIAN_ROOT` (an environment variable pointing at your local clone of the `meridian` repository, e.g. `export MERIDIAN_ROOT=/path/to/meridian` in your shell profile). If `$MERIDIAN_ROOT` is unset or does not point at a valid Meridian checkout, stop and ask the user for the repository path instead of guessing one — then remind them to set `MERIDIAN_ROOT` so future invocations don't need to repeat it. Copy `$MERIDIAN_ROOT/templates/workflows/governed-sdd/` (`PROJECT_WORKFLOW.md`, `AGENTS.md`, `CLAUDE.md`, `docs/`, `tasks/`) into the target project.
 
 ## Routing
 

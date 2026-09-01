@@ -1,0 +1,13 @@
+{
+  "name": "meridian-local",
+  "owner": {
+    "name": "Biagio Liberto",
+    "email": "biagioliberto.dev@gmail.com"
+  },
+  "plugins": [
+    {
+      "name": "meridian",
+      "source": "./"
+    }
+  ]
+}
