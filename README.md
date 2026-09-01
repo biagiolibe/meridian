@@ -62,6 +62,8 @@ PROJECT_WORKFLOW.md              # precedence, roles, lifecycle, Git rules
 AGENTS.md                        # Codex repository instructions
 CLAUDE.md                        # Claude repository instructions
 docs/ARCHITECTURE_DECISIONS.md   # accepted technical decisions
+docs/CONTEXT_BUDGET_POLICY.md    # task-first context and reasoning policy
+docs/COMPLETION_REPORT_TEMPLATE.md # concise task/review handoff
 docs/CODE_REVIEW_PROMPT.md       # reviewer-integrator prompt
 docs/PULL_REQUEST_POLICY.md      # forge and merge constraints
 tasks/QUEUE.md                   # canonical dependency/status queue
@@ -76,7 +78,7 @@ To create a task in Claude Code, run:
 /meridian-task
 ```
 
-In a governed project, it creates a `TASK-NNN` file with explicit dependencies, governing documents, scope/non-goals, review policy, measurable acceptance criteria, and validation commands. It does not choose the next task automatically.
+In a governed project, it creates a `TASK-NNN` file with explicit dependencies, authority, expected code surface, out-of-scope boundary, reasoning profile, review policy, measurable acceptance criteria, and validation commands. It does not choose the next task automatically.
 
 ## Governed SDD lifecycle
 
@@ -104,9 +106,9 @@ QUEUED → IN_PROGRESS → ACCEPTED
 
 Only `ACCEPTED` tasks satisfy dependencies.
 
-## Token discipline
+## Context and reasoning discipline
 
-Governed SDD intentionally adds a small per-task documentation baseline in exchange for less rediscovery and rework. Keep it efficient: start from the task ID, read only its cited documents and files, use separate chats per role/task, and hand off through commits, reports, and diffs rather than replaying conversations. Plans are capped at three bullets and routine final reports at ten lines.
+Governed SDD intentionally adds a small per-task documentation baseline in exchange for less rediscovery and rework. The generated `docs/CONTEXT_BUDGET_POLICY.md` makes the task the navigation map: read only its authority and expected code surface, and expand context only when blocked or when evidence is insufficient. It sets `medium` as the default for implementation, review, and routine SDD work; `high` for complex design/architecture; and `xhigh` only when justified and supported by the active tooling. Completion handoffs use a concise shared template.
 
 Do not use a reviewer for a valid `Review: NOT_REQUIRED` task, and do not run parallel agents unless their scopes and worktrees are independent.
 
