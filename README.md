@@ -115,10 +115,18 @@ Do not use a reviewer for a valid `Review: NOT_REQUIRED` task, and do not run pa
 ## Agent roles and Git workflow
 
 - **Tech designer** writes ADRs/specifications and creates scoped tasks. It does not implement feature code unless explicitly assigned.
-- **Implementer** receives one task ID, works in a dedicated branch/worktree, validates, commits, and updates the task to `READY_FOR_REVIEW` or `ACCEPTED` according to its policy.
-- **Reviewer-integrator** is independent from the implementer. For a required-review task, it reviews the diff, reports `APPROVE`, `CHANGES_REQUESTED`, or `BLOCKED`, then after approval updates the two status records, pushes, and merges the existing PR when all repository gates pass.
+- **Implementer** receives one task ID, works in a dedicated branch/worktree, validates, creates the task commit, pushes the task branch exactly once, records the branch/implementation/base-`main` commits in the handoff, and leaves the primary checkout clean on the task branch. For `NOT_REQUIRED`, it then performs the acceptance commit and main integration.
+- **Reviewer-integrator** is independent from the implementer and uses the same primary checkout in a fresh agent session. For a required-review task, it reviews the diff, reports `APPROVE`, `CHANGES_REQUESTED`, or `BLOCKED`, never pushes the task branch again, then after approval verifies fast-forward ancestry, creates the local status-only acceptance commit, fast-forwards and pushes `main` exactly once, and deletes the local task branch.
 
 Use one writer per worktree and one branch per task. Branches use normalized task IDs without provider prefixes, for example `task-012`.
+
+Before changing either status record, the reviewer verifies `git merge-base --is-ancestor main <task-branch>`. If it fails, do not mark the task `ACCEPTED`; return `BLOCKED` without fetching, rebasing, using a non-fast-forward merge, or force-pushing. If a reviewer session starts on clean `main`, it runs `git switch <task-branch>`; a missing local branch or dirty checkout that prevents switching is an exact-condition `BLOCKED`. The reviewer's `ACCEPTED` commit uses only this author override:
+
+```bash
+git commit --author="meridian Reviewer-Integrator <reviewer-integrator@meridian.local>" -m "docs: reviewer-integrator pass <TASK-ID>; independently re-verified diff, cited sources, acceptance evidence, and validation"
+```
+
+The fresh-session independence control and reviewer-specific author control are both mandatory. The override applies only to the `ACCEPTED` commit; keep the operator's normal committer identity, do not change global or repository Git config, and verify it with `git log --format='%an <%ae>'`. Owner acceptance remains status-only and does not automatically integrate the branch.
 
 GitHub does not allow a pull-request author to approve its own PR. With a single account, the reviewer-integrator provides the internal SDD gate but not a GitHub approval. If branch protection requires an approving review, add a distinct authorized reviewer identity; otherwise the reviewer-integrator leaves the PR open as `BLOCKED`.
 

@@ -6,6 +6,9 @@ Use this handoff after validation. Keep it short and make every deviation explic
 ## Completion Report — <TASK-ID>
 
 - Files changed: `<paths>`
+- Branch: `<task-branch>`
+- Implementation commit: `<commit SHA>`
+- Base `main` commit: `<commit SHA>`
 - Validation: `<commands/checks and pass/fail result>`
 - Acceptance criteria: `<all met | list criterion IDs/status>`
 - Blockers/deviations: `<none | concrete issue, scope expansion, or context expansion and reason>`

@@ -35,8 +35,8 @@ For a task or review, start with `AGENTS.md` or `CLAUDE.md`, then read only the 
 ## Roles
 
 - Tech designer: defines ADRs, specifications, task scope, dependencies, and review policy. Does not implement feature code unless explicitly assigned.
-- Implementer: works on exactly one task in a dedicated branch/worktree, validates it, commits it, and updates the task state according to its review policy.
-- Reviewer-integrator: independently reviews `READY_FOR_REVIEW` tasks. After `APPROVE`, it records `ACCEPTED`, pushes the status-only commit, and merges the existing PR when repository gates allow it.
+- Implementer: works on exactly one task in a dedicated branch/worktree, validates it, creates the task commit, pushes the task branch exactly once, and updates the task state according to its review policy.
+- Reviewer-integrator: independently reviews `READY_FOR_REVIEW` tasks in a fresh agent session using the implementer's primary checkout. After `APPROVE`, it records `ACCEPTED` in a local status-only commit and integrates the task branch when repository gates allow it.
 
 ## Review policy
 
@@ -46,9 +46,25 @@ Every task declares `Review: REQUIRED` or `Review: NOT_REQUIRED`. The latter is 
 
 - One writer per worktree.
 - Use one branch per task, named from the normalized task ID without a provider prefix (for example, `task-012`).
-- The implementer may not merge, rebase, amend, or force-push unless explicitly authorized.
-- A reviewer-integrator merges only after `APPROVE`, required checks, and all forge gates are satisfied.
+- After validation, the implementer creates the task commit and pushes the task branch exactly once. Its completion handoff records the task branch, implementation commit, and base `main` commit. It leaves the primary checkout clean and on the task branch; it does not switch back to `main`.
+- The reviewer-integrator uses that same primary checkout in a fresh agent session that did not write the implementation. If the session starts on clean `main`, it must run `git switch <task-branch>`. If the task branch is missing locally, or a dirty checkout prevents switching, return `BLOCKED` with the exact condition.
+- For `Review: REQUIRED`, the reviewer-integrator must never push the task branch again. Before changing either status record, verify `git merge-base --is-ancestor main <task-branch>`. If it fails, do not mark the task `ACCEPTED`; return `BLOCKED` and do not fetch, rebase, use a non-fast-forward merge, or force-push as recovery. If it passes, create the local status-only `ACCEPTED` commit, switch to `main`, fast-forward merge the task branch, push `main` exactly once, then delete the local task branch.
+- For `Review: NOT_REQUIRED`, the implementer performs the same `ACCEPTED` status commit, fast-forward `main` merge, single `main` push, and local task-branch deletion after validation. The implementer may not rebase, amend, or force-push.
+- Owner acceptance is an explicit exception: it updates only statuses and does not automatically integrate the branch.
 - A forge approval cannot be supplied by the same identity that authored the PR. If an external approval is required but unavailable, leave the PR open and report `BLOCKED`.
+
+### Reviewer-integrator identity on a single-operator project
+
+Both controls below are mandatory, and neither substitutes for the other:
+
+- The review runs in a fresh agent session that did not write the code. The reviewer re-derives evidence from the actual diff and cited sources rather than trusting the implementation report.
+- Only for the acceptance commit, use this project-scoped reviewer-specific author override, replacing the placeholders with the project's actual name and slug:
+
+  ```bash
+  git commit --author="<PROJECT_NAME> Reviewer-Integrator <reviewer-integrator@<project-slug>.local>" -m "docs: reviewer-integrator pass <TASK-ID>; independently re-verified diff, cited sources, acceptance evidence, and validation"
+  ```
+
+Keep the operator's normal committer identity. Do not change global or repository Git config. The author override applies only to the `ACCEPTED` commit and can be verified with `git log --format='%an <%ae>'`.
 
 ## Execution discipline
 

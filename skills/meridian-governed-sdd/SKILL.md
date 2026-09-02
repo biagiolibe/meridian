@@ -16,7 +16,7 @@ The Meridian template source is at `$MERIDIAN_ROOT` (an environment variable poi
 - Bootstrap: copy the governed overlay, fill project-specific commands/invariants, and create an initial ADR/task only when explicitly requested.
 - Tech design: record decisions in ADRs, then create atomic tasks with explicit dependencies, authority, expected code surface, reasoning profile, review policy, measurable acceptance criteria, validation, and out-of-scope boundary.
 - Implement: work only on the requested task, its cited authority, and its expected code surface; follow the task lifecycle.
-- Review: use `docs/CODE_REVIEW_PROMPT.md`; integrate only if all repository and forge gates are met.
+- Review: use `docs/CODE_REVIEW_PROMPT.md` in a fresh session that did not write the implementation; integrate only if all repository and forge gates are met. The reviewer never pushes the task branch again.
 - Audit: read-only comparison of ADRs, specifications, tasks, queue, lifecycle state, and Git evidence.
 
 Keep domain-specific architecture in the target project, not in Meridian's generic workflow assets.
