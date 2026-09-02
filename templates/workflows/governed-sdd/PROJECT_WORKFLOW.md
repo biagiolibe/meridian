@@ -8,7 +8,8 @@ When documents conflict, the first applicable document wins:
 2. `docs/ARCHITECTURE_DECISIONS.md` — accepted architecture decisions.
 3. Project and milestone specifications.
 4. `tasks/QUEUE.md` and atomic task files — execution scope, dependencies, review policy, and validation.
-5. Design/background documents.
+5. `docs/CODE_ORGANIZATION.md` — normative source-organization policy; it cannot change task scope, behavior, or public contracts.
+6. Design/background documents.
 
 Implementation never resolves a conflict silently: update the lower-precedence document or record an ADR.
 
@@ -29,6 +30,8 @@ Only `ACCEPTED` tasks satisfy dependencies.
 - `docs/CONTEXT_BUDGET_POLICY.md` defines task-first context loading, reasoning profiles, and concise communication.
 - `tasks/TASK_BLUEPRINT.md` defines the canonical atomic-task shape.
 - `docs/COMPLETION_REPORT_TEMPLATE.md` defines the implementation and review handoff.
+- `docs/CODE_ORGANIZATION.md` defines module ownership, dependency direction, and visibility rules for production code.
+- `docs/AUDIT_PROMPT_READ_ONLY.md` defines a read-only conformance audit for this workflow.
 
 For a task or review, start with `AGENTS.md` or `CLAUDE.md`, then read only the assigned task and sources it cites. These assets are operational guidance and do not supersede the precedence order above.
 
@@ -37,6 +40,8 @@ For a task or review, start with `AGENTS.md` or `CLAUDE.md`, then read only the 
 - Tech designer: defines ADRs, specifications, task scope, dependencies, and review policy. Does not implement feature code unless explicitly assigned.
 - Implementer: works on exactly one task in a dedicated branch/worktree, validates it, creates the task commit, pushes the task branch exactly once, and updates the task state according to its review policy.
 - Reviewer-integrator: independently reviews `READY_FOR_REVIEW` tasks in a fresh agent session using the implementer's primary checkout. After `APPROVE`, it records `ACCEPTED` in a local status-only commit and integrates the task branch when repository gates allow it.
+
+The developer drives these roles with three command triggers, defined in `AGENTS.md`/`CLAUDE.md`: `Proceed with <TASK-ID>` starts implementation, `Review <TASK-ID>` starts independent review, and `Accept <TASK-ID>` performs the owner-acceptance status handoff after the developer's own review, skipping the agent review without skipping the status/queue update.
 
 ## Review policy
 

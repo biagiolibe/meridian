@@ -66,6 +66,8 @@ docs/CONTEXT_BUDGET_POLICY.md    # task-first context and reasoning policy
 docs/COMPLETION_REPORT_TEMPLATE.md # concise task/review handoff
 docs/CODE_REVIEW_PROMPT.md       # reviewer-integrator prompt
 docs/PULL_REQUEST_POLICY.md      # forge and merge constraints
+docs/CODE_ORGANIZATION.md        # module ownership and dependency-direction rules
+docs/AUDIT_PROMPT_READ_ONLY.md   # read-only process-conformance audit prompt
 tasks/QUEUE.md                   # canonical dependency/status queue
 tasks/TASK_BLUEPRINT.md          # atomic task template
 ```
@@ -119,6 +121,10 @@ Do not use a reviewer for a valid `Review: NOT_REQUIRED` task, and do not run pa
 - **Reviewer-integrator** is independent from the implementer and uses the same primary checkout in a fresh agent session. For a required-review task, it reviews the diff, reports `APPROVE`, `CHANGES_REQUESTED`, or `BLOCKED`, never pushes the task branch again, then after approval verifies fast-forward ancestry, creates the local status-only acceptance commit, fast-forwards and pushes `main` exactly once, and deletes the local task branch.
 
 Use one writer per worktree and one branch per task. Branches use normalized task IDs without provider prefixes, for example `task-012`.
+
+The developer drives these roles with three command triggers, defined in `AGENTS.md`/`CLAUDE.md`: `Proceed with <TASK-ID>` starts the implementation workflow, `Review <TASK-ID>` starts an independent review, and `Accept <TASK-ID>` lets the developer, after personally reviewing a `Review: REQUIRED` task, authorize a status-only `ACCEPTED` handoff without an agent review, revalidation, or merge.
+
+Production-source changes additionally follow `docs/CODE_ORGANIZATION.md`: one owning module per responsibility, preserved dependency direction between layers, and the narrowest visibility that works. It states ownership rules only — each project records its own module map in its architecture documentation, not in this generic policy file.
 
 Before changing either status record, the reviewer verifies `git merge-base --is-ancestor main <task-branch>`. If it fails, do not mark the task `ACCEPTED`; return `BLOCKED` without fetching, rebasing, using a non-fast-forward merge, or force-pushing. If a reviewer session starts on clean `main`, it runs `git switch <task-branch>`; a missing local branch or dirty checkout that prevents switching is an exact-condition `BLOCKED`. The reviewer's `ACCEPTED` commit uses only this author override:
 
