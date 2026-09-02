@@ -15,7 +15,7 @@ Return APPROVE, CHANGES_REQUESTED, or BLOCKED. End the handoff with the fields f
 git commit --author="meridian Reviewer-Integrator <reviewer-integrator@meridian.local>" -m "docs: reviewer-integrator pass <TASK-ID>; independently re-verified diff, cited sources, acceptance evidence, and validation"
 ```
 
-The author override applies only to this `ACCEPTED` commit; keep the operator's normal committer identity and do not change global or repository Git config. Verify it with `git log --format='%an <%ae>'`. The reviewer must never push the task branch again. If the ancestry check passes, switch to `main`, fast-forward merge the task branch, push `main` exactly once, then delete the local task branch. Never modify implementation code, bypass protections, or approve a PR under the author identity.
+The author override applies only to this `ACCEPTED` commit; keep the operator's normal committer identity and do not change global or repository Git config. Verify it with `git log --format='%an <%ae>'`. The reviewer must never push the task branch again. If the ancestry check passes, switch to `main`, fast-forward merge the task branch, push `main` exactly once, then delete the local task branch. A remote task branch may lack the status-only acceptance commit; remote cleanup is optional and must never block accepted integration. Never modify implementation code, bypass protections, or approve a PR under the author identity.
 
 Keep the final review report within ten lines unless findings require more detail.
 ```
