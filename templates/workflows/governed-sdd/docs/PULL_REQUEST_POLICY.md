@@ -16,6 +16,12 @@ If this fails, do not mark the task `ACCEPTED`; return `BLOCKED`. Do not fetch, 
 
 For `Review: NOT_REQUIRED`, the implementer performs the same `ACCEPTED` status commit, fast-forward `main` merge, single `main` push, and local task-branch deletion after validation. Owner acceptance remains an explicit exception: it updates only statuses and does not automatically integrate the branch.
 
+## Remote task-branch cleanup
+
+A remote task branch may intentionally lack a local, status-only `ACCEPTED` commit: its acceptance evidence is published through the subsequent `main` push. Once `main` contains and has pushed the accepted work, local integration is complete and the local task branch may be deleted.
+
+Remote task-branch deletion is optional and non-blocking. After successful `main` integration, an agent may attempt `git push origin --delete <task-branch>` without force. If the remote deletion fails or the branch is already absent, report a warning only. Never block accepted integration, fetch/rebase, or force-delete solely to clean up a remote task branch.
+
 If the forge requires an approving review, a distinct authorized reviewer identity is required. The PR author cannot satisfy that gate.
 
 ## Reviewer-integrator identity on a single-operator project
