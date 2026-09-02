@@ -17,9 +17,10 @@ The Meridian template source is at `$MERIDIAN_ROOT` (an environment variable poi
 - Tech design: record decisions in ADRs, then create atomic tasks with explicit dependencies, authority, expected code surface, reasoning profile, review policy, measurable acceptance criteria, validation, and out-of-scope boundary.
 - Implement: work only on the requested task, its cited authority, and its expected code surface; follow the task lifecycle.
 - Review: use `docs/CODE_REVIEW_PROMPT.md` in a fresh session that did not write the implementation; integrate only if all repository and forge gates are met. The reviewer never pushes the task branch again.
-- Audit: read-only comparison of ADRs, specifications, tasks, queue, lifecycle state, and Git evidence.
+- Owner acceptance: on `Accept <TASK-ID>`, perform only the status-only handoff described in `AGENTS.md`; do not re-review, revalidate, or merge.
+- Audit: read-only comparison of ADRs, specifications, tasks, queue, lifecycle state, and Git evidence, using `docs/AUDIT_PROMPT_READ_ONLY.md`.
 
-Keep domain-specific architecture in the target project, not in Meridian's generic workflow assets.
+Keep domain-specific architecture in the target project, not in Meridian's generic workflow assets. `docs/CODE_ORGANIZATION.md` states generic ownership/dependency-direction rules only; the project's own module map belongs in its architecture documentation.
 
 ## Context and reasoning discipline
 
