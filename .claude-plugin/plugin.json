@@ -1,7 +1,8 @@
 {
   "name": "meridian",
   "version": "1.0.0",
-  "description": "Agentic development workflow — task queue, briefing automatico e comandi per progetti Meridian",
+  "description": "Governed workflow for building software with AI coding agents.",
+  "license": "MIT",
   "author": {
     "name": "Biagio Liberto",
     "email": "biagioliberto.dev@gmail.com"
