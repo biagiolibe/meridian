@@ -1,6 +1,6 @@
 # Meridian
 
-**A governed workflow for building software with AI coding agents.**
+**A governed, spec-driven development (SDD) workflow for building software with AI coding agents.**
 
 Meridian turns a project plan into small, explicit, verifiable tasks that agents can implement without rediscovering the project on every session. It provides templates, Claude Code commands, a queue briefing hook, and companion skills for a disciplined spec-driven workflow.
 
@@ -20,6 +20,8 @@ Meridian makes those decisions explicit. Each task has a bounded objective, auth
 |---|---|---|
 | **Classic** | Small projects, prototypes, and lightweight work. | `[ ]` → `[/]` → `[x]` |
 | **Governed SDD** | Long-running projects or changes that need architecture decisions, dependency gates, and controlled integration. | `QUEUED` → `IN_PROGRESS` → `READY_FOR_REVIEW` → `ACCEPTED` |
+
+**SDD means spec-driven development:** before implementation, an agent receives an explicit, durable specification of the change—its authority, scope, constraints, acceptance criteria, and validation. In Meridian, a task file is that specification.
 
 In governed SDD, low-risk documentation, mechanical configuration, scaffolding, and narrowly scoped tests may use the direct `QUEUED` → `IN_PROGRESS` → `ACCEPTED` path. Changes to domain rules, public APIs, dependencies, state transitions, persistence, deterministic behavior, security, or unresolved design decisions require review.
 
