@@ -144,6 +144,12 @@ findings, records resolution evidence, validates, and opens the next review
 attempt. This keeps the chat as a notification channel instead of the system
 of record.
 
+For a fully delegated required-review task, `Run lifecycle <TASK-ID>` adds a
+coordination-only agent that starts distinct implementer and reviewer sessions,
+loops through the durable review record when changes are requested, and
+integrates only after approval and all repository and forge gates. See
+[lifecycle orchestration](templates/workflows/governed-sdd/docs/LIFECYCLE_ORCHESTRATION.md).
+
 This is a process boundary, not a claim that every project needs bureaucracy. Use Lean Delivery when the work is low-risk and reversible; use stronger gates when a mistake is expensive.
 
 ## Repository layout

@@ -52,6 +52,7 @@ Only `ACCEPTED` tasks satisfy dependencies.
 - `tasks/TASK_BLUEPRINT.md` defines the canonical atomic-task shape.
 - `docs/COMPLETION_REPORT_TEMPLATE.md` defines the implementation and review handoff.
 - `docs/REVIEW_RECORD_TEMPLATE.md` defines the durable reviewer-to-implementer handoff for requested changes.
+- `docs/LIFECYCLE_ORCHESTRATION.md` defines the autonomous orchestration of one task through implementation, review, remediation, and integration.
 - `docs/CODE_ORGANIZATION.md` defines module ownership, dependency direction, and visibility rules for production code.
 - `docs/AUDIT_PROMPT_READ_ONLY.md` defines a read-only conformance audit for this workflow.
 - `docs/OPERATOR_PROMPTS.md` provides non-normative, focused prompts for operating the workflow.
@@ -63,8 +64,9 @@ For a task or review, start with `AGENTS.md` or `CLAUDE.md`, then read only the 
 - Tech designer: defines ADRs, specifications, task scope, dependencies, and review policy. Does not implement feature code unless explicitly assigned.
 - Implementer: works on exactly one task in a dedicated branch/worktree, validates it, creates the task commit, pushes once per review attempt, and updates the task state according to its review policy.
 - Reviewer-integrator: independently reviews `READY_FOR_REVIEW` tasks in a fresh agent session using the implementer's primary checkout. It records review evidence in the task's review record for every verdict. For `CHANGES_REQUESTED`, it also returns the task to `IN_PROGRESS`; after `APPROVE`, it records `ACCEPTED` in the local review-and-status commit and integrates the task branch when repository gates allow it.
+- Orchestrator: coordinates one explicitly assigned task through distinct implementer and reviewer-integrator sessions. It uses only durable task, review, validation, and Git evidence to select the next permitted action; it never implements or reviews substantively.
 
-The developer drives these roles with four command triggers, defined in `AGENTS.md`/`CLAUDE.md`: `Proceed with <TASK-ID>` starts implementation, `Review <TASK-ID>` starts independent review, `Address review <TASK-ID>` starts the bounded remediation recorded by the reviewer, and `Accept <TASK-ID>` performs the owner-acceptance status handoff after the developer's own review, skipping the agent review without skipping the status/queue update.
+The developer drives these roles with five command triggers, defined in `AGENTS.md`/`CLAUDE.md`: `Proceed with <TASK-ID>` starts implementation, `Review <TASK-ID>` starts independent review, `Address review <TASK-ID>` starts the bounded remediation recorded by the reviewer, `Run lifecycle <TASK-ID>` authorizes the orchestrated implementation-to-integration loop, and `Accept <TASK-ID>` performs the owner-acceptance status handoff after the developer's own review, skipping the agent review without skipping the status/queue update.
 
 ## Review policy
 

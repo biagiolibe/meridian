@@ -7,7 +7,7 @@ in `GOVERNED_SDD` mode. They never authorize a fallback to Meridian Lean Deliver
 to any global/home-directory workflow instruction. If the local workflow files
 are missing or contradictory, the agent must return `BLOCKED` before a mutation.
 
-Replace every `<PLACEHOLDER>` before sending a prompt. Use one workflow per chat. An implementation and its required review must use separate chats.
+Replace every `<PLACEHOLDER>` before sending a prompt. Use one workflow per chat. An implementation and its required review must use separate chats, except that `Run lifecycle <TASK-ID>` is a coordinator chat that delegates each role to a separate session.
 
 The agent must communicate in the language persisted in `LANGUAGE_POLICY.md`, even if a prompt uses another language. Any repository artifact produced by a prompt must remain in English.
 
@@ -128,6 +128,23 @@ Proceed with <TASK-ID>.
 
 The trigger delegates the detailed implementation procedure to `AGENTS.md` or `CLAUDE.md`. Do not append unrelated work to this prompt.
 
+## 5a. Run one autonomous required-review lifecycle
+
+Use this when the task is dependency-ready and you authorize implementation,
+all remediation cycles, acceptance, and the final `main` push. The coordinator
+must use distinct implementer and reviewer sessions; it must not turn its own
+chat into either role.
+
+```text
+Run lifecycle <TASK-ID>.
+```
+
+The trigger delegates the full procedure to
+`docs/LIFECYCLE_ORCHESTRATION.md`. It continues from durable repository state,
+uses `tasks/reviews/<TASK-ID>.md` instead of copied chat findings, and stops
+only at its retry limit or a real repository, validation, authority, or forge
+blocker.
+
 ## 6. Independently review a required-review task
 
 Use this in a fresh chat that did not implement the task.
@@ -206,6 +223,7 @@ work, review a task, or infer a new roadmap item.
 
 ```text
 Proceed with <TASK-ID>.
+Run lifecycle <TASK-ID>.
 Review <TASK-ID>.
 Address review <TASK-ID>.
 Accept <TASK-ID>.
@@ -217,5 +235,6 @@ Report the current SDD handoff state; do not modify files.
 
 - A task may start only when its dependencies are `ACCEPTED` and the developer explicitly assigns it.
 - A required-review task needs a separate reviewer-integrator chat unless the owner uses the explicit `Accept <TASK-ID>` path.
+- `Run lifecycle <TASK-ID>` may coordinate the required-review loop only through distinct implementer and reviewer sessions, as defined by `docs/LIFECYCLE_ORCHESTRATION.md`.
 - A prompt cannot change a chat's reasoning setting; configure it before sending the prompt when the active agent supports it.
 - A task, review, audit, or analysis does not authorize unrelated code, future milestones, destructive Git recovery, or external publication.

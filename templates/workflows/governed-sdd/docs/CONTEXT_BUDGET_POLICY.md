@@ -13,6 +13,16 @@ For an implementation or review:
 
 Dependencies establish readiness; they do not automatically require rereading their entire implementation history.
 
+## Lifecycle orchestration
+
+For `Run lifecycle <TASK-ID>`, the orchestrator reads only the task and queue
+status, the latest implementation commit, the latest review-record attempt,
+and worker result fields. It delegates implementation and review to distinct
+sessions and never copies their conversational context. Use the task's
+reasoning profile for workers and the lowest supported profile for the
+orchestrator. Do not add a separate summarization step or rerun an unchanged
+successful validation.
+
 ## Planning and communication
 
 - Keep execution plans to three bullets or fewer.
