@@ -8,4 +8,7 @@ New or materially revised tasks must follow `tasks/TASK_BLUEPRINT.md`. A task is
 |---:|---|---|---|---|---|---|
 | 1 | TASK-001 | P0 | QUEUED | REQUIRED | — | [TASK-001](TASK-001.md) |
 
-Update a task's status here in the same commit that updates its task file.
+Update a task's status here in the same commit that updates its task file. For
+`CHANGES_REQUESTED`, the reviewer records `IN_PROGRESS` here alongside the
+durable `tasks/reviews/<TASK-ID>.md` review record; the review record, rather
+than chat output, is the implementer's source of requested changes.

@@ -100,6 +100,7 @@ The selected skill supports its workflow without replacing project-specific rule
 
 ```text
 Project plan → architecture decisions → atomic task → implementation → independent review → acceptance/integration
+                                                     ↖ requested changes ↙
 ```
 
 The project keeps durable process artifacts close to the code:
@@ -112,6 +113,7 @@ docs/ARCHITECTURE_DECISIONS.md  # Accepted architecture decisions
 docs/CONTEXT_BUDGET_POLICY.md   # Task-first context and reasoning policy
 tasks/QUEUE.md                  # Canonical dependency and status queue
 tasks/TASK-NNN.md               # One bounded unit of work
+tasks/reviews/TASK-NNN.md       # Reviewer evidence and requested-change handoff
 ```
 
 ### Task contract
@@ -133,6 +135,14 @@ Meridian separates the roles that make a code change from those that accept it:
 - The **tech designer** records decisions and creates scoped tasks.
 - The **implementer** works on one task in a dedicated branch/worktree and validates it.
 - The **reviewer-integrator** independently reviews required-review work in a fresh session, verifies the task branch is a fast-forward descendant of `main`, and integrates only after approval.
+
+If the verdict is `CHANGES_REQUESTED`, the reviewer records prioritized,
+file-or-command-backed findings in `tasks/reviews/<TASK-ID>.md`, returns the
+task to `IN_PROGRESS`, and creates a local handoff commit. The implementer can
+then simply run `Address review <TASK-ID>`: it resolves only the unchecked
+findings, records resolution evidence, validates, and opens the next review
+attempt. This keeps the chat as a notification channel instead of the system
+of record.
 
 This is a process boundary, not a claim that every project needs bureaucracy. Use Lean Delivery when the work is low-risk and reversible; use stronger gates when a mistake is expensive.
 

@@ -16,17 +16,25 @@ Read LANGUAGE_POLICY.md, PROJECT_WORKFLOW.md, AGENTS.md/CLAUDE.md, the assigned 
 Review scope, dependencies, non-goals, acceptance criteria, validation evidence, project invariants, and unrelated changes. Read only task-cited documents and the exact diff. Report only actionable findings with P0/P1/P2 priority and file/line evidence; omit style-only commentary.
 
 Return APPROVE, CHANGES_REQUESTED, or BLOCKED. Review is read-only until an
-explicit `APPROVE` verdict: do not edit source, tests, manifests,
-implementation documentation, task content, or queue records to fix a finding.
-Return `CHANGES_REQUESTED` with actionable evidence instead. End the handoff
-with the fields from `docs/COMPLETION_REPORT_TEMPLATE.md` plus the verdict.
-Before changing either status record, verify `git merge-base --is-ancestor main <task-branch>`. If it fails, do not mark the task `ACCEPTED`; return `BLOCKED`. Do not fetch, rebase, use a non-fast-forward merge, or force-push as recovery. After APPROVE only, update exactly the task and queue status, then create the local `ACCEPTED` commit only with:
+explicit `APPROVE` verdict: do not edit source, tests, manifests, or
+implementation documentation to fix a finding. On `CHANGES_REQUESTED`, create
+or append `tasks/reviews/<TASK-ID>.md` using
+`docs/REVIEW_RECORD_TEMPLATE.md`, with every actionable finding's priority and
+evidence. Then change only the task and queue statuses to `IN_PROGRESS` and
+create one local review-handoff commit containing exactly those three
+artifacts. Do not push it. The review record is the canonical implementer
+handoff: end the report by naming its path and instruct the developer to use
+`Address review <TASK-ID>`, without copying findings into another chat. End the
+handoff with the fields from `docs/COMPLETION_REPORT_TEMPLATE.md` plus the
+verdict. For `APPROVE`, append the same evidence and verdict to the review
+record before updating the task and queue status to `ACCEPTED`.
+Before changing either status record, verify `git merge-base --is-ancestor main <task-branch>`. If it fails, do not mark the task `ACCEPTED`; return `BLOCKED`. Do not fetch, rebase, use a non-fast-forward merge, or force-push as recovery. After APPROVE only, commit the review record and the two `ACCEPTED` status updates with:
 
 ```bash
 git commit --author="meridian Reviewer-Integrator <reviewer-integrator@meridian.local>" -m "docs: reviewer-integrator pass <TASK-ID>; independently re-verified diff, cited sources, acceptance evidence, and validation"
 ```
 
-The author override applies only to this `ACCEPTED` commit; keep the operator's normal committer identity and do not change global or repository Git config. Verify it with `git log --format='%an <%ae>'`. The reviewer must never push the task branch again. If the ancestry check passes, switch to `main`, fast-forward merge the task branch, push `main` exactly once, then delete the local task branch. A remote task branch may lack the status-only acceptance commit; remote cleanup is optional and must never block accepted integration. Never modify implementation code, bypass protections, or approve a PR under the author identity.
+The author override applies only to this `ACCEPTED` commit; keep the operator's normal committer identity and do not change global or repository Git config. Verify it with `git log --format='%an <%ae>'`. The reviewer must never push the task branch. If the ancestry check passes, switch to `main`, fast-forward merge the task branch, push `main` exactly once, then delete the local task branch. A remote task branch may lack the local review-and-status acceptance commit; remote cleanup is optional and must never block accepted integration. Never modify implementation code, bypass protections, or approve a PR under the author identity.
 
 Keep the final review report within ten lines unless findings require more detail.
 ```
