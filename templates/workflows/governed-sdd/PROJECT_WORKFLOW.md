@@ -37,6 +37,8 @@ Implementation never resolves a conflict silently: update the lower-precedence d
 ```text
 Review: REQUIRED
 QUEUED -> IN_PROGRESS -> READY_FOR_REVIEW -> ACCEPTED
+                         |                    ^
+                         +-> CHANGES_REQUESTED -> IN_PROGRESS
 
 Review: NOT_REQUIRED
 QUEUED -> IN_PROGRESS -> ACCEPTED
@@ -49,6 +51,7 @@ Only `ACCEPTED` tasks satisfy dependencies.
 - `docs/CONTEXT_BUDGET_POLICY.md` defines task-first context loading, reasoning profiles, and concise communication.
 - `tasks/TASK_BLUEPRINT.md` defines the canonical atomic-task shape.
 - `docs/COMPLETION_REPORT_TEMPLATE.md` defines the implementation and review handoff.
+- `docs/REVIEW_RECORD_TEMPLATE.md` defines the durable reviewer-to-implementer handoff for requested changes.
 - `docs/CODE_ORGANIZATION.md` defines module ownership, dependency direction, and visibility rules for production code.
 - `docs/AUDIT_PROMPT_READ_ONLY.md` defines a read-only conformance audit for this workflow.
 - `docs/OPERATOR_PROMPTS.md` provides non-normative, focused prompts for operating the workflow.
@@ -58,10 +61,10 @@ For a task or review, start with `AGENTS.md` or `CLAUDE.md`, then read only the 
 ## Roles
 
 - Tech designer: defines ADRs, specifications, task scope, dependencies, and review policy. Does not implement feature code unless explicitly assigned.
-- Implementer: works on exactly one task in a dedicated branch/worktree, validates it, creates the task commit, pushes the task branch exactly once, and updates the task state according to its review policy.
-- Reviewer-integrator: independently reviews `READY_FOR_REVIEW` tasks in a fresh agent session using the implementer's primary checkout. After `APPROVE`, it records `ACCEPTED` in a local status-only commit and integrates the task branch when repository gates allow it.
+- Implementer: works on exactly one task in a dedicated branch/worktree, validates it, creates the task commit, pushes once per review attempt, and updates the task state according to its review policy.
+- Reviewer-integrator: independently reviews `READY_FOR_REVIEW` tasks in a fresh agent session using the implementer's primary checkout. It records review evidence in the task's review record for every verdict. For `CHANGES_REQUESTED`, it also returns the task to `IN_PROGRESS`; after `APPROVE`, it records `ACCEPTED` in the local review-and-status commit and integrates the task branch when repository gates allow it.
 
-The developer drives these roles with three command triggers, defined in `AGENTS.md`/`CLAUDE.md`: `Proceed with <TASK-ID>` starts implementation, `Review <TASK-ID>` starts independent review, and `Accept <TASK-ID>` performs the owner-acceptance status handoff after the developer's own review, skipping the agent review without skipping the status/queue update.
+The developer drives these roles with four command triggers, defined in `AGENTS.md`/`CLAUDE.md`: `Proceed with <TASK-ID>` starts implementation, `Review <TASK-ID>` starts independent review, `Address review <TASK-ID>` starts the bounded remediation recorded by the reviewer, and `Accept <TASK-ID>` performs the owner-acceptance status handoff after the developer's own review, skipping the agent review without skipping the status/queue update.
 
 ## Review policy
 
@@ -71,9 +74,9 @@ Every task declares `Review: REQUIRED` or `Review: NOT_REQUIRED`. The latter is 
 
 - One writer per worktree.
 - Use one branch per task, named from the normalized task ID without a provider prefix (for example, `task-012`).
-- After validation, the implementer creates the task commit and pushes the task branch exactly once. Its completion handoff records the task branch, implementation commit, and base `main` commit. It leaves the primary checkout clean and on the task branch; it does not switch back to `main`.
+- After validation, the implementer creates the task commit and pushes the task branch once for each review attempt. Its completion handoff records the task branch, implementation commit, and base `main` commit. It leaves the primary checkout clean and on the task branch; it does not switch back to `main`.
 - The reviewer-integrator uses that same primary checkout in a fresh agent session that did not write the implementation. If the session starts on clean `main`, it must run `git switch <task-branch>`. If the task branch is missing locally, or a dirty checkout prevents switching, return `BLOCKED` with the exact condition.
-- For `Review: REQUIRED`, the reviewer-integrator must never push the task branch again. Before changing either status record, verify `git merge-base --is-ancestor main <task-branch>`. If it fails, do not mark the task `ACCEPTED`; return `BLOCKED` and do not fetch, rebase, use a non-fast-forward merge, or force-push as recovery. If it passes, create the local status-only `ACCEPTED` commit, switch to `main`, fast-forward merge the task branch, push `main` exactly once, then delete the local task branch.
+- For `Review: REQUIRED`, the reviewer-integrator must never push the task branch. On `CHANGES_REQUESTED`, it creates a local review-handoff commit containing only the review record and the matching task/queue transition to `IN_PROGRESS`; it does not edit implementation artifacts. The implementer resolves that record, creates the next implementation commit, and pushes the branch once for the next review attempt. Before accepting, verify `git merge-base --is-ancestor main <task-branch>`. If it fails, do not mark the task `ACCEPTED`; return `BLOCKED` and do not fetch, rebase, use a non-fast-forward merge, or force-push as recovery. If it passes, create the local review-and-status `ACCEPTED` commit, switch to `main`, fast-forward merge the task branch, push `main` exactly once, then delete the local task branch.
 - For `Review: NOT_REQUIRED`, the implementer performs the same `ACCEPTED` status commit, fast-forward `main` merge, single `main` push, and local task-branch deletion after validation. The implementer may not rebase, amend, or force-push.
 - Owner acceptance is an explicit exception: it updates only statuses and does not automatically integrate the branch.
 - A forge approval cannot be supplied by the same identity that authored the PR. If an external approval is required but unavailable, leave the PR open and report `BLOCKED`.

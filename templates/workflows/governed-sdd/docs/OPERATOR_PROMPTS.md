@@ -148,6 +148,21 @@ Accept <TASK-ID>.
 
 The trigger performs only the status-only owner-acceptance workflow defined in `AGENTS.md` or `CLAUDE.md`; it does not authorize a review, source change, validation rerun, or merge.
 
+## 7a. Address requested review changes
+
+Use this after an independent reviewer returns `CHANGES_REQUESTED`. The
+reviewer has already recorded the scope, evidence, and state transition in
+`tasks/reviews/<TASK-ID>.md`; do not copy the findings into this prompt.
+
+```text
+Address review <TASK-ID>.
+```
+
+The trigger limits implementation to the unchecked findings in the durable
+review record, validates them, returns the task to `READY_FOR_REVIEW`, and
+pushes the next review attempt. It does not authorize unrelated work or a
+reinterpretation of a finding.
+
 ## 8. Run the established read-only audit
 
 ```text
@@ -192,6 +207,7 @@ work, review a task, or infer a new roadmap item.
 ```text
 Proceed with <TASK-ID>.
 Review <TASK-ID>.
+Address review <TASK-ID>.
 Accept <TASK-ID>.
 Analyze <MILESTONE> as governance only; do not modify files.
 Report the current SDD handoff state; do not modify files.

@@ -20,7 +20,7 @@ Run the task validation plus the project baseline checks recorded in `CLAUDE.md`
 
 ## Execution policies
 
-Apply `docs/CONTEXT_BUDGET_POLICY.md` for task-first context loading, progressive expansion, and reasoning selection. Use `tasks/TASK_BLUEPRINT.md` for new or materially revised tasks and `docs/COMPLETION_REPORT_TEMPLATE.md` for the completion handoff.
+Apply `docs/CONTEXT_BUDGET_POLICY.md` for task-first context loading, progressive expansion, and reasoning selection. Use `tasks/TASK_BLUEPRINT.md` for new or materially revised tasks, `docs/COMPLETION_REPORT_TEMPLATE.md` for the completion handoff, and `docs/REVIEW_RECORD_TEMPLATE.md` for a durable requested-changes handoff.
 
 These documents define operating detail; this file remains the source for stable agent-wide rules and project invariants.
 
@@ -34,6 +34,7 @@ Treat these developer phrases as the complete authorization for the named workfl
 
 - `Proceed with <TASK-ID>` — run the implementation workflow below for exactly that task.
 - `Review <TASK-ID>` — act as an independent reviewer-integrator using `docs/CODE_REVIEW_PROMPT.md`.
+- `Address review <TASK-ID>` — resolve exactly the outstanding findings in that task's review record.
 - `Accept <TASK-ID>` — run the owner-acceptance workflow below.
 
 ### Implementation workflow
@@ -53,10 +54,31 @@ Never run two writing agents concurrently in the same worktree.
 
 For `Review <TASK-ID>`, review is read-only until an explicit `APPROVE` verdict.
 Do not edit source code, tests, manifests, implementation documentation, task
-content, or queue records to remedy a finding. Return `CHANGES_REQUESTED` with
-actionable evidence instead. Only after `APPROVE` and the required ancestry
-check may the reviewer make the two status-only `ACCEPTED` edits and commit
-them with the required reviewer-integrator author override.
+content, or queue records to remedy a finding. For `CHANGES_REQUESTED`, the
+only allowed mutation is a local review-handoff commit: create or append
+`tasks/reviews/<TASK-ID>.md` using `docs/REVIEW_RECORD_TEMPLATE.md`, change
+the task and queue status from `READY_FOR_REVIEW` to `IN_PROGRESS`, and commit
+only those three artifacts. The record must contain every actionable finding
+with priority and evidence; its unchecked findings are the implementer's
+bounded remediation scope. Do not push this commit. Only after `APPROVE` and
+the required ancestry check may the reviewer append the approval evidence to
+the review record, make the two `ACCEPTED` status edits, and commit those three
+artifacts with the required reviewer-integrator author override.
+
+### Review-remediation workflow
+
+For `Address review <TASK-ID>`, read the assigned task, its cited authority,
+the current `tasks/reviews/<TASK-ID>.md`, and `git status --short`. Confirm the
+task and queue both say `IN_PROGRESS`, that the review record has unchecked
+findings, and that its local review-handoff commit is present. Do not implement
+new work, reinterpret a finding, or erase prior reviewer evidence. Resolve
+every unchecked finding, mark each with implementation evidence in a new
+attempt in the review record, rerun the task and baseline validation, and set
+both task and queue status to `READY_FOR_REVIEW`. Commit the remediation and
+updated review record, then push the task branch once for this next review
+attempt. Report the review-record path, resolved findings, commit, and
+validation. If a finding needs an authority or scope change, leave it
+unchecked and return `BLOCKED`.
 
 ## Owner-acceptance workflow
 
@@ -66,11 +88,24 @@ Update exactly the task `Status` and its canonical queue row to `ACCEPTED`, and 
 
 ## Implementer-to-reviewer handoff
 
-After validation, create the task commit and push the task branch exactly once. The completion handoff must record the branch name, implementation commit, and base `main` commit. Leave the primary checkout clean and on the task branch; do not switch back to `main`.
+After validation, create the task commit and push the task branch once for each
+review attempt. The completion handoff must record the branch name,
+implementation commit, and base `main` commit. Leave the primary checkout
+clean and on the task branch; do not switch back to `main`.
 
 The reviewer-integrator uses that same primary checkout in a fresh agent session that did not write the implementation. If the reviewer session starts on clean `main`, run `git switch <task-branch>`. If the branch is missing locally, or a dirty checkout prevents switching, return `BLOCKED` with the exact condition.
 
-For `Review: REQUIRED`, the reviewer must never push the task branch. Before changing either status record, run `git merge-base --is-ancestor main <task-branch>`. If it fails, do not mark the task `ACCEPTED`; return `BLOCKED` with no fetch, rebase, non-fast-forward merge, or force-push recovery. If it passes, create the local status-only `ACCEPTED` commit, switch to `main`, fast-forward merge the task branch, push `main` exactly once, and delete the local task branch. For `Review: NOT_REQUIRED`, the implementer performs the same acceptance commit and main integration after validation. Owner acceptance is status-only and does not automatically integrate the branch.
+For `Review: REQUIRED`, the reviewer must never push the task branch. On
+`CHANGES_REQUESTED`, it commits only the review record and matching task/queue
+transition to `IN_PROGRESS`; the implementer then resolves and pushes the next
+review attempt. Before accepting, run `git merge-base --is-ancestor main
+<task-branch>`. If it fails, do not mark the task `ACCEPTED`; return `BLOCKED`
+with no fetch, rebase, non-fast-forward merge, or force-push recovery. If it
+passes, create the local review-and-status `ACCEPTED` commit, switch to `main`,
+fast-forward merge the task branch, push `main` exactly once, and delete the
+local task branch. For `Review: NOT_REQUIRED`, the implementer performs the
+same acceptance commit and main integration after validation. Owner acceptance
+is status-only and does not automatically integrate the branch.
 
 ## Reviewer-integrator identity on a single-operator project
 
