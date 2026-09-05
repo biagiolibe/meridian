@@ -19,6 +19,11 @@ REQUIRED_FILES = (
     ".claude-plugin/marketplace.json",
     "hooks/hooks.json",
     "hooks/queue-briefing.sh",
+    "templates/workflows/lean-delivery/PROJECT_WORKFLOW.md",
+    "templates/workflows/lean-delivery/AGENTS.md",
+    "templates/workflows/lean-delivery/CLAUDE.md",
+    "skills/meridian-lean-delivery/SKILL.md",
+    "skills/meridian-lean-delivery-claude-code/SKILL.md",
 )
 LANGUAGE_POLICY_FILES = (
     "templates/base/LANGUAGE_POLICY.md",
@@ -54,11 +59,38 @@ def check_language_policy() -> None:
 
     for name in (
         "templates/base/CLAUDE.md",
+        "templates/workflows/lean-delivery/AGENTS.md",
+        "templates/workflows/lean-delivery/CLAUDE.md",
         "templates/workflows/governed-sdd/AGENTS.md",
         "templates/workflows/governed-sdd/CLAUDE.md",
     ):
         if "LANGUAGE_POLICY.md" not in (ROOT / name).read_text(encoding="utf-8"):
             fail(f"agent instructions do not load the language policy: {name}")
+
+    mode_lock_files = (
+        "commands/meridian-task.md",
+        "templates/workflows/governed-sdd/PROJECT_WORKFLOW.md",
+        "templates/workflows/governed-sdd/AGENTS.md",
+        "templates/workflows/governed-sdd/CLAUDE.md",
+        "templates/workflows/governed-sdd/docs/CODE_REVIEW_PROMPT.md",
+        "templates/workflows/governed-sdd/docs/OPERATOR_PROMPTS.md",
+    )
+    for name in mode_lock_files:
+        text = (ROOT / name).read_text(encoding="utf-8")
+        if "GOVERNED_SDD" not in text or "BLOCKED" not in text:
+            fail(f"governed-SDD mode lock is incomplete: {name}")
+
+    lean_mode_lock_files = (
+        "templates/workflows/lean-delivery/PROJECT_WORKFLOW.md",
+        "templates/workflows/lean-delivery/AGENTS.md",
+        "templates/workflows/lean-delivery/CLAUDE.md",
+        "skills/meridian-lean-delivery/SKILL.md",
+        "skills/meridian-lean-delivery-claude-code/SKILL.md",
+    )
+    for name in lean_mode_lock_files:
+        text = (ROOT / name).read_text(encoding="utf-8")
+        if "LEAN_DELIVERY" not in text or "BLOCKED" not in text:
+            fail(f"Lean Delivery mode lock is incomplete: {name}")
 
     operator_prompts = ROOT / "templates/workflows/governed-sdd/docs/OPERATOR_PROMPTS.md"
     if not operator_prompts.is_file():

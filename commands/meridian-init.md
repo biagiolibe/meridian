@@ -11,8 +11,11 @@ The Meridian template source is at: `${CLAUDE_PLUGIN_ROOT}`
 1. Ask the user for the **project name** (will replace `[Project Name]` placeholders).
 
 2. Ask the user to choose a **workflow mode**:
-   - `classic` — the existing lightweight checkbox queue.
+   - `lean-delivery` — a complete lightweight workflow for small projects, POCs, demos, experiments, and reversible low-risk changes.
    - `governed-sdd` — ADRs, dependency gates, review policy, task worktrees, and reviewer-led integration.
+
+   Accept `classic` only as a backwards-compatible alias for `lean-delivery`.
+   Persist and report the canonical name `lean-delivery`.
 
 3. Ask the user to choose a **conversation language**. This preference controls every message from the agent and persists across sessions. Do not infer a language change from a prompt written in another language.
 
@@ -29,21 +32,26 @@ The Meridian template source is at: `${CLAUDE_PLUGIN_ROOT}`
    - From `templates/base/.gitignore` → `.gitignore` (merge with an existing `.gitignore` instead of overwriting)
    - From `templates/base/.claudeignore` → `.claudeignore` (merge with an existing `.claudeignore` instead of overwriting)
 
-5. If workflow mode is `governed-sdd`, overlay these files after copying the base templates:
-   - `templates/workflows/governed-sdd/PROJECT_WORKFLOW.md` → `PROJECT_WORKFLOW.md`
-   - `templates/workflows/governed-sdd/AGENTS.md` → `AGENTS.md`
-   - `templates/workflows/governed-sdd/CLAUDE.md` → `CLAUDE.md`
-   - `templates/workflows/governed-sdd/LANGUAGE_POLICY.md` → `LANGUAGE_POLICY.md`
-   - `templates/workflows/governed-sdd/tasks/TASK_BLUEPRINT.md` → `tasks/TASK_BLUEPRINT.md`
-   - `templates/workflows/governed-sdd/tasks/QUEUE.md` → `tasks/QUEUE.md`
-   - `templates/workflows/governed-sdd/docs/` → `docs/`
-   Do not overwrite an existing governed document without showing its diff and receiving explicit confirmation.
+5. Overlay the files for the selected workflow after copying the base templates:
+   - For `lean-delivery`:
+     - `templates/workflows/lean-delivery/PROJECT_WORKFLOW.md` → `PROJECT_WORKFLOW.md`
+     - `templates/workflows/lean-delivery/AGENTS.md` → `AGENTS.md`
+   - `templates/workflows/lean-delivery/CLAUDE.md` → `CLAUDE.md`
+   - For `governed-sdd`:
+     - `templates/workflows/governed-sdd/PROJECT_WORKFLOW.md` → `PROJECT_WORKFLOW.md`
+     - `templates/workflows/governed-sdd/AGENTS.md` → `AGENTS.md`
+     - `templates/workflows/governed-sdd/CLAUDE.md` → `CLAUDE.md`
+     - `templates/workflows/governed-sdd/LANGUAGE_POLICY.md` → `LANGUAGE_POLICY.md`
+     - `templates/workflows/governed-sdd/tasks/TASK_BLUEPRINT.md` → `tasks/TASK_BLUEPRINT.md`
+     - `templates/workflows/governed-sdd/tasks/QUEUE.md` → `tasks/QUEUE.md`
+     - `templates/workflows/governed-sdd/docs/` → `docs/`
+   Do not overwrite an existing workflow document without showing its diff and receiving explicit confirmation.
 
 6. Replace all occurrences of `[Project Name]` in the copied files with the actual project name provided in step 1.
 
 7. Replace all occurrences of `[Data]` with today's date in ISO format (YYYY-MM-DD).
 
-8. Create the `tasks/done/` directory (empty, for archiving completed tasks) only in `classic` mode. Governed SDD retains accepted task files as causal project records.
+8. Create the `tasks/done/` directory (empty, for archiving completed tasks) only in `lean-delivery` mode. Governed SDD retains accepted task files as causal project records.
 
 9. Replace `[Conversation language]` in `LANGUAGE_POLICY.md` with the choice from step 3. In `CLAUDE.md`, fill in the `## Commands` block with the project's actual run/test/lint/format commands, and the `## Conventions` block with any language/stack-specific rules (ask the user, or infer from `TECH_DESIGN.md` once it is filled in). Do not weaken or duplicate the mandatory repository-language rule from `LANGUAGE_POLICY.md`.
 

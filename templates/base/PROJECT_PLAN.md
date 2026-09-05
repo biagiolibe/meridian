@@ -8,7 +8,7 @@ This document tracks the evolution of the project from ideas to delivery.
 PROPOSALS  →  (review)  →  BACKLOG  →  (development)  →  COMPLETED
 ```
 
-| Simbolo | Significato |
+| Symbol | Meaning |
 |---------|-------------|
 | `[ ]`   | Approved backlog task |
 | `[/]`   | Task in progress |

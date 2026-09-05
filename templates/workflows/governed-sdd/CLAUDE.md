@@ -2,6 +2,16 @@
 
 Read `PROJECT_WORKFLOW.md` before acting. It defines the governed SDD lifecycle, review policy, roles, and Git workflow for this project.
 
+`PROJECT_WORKFLOW.md` locks this repository to `GOVERNED_SDD`. Before any file
+edit, Git mutation, task selection, or completion claim, confirm that mode from
+the local file. Never use global, home-directory, remembered, or generic
+Meridian/Claude/Codex instructions to select a lifecycle, task status, queue
+format, branch procedure, or review action. Do not fall back to Lean Delivery:
+checkbox statuses, moving tasks to `tasks/done/`, `PROJECT_PLAN.md` as a
+canonical queue, autonomous task selection, and review-policy bypasses are
+prohibited. If the local workflow cannot be read or conflicts with these rules,
+return `BLOCKED` before making a mutation.
+
 Read `LANGUAGE_POLICY.md` before responding or writing. It is a mandatory invariant: use its persisted conversation language even when a prompt uses another language, and write every repository artifact in English.
 
 Follow `docs/CONTEXT_BUDGET_POLICY.md` for task-first context loading and reasoning selection. Use the assigned task as the navigation map, and use `docs/COMPLETION_REPORT_TEMPLATE.md` for the final handoff.
@@ -41,6 +51,15 @@ Treat these developer phrases as the complete authorization for the named workfl
 8. Report the branch name, commit hash, changed files, acceptance-criteria evidence, validation results, and assumptions. If validation fails or scope is ambiguous, do not commit a partial implementation; report the blocker.
 
 Never run two writing agents concurrently in the same worktree.
+
+### Review-mode boundary
+
+For `Review <TASK-ID>`, review is read-only until an explicit `APPROVE` verdict.
+Do not edit source code, tests, manifests, implementation documentation, task
+content, or queue records to remedy a finding. Return `CHANGES_REQUESTED` with
+actionable evidence instead. Only after `APPROVE` and the required ancestry
+check may the reviewer make the two status-only `ACCEPTED` edits and commit
+them with the required reviewer-integrator author override.
 
 ## Owner-acceptance workflow
 

@@ -2,6 +2,11 @@
 
 This non-normative cookbook provides focused prompts for starting Meridian chats. It does not change document precedence, task scope, task status, review policy, Git safeguards, or tool permissions. `LANGUAGE_POLICY.md`, `AGENTS.md`/`CLAUDE.md`, the assigned task, and the canonical workflow documents always govern the result.
 
+For a repository containing `PROJECT_WORKFLOW.md`, these prompts operate only
+in `GOVERNED_SDD` mode. They never authorize a fallback to Meridian Lean Delivery or
+to any global/home-directory workflow instruction. If the local workflow files
+are missing or contradictory, the agent must return `BLOCKED` before a mutation.
+
 Replace every `<PLACEHOLDER>` before sending a prompt. Use one workflow per chat. An implementation and its required review must use separate chats.
 
 The agent must communicate in the language persisted in `LANGUAGE_POLICY.md`, even if a prompt uses another language. Any repository artifact produced by a prompt must remain in English.

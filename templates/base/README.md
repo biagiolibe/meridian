@@ -18,7 +18,7 @@ Notes for reproducing the development setup on another machine.
 - [pinned language/runtime and version]
 - Key dependencies: [list]
 
-**Claude Code — file di repo (tracciati in git)**
+**Claude Code — repository files (tracked in Git)**
 - `CLAUDE.md` — project conventions, invariants, and Meridian workflow.
 - `LANGUAGE_POLICY.md` — persisted conversation-language preference and English-only repository-text policy.
 - `.claudeignore` — keeps build artifacts and non-source files out of Claude context.

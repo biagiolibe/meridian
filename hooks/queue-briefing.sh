@@ -54,7 +54,7 @@ if [ -f "$ARCHIVE" ]; then
 fi
 DONE=$((DONE_ACTIVE + DONE_ARCHIVE))
 
-echo "[Meridian Queue]"
+echo "[Meridian Lean Delivery Queue]"
 if [ -n "$ACTIVE" ]; then
   echo "  🔴 In progress: $ACTIVE"
 else
