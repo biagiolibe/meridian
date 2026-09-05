@@ -1,73 +1,58 @@
 # Task Execution Queue
 
-Questa è la coda di esecuzione operativa. I task sono ordinati per priorità.
+This is the operational execution queue. Tasks are ordered by priority.
 
-Le fasi/sezioni interamente chiuse (tutte `[x]`) vivono in
-[`QUEUE_ARCHIVE.md`](QUEUE_ARCHIVE.md), non qui — questo file traccia solo
-lavoro con qualcosa ancora aperto, per tenere basso il costo di lettura a
-ogni sessione. Consulta l'archivio solo quando serve la storia/motivazione
-di una fase passata.
+Fully closed phases or sections (all `[x]`) belong in [`QUEUE_ARCHIVE.md`](QUEUE_ARCHIVE.md), not here. This file tracks only work with open items, keeping the reading cost low in every session. Consult the archive only when the history or rationale of a past phase is needed.
 
-## Come usare questa coda
+## How to use this queue
 
-- **Esecuzione**: Prendi il primo task `[ ]` disponibile.
-- **Aggiornamento**: Cambia `[ ]` in `[/]` quando inizi e in `[x]` quando finisci.
-- **Delega**: Segui le istruzioni "Come delegare" nel task file.
-- **Archiviazione file task**: A task completato, sposta il file in `tasks/done/`.
-- **Archiviazione coda**: Quando un'intera fase/sezione della Coda Attiva diventa `[x]`, sposta le sue righe in `tasks/QUEUE_ARCHIVE.md` (crealo se non esiste, riusando la struttura di questo file) invece di lasciarle accumulare qui. Non aspettare che il file diventi enorme — archivia appena una fase si chiude.
+- **Execution**: Take the first available `[ ]` task.
+- **Update**: Change `[ ]` to `[/]` when starting and to `[x]` when finishing.
+- **Delegation**: Follow the delegation instructions in the task file.
+- **Task-file archive**: When a task is complete, move its file to `tasks/done/`.
+- **Queue archive**: When an entire Active Queue phase or section becomes `[x]`, move its rows to `tasks/QUEUE_ARCHIVE.md` (create it if absent, reusing this file's structure) instead of accumulating them here. Archive a phase as soon as it closes.
 
-## Priorità
+## Priorities
 
-| Codice | Significato |
-|--------|-------------|
-| 🔴 P1  | Bloccante / Critico |
-| 🟡 P2  | Feature importante |
-| 🟢 P3  | Ottimizzazione / Polish |
+| Code | Meaning |
+|------|---------|
+| 🔴 P1 | Blocking / Critical |
+| 🟡 P2 | Important feature |
+| 🟢 P3 | Optimization / Polish |
 
----
+## 🤖 How to delegate a task to an agent
 
-## 🤖 Come delegare un task a un agente
+### Antigravity (local AI)
 
-### Antigravity (IA locale)
-Apri una nuova chat e scrivi:
-> *"Leggi il file `tasks/NNN-nome.md` ed esegui il task. Il progetto si trova in `...`."*
+Open a new chat and write: “Read `tasks/NNN-name.md` and execute the task. The project is located at `...`.”
 
 ### Claude CLI
+
 ```bash
-claude "$(cat tasks/NNN-nome.md)"$'\n\nEsegui questo task nel progetto corrente.'
+claude "$(cat tasks/NNN-name.md)"$'\n\nExecute this task in the current project.'
 ```
 
----
+## 🏃 Active Queue
 
-## 🏃 Coda Attiva
+| Status | ID | Title | Priority | Agent | Task File |
+|--------|----|-------|----------|-------|-----------|
+| `[/]` | 001 | Example: Initialize ECS | 🔴 P1 | Antigravity | [001](001-init-ecs.md) |
+| `[ ]` | 002 | Example: Create spawner | 🟡 P2 | — | [002](002-spawner.md) |
 
-| Stato | ID | Titolo | Priorità | Agente | Task File |
-|-------|----|--------|----------|--------|-----------|
-| `[/]` | 001 | Esempio: Inizializzare ECS | 🔴 P1 | Antigravity | [001](001-init-ecs.md) |
-| `[ ]` | 002 | Esempio: Creare spawner | 🟡 P2 | — | [002](002-spawner.md) |
+## 🧪 Quick Tasks (No File)
 
----
+Tasks that take less than 15 minutes and do not need a detailed briefing.
 
-## 🧪 Task Rapidi (Senza File)
+| Status | Description | Priority |
+|--------|-------------|----------|
+| `[ ]` | Clean up imports | 🟢 P3 |
 
-Task che richiedono < 15 min e non necessitano di briefing dettagliato.
+## ✅ Archived (Completed)
 
-| Stato | Descrizione | Priorità |
-|-------|-------------|----------|
-| `[ ]` | Pulizia import | 🟢 P3 |
+Keep only recently completed items relevant to active work here. When this section or an entire Active Queue phase is closed and no longer needed for immediate reference, move it to `tasks/QUEUE_ARCHIVE.md`.
 
----
+| Status | ID | Title | Agent | File |
+|--------|----|-------|-------|------|
+| `[x]` | 000 | Define architecture | Manual | [000](done/000-arch.md) |
 
-## ✅ Archiviati (Completati)
-
-Tieni qui solo i completati recenti/rilevanti al lavoro attivo. Quando
-questa sezione (o un'intera fase della Coda Attiva) è chiusa e non serve
-più come riferimento immediato, spostala in `tasks/QUEUE_ARCHIVE.md`.
-
-| Stato | ID | Titolo | Agente | File |
-|-------|----|--------|--------|------|
-| `[x]` | 000 | Definizione architettura | Manuale | [000](done/000-arch.md) |
-
----
-
-*Ultimo aggiornamento: [Data]*
+*Last updated: [Date]*

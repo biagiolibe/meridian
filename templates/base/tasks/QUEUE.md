@@ -1,61 +1,60 @@
 # Task Execution Queue
 
-Questa è la coda di esecuzione operativa. I task sono ordinati per priorità.
+This is the operational execution queue. Tasks are ordered by priority.
 
-Le fasi/sezioni interamente chiuse (tutte `[x]`) vivono in
-`tasks/QUEUE_ARCHIVE.md`, non qui — questo file traccia solo lavoro con
-qualcosa ancora aperto, per tenere basso il costo di lettura a ogni
-sessione. Consulta l'archivio solo quando serve la storia/motivazione di
-una fase passata.
+Fully closed phases or sections (all `[x]`) belong in
+`tasks/QUEUE_ARCHIVE.md`, not here. This file tracks only work with open
+items, keeping the reading cost low in every session. Consult the archive
+only when the history or rationale of a past phase is needed.
 
-## Come usare questa coda
+## How to use this queue
 
-- **Esecuzione**: Prendi il primo task `[ ]` disponibile.
-- **Aggiornamento**: Cambia `[ ]` in `[/]` quando inizi e in `[x]` quando finisci.
-- **Archiviazione file task**: A task completato, sposta il file in `tasks/done/`.
-- **Archiviazione coda**: Quando un'intera fase/sezione della Coda Attiva diventa `[x]`, sposta le sue righe in `tasks/QUEUE_ARCHIVE.md` (crealo se non esiste, riusando la stessa struttura a tabella di questo file) invece di lasciarle accumulare qui. Non aspettare che il file diventi enorme — archivia appena una fase si chiude.
+- **Execution**: Take the first available `[ ]` task.
+- **Update**: Change `[ ]` to `[/]` when starting and to `[x]` when finishing.
+- **Task-file archive**: When a task is complete, move its file to `tasks/done/`.
+- **Queue archive**: When an entire Active Queue phase or section becomes `[x]`, move its rows to `tasks/QUEUE_ARCHIVE.md` (create it if absent, reusing this file's table structure) instead of accumulating them here. Archive a phase as soon as it closes.
 
-## Priorità
+## Priorities
 
-| Codice | Significato |
+| Code | Meaning |
 |--------|-------------|
-| 🔴 P1  | Bloccante / Critico |
-| 🟡 P2  | Feature importante |
-| 🟢 P3  | Ottimizzazione / Polish |
+| 🔴 P1  | Blocking / Critical |
+| 🟡 P2  | Important feature |
+| 🟢 P3  | Optimization / Polish |
 
 ---
 
-## 🤖 Come delegare un task a Claude CLI
+## 🤖 How to delegate a task to Claude CLI
 
 ```bash
-claude "$(cat tasks/NNN-nome.md)"$'\n\nEsegui questo task nel progetto corrente.'
+claude "$(cat tasks/NNN-name.md)"$'\n\nExecute this task in the current project.'
 ```
 
 ---
 
-## 🏃 Coda Attiva
+## 🏃 Active Queue
 
-| Stato | ID | Titolo | Priorità | Agente | Task File |
+| Status | ID | Title | Priority | Agent | Task File |
 |-------|----|--------|----------|--------|-----------|
-| `[ ]` | 001 | Setup iniziale | 🔴 P1 | — | [001](001-setup.md) |
+| `[ ]` | 001 | Initial setup | 🔴 P1 | — | [001](001-setup.md) |
 
 ---
 
-## 🧪 Task Rapidi (Senza File)
+## 🧪 Quick Tasks (No File)
 
-Task che richiedono < 15 min e non necessitano di briefing dettagliato.
+Tasks that take less than 15 minutes and do not need a detailed briefing.
 
-| Stato | Descrizione | Priorità |
+| Status | Description | Priority |
 |-------|-------------|----------|
-| `[ ]` | *(nessuno)* | — |
+| `[ ]` | *(none)* | — |
 
 ---
 
-## ✅ Archiviati (Completati)
+## ✅ Archived (Completed)
 
-| Stato | ID | Titolo | Agente | File |
+| Status | ID | Title | Agent | File |
 |-------|----|--------|--------|------|
 
 ---
 
-*Ultimo aggiornamento: [Data]*
+*Last updated: [Date]*

@@ -1,39 +1,40 @@
 # [Project Name]
 
-[Descrizione breve del progetto in una o due frasi.]
+[Brief project description in one or two sentences.]
 
 ## Getting Started
 
 ```bash
-# [comandi per buildare/eseguire/testare il progetto]
+# [commands to build, run, and test the project]
 ```
 
-[Se il toolchain è pinnato (es. rust-toolchain.toml, .nvmrc, pyproject.toml), menzionarlo qui.]
+[If the toolchain is pinned (for example, rust-toolchain.toml, .nvmrc, or pyproject.toml), mention it here.]
 
 ## Repository & Claude Code Configuration
 
-Note per replicare il setup di lavoro su un'altra macchina.
+Notes for reproducing the development setup on another machine.
 
 **Toolchain**
-- [linguaggio/runtime e versione pinnata]
-- Dipendenze chiave: [elenco]
+- [pinned language/runtime and version]
+- Key dependencies: [list]
 
 **Claude Code — file di repo (tracciati in git)**
-- `CLAUDE.md` — convenzioni di progetto, invarianti e workflow Meridian.
-- `.claudeignore` — tiene fuori dal contesto di Claude build artifact e file non-sorgente.
-- `.gitignore` — esclude output di build, cruft OS ed editor config.
+- `CLAUDE.md` — project conventions, invariants, and Meridian workflow.
+- `LANGUAGE_POLICY.md` — persisted conversation-language preference and English-only repository-text policy.
+- `.claudeignore` — keeps build artifacts and non-source files out of Claude context.
+- `.gitignore` — excludes build output, OS cruft, and editor configuration.
 
-**Claude Code — impostazioni di sessione (non salvate nel repo, da reimpostare per macchina/sessione)**
-- Modello: **[nome modello]**
-- Advisor: **[nome advisor]**
-- Effort level: **[livello]**
+**Claude Code — session settings (not saved in the repository; configure per machine/session)**
+- Model: **[model name]**
+- Advisor: **[advisor name]**
+- Effort level: **[level]**
 
-Reimpostarle con `/model`, `/advisor` e `/effort` dopo il clone su una macchina nuova.
+Set them again with `/model`, `/advisor`, and `/effort` after cloning on a new machine.
 
-**Non tracciato in git (locale alla macchina)**
-- `.claude/settings.local.json` — allowlist dei permessi locale; si rigenera con i prompt di approvazione.
-- `.vscode/` / `.idea/` — config specifica dell'editor.
+**Not tracked in Git (local to the machine)**
+- `.claude/settings.local.json` — local permission allowlist; regenerated through approval prompts.
+- `.vscode/` / `.idea/` — editor-specific configuration.
 
 ---
 
-*Ultimo aggiornamento: [Data]*
+*Last updated: [Date]*

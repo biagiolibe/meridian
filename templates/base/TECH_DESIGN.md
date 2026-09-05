@@ -1,61 +1,61 @@
 # Technical Design Document — [Project Name]
 
-Questo documento descrive l'architettura tecnica e le scelte implementative del progetto.
+This document describes the project technical architecture and implementation choices.
 
-## 1. Stack Tecnologico
+## 1. Technology Stack
 
-- **Linguaggio/Runtime**: [es. TypeScript / Python / Rust]
-- **Framework principale**: [es. Express / FastAPI / nessuno]
-- **Database**: [es. PostgreSQL / SQLite / nessuno]
-- **Librerie chiave**: [elencare le dipendenze principali]
-- **Testing**: [es. Jest / pytest / cargo test]
+- **Language/Runtime**: [e.g. TypeScript / Python / Rust]
+- **Primary framework**: [e.g. Express / FastAPI / none]
+- **Database**: [e.g. PostgreSQL / SQLite / none]
+- **Key libraries**: [list the primary dependencies]
+- **Testing**: [e.g. Jest / pytest / cargo test]
 
 ---
 
-## 2. Struttura del Progetto
+## 2. Project Structure
 
 ```
 src/
-  [descrivi la struttura delle cartelle]
+  [describe the directory structure]
 ```
 
 ---
 
-## 3. Architettura & Pattern
+## 3. Architecture & Patterns
 
-### Approccio generale
-[Descrivi il pattern architetturale: MVC, Clean Architecture, moduli separati, etc.]
+### General approach
+[Describe the architecture pattern: MVC, Clean Architecture, separate modules, etc.]
 
-### Struttura dei Moduli
-Ogni modulo deve essere autonomo e avere interfacce ben definite.
+### Module structure
+Every module must be self-contained and expose well-defined interfaces.
 
-- `modulo-a`: [responsabilità]
-- `modulo-b`: [responsabilità]
+- `module-a`: [responsibility]
+- `module-b`: [responsibility]
 
 ---
 
-## 4. Convenzioni di Sviluppo
+## 4. Development Conventions
 
 ### Naming
 - File: [kebab-case / snake_case / PascalCase]
 - Funzioni: [camelCase / snake_case]
 - Costanti: [SCREAMING_SNAKE_CASE]
 
-### Gestione degli Errori
-[Descrivi come gestire errori: eccezioni, Result types, error codes, etc.]
+### Error handling
+[Describe how errors are handled: exceptions, Result types, error codes, etc.]
 
 ### Testing
-[Strategia di test: unit, integration, e2e. Dove mettere i test.]
+[Test strategy: unit, integration, e2e. Where tests belong.]
 
 ---
 
-## 5. Decisioni Architetturali
+## 5. Architecture Decisions
 
-### [Decisione A]
-**Contesto**: [Perché è stato necessario scegliere]
-**Scelta**: [Cosa è stato scelto]
-**Motivazione**: [Perché questa scelta]
+### [Decision A]
+**Context**: [Why a choice was necessary]
+**Decision**: [What was chosen]
+**Rationale**: [Why this choice]
 
 ---
 
-*Ultima revisione: [Data]*
+*Last reviewed: [Date]*

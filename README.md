@@ -51,6 +51,12 @@ Then open the project you want to initialize and run:
 
 Choose `classic` for a lightweight queue or `governed-sdd` for the full workflow. The initializer creates the relevant planning, design, queue, task, and agent-instruction files in the target project. It does not overwrite existing workflow documents without showing a diff and obtaining a migration decision.
 
+### Language behavior
+
+During initialization, choose the language used for agent-developer conversation. Meridian stores that preference in `LANGUAGE_POLICY.md`; agents must keep using it even when an individual prompt is written in another language. The file also establishes an unconditional invariant: every persistent repository artifact—including code, documentation, comments, identifiers, user-facing strings, tests, configuration text, and commit messages—must be in English.
+
+To change the conversation language later, explicitly request the change and update `LANGUAGE_POLICY.md` in the same edit. Prompt language alone never changes the preference.
+
 When you are ready to scope work, run:
 
 ```text
@@ -88,6 +94,7 @@ The project keeps durable process artifacts close to the code:
 ```text
 PROJECT_WORKFLOW.md             # Lifecycle, precedence, roles, and Git rules
 AGENTS.md / CLAUDE.md           # Agent-specific project instructions
+LANGUAGE_POLICY.md              # Persistent conversation language and English-only repository text
 docs/ARCHITECTURE_DECISIONS.md  # Accepted architecture decisions
 docs/CONTEXT_BUDGET_POLICY.md   # Task-first context and reasoning policy
 tasks/QUEUE.md                  # Canonical dependency and status queue
@@ -135,6 +142,7 @@ CONTRIBUTING.md                   Contribution guidance and validation
 - [Task template](templates/workflows/governed-sdd/tasks/TASK_BLUEPRINT.md)
 - [Review and integration prompt](templates/workflows/governed-sdd/docs/CODE_REVIEW_PROMPT.md)
 - [Read-only workflow audit prompt](templates/workflows/governed-sdd/docs/AUDIT_PROMPT_READ_ONLY.md)
+- [Governed-SDD operator prompts](templates/workflows/governed-sdd/docs/OPERATOR_PROMPTS.md)
 
 ## Development and contributions
 

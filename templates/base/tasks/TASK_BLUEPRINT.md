@@ -1,76 +1,76 @@
-# Task [ID] — [Titolo del Task]
+# Task [ID] — [Task Title]
 
 > **ID**: `[NNN]`
-> **Categoria**: [Architettura / Feature / Bugfix / Refactor / etc.]
-> **Priorità**: [🔴 P1 / 🟡 P2 / 🟢 P3]
-> **Stima**: [~1h / ~2h / etc.]
-> **Assegnato a**: [Claude CLI / non assegnato]
-> **Sessione**: [ID conversazione o riferimento temporale]
+> **Category**: [Architecture / Feature / Bugfix / Refactor / etc.]
+> **Priority**: [🔴 P1 / 🟡 P2 / 🟢 P3]
+> **Estimate**: [~1h / ~2h / etc.]
+> **Assigned to**: [Claude CLI / unassigned]
+> **Session**: [conversation ID or temporal reference]
 
 ---
 
-## 🎯 Obiettivo
+## 🎯 Objective
 
-[Cosa deve essere fatto?]
-[Perché è necessario?]
+[What needs to be done?]
+[Why is it needed?]
 
 ---
 
 ## 📋 Acceptance Criteria
 
-[Un task è considerato completato quando:]
-- [ ] Il codice compila senza errori.
-- [ ] La feature X funziona come descritto.
-- [ ] [Aggiungere criteri specifici...]
+[A task is complete when:]
+- [ ] The code compiles without errors.
+- [ ] Feature X works as described.
+- [ ] [Add specific criteria...]
 
 ---
 
 ## 📁 File Rilevanti
 
-| File | Ruolo |
+| File | Role |
 |------|-------|
-| `src/modulo/file.ts` | Descrizione del ruolo. |
+| `src/module/file.ts` | Role description. |
 
 ---
 
-## 🧩 Contesto Tecnico
+## 🧩 Technical Context
 
-[Incolla qui le definizioni di tipi, interfacce, o descrive lo stato attuale del codice.]
+[Paste type definitions, interfaces, or describe the current code state here.]
 
-- **Comportamento attuale**: [Cosa succede ora?]
-- **Comportamento desiderato**: [Cosa deve succedere dopo?]
+- **Current behavior**: [What happens now?]
+- **Desired behavior**: [What should happen afterward?]
 
 ---
 
-## 🔨 Implementazione Suggerita
+## 🔨 Suggested Implementation
 
-[Passaggi consigliati per l'agente IA]
+[Suggested steps for the AI agent]
 
 1. [Passo 1]
 2. [Passo 2]
 
 ```
-// Eventuale snippet di esempio
+// Optional example snippet
 ```
 
 ---
 
-## ⚠️ Vincoli e Attenzioni
+## ⚠️ Constraints and Considerations
 
-- **Stile**: Seguire le convenzioni definite nel `TECH_DESIGN.md`.
-- **Performance**: [Eventuali vincoli specifici]
-
----
-
-## 🔗 Dipendenze
-
-- **Dipende da**: [ID task precedente o nessuno]
-- **Blocca**: [ID task successivo o nessuno]
+- **Style**: Follow the conventions defined in `TECH_DESIGN.md`.
+- **Performance**: [Any specific constraints]
 
 ---
 
-## 🤖 Come delegare questo task a Claude CLI
+## 🔗 Dependencies
+
+- **Depends on**: [previous task ID or none]
+- **Blocks**: [next task ID or none]
+
+---
+
+## 🤖 How to delegate this task to Claude CLI
 
 ```bash
-claude "$(cat tasks/[NNN]-nome.md)"$'\n\nEsegui questo task nel progetto corrente.'
+claude "$(cat tasks/[NNN]-name.md)"$'\n\nExecute this task in the current project.'
 ```

@@ -4,12 +4,13 @@
 
 When documents conflict, the first applicable document wins:
 
-1. `AGENTS.md` / `CLAUDE.md` — operating rules for the active agent.
-2. `docs/ARCHITECTURE_DECISIONS.md` — accepted architecture decisions.
-3. Project and milestone specifications.
-4. `tasks/QUEUE.md` and atomic task files — execution scope, dependencies, review policy, and validation.
-5. `docs/CODE_ORGANIZATION.md` — normative source-organization policy; it cannot change task scope, behavior, or public contracts.
-6. Design/background documents.
+1. `LANGUAGE_POLICY.md` — mandatory conversation-language preference and English-only repository-text invariant.
+2. `AGENTS.md` / `CLAUDE.md` — operating rules for the active agent.
+3. `docs/ARCHITECTURE_DECISIONS.md` — accepted architecture decisions.
+4. Project and milestone specifications.
+5. `tasks/QUEUE.md` and atomic task files — execution scope, dependencies, review policy, and validation.
+6. `docs/CODE_ORGANIZATION.md` — normative source-organization policy; it cannot change task scope, behavior, or public contracts.
+7. Design/background documents.
 
 Implementation never resolves a conflict silently: update the lower-precedence document or record an ADR.
 
@@ -32,6 +33,7 @@ Only `ACCEPTED` tasks satisfy dependencies.
 - `docs/COMPLETION_REPORT_TEMPLATE.md` defines the implementation and review handoff.
 - `docs/CODE_ORGANIZATION.md` defines module ownership, dependency direction, and visibility rules for production code.
 - `docs/AUDIT_PROMPT_READ_ONLY.md` defines a read-only conformance audit for this workflow.
+- `docs/OPERATOR_PROMPTS.md` provides non-normative, focused prompts for operating the workflow.
 
 For a task or review, start with `AGENTS.md` or `CLAUDE.md`, then read only the assigned task and sources it cites. These assets are operational guidance and do not supersede the precedence order above.
 

@@ -7,12 +7,12 @@ description: Bootstrap or operate a project using Meridian's governed spec-drive
 
 Claude Code counterpart of the Codex `meridian-governed-sdd` skill (`skills/meridian-governed-sdd/`). Same governed lifecycle and documents; this version is written for a Claude Code session and its plugin commands instead of Codex's `AGENTS.md`-only, `$name`-invoked skills.
 
-Read the target project's `PROJECT_WORKFLOW.md` and `CLAUDE.md` before acting. When present, also read `docs/CONTEXT_BUDGET_POLICY.md`; it governs context loading and reasoning selection. If the project was also generated for Codex, it will additionally have `AGENTS.md` — the two must not drift; treat `PROJECT_WORKFLOW.md` as the shared source of truth and update both instruction files together when the process changes.
+Read the target project's `LANGUAGE_POLICY.md`, `PROJECT_WORKFLOW.md`, and `CLAUDE.md` before acting. `LANGUAGE_POLICY.md` fixes the developer-facing language independently of the current prompt and requires English for all persistent repository text. When present, also read `docs/CONTEXT_BUDGET_POLICY.md`; it governs context loading and reasoning selection. If the project was also generated for Codex, it will additionally have `AGENTS.md` — the two must not drift; treat `PROJECT_WORKFLOW.md` as the shared source of truth and update both instruction files together when the process changes.
 
 If governed documents are absent, bootstrap them rather than working ad hoc:
 
-- Prefer running this plugin's `/meridian-init` command with workflow mode `governed-sdd` — it also handles the base templates (`PROJECT_PLAN.md`, `TECH_DESIGN.md`, etc.) and language settings in one pass.
-- Fall back to copying `templates/workflows/governed-sdd/` (`PROJECT_WORKFLOW.md`, `CLAUDE.md`, `AGENTS.md`, `docs/`, `tasks/`) directly only if `/meridian-init` isn't installed in this session.
+- Prefer running this plugin's `/meridian-init` command with workflow mode `governed-sdd` — it also handles the base templates (`PROJECT_PLAN.md`, `TECH_DESIGN.md`, etc.) and the persistent conversation-language setting in one pass.
+- Fall back to asking the developer for a conversation language, then copying `templates/workflows/governed-sdd/` (`LANGUAGE_POLICY.md`, `PROJECT_WORKFLOW.md`, `CLAUDE.md`, `AGENTS.md`, `docs/`, `tasks/`) directly and replacing `[Conversation language]` in `LANGUAGE_POLICY.md` only if `/meridian-init` is not installed in this session. Repository text remains English in all cases.
 
 Never overlay the governed workflow onto an existing project without showing the diff and getting an explicit migration decision — the project may already have its own task queue, agent instructions, or branch policy.
 
