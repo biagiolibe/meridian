@@ -57,7 +57,16 @@ The Meridian template source is at: `${CLAUDE_PLUGIN_ROOT}`
 
 10. In `README.md`, fill in the "Toolchain" bullet with the pinned language/runtime version and key dependencies, and the "Claude Code — session settings" bullets with the model, advisor, and effort level currently in use for this session (ask the user via `/model`, `/advisor`, `/effort` output if not already known from context).
 
-11. Confirm to the user: "Meridian initialized for **[Project Name]** with workflow `<workflow-mode>`. Next steps:
+11. Register the initialized workflow for deterministic framework upgrades:
+
+   ```bash
+   ${CLAUDE_PLUGIN_ROOT}/bin/meridian lock --project . --mode <workflow-mode>
+   ```
+
+   This writes `.meridian/manifest.json` and an installed-template baseline.
+   Do not edit the manifest or baseline snapshots manually.
+
+12. Confirm to the user: "Meridian initialized for **[Project Name]** with workflow `<workflow-mode>`. Next steps:
    - Fill in `TECH_DESIGN.md` with your actual stack details.
    - Add your first features to `PROJECT_PLAN.md`.
    - Run `/meridian-task` when you're ready to delegate the first task."

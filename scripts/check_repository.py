@@ -13,12 +13,23 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED_FILES = (
     "README.md",
+    "VERSION",
     "LICENSE",
     "CONTRIBUTING.md",
     ".claude-plugin/plugin.json",
     ".claude-plugin/marketplace.json",
     "hooks/hooks.json",
     "hooks/queue-briefing.sh",
+    "bin/meridian",
+    "scripts/meridian.py",
+    "migrations/001-review-remediation-record.json",
+    "migrations/002-lifecycle-orchestration.json",
+    "migrations/003-framework-updater.json",
+    "migrations/README.md",
+    "migrations/ASSISTED_ADOPTION.md",
+    "release-baselines/1.0.0/templates/workflows/governed-sdd/PROJECT_WORKFLOW.md",
+    "commands/meridian-upgrade.md",
+    "commands/meridian-adopt.md",
     "templates/workflows/lean-delivery/PROJECT_WORKFLOW.md",
     "templates/workflows/lean-delivery/AGENTS.md",
     "templates/workflows/lean-delivery/CLAUDE.md",
@@ -109,6 +120,27 @@ def check_json() -> None:
             fail(f"invalid JSON in {path.relative_to(ROOT)}: {error}")
 
 
+def check_migrations() -> None:
+    migration_paths = sorted((ROOT / "migrations").glob("[0-9][0-9][0-9]-*.json"))
+    if not migration_paths:
+        fail("no framework migrations are defined")
+    previous_to = None
+    for index, path in enumerate(migration_paths, start=1):
+        data = json.loads(path.read_text(encoding="utf-8"))
+        expected_prefix = f"{index:03d}-"
+        required = ("id", "from", "to", "description", "managedPaths", "verification")
+        if not path.name.startswith(expected_prefix) or not str(data.get("id", "")).startswith(expected_prefix):
+            fail(f"migration sequence is invalid: {path.relative_to(ROOT)}")
+        if any(key not in data for key in required):
+            fail(f"migration is incomplete: {path.relative_to(ROOT)}")
+        if previous_to is not None and data["from"] != previous_to:
+            fail(f"migration versions are not contiguous: {path.relative_to(ROOT)}")
+        previous_to = data["to"]
+    current_version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
+    if previous_to != current_version:
+        fail("latest migration does not match VERSION")
+
+
 def check_bash() -> None:
     for path in ROOT.rglob("*.sh"):
         result = subprocess.run(
@@ -144,6 +176,7 @@ def main() -> None:
     check_required_files()
     check_language_policy()
     check_json()
+    check_migrations()
     check_bash()
     check_local_markdown_links()
     print("Meridian repository checks passed.")

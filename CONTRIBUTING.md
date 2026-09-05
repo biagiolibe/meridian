@@ -29,7 +29,13 @@ python3 scripts/check_repository.py
 
 The check validates JSON metadata, Bash syntax, required public-repository files, and links between the repository's Markdown documents.
 
-For a change to a template or workflow rule, also manually trace the affected path from initialization through task creation, implementation, review, and acceptance. The templates are the product.
+For changes under `bin/`, `migrations/`, or `scripts/meridian.py`, also run:
+
+```bash
+python3 -m unittest discover -s tests -v
+```
+
+For a change to a template or workflow rule, also manually trace the affected path from initialization through task creation, implementation, review, acceptance, and a framework-upgrade plan. The templates are the product.
 
 ## Pull requests
 

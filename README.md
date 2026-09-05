@@ -76,6 +76,64 @@ When you are ready to scope work, run:
 
 The queue briefing hook stays silent outside a project containing `tasks/QUEUE.md`.
 
+## Framework upgrades
+
+Meridian-generated projects lock their installed workflow baseline in
+`.meridian/manifest.json`. This makes framework changes deterministic rather
+than dependent on a manual prompt. Check an upgrade from the installed Meridian
+source:
+
+```bash
+${MERIDIAN_ROOT}/bin/meridian upgrade --project /path/to/project --check
+```
+
+When the plan has no conflicts, apply it in a dedicated branch, validate the
+project, and commit the resulting diff:
+
+```bash
+${MERIDIAN_ROOT}/bin/meridian upgrade --project /path/to/project --apply
+```
+
+The CLI performs a three-way merge between the installed baseline, the local
+project file, and the new framework template. It applies no changes when a
+managed file conflicts; resolve that bounded conflict in a dedicated upgrade
+change and rerun the command. Do not edit `.meridian/manifest.json` or its
+baseline snapshots by hand.
+
+For a project created before framework locking was available, use the packaged
+baseline that matches its installed Meridian version. For example, a compatible
+`1.0.0` Governed SDD project can safely preview its migration with:
+
+```bash
+${MERIDIAN_ROOT}/bin/meridian adopt --project /path/to/project \
+  --mode governed-sdd --from 1.0.0 --check
+```
+
+`adopt --apply` writes the manifest only after a clean plan. It refuses to
+guess an unrecorded baseline; add an explicit snapshot before supporting a
+different legacy version.
+
+If an established project has intentionally adapted workflow documents, use
+capability-aware adoption instead of forcing template merges:
+
+```bash
+${MERIDIAN_ROOT}/bin/meridian adopt --project /path/to/project --assisted --check
+```
+
+`--mode` and `--from` are detected automatically when unambiguous. The command
+recomputes a single `NEXT_ACTION` (`IMPLEMENT_MIGRATION`, `REVIEW_MIGRATION`,
+`ADDRESS_REVIEW`, `FINALIZE`, or `BLOCKED`) from the project's detected
+capabilities and `.meridian/adoption-review.md` on every run, mapped onto the
+CLI's exit codes (`3` for agent work required, `0` when ready to finalize, `2`
+when blocked) — so an orchestrator, human, or the packaged Claude Code skill
+can drive the whole migration by repeatedly running the same command and
+acting on its `NEXT_ACTION`, dispatching the emitted implementer and reviewer
+prompts to independent sessions (Task-tool subagents in Claude Code, separate
+fresh chats otherwise) without ever copying context between them. Run
+`meridian finalize-adoption` only after the reviewer records an unconditional
+`APPROVE`; a developer who personally reviewed the migration may pass
+`--owner-accepted` instead. See [assisted adoption](commands/meridian-adopt.md).
+
 ## Quick start with Codex
 
 Generated Lean Delivery and Governed-SDD projects work with Codex immediately because they include `AGENTS.md` and `PROJECT_WORKFLOW.md`.
@@ -157,6 +215,8 @@ This is a process boundary, not a claim that every project needs bureaucracy. Us
 ```text
 commands/                         Claude Code commands
 hooks/                            Queue briefing hook
+bin/                              Framework maintenance CLI
+migrations/                       Versioned deterministic upgrade records
 skills/                           Codex and Claude Code workflow skills
 templates/base/                   Shared stack-agnostic templates
 templates/workflows/lean-delivery/ Lean Delivery overlay
@@ -174,6 +234,7 @@ CONTRIBUTING.md                   Contribution guidance and validation
 - [Review and integration prompt](templates/workflows/governed-sdd/docs/CODE_REVIEW_PROMPT.md)
 - [Read-only workflow audit prompt](templates/workflows/governed-sdd/docs/AUDIT_PROMPT_READ_ONLY.md)
 - [Governed-SDD operator prompts](templates/workflows/governed-sdd/docs/OPERATOR_PROMPTS.md)
+- [Framework upgrade CLI](commands/meridian-upgrade.md)
 
 ## Development and contributions
 
@@ -181,6 +242,12 @@ Meridian’s templates are the product. Before proposing a change, run:
 
 ```bash
 python3 scripts/check_repository.py
+```
+
+For changes to the framework-upgrade mechanism, also run:
+
+```bash
+python3 -m unittest discover -s tests -v
 ```
 
 The check validates JSON metadata, Bash syntax, required repository files, and local Markdown links. Read [CONTRIBUTING.md](CONTRIBUTING.md) for workflow-specific contribution guidance.
