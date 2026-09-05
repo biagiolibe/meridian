@@ -9,8 +9,10 @@ only when the history or rationale of a past phase is needed.
 
 ## How to use this queue
 
-- **Execution**: Take the first available `[ ]` task.
-- **Update**: Change `[ ]` to `[/]` when starting and to `[x]` when finishing.
+- **Execution**: The developer assigns a specific `[ ]` task; agents do not
+  select work autonomously.
+- **Update**: Change `[ ]` to `[/]` when starting and to `[x]` only after
+  acceptance criteria and stated validation pass.
 - **Task-file archive**: When a task is complete, move its file to `tasks/done/`.
 - **Queue archive**: When an entire Active Queue phase or section becomes `[x]`, move its rows to `tasks/QUEUE_ARCHIVE.md` (create it if absent, reusing this file's table structure) instead of accumulating them here. Archive a phase as soon as it closes.
 
@@ -24,10 +26,10 @@ only when the history or rationale of a past phase is needed.
 
 ---
 
-## 🤖 How to delegate a task to Claude CLI
+## 🤖 Delegation prompt
 
 ```bash
-claude "$(cat tasks/NNN-name.md)"$'\n\nExecute this task in the current project.'
+Proceed with NNN. Read the assigned task and execute only its stated scope.
 ```
 
 ---
@@ -42,18 +44,12 @@ claude "$(cat tasks/NNN-name.md)"$'\n\nExecute this task in the current project.
 
 ## 🧪 Quick Tasks (No File)
 
-Tasks that take less than 15 minutes and do not need a detailed briefing.
+Tasks that take less than 15 minutes, are reversible, and can be verified
+immediately. The row must state its acceptance evidence and validation.
 
-| Status | Description | Priority |
-|-------|-------------|----------|
-| `[ ]` | *(none)* | — |
-
----
-
-## ✅ Archived (Completed)
-
-| Status | ID | Title | Agent | File |
-|-------|----|--------|--------|------|
+| Status | Description | Priority | Acceptance evidence and validation |
+|-------|-------------|----------|------------------------------------|
+| `[ ]` | *(none)* | — | — |
 
 ---
 

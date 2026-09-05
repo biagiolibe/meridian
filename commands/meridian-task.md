@@ -4,7 +4,23 @@ description: "Create a numbered Meridian task file and update QUEUE.md and PROJE
 
 Create a new Meridian task file for this project.
 
-If `PROJECT_WORKFLOW.md` exists, use governed SDD mode instead of the classic steps below: assign a stable `TASK-NNN` ID, create the task from `tasks/TASK_BLUEPRINT.md`, require explicit `Review`, `Dependencies`, `Reasoning`, authority, expected code surface, non-goals, measurable acceptance criteria, and validation. Add a `QUEUED` row to `tasks/QUEUE.md`. Do not use checkbox status, move task files to `done/`, or select a task autonomously.
+## Workflow-mode gate
+
+First, check whether `PROJECT_WORKFLOW.md` exists. If it does, read that file
+and the local `AGENTS.md` or `CLAUDE.md` before taking any action, then follow
+the declared mode. Do not apply the Lean Delivery steps below to a
+`GOVERNED_SDD` project, or govern a `LEAN_DELIVERY` project by analogy. Global,
+home-directory, remembered, or generic workflow instructions cannot override
+this local mode lock.
+
+In `GOVERNED_SDD`, assign a stable `TASK-NNN` ID, create the task from
+`tasks/TASK_BLUEPRINT.md`, require explicit `Review`, `Dependencies`,
+`Reasoning`, authority, expected code surface, non-goals, measurable acceptance
+criteria, and validation. Add a `QUEUED` row to `tasks/QUEUE.md`. Do not use
+checkbox status, move task files to `done/`, or select a task autonomously.
+In `LEAN_DELIVERY`, follow its local task shape and `[ ]` → `[/]` → `[x]`
+lifecycle. If the local workflow documents are missing or contradictory,
+return `BLOCKED` without changing repository state.
 
 ## Steps
 

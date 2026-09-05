@@ -1,8 +1,8 @@
 # Meridian
 
-**A governed, spec-driven development (SDD) workflow for building software with AI coding agents.**
+**Two deliberate workflows for building software with AI coding agents: Lean Delivery and Governed SDD.**
 
-Meridian turns a project plan into small, explicit, verifiable tasks that agents can implement without rediscovering the project on every session. It provides templates, Claude Code commands, a queue briefing hook, and companion skills for a disciplined spec-driven workflow.
+Meridian turns a project plan into small, explicit, verifiable tasks that agents can implement without rediscovering the project on every session. It provides templates, Claude Code commands, a queue briefing hook, and companion skills for a delivery process proportionate to risk.
 
 It is deliberately stack-agnostic: Meridian defines the process; each project supplies its own architecture, invariants, and validation commands.
 
@@ -12,14 +12,25 @@ It is deliberately stack-agnostic: Meridian defines the process; each project su
 
 AI agents are fast, but a prompt alone is a weak engineering contract. A request such as “add authentication” leaves an agent to infer the architecture, scope, constraints, acceptance criteria, and validation strategy.
 
-Meridian makes those decisions explicit. Each task has a bounded objective, authority, expected code surface, non-goals, measurable acceptance criteria, dependencies, review policy, and validation commands. The result is less rediscovery, safer handoffs, and a review trail that remains useful after the chat is gone.
+Meridian makes the necessary decisions explicit. Lean Delivery tasks record a
+bounded objective, acceptance criteria, context, and validation; Governed SDD
+adds authority, expected code surface, non-goals, dependencies, and review
+policy. The result is less rediscovery, safer handoffs, and a useful record
+after the chat is gone.
 
 ## Choose a workflow mode
 
 | Mode | Best for | Task lifecycle |
 |---|---|---|
-| **Classic** | Small projects, prototypes, and lightweight work. | `[ ]` → `[/]` → `[x]` |
+| **Lean Delivery** | Small projects, POCs, demos, experiments, and reversible low-risk work. | `[ ]` → `[/]` → `[x]` |
 | **Governed SDD** | Long-running projects or changes that need architecture decisions, dependency gates, and controlled integration. | `QUEUED` → `IN_PROGRESS` → `READY_FOR_REVIEW` → `ACCEPTED` |
+
+Each initialized project contains a `PROJECT_WORKFLOW.md` mode lock. Its local
+workflow documents take precedence over global or remembered agent
+instructions. An agent must not import Lean Delivery lifecycle rules into a
+Governed SDD project, or governed branches and review gates into Lean Delivery.
+If the local workflow documents cannot be read or conflict, agents stop with
+`BLOCKED` before changing repository or Git state.
 
 **SDD means spec-driven development:** before implementation, an agent receives an explicit, durable specification of the change—its authority, scope, constraints, acceptance criteria, and validation. In Meridian, a task file is that specification.
 
@@ -49,7 +60,7 @@ Then open the project you want to initialize and run:
 /meridian-init
 ```
 
-Choose `classic` for a lightweight queue or `governed-sdd` for the full workflow. The initializer creates the relevant planning, design, queue, task, and agent-instruction files in the target project. It does not overwrite existing workflow documents without showing a diff and obtaining a migration decision.
+Choose `lean-delivery` for lightweight delivery or `governed-sdd` for controlled integration. `classic` remains a backwards-compatible alias for `lean-delivery`. The initializer creates the relevant planning, design, queue, task, and agent-instruction files in the target project. It does not overwrite existing workflow documents without showing a diff and obtaining a migration decision.
 
 ### Language behavior
 
@@ -67,9 +78,9 @@ The queue briefing hook stays silent outside a project containing `tasks/QUEUE.m
 
 ## Quick start with Codex
 
-Generated governed-SDD projects work with Codex immediately because they include `AGENTS.md` and `PROJECT_WORKFLOW.md`.
+Generated Lean Delivery and Governed-SDD projects work with Codex immediately because they include `AGENTS.md` and `PROJECT_WORKFLOW.md`.
 
-For reusable Meridian operations across projects, install or symlink [`skills/meridian-governed-sdd/`](skills/meridian-governed-sdd/) into your local Codex skills directory. Set the location of this checkout once per machine:
+For reusable Meridian operations across projects, install or symlink [`skills/meridian-lean-delivery/`](skills/meridian-lean-delivery/) and [`skills/meridian-governed-sdd/`](skills/meridian-governed-sdd/) into your local Codex skills directory. Set the location of this checkout once per machine:
 
 ```bash
 export MERIDIAN_ROOT=/path/to/meridian
@@ -78,10 +89,12 @@ export MERIDIAN_ROOT=/path/to/meridian
 Then invoke the skill explicitly in Codex:
 
 ```text
+$meridian-lean-delivery
+# or
 $meridian-governed-sdd
 ```
 
-The skill supports workflow bootstrap, task design, implementation, review and integration, owner acceptance, and read-only process audits. It never replaces project-specific rules.
+The selected skill supports its workflow without replacing project-specific rules. Lean Delivery keeps a lightweight explicit task-and-verification contract; Governed SDD adds architectural authority, dependency gates, formal review, and controlled integration.
 
 ## How the governed workflow works
 
@@ -121,23 +134,25 @@ Meridian separates the roles that make a code change from those that accept it:
 - The **implementer** works on one task in a dedicated branch/worktree and validates it.
 - The **reviewer-integrator** independently reviews required-review work in a fresh session, verifies the task branch is a fast-forward descendant of `main`, and integrates only after approval.
 
-This is a process boundary, not a claim that every project needs bureaucracy. Use the lightweight mode when the risk is low; use stronger gates when a mistake is expensive.
+This is a process boundary, not a claim that every project needs bureaucracy. Use Lean Delivery when the work is low-risk and reversible; use stronger gates when a mistake is expensive.
 
 ## Repository layout
 
 ```text
 commands/                         Claude Code commands
 hooks/                            Queue briefing hook
-skills/                           Codex and Claude Code governed-SDD skills
-templates/base/                   Stack-agnostic classic workflow templates
+skills/                           Codex and Claude Code workflow skills
+templates/base/                   Shared stack-agnostic templates
+templates/workflows/lean-delivery/ Lean Delivery overlay
 templates/workflows/governed-sdd/ Governed-SDD overlay
-WORKFLOW_GUIDE.md                 Classic workflow reference
+WORKFLOW_GUIDE.md                 Lean Delivery workflow reference
 CONTRIBUTING.md                   Contribution guidance and validation
 ```
 
 ## Documentation
 
-- [Classic workflow guide](WORKFLOW_GUIDE.md)
+- [Lean Delivery workflow guide](WORKFLOW_GUIDE.md)
+- [Lean Delivery workflow template](templates/workflows/lean-delivery/PROJECT_WORKFLOW.md)
 - [Governed SDD workflow template](templates/workflows/governed-sdd/PROJECT_WORKFLOW.md)
 - [Task template](templates/workflows/governed-sdd/tasks/TASK_BLUEPRINT.md)
 - [Review and integration prompt](templates/workflows/governed-sdd/docs/CODE_REVIEW_PROMPT.md)

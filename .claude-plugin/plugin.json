@@ -1,7 +1,7 @@
 {
   "name": "meridian",
   "version": "1.0.0",
-  "description": "Governed workflow for building software with AI coding agents.",
+  "description": "Lean Delivery and Governed SDD workflows for building software with AI coding agents.",
   "license": "MIT",
   "author": {
     "name": "Biagio Liberto",

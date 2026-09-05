@@ -1,5 +1,23 @@
 # Governed SDD Workflow — [Project Name]
 
+## Workflow-mode lock
+
+The presence of this file selects **governed SDD exclusively**. Before any file
+edit, Git mutation, task selection, or completion claim, an agent must read
+this file and `AGENTS.md` or `CLAUDE.md`, then identify the active mode as
+`GOVERNED_SDD`. Global, home-directory, remembered, or generic agent
+instructions are not authority to select a lifecycle, task status, queue
+format, branch procedure, or review action in this repository.
+
+Do not fall back to Meridian Lean Delivery. In particular, checkbox statuses, moving
+tasks to `tasks/done/`, using `PROJECT_PLAN.md` as the canonical queue,
+autonomous task selection, and direct completion updates that bypass a task's
+review policy are prohibited. A request such as “update the queue” changes
+only the authorized governed-SDD record and never authorizes a different
+workflow. If the local workflow documents are absent, contradictory, or cannot
+be read before a mutation, return `BLOCKED` without changing files or Git
+state.
+
 ## Document precedence
 
 When documents conflict, the first applicable document wins:
