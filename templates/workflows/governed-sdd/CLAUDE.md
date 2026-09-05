@@ -14,7 +14,7 @@ return `BLOCKED` before making a mutation.
 
 Read `LANGUAGE_POLICY.md` before responding or writing. It is a mandatory invariant: use its persisted conversation language even when a prompt uses another language, and write every repository artifact in English.
 
-Follow `docs/CONTEXT_BUDGET_POLICY.md` for task-first context loading and reasoning selection. Use the assigned task as the navigation map, `docs/COMPLETION_REPORT_TEMPLATE.md` for the final handoff, and `docs/REVIEW_RECORD_TEMPLATE.md` for a durable requested-changes handoff.
+Follow `docs/CONTEXT_BUDGET_POLICY.md` for task-first context loading and reasoning selection. Use the assigned task as the navigation map, `docs/COMPLETION_REPORT_TEMPLATE.md` for the final handoff, `docs/REVIEW_RECORD_TEMPLATE.md` for a durable requested-changes handoff, and `docs/LIFECYCLE_ORCHESTRATION.md` for the autonomous lifecycle command.
 
 ## Commands
 
@@ -38,7 +38,19 @@ Treat these developer phrases as the complete authorization for the named workfl
 - `Proceed with <TASK-ID>` — run the implementation workflow below for exactly that task.
 - `Review <TASK-ID>` — act as an independent reviewer-integrator using `docs/CODE_REVIEW_PROMPT.md`, ideally in a fresh chat or Task-tool subagent.
 - `Address review <TASK-ID>` — resolve exactly the outstanding findings in that task's review record.
+- `Run lifecycle <TASK-ID>` — coordinate that task through independent implementation, review, remediation, and integration under `docs/LIFECYCLE_ORCHESTRATION.md`.
 - `Accept <TASK-ID>` — run the owner-acceptance workflow below.
+
+### Autonomous lifecycle orchestration
+
+For `Run lifecycle <TASK-ID>`, follow `docs/LIFECYCLE_ORCHESTRATION.md`
+exactly. Act only as the coordinator: start an implementer session for
+`Proceed with <TASK-ID>`, then a fresh, independent reviewer session for
+`Review <TASK-ID>`. On `CHANGES_REQUESTED`, start a new implementer session for
+`Address review <TASK-ID>` and then a new independent reviewer session. Do not
+give a reviewer the implementer's chat context or let one session perform both
+roles. Continue only on durable state and evidence, and stop at the document's
+retry limit or any listed blocker.
 
 ### Implementation workflow
 

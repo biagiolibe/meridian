@@ -20,7 +20,7 @@ Run the task validation plus the project baseline checks recorded in `CLAUDE.md`
 
 ## Execution policies
 
-Apply `docs/CONTEXT_BUDGET_POLICY.md` for task-first context loading, progressive expansion, and reasoning selection. Use `tasks/TASK_BLUEPRINT.md` for new or materially revised tasks, `docs/COMPLETION_REPORT_TEMPLATE.md` for the completion handoff, and `docs/REVIEW_RECORD_TEMPLATE.md` for a durable requested-changes handoff.
+Apply `docs/CONTEXT_BUDGET_POLICY.md` for task-first context loading, progressive expansion, and reasoning selection. Use `tasks/TASK_BLUEPRINT.md` for new or materially revised tasks, `docs/COMPLETION_REPORT_TEMPLATE.md` for the completion handoff, `docs/REVIEW_RECORD_TEMPLATE.md` for a durable requested-changes handoff, and `docs/LIFECYCLE_ORCHESTRATION.md` for the autonomous lifecycle command.
 
 These documents define operating detail; this file remains the source for stable agent-wide rules and project invariants.
 
@@ -35,7 +35,19 @@ Treat these developer phrases as the complete authorization for the named workfl
 - `Proceed with <TASK-ID>` — run the implementation workflow below for exactly that task.
 - `Review <TASK-ID>` — act as an independent reviewer-integrator using `docs/CODE_REVIEW_PROMPT.md`.
 - `Address review <TASK-ID>` — resolve exactly the outstanding findings in that task's review record.
+- `Run lifecycle <TASK-ID>` — coordinate that task through independent implementation, review, remediation, and integration under `docs/LIFECYCLE_ORCHESTRATION.md`.
 - `Accept <TASK-ID>` — run the owner-acceptance workflow below.
+
+### Autonomous lifecycle orchestration
+
+For `Run lifecycle <TASK-ID>`, follow `docs/LIFECYCLE_ORCHESTRATION.md`
+exactly. Act only as the coordinator: start an implementer session for
+`Proceed with <TASK-ID>`, then a fresh, independent reviewer session for
+`Review <TASK-ID>`. On `CHANGES_REQUESTED`, start a new implementer session for
+`Address review <TASK-ID>` and then a new independent reviewer session. Do not
+give a reviewer the implementer's chat context or let one session perform both
+roles. Continue only on durable state and evidence, and stop at the document's
+retry limit or any listed blocker.
 
 ### Implementation workflow
 

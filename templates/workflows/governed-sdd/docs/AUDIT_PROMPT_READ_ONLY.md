@@ -20,6 +20,7 @@ Verify and report, with file/line references:
 10. The implementation-to-review-to-integration handoff matches `docs/PULL_REQUEST_POLICY.md`: task branches, one implementation push per review attempt, durable review records for `CHANGES_REQUESTED`, fast-forward ancestry check before acceptance, reviewer-integrator author override used only on the acceptance commit, and `main` integration procedure followed without fetch/rebase/force recovery shortcuts.
 11. The owner-acceptance workflow (an explicit `Accept <TASK-ID>` trigger from the project owner) is either absent or, if present, is scoped to a status-only handoff without a source change, validation rerun, or automatic merge.
 12. Git history shows no task marked `ACCEPTED` without either an `APPROVE` verdict in `tasks/reviews/<TASK-ID>.md` from a reviewer-integrator (for `Review: REQUIRED`) or complete self-reported validation evidence (for `Review: NOT_REQUIRED`); every `CHANGES_REQUESTED` review has an evidence-backed record and matching return to `IN_PROGRESS`.
+13. When `Run lifecycle <TASK-ID>` is used, its implementer and reviewer sessions are distinct, all handoffs use durable repository evidence rather than copied chat context, the retry limit is respected, and integration occurs only after the required repository and forge gates.
 
 Output: a concise audit report with PASS/FAIL per item, discrepancies, ambiguous requirements, stale lower-precedence text, and recommended documentation-only follow-ups. Do not propose feature implementation.
 ```
