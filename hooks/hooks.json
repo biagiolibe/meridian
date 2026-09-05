@@ -1,5 +1,5 @@
 {
-  "description": "Meridian — mostra il briefing della task queue all'inizio di ogni prompt in progetti Meridian",
+  "description": "Meridian — display the task queue briefing at the start of each prompt in Meridian projects",
   "hooks": {
     "UserPromptSubmit": [
       {

@@ -20,6 +20,10 @@ REQUIRED_FILES = (
     "hooks/hooks.json",
     "hooks/queue-briefing.sh",
 )
+LANGUAGE_POLICY_FILES = (
+    "templates/base/LANGUAGE_POLICY.md",
+    "templates/workflows/governed-sdd/LANGUAGE_POLICY.md",
+)
 MARKDOWN_LINK = re.compile(r"(?<!!)\[[^]]*\]\(([^)]+)\)")
 
 
@@ -32,6 +36,37 @@ def check_required_files() -> None:
     for name in REQUIRED_FILES:
         if not (ROOT / name).is_file():
             fail(f"required file is missing: {name}")
+
+
+def check_language_policy() -> None:
+    for name in LANGUAGE_POLICY_FILES:
+        path = ROOT / name
+        if not path.is_file():
+            fail(f"language policy template is missing: {name}")
+        text = path.read_text(encoding="utf-8")
+        for required_text in (
+            "[Conversation language]",
+            "another language is not a request to switch languages",
+            "All text that remains in the repository must be written in English.",
+        ):
+            if required_text not in text:
+                fail(f"language policy is incomplete: {name}")
+
+    for name in (
+        "templates/base/CLAUDE.md",
+        "templates/workflows/governed-sdd/AGENTS.md",
+        "templates/workflows/governed-sdd/CLAUDE.md",
+    ):
+        if "LANGUAGE_POLICY.md" not in (ROOT / name).read_text(encoding="utf-8"):
+            fail(f"agent instructions do not load the language policy: {name}")
+
+    operator_prompts = ROOT / "templates/workflows/governed-sdd/docs/OPERATOR_PROMPTS.md"
+    if not operator_prompts.is_file():
+        fail("governed-SDD operator prompts are missing")
+    if "This non-normative cookbook" not in operator_prompts.read_text(
+        encoding="utf-8"
+    ):
+        fail("governed-SDD operator prompts must remain non-normative")
 
 
 def check_json() -> None:
@@ -75,6 +110,7 @@ def check_local_markdown_links() -> None:
 
 def main() -> None:
     check_required_files()
+    check_language_policy()
     check_json()
     check_bash()
     check_local_markdown_links()

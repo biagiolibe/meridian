@@ -1,60 +1,60 @@
 # Project Plan — [Project Name]
 
-Questo documento traccia l'evoluzione del progetto dalle idee alla realizzazione.
+This document tracks the evolution of the project from ideas to delivery.
 
-## Ciclo di Vita dei Task
+## Task Lifecycle
 
 ```
-PROPOSTE  →  (revisione)  →  BACKLOG  →  (sviluppo)  →  COMPLETATI
+PROPOSALS  →  (review)  →  BACKLOG  →  (development)  →  COMPLETED
 ```
 
 | Simbolo | Significato |
 |---------|-------------|
-| `[ ]`   | Task approvato nel backlog |
-| `[/]`   | Task in lavorazione |
-| `[x]`   | Task completato |
-| `[-]`   | Task annullato / scartato |
-| `[?]`   | Proposta (in attesa di valutazione) |
+| `[ ]`   | Approved backlog task |
+| `[/]`   | Task in progress |
+| `[x]`   | Completed task |
+| `[-]`   | Cancelled or discarded task |
+| `[?]`   | Proposal awaiting evaluation |
 
 ---
 
-## 🗂️ SEZIONE 1 — PROPOSTE
+## 🗂️ SECTION 1 — PROPOSALS
 
-> Idee da discutere prima di essere spostate nel backlog operativo.
+> Ideas to discuss before moving them into the operational backlog.
 
-- `[?]` Esempio: Aggiungere feature X
-- `[?]` Esempio: Ottimizzare componente Y
-
----
-
-## 🔵 SEZIONE 2 — BACKLOG (Operativo)
-
-> Task approvati e pronti per essere assegnati o trasformati in task files.
-
-### 🏗️ Architettura & Setup
-- `[ ]` Setup iniziale del progetto
-
-### ⚙️ Funzionalità Core
-- `[ ]` Implementare feature principale
-
-### 🎨 UI & Esperienza Utente
-- `[ ]` Definire interfaccia base
+- `[?]` Example: Add feature X
+- `[?]` Example: Optimize component Y
 
 ---
 
-## 🟡 SEZIONE 3 — IN CORSO
+## 🔵 SECTION 2 — BACKLOG (Operational)
 
-> Task attualmente assegnati ad agenti o in sviluppo manuale.
+> Approved tasks ready to be assigned or turned into task files.
 
-- `[ ]` *(nessuno al momento)*
+### 🏗️ Architecture & Setup
+- `[ ]` Initial project setup
+
+### ⚙️ Core Features
+- `[ ]` Implement the primary feature
+
+### 🎨 UI & User Experience
+- `[ ]` Define the base interface
 
 ---
 
-## ✅ SEZIONE 4 — COMPLETATI
+## 🟡 SECTION 3 — IN PROGRESS
+
+> Tasks currently assigned to agents or under manual development.
+
+- `[ ]` *(none at the moment)*
+
+---
+
+## ✅ SECTION 4 — COMPLETED
 
 ### Milestones
-- `[x]` Definizione del concept iniziale
+- `[x]` Define the initial concept
 
 ---
 
-*Ultimo aggiornamento: [Data]*
+*Last updated: [Date]*

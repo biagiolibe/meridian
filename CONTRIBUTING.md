@@ -6,6 +6,12 @@ Thanks for helping improve Meridian.
 
 Meridian is a stack-agnostic workflow for agentic software development. Keep generic workflow assets free of product, language, framework, and hosting-specific rules. Project-specific architecture belongs in generated projects, not in this repository's templates.
 
+## Language invariant
+
+Meridian repository text is English-only. Keep documentation, source code, comments, identifiers, user-facing strings, tests, configuration text, and commit messages in English. The only configurable language is the agent-developer conversation language, persisted in generated projects through `LANGUAGE_POLICY.md`; an individual prompt in another language does not change it.
+
+When changing this behavior, keep the base and governed-SDD language-policy templates identical, update both governed agent instruction files, and preserve parity between the Codex and Claude Code skills.
+
 ## Before opening a change
 
 1. Read the relevant template, command, hook, or skill end to end.

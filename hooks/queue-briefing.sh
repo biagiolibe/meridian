@@ -15,9 +15,9 @@ if grep -q '^| Order | ID | Priority | Status | Review | Dependencies |' "$QUEUE
   ACCEPTED=$(grep -c '^| [0-9].* | ACCEPTED |' "$QUEUE" 2>/dev/null)
 
   echo "[Meridian Governed Queue]"
-  [ -n "$ACTIVE" ] && echo "  🔴 In corso: $ACTIVE" || echo "  ✅ Nessun task attivo"
+  [ -n "$ACTIVE" ] && echo "  🔴 In progress: $ACTIVE" || echo "  ✅ No active task"
   [ -n "$REVIEW" ] && echo "  🔎 In review: $REVIEW"
-  [ -n "$PENDING" ] && echo "  ⏳ In coda: $PENDING"
+  [ -n "$PENDING" ] && echo "  ⏳ Queued: $PENDING"
   echo "  ✅ Accepted: $ACCEPTED"
   exit 0
 fi
@@ -56,11 +56,11 @@ DONE=$((DONE_ACTIVE + DONE_ARCHIVE))
 
 echo "[Meridian Queue]"
 if [ -n "$ACTIVE" ]; then
-  echo "  🔴 In corso: $ACTIVE"
+  echo "  🔴 In progress: $ACTIVE"
 else
-  echo "  ✅ Nessun task attivo"
+  echo "  ✅ No active task"
 fi
 if [ -n "$PENDING" ]; then
-  echo "  ⏳ In coda: $PENDING"
+  echo "  ⏳ Queued: $PENDING"
 fi
-echo "  ✅ Completati: $DONE"
+echo "  ✅ Completed: $DONE"

@@ -2,6 +2,8 @@
 
 Read `PROJECT_WORKFLOW.md` before acting. It defines the canonical task lifecycle, review rules, roles, and Git workflow.
 
+Read `LANGUAGE_POLICY.md` before responding or writing. It is a mandatory invariant: use its persisted conversation language even when a prompt uses another language, and write every repository artifact in English.
+
 Work only on the explicitly assigned task. Before implementation, read the assigned task, its cited authority, its expected code surface, and `git status --short`; state a short plan and stop if unrelated changes or an unresolved higher-precedence conflict exist.
 
 Run the task validation plus the project baseline checks recorded in `CLAUDE.md`/project documentation. Never claim completion when required validation fails.

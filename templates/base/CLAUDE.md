@@ -1,32 +1,34 @@
 # [Project Name]
 
-[Descrizione breve del progetto in una o due frasi.]
+[Brief project description in one or two sentences.]
+
+Read `LANGUAGE_POLICY.md` before responding or writing. It fixes the conversation language independently of prompt language and requires English for every persistent repository artifact.
 
 ## Commands
 
 ```bash
-# [comandi principali: run, test, lint, format]
+# [primary commands: run, test, lint, format]
 ```
 
 ## Documents
 
 | File | Contents |
 |---|---|
-| `TECH_DESIGN.md` | Architettura, convenzioni, decisioni tecniche. |
-| `tasks/QUEUE.md` | **Cosa fare ora.** |
+| `TECH_DESIGN.md` | Architecture, conventions, and technical decisions. |
+| `tasks/QUEUE.md` | **What to do next.** |
 
 ## Conventions
 
-- [Convenzioni di codice/documentazione specifiche del progetto.]
-- [Invarianti architetturali da non violare.]
+- [Project-specific code and documentation conventions.]
+- [Architecture invariants that must not be violated.]
 
 ## Workflow (Meridian)
 
-Un task alla volta. Al completamento di un task:
+Work on one task at a time. After completing a task:
 
-1. verifica gli acceptance criteria nel file del task;
-2. sposta il file da `tasks/` a `tasks/done/`;
-3. aggiorna lo stato a `[x]` in `tasks/QUEUE.md` e in `PROJECT_PLAN.md`.
+1. verify the acceptance criteria in the task file;
+2. move the file from `tasks/` to `tasks/done/`;
+3. update its status to `[x]` in `tasks/QUEUE.md` and `PROJECT_PLAN.md`.
 
 ## Approach
 

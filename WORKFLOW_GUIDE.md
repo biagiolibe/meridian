@@ -1,88 +1,76 @@
-# 🚀 Meridian: Guida al Metodo di Sviluppo Agentico
+# 🚀 Meridian: Guide to the Agentic Development Method
 
-Questo documento è il tuo **punto di partenza**. Spiega come utilizzare questo modello per gestire lo sviluppo di un progetto software in "coppia" con agenti IA, mantenendo ordine, qualità e una visione chiara del progresso.
+This is the starting point for using this template to develop software collaboratively with AI agents while preserving order, quality, and a clear view of progress.
 
----
+## Workflow modes
 
-## Modalità workflow
+Meridian offers two modes.
 
-Meridian offre due modalità.
+- **classic**: the lightweight checkbox queue described in this guide; suitable for small projects or low-risk iterations.
+- **governed-sdd**: uses `PROJECT_WORKFLOW.md`, ADRs, atomic tasks with dependencies, a review policy, task worktrees, and a reviewer-integrator. Use it when agents should be able to receive only a task ID without repeating the operating process each time.
 
-- **classic**: la coda leggera a checkbox descritta in questa guida; adatta a progetti piccoli o a iterazioni poco rischiose.
-- **governed-sdd**: usa `PROJECT_WORKFLOW.md`, ADR, task atomici con dipendenze, policy di review, worktree per task e reviewer-integrator. Usala quando vuoi che gli agenti possano ricevere soltanto un task ID senza dover ripetere ogni volta il processo operativo.
+The complete rules for governed SDD are in `templates/workflows/governed-sdd/`. Do not mix the classic checkbox states with SDD states.
 
-Le regole complete della seconda modalità sono nei template `templates/workflows/governed-sdd/`; non mescolare gli stati checkbox della modalità classic con gli stati SDD.
+## 1. Philosophy: Think big, act small
 
----
+The key to effective AI work on complex projects is isolating context. Instead of asking an agent to “add a feature”:
 
-## 1. La Filosofia: "Pensa in Grande, Agisci in Piccolo"
+1. Define the feature in the general backlog.
+2. Extract an independent task with all necessary context.
+3. Give it to the agent in a new session.
 
-Il segreto per far lavorare bene un'IA in progetti complessi è **isolare il contesto**.
-Invece di chiedere all'agente di "aggiungere una feature", noi:
-1. Definiamo la feature nel **Backlog Generale**.
-2. Estraiamo un **Task Indipendente** con tutto il contesto necessario.
-3. Lo diamo in pasto all'agente in una **Nuova Sessione**.
+## 2. The model pillars
 
----
+| File | Role | When to use it |
+|------|------|----------------|
+| `PROJECT_PLAN.md` | Vision and backlog | When planning new high-level features. |
+| `TECH_DESIGN.md` | Technical reference | When defining architecture and conventions. |
+| `tasks/QUEUE.md` | Work queue | Every day, to know what comes next and who owns it. |
+| `tasks/NNN-task.md` | Agent briefing | When delegating a specific code change. |
+| `LANGUAGE_POLICY.md` | Language invariant | Before every agent response or persistent edit. |
 
-## 2. I Pilastri del Modello
+## 3. Starting a project (Day 0)
 
-| File | Funzione | Quando usarlo |
-|------|----------|---------------|
-| `PROJECT_PLAN.md` | La "Visione" e il Backlog | Quando pianifichi nuove macro-feature. |
-| `TECH_DESIGN.md` | La "Bibbia" tecnica | Quando definisci l'architettura e le convenzioni. |
-| `tasks/QUEUE.md` | La "Coda" di lavoro | Ogni giorno, per sapere cosa fare dopo e chi lo sta facendo. |
-| `tasks/NNN-task.md` | Il "Briefing" per l'agente | Quando sei pronto a delegare un pezzo di codice specifico. |
+1. Copy the template files into the root of the new project.
+2. Fill in `TECH_DESIGN.md` with the stack and module structure.
+3. Fill in `PROJECT_PLAN.md` with high-level features.
+4. Select the persistent conversation language in `LANGUAGE_POLICY.md`. Repository artifacts always remain in English, even when the conversation uses another language.
 
----
+## 4. Daily work cycle
 
-## 3. Come Partire (Day 0)
+### Phase A: Triage and planning
 
-1. **Copia i file**: Copia il contenuto di questa cartella nella root del tuo nuovo progetto.
-2. **Inizializza il Tech Design**: Compila `TECH_DESIGN.md` definendo lo stack (es. Bevy, Rapier) e la struttura dei moduli.
-3. **Inizializza il Backlog**: In `PROJECT_PLAN.md`, scrivi le macro-feature che vuoi nel gioco (es. "Sistema di inventario", "Generazione procedurale").
+Review `PROJECT_PLAN.md`. What is the next approved feature?
 
----
+- If it is simple (for example, renaming a variable), do it directly or add it to the queue as a task without a file.
+- If it is complex, create a new file in `tasks/` from `TASK_BLUEPRINT.md`.
 
-## 4. Ciclo di Lavoro Quotidiano
+### Phase B: Prepare the task file
 
-### Fase A: Triage & Pianificazione
-Guarda `PROJECT_PLAN.md`. Qual è la prossima feature approvata?
-- Se è semplice (es. "Rinomina una variabile"): fallo direttamente o scrivilo nella QUEUE come task senza file.
-- Se è complessa: crea un nuovo file in `tasks/` partendo dal `TASK_BLUEPRINT.md`.
+Fill in the task file (for example, `tasks/001-name.md`). Ensure that it includes:
 
-### Fase B: Preparazione del Task File
-Compila il task file (`tasks/001-nome.md`). Assicurati che contenga:
-- **Obiettivo**: Cosa deve cambiare?
-- **Acceptance Criteria**: Come capisco se è finito?
-- **Contesto Tecnico**: Incolla i pezzi di codice rilevanti o spiega esattamente dove intervenire. *L'agente non deve indovinare.*
+- **Objective**: What must change?
+- **Acceptance criteria**: How can completion be verified?
+- **Technical context**: Paste the relevant code or explain exactly where to make the change. The agent should not need to guess.
 
-### Fase C: Delega
-Assegna il task nella `tasks/QUEUE.md` cambiando lo stato da `[ ]` a `[/]`.
-Apri una nuova sessione con l'agente e chiedigli:
-> *"Leggi il file `tasks/001-nome.md` ed esegui il task. Il progetto si trova in `...`."*
+### Phase C: Delegate
 
-### Fase D: Verifica & Archiviazione
-Una volta che l'agente ha finito:
-1. Verifica il codice (compili? funziona?).
-2. Sposta il task file in `tasks/done/`.
-3. Segna come `[x]` in `QUEUE.md` e in `PROJECT_PLAN.md`.
-4. Se questo era l'ultimo task aperto di una fase/sezione della Coda Attiva
-   (tutta la sezione è ora `[x]`), sposta quelle righe da `QUEUE.md` a
-   `tasks/QUEUE_ARCHIVE.md` (crealo se non esiste). `QUEUE.md` deve
-   contenere solo lavoro con qualcosa ancora aperto — è il file che ogni
-   agente rilegge a ogni sessione, quindi lasciarlo crescere con la storia
-   di decine di fasi chiuse è puro costo di contesto senza beneficio.
+Assign the task in `tasks/QUEUE.md` by changing its state from `[ ]` to `[/]`. Open a new agent session and ask it to read and execute the task file in the current project.
 
----
+### Phase D: Verify and archive
 
-## 💡 Consigli per il Successo
+After the agent finishes:
 
-- **Mantieni i Task Atomici**: Se un task richiede più di 2 ore, probabilmente può essere diviso in due task più piccoli.
-- **Isola i Moduli**: Più il tuo codice è modulare (plugin, componenti, servizi piccoli), più è facile per un agente lavorarci senza rompere il resto del progetto.
-- **La Coda è Sacra**: Non iniziare 5 task contemporaneamente. Finiscine uno, archivialo, e passa al successivo.
-- **Tieni la Coda Snella**: man mano che il progetto cresce, `QUEUE.md` accumula fasi intere già chiuse. Spostale in `tasks/QUEUE_ARCHIVE.md` non appena una fase/sezione è tutta `[x]`, invece di aspettare che il file diventi enorme e costoso da rileggere a ogni sessione (vedi Fase D, punto 4). Lo stesso vale per documenti "snapshot" ormai superati da altri file (es. una `STATUS.md` non più aggiornata): se non è più referenziato da nessuna parte, cancellalo invece di lasciarlo lì.
+1. Verify the code.
+2. Move the task file to `tasks/done/`.
+3. Mark it `[x]` in `QUEUE.md` and `PROJECT_PLAN.md`.
+4. When the last open task in an Active Queue phase or section is complete, move that section to `tasks/QUEUE_ARCHIVE.md` (create it when absent). `QUEUE.md` should contain only work with something still open, keeping the context cost low.
 
----
+## Tips for success
 
-*Per bootstrappare un nuovo progetto: `/meridian-init`. Per creare un nuovo task: `/meridian-task`.*
+- **Keep tasks atomic**: if a task takes more than two hours, it can probably be split into smaller tasks.
+- **Isolate modules**: modular code makes it easier for an agent to work without breaking the rest of the project.
+- **Protect the queue**: do not start five tasks at once. Finish and archive one before moving to the next.
+- **Keep the queue lean**: archive completed sections as they close. Delete obsolete snapshot documents that are no longer referenced instead of leaving them as unnecessary context.
+
+To bootstrap a project, run `/meridian-init`. To create a task, run `/meridian-task`.

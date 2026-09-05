@@ -1,84 +1,61 @@
-# Task [ID] — [Titolo del Task]
+# Task [ID] — [Task Title]
 
 > **ID**: `[NNN]`
-> **Categoria**: [Architettura / Mappa / Giocatore / etc.]
-> **Priorità**: [🔴 P1 / 🟡 P2 / 🟢 P3]
-> **Stima**: [~1h / ~2h / etc.]
-> **Assegnato a**: [Antigravity / Claude CLI / non assegnato]
-> **Sessione**: [ID conversazione o riferimento temporale]
+> **Category**: [Architecture / Feature / Bugfix / Refactor / etc.]
+> **Priority**: [🔴 P1 / 🟡 P2 / 🟢 P3]
+> **Estimate**: [~1h / ~2h / etc.]
+> **Assigned to**: [Claude CLI / unassigned]
+> **Session**: [conversation ID or temporal reference]
 
----
+## 🎯 Objective
 
-## 🎯 Obiettivo
-
-[Cosa deve essere fatto?]
-[Perché è necessario?]
-
----
+[What needs to be done?]
+[Why is it needed?]
 
 ## 📋 Acceptance Criteria
 
-[Un task è considerato completato quando:]
-- [ ] Il codice compila senza warning.
-- [ ] La feature X funziona come descritto.
-- [ ] [Aggiungere criteri specifici...]
+[A task is complete when:]
 
----
+- [ ] The code compiles without errors.
+- [ ] Feature X works as described.
+- [ ] [Add specific criteria...]
 
-## 📁 File Rilevanti
+## 📁 Relevant Files
 
-| File | Ruolo |
-|------|-------|
-| `src/modulo/mod.rs` | Caricamento del plugin e definizione sistemi. |
-| `src/modulo/components.rs` | Struttura dei dati ECS. |
+| File | Role |
+|------|------|
+| `src/module/file.ts` | Role description. |
 
----
+## 🧩 Technical Context
 
-## 🧩 Contesto Tecnico
+[Paste type definitions, interfaces, or describe the current code state here.]
 
-[Incolla qui le definizioni di struct o enum coinvolte, o descrivi lo stato attuale del codice.]
+- **Current behavior**: [What happens now?]
+- **Desired behavior**: [What should happen afterward?]
 
-- **Comportamento attuale**: [Cosa succede ora?]
-- **Comportamento desiderato**: [Cosa deve succedere dopo?]
+## 🔨 Suggested Implementation
 
----
+[Suggested steps for the AI agent]
 
-## 🔨 Implementazione Suggerita
+1. [Step 1]
+2. [Step 2]
 
-[Passaggi consigliati per l'agente IA]
-
-1. [Passo 1]
-2. [Passo 2]
-
-```rust
-// Eventuale snippet di esempio
+```
+// Optional example snippet
 ```
 
----
+## ⚠️ Constraints and Considerations
 
-## ⚠️ Vincoli e Attenzioni
+- **Style**: Follow the conventions defined in `TECH_DESIGN.md`.
+- **Performance**: [Any specific constraints]
 
-- **Bevy [Versione]**: Assicurarsi di usare le API corrette per questa versione.
-- **Performance**: [Evitare loop pesanti, etc.]
-- **Stile**: Seguire le convenzioni del progetto definite nel `TECH_DESIGN.md`.
+## 🔗 Dependencies
 
----
+- **Depends on**: [previous task ID or none]
+- **Blocks**: [next task ID or none]
 
-## 🔗 Dipendenze
+## 🤖 How to delegate this task to Claude CLI
 
-- **Dipende da**: [ID task precedente o nessuno]
-- **Blocca**: [ID task successivo o nessuno]
-
----
-
-## 🤖 Come delegare questo task a un agente
-
-### Opzione A — Antigravity (Nuova Chat)
-Copia e incolla:
-> *"Leggi il file `tasks/[NNN]-nome.md` ed esegui il task. Il progetto si trova in `/path/to/tuo/progetto/`."*
-
-### Opzione B — Claude CLI
-Esegui nel terminale:
 ```bash
-claude "$(cat tasks/[NNN]-nome.md)"$'\n\nEsegui questo task nel progetto.'
+claude "$(cat tasks/[NNN]-name.md)"$'\n\nExecute this task in the current project.'
 ```
