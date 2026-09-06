@@ -42,26 +42,29 @@ need to re-derive the rationale.
 
 ## Tier 2 — structural, meaningful compliance value
 
-- [ ] **Deterministic audit instead of a prose audit prompt.** Today,
-  `docs/AUDIT_PROMPT_READ_ONLY.md` item 12 asks an *agent* to read `git log`
-  and judge whether every `ACCEPTED` task has a matching `APPROVE` verdict in
-  its review record. Replace that one item (at minimum) with a script —
-  `meridian audit --project <path>` — that parses `tasks/QUEUE.md`,
-  `tasks/reviews/*.md`, and Git history and reports PASS/FAIL mechanically.
-  Keep the remaining, genuinely judgment-based audit items (ADR consistency,
-  architectural-boundary framing) as agent-performed. Phase 4 of
-  [migrations/CAPABILITY_MARKERS.md](migrations/CAPABILITY_MARKERS.md) adds a
-  protected-region integrity check to this same command — build that after
-  this item exists, not before.
-- [ ] **Versioned capability markers and protected regions.** Full design in
-  [migrations/CAPABILITY_MARKERS.md](migrations/CAPABILITY_MARKERS.md).
-  Detection today is presence-only (a migration that *modifies* an existing
-  capability is invisible to it) and phrase-based (fails on a project whose
-  wording predates the exact token, as happened twice this session on real
-  projects). Fixes both by wrapping framework-owned text in a versioned,
-  hash-verifiable marker; also lets `upgrade` tell a cosmetic merge conflict
-  (project already has the rule, worded its own way) from a real one,
-  removing the need to reach for `--owner-reconciled` on faith.
+- [x] **Versioned capability markers and protected regions.** Done — full
+  design and status in
+  [migrations/CAPABILITY_MARKERS.md](migrations/CAPABILITY_MARKERS.md)
+  (phases 1-4 shipped; phase 5, process discipline and opportunistic
+  retrofit onto migrations 003-005 and already-adopted projects, is
+  ongoing). Fixes presence-only detection (a migration that *modifies* an
+  existing capability is now visible) and phrase-based fragility (failed on
+  a project whose wording predated the exact token, twice this session on
+  real projects); `upgrade` now tells a cosmetic merge conflict (project
+  already has the rule, worded its own way) from a real one instead of
+  requiring `--owner-reconciled` on faith.
+- [~] **Deterministic audit instead of a prose audit prompt.** Partially
+  done: `meridian audit --project <path>` exists and mechanically verifies
+  protected capability-marker integrity (phase 4 of
+  `CAPABILITY_MARKERS.md`) — see
+  [commands/meridian-audit.md](commands/meridian-audit.md). Still missing:
+  the original motivating check, that every `ACCEPTED` task has a matching
+  `APPROVE` verdict in its review record (`docs/AUDIT_PROMPT_READ_ONLY.md`
+  item 12), which an *agent* still verifies by reading `git log` rather than
+  a script parsing `tasks/QUEUE.md`/`tasks/reviews/*.md` mechanically. Add
+  that check to the same `audit` command rather than a second one. Keep the
+  remaining, genuinely judgment-based audit items (ADR consistency,
+  architectural-boundary framing) as agent-performed.
 - [ ] **Multi-level risk classification.** Review policy is binary
   (`REQUIRED`/`NOT_REQUIRED`). Introduce a risk tier (e.g.
   `LOW`/`MEDIUM`/`HIGH`/`CRITICAL`) that drives proportionate control —

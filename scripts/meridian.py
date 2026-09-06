@@ -266,6 +266,88 @@ def capability_ids_for_file(framework_root: Path, target: Path) -> list[str]:
     return ids
 
 
+def extract_marker_block(text: str, capability: str, version: int) -> str | None:
+    """The exact bracketed content of one capability+version marker occurrence.
+
+    Returns None if that specific version's marker is not present in `text`
+    (a different version, or no marker at all, are both "not present" here).
+    """
+    pattern = re.compile(
+        rf"<!-- MERIDIAN:BEGIN capability={re.escape(capability)} v{version} -->\n(.*?)"
+        r"<!-- MERIDIAN:END -->",
+        re.DOTALL,
+    )
+    match = pattern.search(text)
+    return match.group(1) if match else None
+
+
+def audit_capability_markers(
+    project_root: Path, framework_root: Path, mode: str
+) -> list[tuple[str, str]]:
+    """Phase 4 of migrations/CAPABILITY_MARKERS.md: protected-region integrity.
+
+    For every capability marker found in a project's managed files, compare
+    its exact bracketed content against the framework's own current template
+    for that same file — not a project-wide search, since two files can
+    carry different canonical text for the same capability (a workflow
+    section in AGENTS.md is not the same text as a template file's body).
+    `PASS` means unmodified; `FAIL` means the protected text was edited
+    outside `meridian upgrade`; `SKIP` means the project's marker version
+    predates what the current template carries, so there is nothing current
+    to verify against yet (a staleness question for `upgrade`, not a drift
+    question for this audit).
+    """
+    if mode != "governed-sdd":
+        return []
+    results: list[tuple[str, str]] = []
+    for item in managed_files(framework_root, mode):
+        local = project_root / item.target
+        if not local.is_file():
+            continue
+        local_text = local.read_text(encoding="utf-8")
+        for capability, version_text in CAPABILITY_MARKER.findall(local_text):
+            version = int(version_text)
+            local_block = extract_marker_block(local_text, capability, version)
+            template_text = item.source.read_text(encoding="utf-8")
+            template_block = extract_marker_block(template_text, capability, version)
+            if template_block is None:
+                results.append(
+                    (
+                        "SKIP",
+                        f"{item.target}: capability={capability} v{version} — the current framework "
+                        "template has no matching version to verify against here (likely stale; "
+                        "run `meridian upgrade` first)",
+                    )
+                )
+            elif local_block == template_block:
+                results.append(
+                    ("PASS", f"{item.target}: capability={capability} v{version} matches the released text")
+                )
+            else:
+                results.append(
+                    (
+                        "FAIL",
+                        f"{item.target}: capability={capability} v{version} — protected content does not "
+                        "match the released text for this version; possible unauthorized edit",
+                    )
+                )
+    return sorted(results, key=lambda pair: pair[1])
+
+
+def run_audit(project_root: Path, framework_root: Path, mode: str) -> int:
+    results = audit_capability_markers(project_root, framework_root, mode)
+    if not results:
+        print("No capability markers found to audit.")
+        return 0
+    for status, message in results:
+        print(f"{status:4} {message}")
+    failures = sum(1 for status, _ in results if status == "FAIL")
+    if failures:
+        print(f"BLOCKED: {failures} protected-region integrity failure(s).")
+        return 2
+    return 0
+
+
 def detect_capabilities(project_root: Path, mode: str, framework_root: Path) -> list[Capability]:
     if mode != "governed-sdd":
         return []
@@ -997,6 +1079,17 @@ def main() -> int:
         "mirroring the `Accept <TASK-ID>` owner-acceptance path",
     )
 
+    audit = subparsers.add_parser(
+        "audit",
+        help="verify protected capability-marker regions were not edited outside meridian upgrade",
+    )
+    audit.add_argument("--project", type=Path, default=Path.cwd())
+    audit.add_argument(
+        "--mode",
+        choices=("lean-delivery", "governed-sdd"),
+        help="detected from the project's PROJECT_WORKFLOW.md mode lock when omitted",
+    )
+
     arguments = parser.parse_args()
     framework_root = arguments.framework_root.resolve()
     project_root = arguments.project.resolve()
@@ -1028,6 +1121,9 @@ def main() -> int:
         elif arguments.command == "finalize-adoption":
             mode = arguments.mode or detect_mode(project_root)
             finalize_adoption(project_root, framework_root, mode, arguments.owner_accepted)
+        elif arguments.command == "audit":
+            mode = arguments.mode or detect_mode(project_root)
+            return run_audit(project_root, framework_root, mode)
         elif arguments.check:
             if arguments.owner_reconciled:
                 raise MeridianError("--owner-reconciled only applies to --apply")
