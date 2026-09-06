@@ -627,14 +627,29 @@ class CapabilityMarkerTest(unittest.TestCase):
 
     def test_whole_file_baseline_capabilities_each_carry_one_marker(self) -> None:
         expectations = {
-            "LANGUAGE_POLICY.md": "language-policy",
-            "tasks/TASK_BLUEPRINT.md": "task-blueprint",
-            "docs/CODE_ORGANIZATION.md": "code-organization",
-            "docs/AUDIT_PROMPT_READ_ONLY.md": "audit-prompt",
+            "LANGUAGE_POLICY.md": ("language-policy", "2"),
+            "tasks/TASK_BLUEPRINT.md": ("task-blueprint", "1"),
+            "docs/CODE_ORGANIZATION.md": ("code-organization", "1"),
+            "docs/AUDIT_PROMPT_READ_ONLY.md": ("audit-prompt", "1"),
         }
-        for name, capability in expectations.items():
+        for name, pair in expectations.items():
             text = (self.WORKFLOW / name).read_text(encoding="utf-8")
-            self.assertEqual(self.marker_pairs(text), [(capability, "1")], name)
+            self.assertEqual(self.marker_pairs(text), [pair], name)
+
+    def test_language_policy_marker_excludes_the_per_project_language_line(self) -> None:
+        """Corrective migration 013: meridian-init.md replaces
+        [Conversation language] with the project's actual choice, so that
+        line must sit outside the protected region or every correctly
+        initialized project would fail meridian audit on day one."""
+        text = (self.WORKFLOW / "LANGUAGE_POLICY.md").read_text(encoding="utf-8")
+        match = re.search(
+            r"<!-- MERIDIAN:BEGIN capability=language-policy v2 -->\n?(.*?)"
+            r"<!-- MERIDIAN:END -->",
+            text,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        self.assertNotIn("[Conversation language]", match.group(1))
 
     def test_agents_and_claude_carry_the_five_residual_capabilities(self) -> None:
         residual = (

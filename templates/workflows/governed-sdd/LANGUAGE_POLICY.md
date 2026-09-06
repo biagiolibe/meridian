@@ -1,10 +1,10 @@
 # Language Policy
 
-<!-- MERIDIAN:BEGIN capability=language-policy v1 -->
 ## Persistent conversation language
 
 **Conversation language:** `[Conversation language]`
 
+<!-- MERIDIAN:BEGIN capability=language-policy v2 -->
 Use this language for every message to the developer. Do not infer or change it from the language of an individual prompt: a prompt written in another language is not a request to switch languages.
 
 Change this setting only when the developer explicitly asks to change the conversation language. Update the value above in the same change so the preference persists across sessions and agents.

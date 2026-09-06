@@ -97,6 +97,21 @@ file changed, so no migration record or `VERSION` bump applies.
   Code Task-tool subagents, or separate fresh chats where no subagent tool is
   available) driven by that loop.
 
+## [1.1.10]
+
+### Fixed
+
+- Migration `013-language-policy-v2`: the `language-policy` marker (migration
+  011) wrongly included the per-project `**Conversation language:**
+  `[Conversation language]`` declaration inside its protected region.
+  `commands/meridian-init.md` step 9 replaces that placeholder with the
+  project's actual chosen language during initialization — so every real,
+  correctly initialized project would have diverged from canon on that exact
+  line and failed `meridian audit` on day one, not just Palimpsest. Caught
+  before shipping anywhere, while working out the Palimpsest retrofit.
+  Verified live: a project with the placeholder replaced (exactly what
+  `/meridian-init` produces) now passes.
+
 ## [1.1.9]
 
 ### Added
