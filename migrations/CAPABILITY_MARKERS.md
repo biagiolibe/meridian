@@ -4,11 +4,13 @@ Status: phases 1-4 shipped (markers on capabilities 001/002, version-aware
 detection, cosmetic-vs-real conflict resolution in `upgrade`, and
 `meridian audit`'s protected-region integrity check). Phase 5 (process
 discipline) is documented in `CONTRIBUTING.md`/`migrations/README.md`.
-Migrations 007-011 additionally shipped markers for 004/005, the v2,
+Migrations 007-012 additionally shipped markers for 004/005, the v2,
 path-parameterized canon for 001/002, baseline capabilities for
-`PROJECT_WORKFLOW.md`'s eight sections, and baseline capabilities for four
-whole-file policies. An expanded retrofit (migration 012, plus a full
-Palimpsest retrofit) is in progress — see
+`PROJECT_WORKFLOW.md`'s eight sections, baseline capabilities for four
+whole-file policies, and baseline capabilities for `AGENTS.md`/`CLAUDE.md`'s
+remaining sections — every managed governed-SDD file now has capability
+tracking except the two intentionally excluded ones. Only the full
+Palimpsest retrofit remains — see
 "Addendum: expanded retrofit plan" near the end of this document for the
 current, authoritative state; treat the original Phase 1-5 plan below as
 historical design reasoning, not the up-to-date task list. This document
@@ -294,15 +296,21 @@ that it stays one) — protecting either would fight its purpose.
   (`docs/AUDIT_PROMPT_READ_ONLY.md`). Verified live: a fresh vanilla project
   passes `meridian audit` on all 24 marker occurrences across every
   migration with markers so far.
-- **012 (planned) — `AGENTS.md`/`CLAUDE.md` residual sections**: `command-triggers`
+- **012 — `AGENTS.md`/`CLAUDE.md` residual sections (shipped)**: `command-triggers`
   (the trigger-phrase list itself), `review-mode-boundary`,
   `owner-acceptance-workflow`, `implementer-reviewer-handoff`,
-  `reviewer-integrator-identity`. `### Implementation workflow`'s steps 1-4
-  and 6-8 stay untracked: the marker grammar has no nesting, and step 5
-  already carries `validation-scoping`'s marker inside that same numbered
-  section — wrapping the whole section would nest markers, which the parser
-  does not support. Extending the grammar to support nesting is possible but
-  deferred; it would mean revising a grammar already shipped in 006.
+  `reviewer-integrator-identity`. `review-mode-boundary` was introduced
+  already path-parameterized (no hardcoded `tasks/reviews/<TASK-ID>.md`),
+  since a brand-new capability has no reason to ship with a defect a later
+  migration would just have to fix again. `### Implementation workflow`'s
+  steps 1-4 and 6-8 stay untracked: the marker grammar has no nesting, and
+  step 5 already carries `validation-scoping`'s marker inside that same
+  numbered section — wrapping the whole section would nest markers, which
+  the parser does not support. Extending the grammar to support nesting is
+  possible but deferred; it would mean revising a grammar already shipped in
+  006. Verified live: a fresh vanilla project passes `meridian audit` on all
+  34 marker occurrences — every managed governed-SDD file except the two
+  intentionally excluded ones now has capability tracking.
 
 **Palimpsest retrofit (planned, after 007-012 land).** Every managed file
 except the two excluded ones gets the protected-region + extension pattern:

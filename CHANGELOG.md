@@ -97,6 +97,28 @@ file changed, so no migration record or `VERSION` bump applies.
   Code Task-tool subagents, or separate fresh chats where no subagent tool is
   available) driven by that loop.
 
+## [1.1.9]
+
+### Added
+
+- Migration `012-agents-claude-residual-capabilities`: backfills capability
+  tracking for `AGENTS.md`/`CLAUDE.md`'s remaining independently-changeable
+  sections — `command-triggers`, `review-mode-boundary`,
+  `owner-acceptance-workflow`, `implementer-reviewer-handoff`,
+  `reviewer-integrator-identity` — each at `v1`. `review-mode-boundary` is
+  introduced already path-parameterized (referencing `PROJECT_WORKFLOW.md`'s
+  canonical locations instead of a hardcoded `tasks/reviews/<TASK-ID>.md`),
+  since a brand-new capability has no reason to ship with a defect a later
+  migration would just have to fix again. `### Implementation workflow`'s
+  steps 1-4 and 6-8 remain untracked: the marker grammar has no nesting, and
+  step 5 already carries `validation-scoping`'s marker inside that same
+  numbered section. This closes out the marker-retrofit sweep of every
+  managed governed-SDD file except the two intentionally excluded ones
+  (`docs/ARCHITECTURE_DECISIONS.md`, a project-owned scaffold, and
+  `docs/OPERATOR_PROMPTS.md`, an explicitly non-normative cookbook).
+  Verified live: a fresh vanilla project passes `meridian audit` on all 34
+  marker occurrences.
+
 ## [1.1.8]
 
 ### Added

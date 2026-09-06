@@ -386,9 +386,13 @@ class MeridianCliTest(unittest.TestCase):
         self.assertFalse((self.project / ".meridian").exists())
 
         shutil.copyfile(current / "docs/LIFECYCLE_ORCHESTRATION.md", self.project / "docs/LIFECYCLE_ORCHESTRATION.md")
+        # Replace AGENTS.md/CLAUDE.md wholesale with the current, fully marked
+        # templates rather than appending one more bare phrase: this test's
+        # legacy-fallback evidence was already captured above, and the five
+        # AGENTS.md/CLAUDE.md-only baseline capabilities from migration 012
+        # have no legacy fallback of their own to satisfy any other way.
         for name in ("AGENTS.md", "CLAUDE.md"):
-            target = self.project / name
-            target.write_text(target.read_text(encoding="utf-8") + "\nRun lifecycle <TASK-ID>.\n", encoding="utf-8")
+            shutil.copyfile(current / name, self.project / name)
 
         # All capabilities are now present, but nothing has been reviewed yet:
         # finalize must refuse, and the plan must ask for an independent review.
@@ -631,6 +635,31 @@ class CapabilityMarkerTest(unittest.TestCase):
         for name, capability in expectations.items():
             text = (self.WORKFLOW / name).read_text(encoding="utf-8")
             self.assertEqual(self.marker_pairs(text), [(capability, "1")], name)
+
+    def test_agents_and_claude_carry_the_five_residual_capabilities(self) -> None:
+        residual = (
+            "command-triggers",
+            "review-mode-boundary",
+            "owner-acceptance-workflow",
+            "implementer-reviewer-handoff",
+            "reviewer-integrator-identity",
+        )
+        for name in ("AGENTS.md", "CLAUDE.md"):
+            text = (self.WORKFLOW / name).read_text(encoding="utf-8")
+            pairs = self.marker_pairs(text)
+            for capability in residual:
+                self.assertIn((capability, "1"), pairs, f"{name}: {capability}")
+
+    def test_review_mode_boundary_has_no_hardcoded_review_record_path(self) -> None:
+        text = (self.WORKFLOW / "AGENTS.md").read_text(encoding="utf-8")
+        match = re.search(
+            r"<!-- MERIDIAN:BEGIN capability=review-mode-boundary v1 -->\n?(.*?)"
+            r"<!-- MERIDIAN:END -->",
+            text,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        self.assertNotIn("tasks/reviews/<TASK-ID>.md", match.group(1))
 
 
 class CapabilityVersionDetectionTest(unittest.TestCase):
