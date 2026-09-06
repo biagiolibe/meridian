@@ -1,5 +1,6 @@
 # Language Policy
 
+<!-- MERIDIAN:BEGIN capability=language-policy v1 -->
 ## Persistent conversation language
 
 **Conversation language:** `[Conversation language]`
@@ -15,3 +16,4 @@ All text that remains in the repository must be written in English. This is a no
 This includes documentation, source code, comments, identifiers, user-facing strings, test names and fixtures, task records, issue templates, commit messages, configuration values, and generated text that is committed to version control.
 
 Before writing or editing a persistent artifact, translate its text to English. A developer prompt in another language never relaxes this rule. If the requested work requires non-English text to be committed, stop and obtain an explicit amendment to this policy before writing it.
+<!-- MERIDIAN:END -->

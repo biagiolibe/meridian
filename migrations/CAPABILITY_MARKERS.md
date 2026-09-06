@@ -4,10 +4,11 @@ Status: phases 1-4 shipped (markers on capabilities 001/002, version-aware
 detection, cosmetic-vs-real conflict resolution in `upgrade`, and
 `meridian audit`'s protected-region integrity check). Phase 5 (process
 discipline) is documented in `CONTRIBUTING.md`/`migrations/README.md`.
-Migrations 007-010 additionally shipped markers for 004/005, the v2,
-path-parameterized canon for 001/002, and baseline capabilities for
-`PROJECT_WORKFLOW.md`'s eight sections. An expanded retrofit (migrations
-011-012, plus a full Palimpsest retrofit) is in progress — see
+Migrations 007-011 additionally shipped markers for 004/005, the v2,
+path-parameterized canon for 001/002, baseline capabilities for
+`PROJECT_WORKFLOW.md`'s eight sections, and baseline capabilities for four
+whole-file policies. An expanded retrofit (migration 012, plus a full
+Palimpsest retrofit) is in progress — see
 "Addendum: expanded retrofit plan" near the end of this document for the
 current, authoritative state; treat the original Phase 1-5 plan below as
 historical design reasoning, not the up-to-date task list. This document
@@ -286,11 +287,13 @@ that it stays one) — protecting either would fight its purpose.
   and 009 apart would otherwise have applied eight times over. Verified
   live: a fresh vanilla project passes `meridian audit` on all 20 marker
   occurrences across every migration with markers so far.
-- **011 (planned) — whole-file capabilities** for single-purpose files:
+- **011 — whole-file capabilities (shipped)** for single-purpose files:
   `language-policy` (`LANGUAGE_POLICY.md`), `task-blueprint`
   (`tasks/TASK_BLUEPRINT.md`), `code-organization`
   (`docs/CODE_ORGANIZATION.md`), `audit-prompt`
-  (`docs/AUDIT_PROMPT_READ_ONLY.md`).
+  (`docs/AUDIT_PROMPT_READ_ONLY.md`). Verified live: a fresh vanilla project
+  passes `meridian audit` on all 24 marker occurrences across every
+  migration with markers so far.
 - **012 (planned) — `AGENTS.md`/`CLAUDE.md` residual sections**: `command-triggers`
   (the trigger-phrase list itself), `review-mode-boundary`,
   `owner-acceptance-workflow`, `implementer-reviewer-handoff`,

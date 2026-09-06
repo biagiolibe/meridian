@@ -354,6 +354,10 @@ class MeridianCliTest(unittest.TestCase):
             "docs/CODE_REVIEW_PROMPT.md",
             "docs/COMPLETION_REPORT_TEMPLATE.md",
             "PROJECT_WORKFLOW.md",
+            "LANGUAGE_POLICY.md",
+            "tasks/TASK_BLUEPRINT.md",
+            "docs/CODE_ORGANIZATION.md",
+            "docs/AUDIT_PROMPT_READ_ONLY.md",
         ):
             shutil.copyfile(current / name, self.project / name)
         for name in ("AGENTS.md", "CLAUDE.md"):
@@ -499,6 +503,10 @@ class MeridianCliTest(unittest.TestCase):
             "AGENTS.md",
             "CLAUDE.md",
             "PROJECT_WORKFLOW.md",
+            "LANGUAGE_POLICY.md",
+            "tasks/TASK_BLUEPRINT.md",
+            "docs/CODE_ORGANIZATION.md",
+            "docs/AUDIT_PROMPT_READ_ONLY.md",
             "docs/REVIEW_RECORD_TEMPLATE.md",
             "docs/LIFECYCLE_ORCHESTRATION.md",
             "docs/CONTEXT_BUDGET_POLICY.md",
@@ -612,6 +620,17 @@ class CapabilityMarkerTest(unittest.TestCase):
                 )
             ),
         )
+
+    def test_whole_file_baseline_capabilities_each_carry_one_marker(self) -> None:
+        expectations = {
+            "LANGUAGE_POLICY.md": "language-policy",
+            "tasks/TASK_BLUEPRINT.md": "task-blueprint",
+            "docs/CODE_ORGANIZATION.md": "code-organization",
+            "docs/AUDIT_PROMPT_READ_ONLY.md": "audit-prompt",
+        }
+        for name, capability in expectations.items():
+            text = (self.WORKFLOW / name).read_text(encoding="utf-8")
+            self.assertEqual(self.marker_pairs(text), [(capability, "1")], name)
 
 
 class CapabilityVersionDetectionTest(unittest.TestCase):

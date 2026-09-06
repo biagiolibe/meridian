@@ -97,6 +97,18 @@ file changed, so no migration record or `VERSION` bump applies.
   Code Task-tool subagents, or separate fresh chats where no subagent tool is
   available) driven by that loop.
 
+## [1.1.8]
+
+### Added
+
+- Migration `011-whole-file-baseline-capabilities`: backfills capability
+  tracking for the four remaining single-purpose managed files that had
+  none — `LANGUAGE_POLICY.md`, `tasks/TASK_BLUEPRINT.md`,
+  `docs/CODE_ORGANIZATION.md`, `docs/AUDIT_PROMPT_READ_ONLY.md` — each
+  wrapped whole in one `v1` marker. Purely additive. Verified live: a fresh
+  vanilla project passes `meridian audit` on all 24 marker occurrences
+  across every migration with markers so far.
+
 ## [1.1.7]
 
 ### Added
