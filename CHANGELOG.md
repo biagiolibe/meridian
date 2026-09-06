@@ -48,6 +48,45 @@ file changed, so no migration record or `VERSION` bump applies.
   Code Task-tool subagents, or separate fresh chats where no subagent tool is
   available) driven by that loop.
 
+## [1.1.2]
+
+### Added
+
+- CI-first validation-evidence rule
+  ([docs/PULL_REQUEST_POLICY.md](templates/workflows/governed-sdd/docs/PULL_REQUEST_POLICY.md)):
+  a reviewer with a completed CI run for the exact task-branch commit that
+  covers the task's validation surface uses that run as evidence instead of
+  re-running the same checks locally — a real independent, tamper-evident
+  source, unlike the implementer's own self-report. Without such a run, the
+  reviewer performs its own validation scoped to the diff per
+  `docs/CONTEXT_BUDGET_POLICY.md`, rather than trusting a bare "tests
+  passed" claim or duplicating the implementer's full run wholesale.
+- `docs/COMPLETION_REPORT_TEMPLATE.md`'s `Validation` field now requires the
+  exact commands and exit status, or the CI check run, instead of a bare
+  pass/fail assertion — evidence has to be falsifiable to be evidence.
+- Migration `005-ci-verified-validation`.
+
+## [1.1.1]
+
+### Added
+
+- Validation-scope rule
+  ([docs/CONTEXT_BUDGET_POLICY.md](templates/workflows/governed-sdd/docs/CONTEXT_BUDGET_POLICY.md)):
+  before running validation, classify the diff by surface
+  (documentation/policy text vs. source/build) and run only the commands
+  whose surface the diff actually touches. A documentation/policy-only change
+  now explicitly skips the project's full build/test/lint suite and states so
+  in the report, instead of running it defensively. A reviewer verifies the
+  same scoping and flags disproportionate or missing validation as a finding.
+  This closes a real, measured gap: a 7-file documentation-only migration to
+  another project burned roughly 200K tokens across two review sessions,
+  almost entirely from a full `cargo build`/`test`/`clippy` run that had
+  nothing to validate.
+- `meridian adopt --assisted`'s implementer and reviewer prompts now state the
+  same scoping explicitly, since every framework-managed file is
+  documentation/policy text by construction.
+- Migration `004-validation-scoping`.
+
 ## [1.1.0]
 
 ### Added

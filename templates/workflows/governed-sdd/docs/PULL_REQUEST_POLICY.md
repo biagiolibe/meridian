@@ -25,6 +25,31 @@ If this fails, do not mark the task `ACCEPTED`; return `BLOCKED`. Do not fetch, 
 
 For `Review: NOT_REQUIRED`, the implementer performs the same `ACCEPTED` status commit, fast-forward `main` merge, single `main` push, and local task-branch deletion after validation. Owner acceptance remains an explicit exception: it updates only statuses and does not automatically integrate the branch.
 
+## Validation evidence for review
+
+A reviewer never accepts a bare "tests passed" claim as evidence — that
+self-report is exactly what an independent review exists to verify, not to
+repeat back. Two paths, in order:
+
+1. **CI configured and has a completed run for the exact task-branch
+   commit:** use that run's status as validation evidence. A CI run is an
+   independent, tamper-evident execution against an immutable commit; do not
+   re-run the same checks locally when a passing run for that exact SHA
+   already exists — that would be pure duplication of an equally trustworthy
+   result. If CI ran but does not cover the task's actual validation
+   surface, treat it as partial and fall through to (2) for the rest.
+2. **No CI, or none for that commit:** the implementer's local run is
+   self-reported and is not, by itself, independent evidence. Perform your
+   own validation, scoped to the diff's actual surface per
+   `docs/CONTEXT_BUDGET_POLICY.md` — not the implementer's full historical
+   run, and not zero verification. This is the difference between "re-derive
+   evidence" (required) and "trust the implementation report" (prohibited)
+   from `docs/CODE_REVIEW_PROMPT.md`.
+
+Either path requires the completion report to name exact commands and exit
+status, or the CI check run, per `docs/COMPLETION_REPORT_TEMPLATE.md` — a
+claim that cannot be checked is not evidence.
+
 ## Remote task-branch cleanup
 
 A remote task branch may intentionally lack a local review-and-status `ACCEPTED` commit: its acceptance evidence is published through the subsequent `main` push. Once `main` contains and has pushed the accepted work, local integration is complete and the local task branch may be deleted.
