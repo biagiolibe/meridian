@@ -27,6 +27,7 @@ For `Review: NOT_REQUIRED`, the implementer performs the same `ACCEPTED` status 
 
 ## Validation evidence for review
 
+<!-- MERIDIAN:BEGIN capability=ci-verified-validation v1 -->
 A reviewer never accepts a bare "tests passed" claim as evidence — that
 self-report is exactly what an independent review exists to verify, not to
 repeat back. Two paths, in order:
@@ -49,6 +50,7 @@ repeat back. Two paths, in order:
 Either path requires the completion report to name exact commands and exit
 status, or the CI check run, per `docs/COMPLETION_REPORT_TEMPLATE.md` — a
 claim that cannot be checked is not evidence.
+<!-- MERIDIAN:END -->
 
 ## Remote task-branch cleanup
 

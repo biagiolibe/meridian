@@ -15,21 +15,23 @@ Dependencies establish readiness; they do not automatically require rereading th
 
 ## Validation scope
 
+<!-- MERIDIAN:BEGIN capability=validation-scoping v1 -->
 Before running validation, classify the diff by surface: *documentation/policy
 text* (Markdown, comments, configuration prose with no build or runtime
 effect) versus *source/build* (application code, dependency manifests, build
 or CI configuration). Run only the validation commands whose surface
 intersects the actual diff. For a documentation/policy-only change, skip the
 project's full build, test, and lint suites and state so explicitly in the
-completion or review report (for example: "skipped: cargo test/build/clippy —
-no source or build surface changed") instead of running them defensively.
-This is distinct from the existing exemption for a command that is
-inapplicable because its target artifact does not exist yet: skip a command
-here because its surface was not touched, not because it cannot run.
+completion or review report (for example: "skipped: full test/build/lint
+suite — no source or build surface changed") instead of running them
+defensively. This is distinct from the existing exemption for a command that
+is inapplicable because its target artifact does not exist yet: skip a
+command here because its surface was not touched, not because it cannot run.
 
 A reviewer verifies the same scoping: confirm that validation evidence
 matches the actual diff surface, that nothing relevant was skipped, and that
 nothing irrelevant was run and reported as if it were meaningful evidence.
+<!-- MERIDIAN:END -->
 
 ## Lifecycle orchestration
 

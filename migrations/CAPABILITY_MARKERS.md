@@ -3,10 +3,13 @@
 Status: phases 1-4 shipped (markers on capabilities 001/002, version-aware
 detection, cosmetic-vs-real conflict resolution in `upgrade`, and
 `meridian audit`'s protected-region integrity check). Phase 5 (process
-discipline) is documented in `CONTRIBUTING.md`/`migrations/README.md`; the
-opportunistic retrofit of markers onto migrations 003-005 and onto
-already-adopted projects (fusa, palimpsest) remains outstanding, by design —
-see Phase 5 below. This document integrates two ideas
+discipline) is documented in `CONTRIBUTING.md`/`migrations/README.md`.
+Migration 007 additionally shipped markers for 004/005. An expanded retrofit
+(migrations 008-011, plus a full Palimpsest retrofit) is in progress — see
+"Addendum: expanded retrofit plan" near the end of this document for the
+current, authoritative state; treat the original Phase 1-5 plan below as
+historical design reasoning, not the up-to-date task list. This document
+integrates two ideas
 discussed while adopting Meridian onto a heavily customized project
 (Palimpsest/ECHOES): capability detection that survives a project rewriting
 Meridian's prose in its own voice, and a way to stop that same rewriting from
@@ -218,3 +221,70 @@ rather than a dedicated migration or session with no other purpose.
 Each phase after Phase 1 is optional to do immediately — the design holds
 together even if only markers + version-aware detection ship and the
 integrity audit lands later once `meridian audit` itself exists.
+
+## Addendum: expanded retrofit plan
+
+Decided while bringing Palimpsest to full compliance: Palimpsest's own
+directory conventions (`docs/TASK_QUEUE.md`, `docs/tasks/<milestone>/`,
+`docs/tasks/reviews/`) are hardcoded inline inside 001/002's canonical text,
+so wrapping Palimpsest's actual wording in a marker would be a false claim
+(it isn't the canonical text) and would fail `meridian audit`. Bringing
+Palimpsest to genuine compliance without changing its real file layout
+requires the canonical text itself to stop hardcoding paths — a framework
+change, not a Palimpsest-only one. Separately: `PROJECT_WORKFLOW.md` — the
+single most important managed file, since it carries the `GOVERNED_SDD`
+mode lock itself — has no capability tracking at all today, the same gap
+001/002 had before migration 006, just not yet hit by a real incident.
+
+**Migration 007 (shipped).** Markers + capability fields for
+`validation-scoping` and `ci-verified-validation`, matching what 006 did for
+001/002. Required relaxing `extract_marker_block`'s grammar to accept an
+inline, mid-sentence marker (not just a marker on its own line), since
+`validation-scoping`'s text in `AGENTS.md`/`CLAUDE.md` is one clause inside a
+larger numbered step, not a standalone section.
+
+**Migration 008 (planned).** `review-remediation-record` and
+`lifecycle-orchestration` bump to `capabilityVersion: 2`: the canonical text
+stops hardcoding `tasks/reviews/<TASK-ID>.md` / `tasks/QUEUE.md` inline and
+instead references a project's declared "canonical locations" (a section
+`PROJECT_WORKFLOW.md` already has conceptually). `delta` describes only this
+reference change — no behavioral change for a vanilla project, since its
+declared locations already match the defaults.
+
+**Migrations 009-011 (planned): baseline capabilities for everything else
+that's binding but untracked.** One capability per genuinely independent
+rule, not one per file — a composite file keeps the same precision Phase 3
+relies on. Two files are deliberately excluded: `docs/ARCHITECTURE_DECISIONS.md`
+is a scaffold the project is meant to fill in, and `docs/OPERATOR_PROMPTS.md`
+is an explicitly non-normative cookbook (`check_repository.py` already
+enforces that it stays one) — protecting either would fight its purpose.
+
+- **009 — `PROJECT_WORKFLOW.md`**, one capability per `##` section:
+  `workflow-mode-lock`, `document-precedence`, `task-lifecycle`,
+  `execution-assets`, `roles`, `review-policy`, `git-workflow` (folding in
+  its `Reviewer-integrator identity` subsection), `execution-discipline`.
+- **010 — whole-file capabilities** for single-purpose files:
+  `language-policy` (`LANGUAGE_POLICY.md`), `task-blueprint`
+  (`tasks/TASK_BLUEPRINT.md`), `code-organization`
+  (`docs/CODE_ORGANIZATION.md`), `audit-prompt`
+  (`docs/AUDIT_PROMPT_READ_ONLY.md`).
+- **011 — `AGENTS.md`/`CLAUDE.md` residual sections**: `command-triggers`
+  (the trigger-phrase list itself), `review-mode-boundary`,
+  `owner-acceptance-workflow`, `implementer-reviewer-handoff`,
+  `reviewer-integrator-identity`. `### Implementation workflow`'s steps 1-4
+  and 6-8 stay untracked: the marker grammar has no nesting, and step 5
+  already carries `validation-scoping`'s marker inside that same numbered
+  section — wrapping the whole section would nest markers, which the parser
+  does not support. Extending the grammar to support nesting is possible but
+  deferred; it would mean revising a grammar already shipped in 006.
+
+**Palimpsest retrofit (planned, after 007-011 land).** Every managed file
+except the two excluded ones gets the protected-region + extension pattern:
+canonical text byte-identical to the (parameterized, where applicable)
+framework version, Palimpsest's own material — explicit `cargo` commands,
+the `palimpsest-domain` Bevy-free boundary, ECHOES terminology, milestone
+`*-VERIFY` PR gating, the reviewer-identity override — moved to clearly
+labeled extension text immediately outside the marker, never inside it.
+Verification: `meridian audit` all `PASS`, `meridian upgrade --check` zero
+conflicts across all previously-conflicting files, and a manual line-by-line
+diff confirming no existing Palimpsest rule was dropped, only relocated.

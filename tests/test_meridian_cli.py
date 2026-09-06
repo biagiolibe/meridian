@@ -291,6 +291,18 @@ class MeridianCliTest(unittest.TestCase):
                 target.read_text(encoding="utf-8") + "\nAddress review <TASK-ID>.\nRun lifecycle <TASK-ID>.\n",
                 encoding="utf-8",
             )
+        # Satisfy validation-scoping and ci-verified-validation too (both carry
+        # markers in the current templates), so this test stays about the
+        # 001/002 legacy fallback specifically rather than tripping on the two
+        # newer, unrelated capabilities.
+        current = self.framework / "templates/workflows/governed-sdd"
+        for name in (
+            "docs/CONTEXT_BUDGET_POLICY.md",
+            "docs/PULL_REQUEST_POLICY.md",
+            "docs/CODE_REVIEW_PROMPT.md",
+            "docs/COMPLETION_REPORT_TEMPLATE.md",
+        ):
+            shutil.copyfile(current / name, self.project / name)
 
         planned = self.run_cli(
             "adopt", "--mode", "governed-sdd", "--from", "1.0.0", "--assisted", "--check"
@@ -307,7 +319,10 @@ class MeridianCliTest(unittest.TestCase):
             "CAPABILITY PRESENT 002-lifecycle-orchestration — no marker found; legacy pre-marker evidence confirms v1",
             planned.stdout,
         )
-        self.assertIn("NEXT_ACTION REVIEW_MIGRATION", planned.stdout)
+        # Match the standalone state line, not the generic orchestrator-prompt
+        # boilerplate that also mentions "NEXT_ACTION REVIEW_MIGRATION" as
+        # part of its own instructions further down the same output.
+        self.assertIn("\nNEXT_ACTION REVIEW_MIGRATION\n", planned.stdout)
 
     def test_assisted_adoption_detects_only_missing_lifecycle(self) -> None:
         shutil.rmtree(self.project)
@@ -320,6 +335,18 @@ class MeridianCliTest(unittest.TestCase):
                 shutil.copyfile(path, destination)
         current = self.framework / "templates/workflows/governed-sdd"
         shutil.copyfile(current / "docs/REVIEW_RECORD_TEMPLATE.md", self.project / "docs/REVIEW_RECORD_TEMPLATE.md")
+        # Satisfy validation-scoping and ci-verified-validation (both carry
+        # markers in the current templates) so this test can focus purely on
+        # the 001/002 legacy-fallback progression it's actually about; the
+        # marker only needs to be found somewhere among managed files, not
+        # specifically in AGENTS.md/CLAUDE.md.
+        for name in (
+            "docs/CONTEXT_BUDGET_POLICY.md",
+            "docs/PULL_REQUEST_POLICY.md",
+            "docs/CODE_REVIEW_PROMPT.md",
+            "docs/COMPLETION_REPORT_TEMPLATE.md",
+        ):
+            shutil.copyfile(current / name, self.project / name)
         for name in ("AGENTS.md", "CLAUDE.md"):
             target = self.project / name
             target.write_text(target.read_text(encoding="utf-8") + "\nAddress review <TASK-ID>.\n", encoding="utf-8")
@@ -331,7 +358,7 @@ class MeridianCliTest(unittest.TestCase):
         self.assertIn("CAPABILITY PRESENT 001-review-remediation-record", planned.stdout)
         self.assertIn("CAPABILITY MISSING 002-lifecycle-orchestration", planned.stdout)
         self.assertIn("AGENT_REQUIRED", planned.stdout)
-        self.assertIn("NEXT_ACTION IMPLEMENT_MIGRATION", planned.stdout)
+        self.assertIn("\nNEXT_ACTION IMPLEMENT_MIGRATION\n", planned.stdout)
         self.assertIn("IMPLEMENTER_PROMPT_BEGIN", planned.stdout)
         self.assertIn("REVIEWER_PROMPT_BEGIN", planned.stdout)
         self.assertIn("This reviewer session must be fresh", planned.stdout)
@@ -357,7 +384,7 @@ class MeridianCliTest(unittest.TestCase):
             "adopt", "--mode", "governed-sdd", "--from", "1.0.0", "--assisted", "--check"
         )
         self.assertEqual(reviewing.returncode, 3)
-        self.assertIn("NEXT_ACTION REVIEW_MIGRATION", reviewing.stdout)
+        self.assertIn("\nNEXT_ACTION REVIEW_MIGRATION\n", reviewing.stdout)
         self.assertNotIn("Perform the capability-aware Meridian adoption migration", reviewing.stdout)
         self.assertIn("REVIEWER_PROMPT_BEGIN", reviewing.stdout)
 
@@ -372,7 +399,7 @@ class MeridianCliTest(unittest.TestCase):
             "adopt", "--mode", "governed-sdd", "--from", "1.0.0", "--assisted", "--check"
         )
         self.assertEqual(ready.returncode, 0)
-        self.assertIn("NEXT_ACTION FINALIZE", ready.stdout)
+        self.assertIn("\nNEXT_ACTION FINALIZE\n", ready.stdout)
 
         finalized = self.run_cli("finalize-adoption", "--mode", "governed-sdd")
         self.assertEqual(finalized.returncode, 0, finalized.stderr)
@@ -399,7 +426,7 @@ class MeridianCliTest(unittest.TestCase):
             "adopt", "--mode", "governed-sdd", "--from", "1.0.0", "--assisted", "--check"
         )
         self.assertEqual(planned.returncode, 3)
-        self.assertIn("NEXT_ACTION ADDRESS_REVIEW", planned.stdout)
+        self.assertIn("\nNEXT_ACTION ADDRESS_REVIEW\n", planned.stdout)
         self.assertIn("ATTEMPT 1", planned.stdout)
 
         review_path.write_text(
@@ -456,14 +483,17 @@ class MeridianCliTest(unittest.TestCase):
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(path, destination)
         current = self.framework / "templates" / "workflows" / "governed-sdd"
-        for name in ("docs/REVIEW_RECORD_TEMPLATE.md", "docs/LIFECYCLE_ORCHESTRATION.md"):
+        for name in (
+            "AGENTS.md",
+            "CLAUDE.md",
+            "docs/REVIEW_RECORD_TEMPLATE.md",
+            "docs/LIFECYCLE_ORCHESTRATION.md",
+            "docs/CONTEXT_BUDGET_POLICY.md",
+            "docs/PULL_REQUEST_POLICY.md",
+            "docs/CODE_REVIEW_PROMPT.md",
+            "docs/COMPLETION_REPORT_TEMPLATE.md",
+        ):
             shutil.copyfile(current / name, self.project / name)
-        for name in ("AGENTS.md", "CLAUDE.md"):
-            target = self.project / name
-            target.write_text(
-                target.read_text(encoding="utf-8") + "\nAddress review <TASK-ID>.\nRun lifecycle <TASK-ID>.\n",
-                encoding="utf-8",
-            )
 
         refused = self.run_cli("finalize-adoption", "--mode", "governed-sdd")
         self.assertEqual(refused.returncode, 2)
@@ -521,12 +551,13 @@ class CapabilityMarkerTest(unittest.TestCase):
         )
         return begins
 
-    def test_agents_and_claude_carry_both_v1_markers(self) -> None:
+    def test_agents_and_claude_carry_all_four_v1_markers(self) -> None:
         for name in ("AGENTS.md", "CLAUDE.md"):
             text = (self.WORKFLOW / name).read_text(encoding="utf-8")
             pairs = self.marker_pairs(text)
             self.assertIn(("review-remediation-record", "1"), pairs, name)
             self.assertIn(("lifecycle-orchestration", "1"), pairs, name)
+            self.assertIn(("validation-scoping", "1"), pairs, name)
 
     def test_review_record_template_carries_its_own_marker(self) -> None:
         text = (self.WORKFLOW / "docs/REVIEW_RECORD_TEMPLATE.md").read_text(encoding="utf-8")
@@ -535,6 +566,19 @@ class CapabilityMarkerTest(unittest.TestCase):
     def test_lifecycle_orchestration_carries_its_own_marker(self) -> None:
         text = (self.WORKFLOW / "docs/LIFECYCLE_ORCHESTRATION.md").read_text(encoding="utf-8")
         self.assertEqual(self.marker_pairs(text), [("lifecycle-orchestration", "1")])
+
+    def test_context_budget_policy_carries_validation_scoping_marker(self) -> None:
+        text = (self.WORKFLOW / "docs/CONTEXT_BUDGET_POLICY.md").read_text(encoding="utf-8")
+        self.assertEqual(self.marker_pairs(text), [("validation-scoping", "1")])
+
+    def test_ci_verified_validation_marker_in_each_of_its_three_docs(self) -> None:
+        for name in (
+            "docs/PULL_REQUEST_POLICY.md",
+            "docs/CODE_REVIEW_PROMPT.md",
+            "docs/COMPLETION_REPORT_TEMPLATE.md",
+        ):
+            text = (self.WORKFLOW / name).read_text(encoding="utf-8")
+            self.assertEqual(self.marker_pairs(text), [("ci-verified-validation", "1")], name)
 
 
 class CapabilityVersionDetectionTest(unittest.TestCase):
