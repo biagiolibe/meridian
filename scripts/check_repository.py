@@ -29,6 +29,8 @@ REQUIRED_FILES = (
     "migrations/005-ci-verified-validation.json",
     "migrations/006-capability-markers.json",
     "migrations/007-validation-capability-markers.json",
+    "migrations/008-review-remediation-record-v2.json",
+    "migrations/009-lifecycle-orchestration-v2.json",
     "migrations/README.md",
     "migrations/ASSISTED_ADOPTION.md",
     "release-baselines/1.0.0/templates/workflows/governed-sdd/PROJECT_WORKFLOW.md",

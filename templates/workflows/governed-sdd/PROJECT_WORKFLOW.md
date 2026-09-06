@@ -59,6 +59,12 @@ Only `ACCEPTED` tasks satisfy dependencies.
 
 For a task or review, start with `AGENTS.md` or `CLAUDE.md`, then read only the assigned task and sources it cites. These assets are operational guidance and do not supersede the precedence order above.
 
+**Canonical locations.** Task files live at `tasks/<TASK-ID>.md`, the queue at
+`tasks/QUEUE.md`, and durable review records at `tasks/reviews/<TASK-ID>.md`,
+unless this section declares different locations for this project. Every
+other document that references these locations follows this declaration,
+not a hardcoded path of its own.
+
 ## Roles
 
 - Tech designer: defines ADRs, specifications, task scope, dependencies, and review policy. Does not implement feature code unless explicitly assigned.

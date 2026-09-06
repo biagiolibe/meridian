@@ -1,8 +1,9 @@
 # Review Record
 
-<!-- MERIDIAN:BEGIN capability=review-remediation-record v1 -->
-Use one durable review record per required-review task at
-`tasks/reviews/<TASK-ID>.md`. It is the canonical handoff from reviewer to
+<!-- MERIDIAN:BEGIN capability=review-remediation-record v2 -->
+Use one durable review record per required-review task at the location
+`PROJECT_WORKFLOW.md` declares for it (`tasks/reviews/<TASK-ID>.md` unless
+that document says otherwise). It is the canonical handoff from reviewer to
 implementer; chat output may summarize it but must not be the only location of
 findings. Create the directory when the first record is needed.
 

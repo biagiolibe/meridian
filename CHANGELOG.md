@@ -97,6 +97,30 @@ file changed, so no migration record or `VERSION` bump applies.
   Code Task-tool subagents, or separate fresh chats where no subagent tool is
   available) driven by that loop.
 
+## [1.1.6]
+
+### Changed
+
+- Migrations `008-review-remediation-record-v2` and
+  `009-lifecycle-orchestration-v2`: the canonical text for both capabilities
+  stops hardcoding `tasks/reviews/<TASK-ID>.md` inline, referencing a new
+  "Canonical locations" declaration in `PROJECT_WORKFLOW.md`'s Execution
+  assets section instead (default unchanged). Motivated by Palimpsest: its
+  own directory conventions (`docs/tasks/...`) were baked into the literal
+  wording of the review-remediation-record and lifecycle-orchestration
+  capabilities, so wrapping Palimpsest's actual text in a marker would have
+  been a false claim of byte-identical canon. Parameterizing the reference
+  lets any project's own declared locations sit outside the protected
+  region without changing the canonical text at all.
+- **Real consequence, not a bug**: because this changes what "the current
+  version" of these two capabilities' canonical text actually is, both
+  capabilities require v2 now. The `LEGACY_CAPABILITY_EVIDENCE` fallback
+  (added in migration 006/phase 2) only ever proves v1, by design — so a
+  project relying on it, including the two real projects adopted so far
+  (`fusa`, `palimpsest`), now correctly reports both capabilities `MISSING`
+  (stale) rather than falsely `PRESENT`, and needs another assisted-adoption
+  pass to reach `1.1.6`. Verified live, read-only, against both.
+
 ## [1.1.4]
 
 ### Added
