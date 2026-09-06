@@ -1,5 +1,6 @@
 # Code Organization Policy
 
+<!-- MERIDIAN:BEGIN capability=code-organization v1 -->
 ## Status and precedence
 
 This is the normative source-organization policy for production code. It is subordinate to `AGENTS.md`/`CLAUDE.md`, accepted ADRs, specifications, and the assigned atomic task. It organizes an authorized implementation; it never expands scope, changes behavior, or authorizes a new abstraction.
@@ -46,3 +47,4 @@ Record this project's actual layered module map — and its dependency direction
 - If the requested behavior would reverse dependency direction, mix ownership categories, or require broad visibility, stop and report the missing architectural decision instead of creating an opportunistic abstraction.
 
 Review verifies module ownership, dependency direction, visibility, root API stability, test placement, and diff scope. Organization-only tasks additionally verify behavior preservation with the repository baseline checks.
+<!-- MERIDIAN:END -->

@@ -32,6 +32,7 @@ REQUIRED_FILES = (
     "migrations/008-review-remediation-record-v2.json",
     "migrations/009-lifecycle-orchestration-v2.json",
     "migrations/010-project-workflow-baseline-capabilities.json",
+    "migrations/011-whole-file-baseline-capabilities.json",
     "migrations/README.md",
     "migrations/ASSISTED_ADOPTION.md",
     "release-baselines/1.0.0/templates/workflows/governed-sdd/PROJECT_WORKFLOW.md",

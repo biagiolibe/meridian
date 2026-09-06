@@ -1,5 +1,6 @@
 # Task [ID] — [Title]
 
+<!-- MERIDIAN:BEGIN capability=task-blueprint v1 -->
 Priority: [P0 / P1 / P2]
 Status: QUEUED
 Review: REQUIRED
@@ -38,3 +39,4 @@ Reasoning justification: [required for high/xhigh; omit for medium]
 
 - For `Review: REQUIRED`, set this task and its queue row to `READY_FOR_REVIEW` only after validation passes.
 - For `Review: NOT_REQUIRED`, set this task and its queue row to `ACCEPTED` only after validation passes.
+<!-- MERIDIAN:END -->
