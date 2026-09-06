@@ -272,15 +272,23 @@ def capability_presence_map(
     return presence
 
 
-def capability_ids_for_file(framework_root: Path, target: Path) -> list[str]:
-    """Capability ids of every migration that declares one and manages `target`."""
-    ids = []
-    for path in sorted((framework_root / "migrations").glob("*.json")):
-        data = json.loads(path.read_text(encoding="utf-8"))
-        if str(target) not in data.get("managedPaths", []):
-            continue
-        ids.extend(capability for capability, _version in migration_capability_entries(data))
-    return ids
+def capability_ids_in_template(template: Path) -> list[str]:
+    """Capability ids whose marker actually appears in this template file.
+
+    `managedPaths` on a migration record lists every file that migration's
+    diff touches, which is not the same as "every file that must carry that
+    migration's capability marker" — a migration can mention or reference a
+    capability in several files while only marking it in one (see
+    `migrations/011-whole-file-baseline-capabilities.json`, where each of its
+    four capabilities belongs to a different one of its four managed paths).
+    The template's own marker set is the ground truth for what a project's
+    copy of this file must contain to be verified, and it is the same source
+    `audit_capability_markers` already checks against.
+    """
+    if not template.is_file():
+        return []
+    text = template.read_text(encoding="utf-8")
+    return [capability for capability, _version in CAPABILITY_MARKER.findall(text)]
 
 
 def extract_marker_block(text: str, capability: str, version: int) -> str | None:
@@ -833,10 +841,13 @@ def plan_from_baseline(
             if clean:
                 plan.append(PlanItem(item, "merge", "three-way merge"))
                 continue
-            capability_ids = capability_ids_for_file(framework_root, item.target)
+            capability_ids = capability_ids_in_template(item.source)
             local_text = local.read_text(encoding="utf-8")
+            template_text = item.source.read_text(encoding="utf-8")
             satisfied_here = capability_ids and all(
-                (find_capability_marker_version(local_text, capability_id) or 0) >= requirements[capability_id][0]
+                extract_marker_block(local_text, capability_id, requirements[capability_id][0]) is not None
+                and extract_marker_block(local_text, capability_id, requirements[capability_id][0])
+                == extract_marker_block(template_text, capability_id, requirements[capability_id][0])
                 for capability_id in capability_ids
             )
             if satisfied_here:
