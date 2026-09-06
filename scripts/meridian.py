@@ -22,6 +22,7 @@ ADOPTION_REVIEW_PATH = Path(".meridian/adoption-review.md")
 PROTOCOL_VERSION = 1
 ADOPTION_VERDICTS = ("APPROVE", "CHANGES_REQUESTED", "BLOCKED")
 ADOPTION_RETRY_LIMIT = 2
+CAPABILITY_MARKER = re.compile(r"<!-- MERIDIAN:BEGIN capability=([a-z0-9-]+) v(\d+) -->")
 
 
 class MeridianError(RuntimeError):
@@ -154,27 +155,100 @@ def migration_record_paths(framework_root: Path, migration_ids_to_find: list[str
     return records
 
 
-def detect_capabilities(project_root: Path, mode: str) -> list[Capability]:
+def capability_requirements(framework_root: Path) -> dict[str, tuple[int, str]]:
+    """Map capability id -> (required version, the migration id that requires it).
+
+    Built from every migration record that declares a `capability` field. When
+    more than one migration touches the same capability, the highest declared
+    `capabilityVersion` wins — that is the version currently required.
+    """
+    requirements: dict[str, tuple[int, str]] = {}
+    for path in sorted((framework_root / "migrations").glob("*.json")):
+        data = json.loads(path.read_text(encoding="utf-8"))
+        capability = data.get("capability")
+        if not capability:
+            continue
+        version = int(data["capabilityVersion"])
+        current = requirements.get(capability)
+        if current is None or version > current[0]:
+            requirements[capability] = (version, str(data["id"]))
+    return requirements
+
+
+def find_capability_marker_version(text: str, capability: str) -> int | None:
+    for marker_capability, version in CAPABILITY_MARKER.findall(text):
+        if marker_capability == capability:
+            return int(version)
+    return None
+
+
+# Pre-marker capabilities (001, 002) shipped as bare phrases before migration
+# 006 introduced markers. A project adopted between their release and 006 is
+# legitimately compliant but has no marker to find; without this fallback,
+# every such already-adopted project would regress to fully MISSING. Each
+# entry proves only that v1 was implemented — the version that predates
+# markers entirely — never a later one.
+LEGACY_CAPABILITY_EVIDENCE = {
+    "review-remediation-record": lambda project_root, text: (
+        (project_root / "docs/REVIEW_RECORD_TEMPLATE.md").is_file() and "Address review" in text
+    ),
+    "lifecycle-orchestration": lambda project_root, text: (
+        (project_root / "docs/LIFECYCLE_ORCHESTRATION.md").is_file() and "Run lifecycle" in text
+    ),
+}
+
+
+def detect_capabilities(project_root: Path, mode: str, framework_root: Path) -> list[Capability]:
+    """Detect framework capabilities by behavior, not by exact wording.
+
+    A capability is present when the project carries a
+    `<!-- MERIDIAN:BEGIN capability=<id> vN --> ... <!-- MERIDIAN:END -->`
+    marker for it at or above the version the framework currently requires,
+    found anywhere among the project's managed governed-SDD files. When no
+    marker is found, a capability with a pre-marker legacy check
+    (`LEGACY_CAPABILITY_EVIDENCE`) still counts as present at v1 — never
+    higher, since that check cannot distinguish v1 from any later version.
+    See migrations/CAPABILITY_MARKERS.md for why this replaced pure phrase
+    matching without breaking every project adopted before markers existed.
+    """
     if mode != "governed-sdd":
         return []
-    agent_files = [project_root / "AGENTS.md", project_root / "CLAUDE.md"]
-    instruction_text = "\n".join(
-        path.read_text(encoding="utf-8") for path in agent_files if path.is_file()
+
+    combined_text = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in (project_root / item.target for item in managed_files(framework_root, mode))
+        if path.is_file()
     )
-    review_record = project_root / "docs/REVIEW_RECORD_TEMPLATE.md"
-    lifecycle = project_root / "docs/LIFECYCLE_ORCHESTRATION.md"
-    return [
-        Capability(
-            "001-review-remediation-record",
-            review_record.is_file() and "Address review" in instruction_text,
-            "docs/REVIEW_RECORD_TEMPLATE.md and Address review trigger",
-        ),
-        Capability(
-            "002-lifecycle-orchestration",
-            lifecycle.is_file() and "Run lifecycle" in instruction_text,
-            "docs/LIFECYCLE_ORCHESTRATION.md and Run lifecycle trigger",
-        ),
-    ]
+
+    capabilities = []
+    for capability_id, (required_version, migration_id) in sorted(
+        capability_requirements(framework_root).items()
+    ):
+        found_version = find_capability_marker_version(combined_text, capability_id)
+        if found_version is not None:
+            if found_version < required_version:
+                present = False
+                evidence = f"marker present at v{found_version}, but v{required_version} is required"
+            else:
+                present = True
+                evidence = f"marker present at v{found_version} (>= required v{required_version})"
+        else:
+            legacy_check = LEGACY_CAPABILITY_EVIDENCE.get(capability_id)
+            legacy_present = legacy_check is not None and legacy_check(project_root, combined_text)
+            if legacy_present and required_version <= 1:
+                present = True
+                evidence = "no marker found; legacy pre-marker evidence confirms v1"
+            elif legacy_present:
+                present = False
+                evidence = (
+                    "no marker found; legacy pre-marker evidence only confirms v1, but "
+                    f"v{required_version} is required"
+                )
+            else:
+                present = False
+                evidence = f"no MERIDIAN:BEGIN capability={capability_id} marker found"
+        capabilities.append(Capability(migration_id, present, evidence))
+    return capabilities
 
 
 def parse_adoption_review(project_root: Path) -> "ReviewRecord | None":
@@ -192,13 +266,13 @@ def parse_adoption_review(project_root: Path) -> "ReviewRecord | None":
     return ReviewRecord(verdict=verdict_match.group(1), attempt=int(attempt_match.group(1)), unchecked=unchecked)
 
 
-def compute_adoption_state(project_root: Path, mode: str) -> AdoptionState:
+def compute_adoption_state(project_root: Path, mode: str, framework_root: Path) -> AdoptionState:
     if mode != "governed-sdd":
         raise MeridianError(
             "assisted adoption tracks capabilities only for governed-sdd mode; "
             "use `meridian adopt --mode lean-delivery --from <version> --check` instead"
         )
-    capabilities = detect_capabilities(project_root, mode)
+    capabilities = detect_capabilities(project_root, mode, framework_root)
     missing = [capability for capability in capabilities if not capability.present]
     review = parse_adoption_review(project_root)
 
@@ -282,6 +356,11 @@ def assisted_implementer_prompt(
     migration_ids_to_find = [capability.migration for capability in missing]
     migration_ids = ", ".join(migration_ids_to_find)
     records = migration_record_paths(framework_root, migration_ids_to_find)
+    deltas = [
+        f"- {data['id']}: {data['delta']}"
+        for data in (json.loads(path.read_text(encoding="utf-8")) for path in records)
+        if data.get("delta")
+    ]
     executable = framework_root / "bin" / "meridian"
     return "\n".join(
         [
@@ -294,6 +373,16 @@ def assisted_implementer_prompt(
             f"- {framework_root / 'migrations/ASSISTED_ADOPTION.md'}",
             f"The project is adopting from Meridian {source_version} in {mode} mode.",
             f"Implement only these missing framework capabilities: {migration_ids}.",
+            *(
+                [
+                    "",
+                    "For a capability already partially present at an older version, apply only this",
+                    "delta — do not rewrite the capability from scratch:",
+                    *deltas,
+                ]
+                if deltas
+                else []
+            ),
             "",
             "Use the project's established paths, terminology, governance, validation, and Git rules.",
             "Preserve every capability already detected as present. Do not replace local workflow",
@@ -417,7 +506,7 @@ def print_assisted_adoption_plan(
     source_version: str,
     emit: str | None = None,
 ) -> int:
-    state = compute_adoption_state(project_root, mode)
+    state = compute_adoption_state(project_root, mode, framework_root)
     snapshot_workflow = (
         framework_root
         / "release-baselines"
@@ -454,7 +543,7 @@ def print_assisted_adoption_plan(
 
     target_version = read_version(framework_root)
     print(f"Assisted adoption {source_version} -> {target_version} ({mode})")
-    capabilities = detect_capabilities(project_root, mode)
+    capabilities = detect_capabilities(project_root, mode, framework_root)
     for capability in capabilities:
         capability_state = "PRESENT" if capability.present else "MISSING"
         print(f"CAPABILITY {capability_state:7} {capability.migration} — {capability.evidence}")
@@ -765,7 +854,7 @@ def finalize_adoption(
         raise MeridianError("project already has a manifest; use `meridian upgrade` instead")
     missing = [
         capability.migration
-        for capability in detect_capabilities(project_root, mode)
+        for capability in detect_capabilities(project_root, mode, framework_root)
         if not capability.present
     ]
     if missing:

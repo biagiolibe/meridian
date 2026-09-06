@@ -17,6 +17,9 @@ CLI = ROOT / "scripts" / "meridian.py"
 MARKER_BEGIN = re.compile(r"<!-- MERIDIAN:BEGIN capability=([a-z0-9-]+) v(\d+) -->")
 MARKER_END = "<!-- MERIDIAN:END -->"
 
+sys.path.insert(0, str(ROOT / "scripts"))
+import meridian  # noqa: E402
+
 
 class MeridianCliTest(unittest.TestCase):
     def setUp(self) -> None:
@@ -187,6 +190,52 @@ class MeridianCliTest(unittest.TestCase):
             ["1.1.0"],
             "the intermediate 1.0.0 adoption baseline should be pruned once the target baseline lands",
         )
+
+    def test_pre_marker_project_is_not_regressed_to_missing(self) -> None:
+        """A project adopted before migration 006 has no MERIDIAN markers at all,
+        only the old bare trigger phrases and template files. It must still be
+        detected as PRESENT via the legacy fallback — not regressed to MISSING
+        just because markers now exist for other, newer projects."""
+        shutil.rmtree(self.project)
+        self.project.mkdir()
+        source = self.framework / "release-baselines/1.0.0/templates/workflows/governed-sdd"
+        for path in source.rglob("*"):
+            if path.is_file():
+                destination = self.project / path.relative_to(source)
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(path, destination)
+        # Simulate a pre-006 adoption: bare trigger phrases and template files,
+        # with no MERIDIAN:BEGIN marker anywhere (unlike the 1.0.0 baseline
+        # itself, which has neither the phrases nor the files).
+        (self.project / "docs/REVIEW_RECORD_TEMPLATE.md").write_text(
+            "# Review Record\n\nNo marker here, just the pre-006 shape.\n", encoding="utf-8"
+        )
+        (self.project / "docs/LIFECYCLE_ORCHESTRATION.md").write_text(
+            "# Autonomous Task Lifecycle Orchestration\n\nNo marker here either.\n", encoding="utf-8"
+        )
+        for name in ("AGENTS.md", "CLAUDE.md"):
+            target = self.project / name
+            target.write_text(
+                target.read_text(encoding="utf-8") + "\nAddress review <TASK-ID>.\nRun lifecycle <TASK-ID>.\n",
+                encoding="utf-8",
+            )
+
+        planned = self.run_cli(
+            "adopt", "--mode", "governed-sdd", "--from", "1.0.0", "--assisted", "--check"
+        )
+        # Both capabilities are present, but with no prior review record this
+        # correctly asks for one before finalizing (compute_adoption_state's
+        # existing REVIEW_MIGRATION path) rather than failing detection.
+        self.assertEqual(planned.returncode, 3, planned.stdout)
+        self.assertIn(
+            "CAPABILITY PRESENT 001-review-remediation-record — no marker found; legacy pre-marker evidence confirms v1",
+            planned.stdout,
+        )
+        self.assertIn(
+            "CAPABILITY PRESENT 002-lifecycle-orchestration — no marker found; legacy pre-marker evidence confirms v1",
+            planned.stdout,
+        )
+        self.assertIn("NEXT_ACTION REVIEW_MIGRATION", planned.stdout)
 
     def test_assisted_adoption_detects_only_missing_lifecycle(self) -> None:
         shutil.rmtree(self.project)
@@ -414,6 +463,83 @@ class CapabilityMarkerTest(unittest.TestCase):
     def test_lifecycle_orchestration_carries_its_own_marker(self) -> None:
         text = (self.WORKFLOW / "docs/LIFECYCLE_ORCHESTRATION.md").read_text(encoding="utf-8")
         self.assertEqual(self.marker_pairs(text), [("lifecycle-orchestration", "1")])
+
+
+class CapabilityVersionDetectionTest(unittest.TestCase):
+    """Phase 2 of migrations/CAPABILITY_MARKERS.md: version-aware detection.
+
+    No real migration requires v2 of anything yet, so this builds a synthetic
+    framework with one to exercise the case Meridian's own shipped migrations
+    can't: a marker present but below the version now required.
+    """
+
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory()
+        root = Path(self.temporary.name)
+        self.framework = root / "framework"
+        self.project = root / "project"
+        (self.framework / "migrations").mkdir(parents=True)
+        self.project.mkdir(parents=True)
+
+    def tearDown(self) -> None:
+        self.temporary.cleanup()
+
+    def write_migration(self, filename: str, capability: str, version: int) -> None:
+        migration_id = filename.removesuffix(".json")
+        (self.framework / "migrations" / filename).write_text(
+            json.dumps({"id": migration_id, "capability": capability, "capabilityVersion": version}),
+            encoding="utf-8",
+        )
+
+    def test_requirement_is_the_highest_declared_version(self) -> None:
+        self.write_migration("001-widget.json", "widget", 1)
+        self.write_migration("002-widget-v2.json", "widget", 2)
+        requirements = meridian.capability_requirements(self.framework)
+        self.assertEqual(requirements["widget"], (2, "002-widget-v2"))
+
+    def test_marker_absent_is_distinct_from_marker_stale(self) -> None:
+        self.write_migration("001-widget.json", "widget", 2)
+
+        absent = meridian.find_capability_marker_version("no marker here", "widget")
+        self.assertIsNone(absent)
+
+        stale_text = "<!-- MERIDIAN:BEGIN capability=widget v1 -->text<!-- MERIDIAN:END -->"
+        self.assertEqual(meridian.find_capability_marker_version(stale_text, "widget"), 1)
+
+    def test_detect_capabilities_distinguishes_absent_stale_and_satisfied(self) -> None:
+        self.write_migration("001-widget.json", "widget", 2)
+        agents = self.project / "AGENTS.md"
+        claude = self.project / "CLAUDE.md"
+        for path in (agents, claude):
+            path.write_text("", encoding="utf-8")
+
+        import meridian as m
+
+        managed = [m.ManagedFile(source=Path("unused"), target=Path("AGENTS.md"))]
+        original_managed_files = m.managed_files
+        m.managed_files = lambda framework_root, mode: managed
+        try:
+            absent = m.detect_capabilities(self.project, "governed-sdd", self.framework)
+            self.assertEqual(len(absent), 1)
+            self.assertFalse(absent[0].present)
+            self.assertIn("no MERIDIAN:BEGIN", absent[0].evidence)
+
+            agents.write_text(
+                "<!-- MERIDIAN:BEGIN capability=widget v1 -->text<!-- MERIDIAN:END -->",
+                encoding="utf-8",
+            )
+            stale = m.detect_capabilities(self.project, "governed-sdd", self.framework)
+            self.assertFalse(stale[0].present)
+            self.assertEqual(stale[0].evidence, "marker present at v1, but v2 is required")
+
+            agents.write_text(
+                "<!-- MERIDIAN:BEGIN capability=widget v2 -->text<!-- MERIDIAN:END -->",
+                encoding="utf-8",
+            )
+            satisfied = m.detect_capabilities(self.project, "governed-sdd", self.framework)
+            self.assertTrue(satisfied[0].present)
+        finally:
+            m.managed_files = original_managed_files
 
 
 if __name__ == "__main__":

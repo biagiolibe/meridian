@@ -12,6 +12,20 @@ numbers follow the `frameworkVersion` tracked in generated projects'
 
 ## [Unreleased]
 
+- Phase 2 of [migrations/CAPABILITY_MARKERS.md](migrations/CAPABILITY_MARKERS.md):
+  `detect_capabilities()` is now version-aware — it reads each migration's
+  `capability`/`capabilityVersion` fields and compares against the
+  project's `MERIDIAN:BEGIN` marker version, so a future migration that
+  *modifies* an existing capability (not just adds a new one) becomes
+  detectable, with a distinct message for "no marker at all" versus "marker
+  present but below the required version." A legacy fallback
+  (`LEGACY_CAPABILITY_EVIDENCE`) keeps every project adopted before markers
+  existed (migration 006) correctly detected at v1 via the old phrase
+  check — caught by testing this against two real, already-adopted
+  projects, which regressed to fully `MISSING` without it.
+  `assisted_implementer_prompt` now surfaces a migration's `delta` field
+  when present, so a capability version bump is scoped to the actual
+  change instead of implying a from-scratch rewrite.
 - `meridian upgrade --apply --owner-reconciled`: registers the target
   version and baseline snapshot without touching any managed file, for a
   project too customized for the automatic three-way merge to ever resolve

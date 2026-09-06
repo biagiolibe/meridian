@@ -3,6 +3,8 @@
   "from": "1.0.0",
   "to": "1.0.1",
   "description": "Adds durable reviewer evidence and the CHANGES_REQUESTED return path to IN_PROGRESS.",
+  "capability": "review-remediation-record",
+  "capabilityVersion": 1,
   "managedPaths": [
     "AGENTS.md",
     "CLAUDE.md",
