@@ -97,6 +97,25 @@ file changed, so no migration record or `VERSION` bump applies.
   Code Task-tool subagents, or separate fresh chats where no subagent tool is
   available) driven by that loop.
 
+## [1.1.7]
+
+### Added
+
+- Migration `010-project-workflow-baseline-capabilities`: backfills capability
+  tracking for `PROJECT_WORKFLOW.md` — the single most important managed file,
+  since it carries the `GOVERNED_SDD` mode lock itself — which had none until
+  now. Wraps its eight independent rule sections
+  (`workflow-mode-lock`, `document-precedence`, `task-lifecycle`,
+  `execution-assets`, `roles`, `review-policy`, `git-workflow`,
+  `execution-discipline`) each in its own `v1` marker, introducing the
+  `capabilities` list field to the migration schema alongside the existing
+  singular `capability`/`capabilityVersion` fields, so one migration record
+  can declare several independent, pre-existing capabilities at once instead
+  of needing eight near-duplicate records. Purely additive: no section's
+  content changed. Verified live: a fresh vanilla project passes `meridian
+  audit` on all 20 marker occurrences across the framework's four
+  migrations-with-markers so far.
+
 ## [1.1.6]
 
 ### Changed

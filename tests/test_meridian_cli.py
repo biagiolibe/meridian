@@ -342,16 +342,18 @@ class MeridianCliTest(unittest.TestCase):
                 shutil.copyfile(path, destination)
         current = self.framework / "templates/workflows/governed-sdd"
         shutil.copyfile(current / "docs/REVIEW_RECORD_TEMPLATE.md", self.project / "docs/REVIEW_RECORD_TEMPLATE.md")
-        # Satisfy validation-scoping and ci-verified-validation (both carry
-        # markers in the current templates) so this test can focus purely on
-        # the 001/002 legacy-fallback progression it's actually about; the
-        # marker only needs to be found somewhere among managed files, not
+        # Satisfy validation-scoping, ci-verified-validation, and
+        # PROJECT_WORKFLOW.md's eight baseline capabilities (all carry markers
+        # in the current templates) so this test can focus purely on the
+        # 001/002 legacy-fallback progression it's actually about; a marker
+        # only needs to be found somewhere among managed files, not
         # specifically in AGENTS.md/CLAUDE.md.
         for name in (
             "docs/CONTEXT_BUDGET_POLICY.md",
             "docs/PULL_REQUEST_POLICY.md",
             "docs/CODE_REVIEW_PROMPT.md",
             "docs/COMPLETION_REPORT_TEMPLATE.md",
+            "PROJECT_WORKFLOW.md",
         ):
             shutil.copyfile(current / name, self.project / name)
         for name in ("AGENTS.md", "CLAUDE.md"):
@@ -496,6 +498,7 @@ class MeridianCliTest(unittest.TestCase):
         for name in (
             "AGENTS.md",
             "CLAUDE.md",
+            "PROJECT_WORKFLOW.md",
             "docs/REVIEW_RECORD_TEMPLATE.md",
             "docs/LIFECYCLE_ORCHESTRATION.md",
             "docs/CONTEXT_BUDGET_POLICY.md",
@@ -589,6 +592,26 @@ class CapabilityMarkerTest(unittest.TestCase):
         ):
             text = (self.WORKFLOW / name).read_text(encoding="utf-8")
             self.assertEqual(self.marker_pairs(text), [("ci-verified-validation", "1")], name)
+
+    def test_project_workflow_carries_all_eight_baseline_capabilities(self) -> None:
+        text = (self.WORKFLOW / "PROJECT_WORKFLOW.md").read_text(encoding="utf-8")
+        pairs = self.marker_pairs(text)
+        self.assertEqual(
+            sorted(pairs),
+            sorted(
+                (capability, "1")
+                for capability in (
+                    "workflow-mode-lock",
+                    "document-precedence",
+                    "task-lifecycle",
+                    "execution-assets",
+                    "roles",
+                    "review-policy",
+                    "git-workflow",
+                    "execution-discipline",
+                )
+            ),
+        )
 
 
 class CapabilityVersionDetectionTest(unittest.TestCase):
