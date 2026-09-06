@@ -12,6 +12,26 @@ Meridian repository text is English-only. Keep documentation, source code, comme
 
 When changing this behavior, keep the base and governed-SDD language-policy templates identical. For a workflow-rule change, update the corresponding Codex and Claude Code instruction and skill assets for that mode.
 
+## Migrations and capability markers
+
+A migration that modifies framework-mandated prose already tracked as a
+capability — not just adds a new managed file — must declare `capability`
+and `capabilityVersion` in its migration record, wrap the affected text in
+`<!-- MERIDIAN:BEGIN capability=<id> vN --> ... <!-- MERIDIAN:END -->`
+markers if it doesn't already carry them, and describe the change in a
+`delta` field scoped to what actually changed, not a from-scratch rewrite.
+See [migrations/CAPABILITY_MARKERS.md](migrations/CAPABILITY_MARKERS.md) for
+why: presence-only, phrase-based detection cannot tell a modified capability
+from an unmodified one, and breaks on a project whose wording predates the
+exact phrase or has diverged from the template. A migration that never
+introduces or changes a capability (framework-CLI-only changes, for example)
+does not need these fields.
+
+Retrofit markers into an older migration's content opportunistically, on its
+next real change, rather than as a dedicated migration with no other
+purpose — migrations 003, 004, and 005 do not carry markers yet for exactly
+this reason.
+
 ## Before opening a change
 
 1. Read the relevant template, command, hook, or skill end to end.

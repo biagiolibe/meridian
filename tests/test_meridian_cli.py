@@ -134,6 +134,47 @@ class MeridianCliTest(unittest.TestCase):
             "a verified (cosmetic-only) conflict must leave the local file untouched",
         )
 
+    def test_audit_passes_on_unmodified_markers(self) -> None:
+        self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
+        audited = self.run_cli("audit", "--mode", "governed-sdd")
+        self.assertEqual(audited.returncode, 0, audited.stdout + audited.stderr)
+        self.assertIn("PASS", audited.stdout)
+        self.assertNotIn("FAIL", audited.stdout)
+
+    def test_audit_fails_on_edited_protected_region(self) -> None:
+        self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
+        agents = self.project / "AGENTS.md"
+        text = agents.read_text(encoding="utf-8")
+        self.assertIn("MERIDIAN:BEGIN capability=lifecycle-orchestration v1", text)
+        edited = text.replace(
+            "Act only as the coordinator", "Act only as the coordinator (edited without an upgrade)"
+        )
+        self.assertNotEqual(text, edited, "the replacement should have matched something inside the marker")
+        agents.write_text(edited, encoding="utf-8")
+
+        audited = self.run_cli("audit", "--mode", "governed-sdd")
+        self.assertEqual(audited.returncode, 2)
+        self.assertIn("FAIL AGENTS.md: capability=lifecycle-orchestration v1", audited.stdout)
+        self.assertIn("BLOCKED: 1 protected-region integrity failure", audited.stdout)
+
+    def test_audit_skips_a_version_the_current_template_no_longer_carries(self) -> None:
+        self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
+        for name in ("AGENTS.md", "CLAUDE.md"):
+            local = self.project / name
+            local.write_text(
+                local.read_text(encoding="utf-8").replace(
+                    "MERIDIAN:BEGIN capability=lifecycle-orchestration v1",
+                    "MERIDIAN:BEGIN capability=lifecycle-orchestration v99",
+                ),
+                encoding="utf-8",
+            )
+
+        audited = self.run_cli("audit", "--mode", "governed-sdd")
+        self.assertEqual(audited.returncode, 0, audited.stdout + audited.stderr)
+        self.assertIn("SKIP", audited.stdout)
+        self.assertIn("lifecycle-orchestration v99", audited.stdout)
+        self.assertNotIn("FAIL", audited.stdout)
+
     def test_apply_refuses_conflicting_local_change(self) -> None:
         self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
         workflow = self.framework / "templates/workflows/governed-sdd/PROJECT_WORKFLOW.md"

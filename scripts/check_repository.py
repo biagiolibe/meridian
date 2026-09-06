@@ -33,6 +33,7 @@ REQUIRED_FILES = (
     "release-baselines/1.0.0/templates/workflows/governed-sdd/PROJECT_WORKFLOW.md",
     "commands/meridian-upgrade.md",
     "commands/meridian-adopt.md",
+    "commands/meridian-audit.md",
     "templates/workflows/lean-delivery/PROJECT_WORKFLOW.md",
     "templates/workflows/lean-delivery/AGENTS.md",
     "templates/workflows/lean-delivery/CLAUDE.md",

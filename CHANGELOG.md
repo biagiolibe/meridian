@@ -12,6 +12,19 @@ numbers follow the `frameworkVersion` tracked in generated projects'
 
 ## [Unreleased]
 
+- `meridian audit --project <path> [--mode ...]`
+  ([commands/meridian-audit.md](commands/meridian-audit.md)): a new,
+  read-only command. Phase 4 of
+  [migrations/CAPABILITY_MARKERS.md](migrations/CAPABILITY_MARKERS.md) —
+  verifies every `MERIDIAN:BEGIN`/`END` protected region in a project's
+  managed files still matches the framework's released text for that exact
+  capability version, in that exact file (`PASS`/`FAIL`), and reports a
+  project marker version the current template no longer carries as `SKIP`
+  (a staleness question for `upgrade`, not a drift question for this
+  command) rather than a false failure. Does not yet include the
+  originally-proposed `ACCEPTED`-task/review-record consistency check from
+  `QUALITY_COMPLIANCE_ROADMAP.md` Tier 2 — that remains a separate addition
+  to this same command.
 - Phase 3 of [migrations/CAPABILITY_MARKERS.md](migrations/CAPABILITY_MARKERS.md):
   `meridian upgrade`/`adopt` now tell a cosmetic merge conflict from a real
   one. When a file's three-way merge conflicts, and that file's *own*

@@ -1,6 +1,12 @@
 # Design: Versioned Capability Markers and Protected Regions
 
-Status: proposed, not implemented. This document integrates two ideas
+Status: phases 1-4 shipped (markers on capabilities 001/002, version-aware
+detection, cosmetic-vs-real conflict resolution in `upgrade`, and
+`meridian audit`'s protected-region integrity check). Phase 5 (process
+discipline) is documented in `CONTRIBUTING.md`/`migrations/README.md`; the
+opportunistic retrofit of markers onto migrations 003-005 and onto
+already-adopted projects (fusa, palimpsest) remains outstanding, by design —
+see Phase 5 below. This document integrates two ideas
 discussed while adopting Meridian onto a heavily customized project
 (Palimpsest/ECHOES): capability detection that survives a project rewriting
 Meridian's prose in its own voice, and a way to stop that same rewriting from
@@ -153,7 +159,7 @@ next upgrade conflicts for a reason nobody can explain.
 Sequenced so each phase is independently useful and testable; do not start a
 phase before the previous one has tests passing.
 
-**Phase 1 — Marker syntax and backfill (migration 006).**
+**Phase 1 — Marker syntax and backfill (migration 006). Shipped.**
 Define the exact marker grammar (regex Meridian's own tooling will parse),
 retrofit `<!-- MERIDIAN:BEGIN capability=... v1 --> ... <!-- MERIDIAN:END -->`
 around the existing capability text for `review-remediation-record` (001)
@@ -163,43 +169,51 @@ record, tests, exactly like 004/005. Does not yet change any detection or
 verification code; it only makes the markers exist so the next phases have
 something to read.
 
-**Phase 2 — Version-aware `detect_capabilities()`.**
-Add the `capability`/`capabilityVersion` fields to the migration record
-schema; rewrite `detect_capabilities()` to parse markers with a version
-comparison, falling back to today's phrase-based check only for migrations
-that don't declare a `capability` field (so 003/004/005 keep working
-unchanged until they're worth converting). Update `assisted_implementer_prompt`
-to use a migration's `delta` field when present instead of always assuming a
-from-scratch implementation. New tests: marker present at required version
-(PRESENT), marker below required version (MISSING, distinct message from "no
-marker at all"), migration without a `capability` field still using the old
-path.
+**Phase 2 — Version-aware `detect_capabilities()`. Shipped.**
+Added the `capability`/`capabilityVersion` fields to the migration record
+schema (backfilled onto 001/002); `detect_capabilities()` parses markers with
+a version comparison. A legacy fallback (`LEGACY_CAPABILITY_EVIDENCE`) was
+added beyond the original plan: without it, every project adopted before
+migration 006 has no marker at all and would have regressed to fully
+`MISSING` under marker-only detection — caught by testing against two real
+projects (fusa, palimpsest) before shipping, not by the unit tests alone.
+The fallback proves only v1, never a later version. `assisted_implementer_prompt`
+surfaces a migration's `delta` field when present.
 
-**Phase 3 — Cosmetic-vs-real conflict resolution in `upgrade`.**
-When `plan_from_baseline` reports `CONFLICT` for a file that also carries a
-marker, check the marker before surfacing the conflict: satisfied marker
-downgrades it to an informational note and the file is left untouched
-(same non-mutation as `--owner-reconciled`, but verified instead of
-asserted); unsatisfied marker keeps it a real conflict and now can name the
-missing capability by id instead of just the file path. `--owner-reconciled`
-remains as the fallback for a conflict with no marker at all (unmarked
-legacy content).
+**Phase 3 — Cosmetic-vs-real conflict resolution in `upgrade`. Shipped.**
+When `plan_from_baseline` reports a merge conflict for a file, and that
+file's *own* content already carries a satisfied marker for every capability
+it manages, the conflict downgrades to a new `VERIFIED` plan action (file
+left untouched, does not block the upgrade) instead of a blocking
+`CONFLICT`. The check had to be scoped to the file's own text, not
+project-wide capability presence — an earlier version checked project-wide
+and produced a false positive (a conflict on an unrelated file was wrongly
+downgraded because a different file's marker happened to satisfy the
+capability), caught by the existing conflict regression tests.
+`--owner-reconciled` remains the fallback for a conflict with no marker at
+all (unmarked legacy content, or a file no migration tracks as a capability).
 
-**Phase 4 — Integrity verification in `meridian audit`.**
-Build this alongside the deterministic audit script already proposed in
-`QUALITY_COMPLIANCE_ROADMAP.md` Tier 2, not before it exists. For each marker
-found, hash its bracketed content and compare against every released version
-of that capability recorded in `migrations/*.json` history; report drift by
-capability id, claimed version, and confirmation that no released text
-matches.
+**Phase 4 — Integrity verification in `meridian audit`. Shipped, narrower
+than originally scoped.**
+`meridian audit --project <path>` compares each marker's bracketed content
+against the framework's *current* template for that same file and capability
+version — not "every released version ever," since Meridian keeps no
+separate historical archive of past capability text outside the current
+templates. A marker naming a version the current template no longer carries
+reports `SKIP` (a staleness question for `upgrade`) rather than a false
+`FAIL`. Extending this to genuinely check against every historical version
+would need a durable per-version text archive that does not exist yet — left
+for a future revision if it turns out to matter in practice.
 
-**Phase 5 — Process discipline.**
-Update `CONTRIBUTING.md` and `migrations/README.md`: a migration that
+**Phase 5 — Process discipline. Documentation shipped; retrofit ongoing.**
+`CONTRIBUTING.md` and `migrations/README.md` now require: a migration that
 modifies existing framework-mandated prose (not just adds a new file) must
 declare `capability`/`capabilityVersion` and wrap the affected text in
-markers if it doesn't already have them. Retrofit markers into 003/004/005's
-content opportunistically, on their next real change, rather than as a
-dedicated migration with no other purpose.
+markers if it doesn't already have them, with a `delta` scoped to the actual
+change. Migrations 003, 004, and 005 do not carry markers yet, and neither
+`fusa` nor `palimpsest` (both real, already-adopted projects) have adopted
+any marker — both are intentionally deferred to each one's next real change
+rather than a dedicated migration or session with no other purpose.
 
 Each phase after Phase 1 is optional to do immediately — the design holds
 together even if only markers + version-aware detection ship and the

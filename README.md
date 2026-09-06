@@ -235,6 +235,7 @@ CONTRIBUTING.md                   Contribution guidance and validation
 - [Read-only workflow audit prompt](templates/workflows/governed-sdd/docs/AUDIT_PROMPT_READ_ONLY.md)
 - [Governed-SDD operator prompts](templates/workflows/governed-sdd/docs/OPERATOR_PROMPTS.md)
 - [Framework upgrade CLI](commands/meridian-upgrade.md)
+- [Capability-marker integrity audit](commands/meridian-audit.md)
 
 ## Development and contributions
 

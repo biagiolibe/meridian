@@ -16,12 +16,18 @@ conflicts. Projects created before `.meridian/manifest.json` existed must use
 `meridian lock` to start tracking future migrations; absent historical
 baselines cannot be inferred safely.
 
-A migration record may optionally declare `capability` and
-`capabilityVersion` for a rule the framework wants to track and verify by
-behavior rather than by file hash — see
-[CAPABILITY_MARKERS.md](CAPABILITY_MARKERS.md) for the design (proposed, not
-yet implemented) and why presence-only, phrase-based detection stops working
-once a project's wording diverges from the template.
+A migration record declares `capability` and `capabilityVersion` when it
+introduces or changes a rule the framework tracks and verifies by behavior
+rather than by file hash — required whenever the migration modifies
+already-tracked capability text, not just when adding one; a migration with
+neither field is never checked for that capability's presence. See
+[CAPABILITY_MARKERS.md](CAPABILITY_MARKERS.md) for the full design (phases
+1-4 shipped) and why presence-only, phrase-based detection stops working
+once a project's wording diverges from the template. A version-bump
+migration also declares a `delta` describing only what changed, so an
+implementer's job stays scoped instead of implying a from-scratch rewrite.
+`meridian audit` mechanically verifies a project's protected capability
+regions still match the framework's released text.
 
 `.meridian/baselines/<version>/` in a generated project is a snapshot of the
 templates installed at that version — the merge base for the next upgrade's
