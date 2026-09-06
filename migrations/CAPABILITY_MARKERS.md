@@ -9,8 +9,13 @@ path-parameterized canon for 001/002, baseline capabilities for
 `PROJECT_WORKFLOW.md`'s eight sections, baseline capabilities for four
 whole-file policies, and baseline capabilities for `AGENTS.md`/`CLAUDE.md`'s
 remaining sections — every managed governed-SDD file now has capability
-tracking except the two intentionally excluded ones. Only the full
-Palimpsest retrofit remains — see
+tracking except the two intentionally excluded ones. Migration 013 then
+corrected a real defect found while starting the Palimpsest retrofit:
+`language-policy`'s v1 marker wrongly enclosed the per-project conversation-
+language declaration that `meridian-init.md` fills in during initialization,
+which would have failed `meridian audit` for every correctly initialized
+project, not just Palimpsest — moved that line outside the protected region
+in v2. Only the full Palimpsest retrofit remains — see
 "Addendum: expanded retrofit plan" near the end of this document for the
 current, authoritative state; treat the original Phase 1-5 plan below as
 historical design reasoning, not the up-to-date task list. This document
