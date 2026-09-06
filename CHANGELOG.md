@@ -12,6 +12,18 @@ numbers follow the `frameworkVersion` tracked in generated projects'
 
 ## [Unreleased]
 
+- Phase 3 of [migrations/CAPABILITY_MARKERS.md](migrations/CAPABILITY_MARKERS.md):
+  `meridian upgrade`/`adopt` now tell a cosmetic merge conflict from a real
+  one. When a file's three-way merge conflicts, and that file's *own*
+  content already carries a satisfied capability marker for every migration
+  that manages it, the conflict downgrades to a new `VERIFIED` plan action
+  (file left untouched, does not block the upgrade) instead of a blocking
+  `CONFLICT`. The check is scoped to the conflicting file's own text, not
+  the whole project — an earlier version of this checked project-wide
+  presence and produced a false positive (a `PROJECT_WORKFLOW.md` conflict
+  wrongly downgraded because an unrelated capability happened to be
+  satisfied elsewhere in the project), caught by the existing conflict
+  regression tests before it shipped.
 - Phase 2 of [migrations/CAPABILITY_MARKERS.md](migrations/CAPABILITY_MARKERS.md):
   `detect_capabilities()` is now version-aware — it reads each migration's
   `capability`/`capabilityVersion` fields and compares against the
