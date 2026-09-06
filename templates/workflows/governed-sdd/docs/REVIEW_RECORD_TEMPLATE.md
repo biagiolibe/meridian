@@ -1,5 +1,6 @@
 # Review Record
 
+<!-- MERIDIAN:BEGIN capability=review-remediation-record v1 -->
 Use one durable review record per required-review task at
 `tasks/reviews/<TASK-ID>.md`. It is the canonical handoff from reviewer to
 implementer; chat output may summarize it but must not be the only location of
@@ -40,3 +41,4 @@ Use `- [ ]` only for changes that must be made before approval. `P0` and `P1`
 findings block approval; `P2` findings are included only when they require a
 bounded change in this task. Style-only commentary does not belong in the
 record.
+<!-- MERIDIAN:END -->

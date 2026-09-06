@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -13,6 +14,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CLI = ROOT / "scripts" / "meridian.py"
+MARKER_BEGIN = re.compile(r"<!-- MERIDIAN:BEGIN capability=([a-z0-9-]+) v(\d+) -->")
+MARKER_END = "<!-- MERIDIAN:END -->"
 
 
 class MeridianCliTest(unittest.TestCase):
@@ -377,6 +380,40 @@ class MeridianCliTest(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 3, result.stderr)
         self.assertIn("Assisted adoption 1.0.0 ->", result.stdout)
+
+
+class CapabilityMarkerTest(unittest.TestCase):
+    """Phase 1 of migrations/CAPABILITY_MARKERS.md: markers exist and are well-formed.
+
+    No detection or verification code reads these yet (that's phase 2+); this
+    only guards the markers themselves against silent drift or malformed
+    nesting as the templates keep changing.
+    """
+
+    WORKFLOW = ROOT / "templates" / "workflows" / "governed-sdd"
+
+    def marker_pairs(self, text: str) -> list[tuple[str, str]]:
+        begins = MARKER_BEGIN.findall(text)
+        end_count = text.count(MARKER_END)
+        self.assertEqual(
+            len(begins), end_count, "mismatched MERIDIAN:BEGIN/END marker count"
+        )
+        return begins
+
+    def test_agents_and_claude_carry_both_v1_markers(self) -> None:
+        for name in ("AGENTS.md", "CLAUDE.md"):
+            text = (self.WORKFLOW / name).read_text(encoding="utf-8")
+            pairs = self.marker_pairs(text)
+            self.assertIn(("review-remediation-record", "1"), pairs, name)
+            self.assertIn(("lifecycle-orchestration", "1"), pairs, name)
+
+    def test_review_record_template_carries_its_own_marker(self) -> None:
+        text = (self.WORKFLOW / "docs/REVIEW_RECORD_TEMPLATE.md").read_text(encoding="utf-8")
+        self.assertEqual(self.marker_pairs(text), [("review-remediation-record", "1")])
+
+    def test_lifecycle_orchestration_carries_its_own_marker(self) -> None:
+        text = (self.WORKFLOW / "docs/LIFECYCLE_ORCHESTRATION.md").read_text(encoding="utf-8")
+        self.assertEqual(self.marker_pairs(text), [("lifecycle-orchestration", "1")])
 
 
 if __name__ == "__main__":
