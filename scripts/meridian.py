@@ -271,9 +271,11 @@ def extract_marker_block(text: str, capability: str, version: int) -> str | None
 
     Returns None if that specific version's marker is not present in `text`
     (a different version, or no marker at all, are both "not present" here).
+    The marker may sit on its own line (a whole-section wrap) or inline mid-
+    sentence (a single clause inside a larger numbered step); both are legal.
     """
     pattern = re.compile(
-        rf"<!-- MERIDIAN:BEGIN capability={re.escape(capability)} v{version} -->\n(.*?)"
+        rf"<!-- MERIDIAN:BEGIN capability={re.escape(capability)} v{version} -->\n?(.*?)"
         r"<!-- MERIDIAN:END -->",
         re.DOTALL,
     )

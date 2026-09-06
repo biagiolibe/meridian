@@ -97,6 +97,25 @@ file changed, so no migration record or `VERSION` bump applies.
   Code Task-tool subagents, or separate fresh chats where no subagent tool is
   available) driven by that loop.
 
+## [1.1.4]
+
+### Added
+
+- Migration `007-validation-capability-markers`: wraps `validation-scoping`
+  (004) and `ci-verified-validation` (005) in the same
+  `<!-- MERIDIAN:BEGIN capability=<id> v1 --> / <!-- MERIDIAN:END -->`
+  markers migration 006 gave to 001/002 — bringing all four framework
+  capabilities shipped so far under version-aware detection, cosmetic-vs-real
+  conflict resolution, and `meridian audit` integrity checking. Purely
+  additive: detection and verification code are unchanged, only the marker
+  text and the `capability`/`capabilityVersion` fields backfilled onto 004
+  and 005's own records. Also genericized a Rust-specific example
+  (`cargo test/build/clippy`) in the validation-scope rule to a stack-agnostic
+  one, and required `extract_marker_block`'s parser to accept a marker sitting
+  inline mid-sentence (not just on its own line), since `validation-scoping`'s
+  text in `AGENTS.md`/`CLAUDE.md` is one clause inside a larger numbered step,
+  not a standalone section like 001/002's.
+
 ## [1.1.3]
 
 ### Added
