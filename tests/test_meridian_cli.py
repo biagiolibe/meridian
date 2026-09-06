@@ -110,6 +110,29 @@ class MeridianCliTest(unittest.TestCase):
         self.assertIn("BLOCKED", applied.stderr)
         self.assertIn("## Local Roles", local.read_text(encoding="utf-8"))
 
+    def test_owner_reconciled_upgrade_registers_baseline_despite_conflicts(self) -> None:
+        self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
+        workflow = self.framework / "templates/workflows/governed-sdd/PROJECT_WORKFLOW.md"
+        workflow.write_text(workflow.read_text(encoding="utf-8").replace("## Roles", "## Updated Roles"), encoding="utf-8")
+        local = self.project / "PROJECT_WORKFLOW.md"
+        local.write_text(local.read_text(encoding="utf-8").replace("## Roles", "## Local Roles"), encoding="utf-8")
+        (self.framework / "VERSION").write_text("1.1.1\n", encoding="utf-8")
+
+        rejected = self.run_cli("upgrade", "--check", "--owner-reconciled")
+        self.assertEqual(rejected.returncode, 2)
+        self.assertIn("only applies to --apply", rejected.stderr)
+
+        applied = self.run_cli("upgrade", "--apply", "--owner-reconciled")
+        self.assertEqual(applied.returncode, 0, applied.stderr)
+        self.assertIn("Owner-reconciled upgrade", applied.stdout)
+        self.assertIn("## Local Roles", local.read_text(encoding="utf-8"))
+        manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual(manifest["frameworkVersion"], "1.1.1")
+        baselines = sorted(path.name for path in (self.project / ".meridian/baselines").iterdir())
+        self.assertEqual(baselines, ["1.1.1"])
+        baseline_workflow = self.project / ".meridian/baselines/1.1.1/PROJECT_WORKFLOW.md"
+        self.assertIn("## Updated Roles", baseline_workflow.read_text(encoding="utf-8"))
+
     def test_check_reports_multiple_merge_conflicts(self) -> None:
         self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
         workflow = self.framework / "templates/workflows/governed-sdd/PROJECT_WORKFLOW.md"
