@@ -38,6 +38,7 @@ Treat these developer phrases as the complete authorization for the named workfl
 - `Run lifecycle <TASK-ID>` — coordinate that task through independent implementation, review, remediation, and integration under `docs/LIFECYCLE_ORCHESTRATION.md`.
 - `Accept <TASK-ID>` — run the owner-acceptance workflow below.
 
+<!-- MERIDIAN:BEGIN capability=lifecycle-orchestration v1 -->
 ### Autonomous lifecycle orchestration
 
 For `Run lifecycle <TASK-ID>`, follow `docs/LIFECYCLE_ORCHESTRATION.md`
@@ -48,6 +49,7 @@ exactly. Act only as the coordinator: start an implementer session for
 give a reviewer the implementer's chat context or let one session perform both
 roles. Continue only on durable state and evidence, and stop at the document's
 retry limit or any listed blocker.
+<!-- MERIDIAN:END -->
 
 ### Implementation workflow
 
@@ -77,6 +79,7 @@ the required ancestry check may the reviewer append the approval evidence to
 the review record, make the two `ACCEPTED` status edits, and commit those three
 artifacts with the required reviewer-integrator author override.
 
+<!-- MERIDIAN:BEGIN capability=review-remediation-record v1 -->
 ### Review-remediation workflow
 
 For `Address review <TASK-ID>`, read the assigned task, its cited authority,
@@ -91,6 +94,7 @@ updated review record, then push the task branch once for this next review
 attempt. Report the review-record path, resolved findings, commit, and
 validation. If a finding needs an authority or scope change, leave it
 unchecked and return `BLOCKED`.
+<!-- MERIDIAN:END -->
 
 ## Owner-acceptance workflow
 

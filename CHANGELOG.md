@@ -58,6 +58,25 @@ file changed, so no migration record or `VERSION` bump applies.
   Code Task-tool subagents, or separate fresh chats where no subagent tool is
   available) driven by that loop.
 
+## [1.1.3]
+
+### Added
+
+- Versioned capability markers (Phase 1 of
+  [migrations/CAPABILITY_MARKERS.md](migrations/CAPABILITY_MARKERS.md)):
+  the review-remediation-record (001) and lifecycle-orchestration (002)
+  capability text in `AGENTS.md`, `CLAUDE.md`,
+  `docs/REVIEW_RECORD_TEMPLATE.md`, and `docs/LIFECYCLE_ORCHESTRATION.md` is
+  now wrapped in `<!-- MERIDIAN:BEGIN capability=<id> v1 -->` /
+  `<!-- MERIDIAN:END -->` markers. Purely additive in this migration —
+  detection (`detect_capabilities()`) and verification are unchanged; the
+  markers exist so later phases can compare a required capability version
+  against what a project actually has, and tell a cosmetic merge conflict
+  (the project already has the rule, worded its own way) from a real gap,
+  instead of the phrase-only detection that failed to recognize a real,
+  pre-token governed-SDD project twice this session.
+- Migration `006-capability-markers`.
+
 ## [1.1.2]
 
 ### Added

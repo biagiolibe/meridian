@@ -16,6 +16,13 @@ conflicts. Projects created before `.meridian/manifest.json` existed must use
 `meridian lock` to start tracking future migrations; absent historical
 baselines cannot be inferred safely.
 
+A migration record may optionally declare `capability` and
+`capabilityVersion` for a rule the framework wants to track and verify by
+behavior rather than by file hash — see
+[CAPABILITY_MARKERS.md](CAPABILITY_MARKERS.md) for the design (proposed, not
+yet implemented) and why presence-only, phrase-based detection stops working
+once a project's wording diverges from the template.
+
 `.meridian/baselines/<version>/` in a generated project is a snapshot of the
 templates installed at that version — the merge base for the next upgrade's
 three-way merge. Only the snapshot matching the manifest's current

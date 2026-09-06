@@ -1,5 +1,6 @@
 # Autonomous Task Lifecycle Orchestration
 
+<!-- MERIDIAN:BEGIN capability=lifecycle-orchestration v1 -->
 `Run lifecycle <TASK-ID>` authorizes an orchestrator to carry one dependency-ready
 task through implementation, independent review, requested-change remediation,
 acceptance, and `main` integration without further developer prompts. It does
@@ -61,3 +62,4 @@ The orchestrator reads only task status, the latest commit, and the latest
 review-record attempt. Workers use task-first context loading. Do not recreate
 prior chat context, repeat successful validation without a changed relevant
 surface, or add a summarization agent between workers.
+<!-- MERIDIAN:END -->

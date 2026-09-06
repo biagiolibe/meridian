@@ -49,7 +49,19 @@ need to re-derive the rationale.
   `meridian audit --project <path>` — that parses `tasks/QUEUE.md`,
   `tasks/reviews/*.md`, and Git history and reports PASS/FAIL mechanically.
   Keep the remaining, genuinely judgment-based audit items (ADR consistency,
-  architectural-boundary framing) as agent-performed.
+  architectural-boundary framing) as agent-performed. Phase 4 of
+  [migrations/CAPABILITY_MARKERS.md](migrations/CAPABILITY_MARKERS.md) adds a
+  protected-region integrity check to this same command — build that after
+  this item exists, not before.
+- [ ] **Versioned capability markers and protected regions.** Full design in
+  [migrations/CAPABILITY_MARKERS.md](migrations/CAPABILITY_MARKERS.md).
+  Detection today is presence-only (a migration that *modifies* an existing
+  capability is invisible to it) and phrase-based (fails on a project whose
+  wording predates the exact token, as happened twice this session on real
+  projects). Fixes both by wrapping framework-owned text in a versioned,
+  hash-verifiable marker; also lets `upgrade` tell a cosmetic merge conflict
+  (project already has the rule, worded its own way) from a real one,
+  removing the need to reach for `--owner-reconciled` on faith.
 - [ ] **Multi-level risk classification.** Review policy is binary
   (`REQUIRED`/`NOT_REQUIRED`). Introduce a risk tier (e.g.
   `LOW`/`MEDIUM`/`HIGH`/`CRITICAL`) that drives proportionate control —
