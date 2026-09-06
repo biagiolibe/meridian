@@ -40,3 +40,19 @@ After a successful apply, inspect the diff, run the project's baseline checks,
 and create a dedicated framework-upgrade commit. Never resolve conflict markers
 or edit `.meridian/` baselines automatically; report `BLOCKED` with the exact
 paths instead.
+
+For a project customized enough that the automatic merge will conflict on
+every future upgrade — not a one-off conflict to resolve, but a structural
+mismatch (for example, an entirely rewritten `AGENTS.md`/`CLAUDE.md`) — manually
+reconcile each conflicting file's content with the target version's intent,
+preserving the project's own structure and terminology, then register the
+result without touching any file automatically:
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/meridian upgrade --project . --apply --owner-reconciled
+```
+
+This registers the new manifest and baseline but writes nothing to the
+project's managed files — it trusts that the developer already reconciled
+every one of them by hand. Use it only after that manual reconciliation, never
+as a way to skip doing it.

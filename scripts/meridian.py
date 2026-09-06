@@ -658,21 +658,30 @@ def apply_plan(
     manifest: dict[str, object],
     plan: list[PlanItem],
     baseline_root: Path,
+    owner_reconciled: bool = False,
 ) -> None:
     print_plan(manifest, framework_root, plan)
-    if any(item.action == "conflict" for item in plan):
+    conflicts = any(item.action == "conflict" for item in plan)
+    if conflicts and not owner_reconciled:
         raise MeridianError("upgrade has conflicts")
 
     installed_version = str(manifest["frameworkVersion"])
     target_version = read_version(framework_root)
-    for item in plan:
-        local = project_root / item.file.target
-        if item.action == "replace" or item.action == "add":
-            local.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(item.file.source, local)
-        elif item.action == "merge":
-            _, merged = merge_clean(local, baseline_root / item.file.target, item.file.source)
-            local.write_bytes(merged)
+    if owner_reconciled:
+        print(
+            "Owner-reconciled upgrade: skipped automatic file changes for every managed "
+            "file, trusting that local content was already brought to the target version "
+            "by hand outside the three-way merge."
+        )
+    else:
+        for item in plan:
+            local = project_root / item.file.target
+            if item.action == "replace" or item.action == "add":
+                local.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(item.file.source, local)
+            elif item.action == "merge":
+                _, merged = merge_clean(local, baseline_root / item.file.target, item.file.source)
+                local.write_bytes(merged)
 
     copy_baseline(project_root, framework_root, str(manifest["mode"]), target_version)
     prune_stale_baselines(project_root, target_version)
@@ -689,7 +698,7 @@ def apply_plan(
     print("Upgrade applied. Review the diff, run project checks, then commit it.")
 
 
-def apply_upgrade(project_root: Path, framework_root: Path) -> None:
+def apply_upgrade(project_root: Path, framework_root: Path, owner_reconciled: bool = False) -> None:
     manifest, plan = plan_upgrade(project_root, framework_root)
     apply_plan(
         project_root,
@@ -697,6 +706,7 @@ def apply_upgrade(project_root: Path, framework_root: Path) -> None:
         manifest,
         plan,
         project_root / BASELINES_PATH / str(manifest["frameworkVersion"]),
+        owner_reconciled=owner_reconciled,
     )
 
 
@@ -799,6 +809,13 @@ def main() -> int:
     group = upgrade.add_mutually_exclusive_group(required=True)
     group.add_argument("--check", action="store_true")
     group.add_argument("--apply", action="store_true")
+    upgrade.add_argument(
+        "--owner-reconciled",
+        action="store_true",
+        help="register the target version and baseline without touching any managed file, "
+        "for a project too customized for the automatic three-way merge whose developer has "
+        "already reconciled every managed file by hand outside this command; --apply only",
+    )
 
     adopt = subparsers.add_parser("adopt", help="migrate an untracked project from a packaged baseline")
     adopt.add_argument("--project", type=Path, default=Path.cwd())
@@ -875,12 +892,14 @@ def main() -> int:
             mode = arguments.mode or detect_mode(project_root)
             finalize_adoption(project_root, framework_root, mode, arguments.owner_accepted)
         elif arguments.check:
+            if arguments.owner_reconciled:
+                raise MeridianError("--owner-reconciled only applies to --apply")
             manifest, plan = plan_upgrade(project_root, framework_root)
             print_plan(manifest, framework_root, plan)
             if any(item.action == "conflict" for item in plan):
                 return 2
         else:
-            apply_upgrade(project_root, framework_root)
+            apply_upgrade(project_root, framework_root, arguments.owner_reconciled)
     except MeridianError as error:
         print(f"BLOCKED: {error}", file=sys.stderr)
         return 2

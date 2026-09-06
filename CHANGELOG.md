@@ -12,6 +12,16 @@ numbers follow the `frameworkVersion` tracked in generated projects'
 
 ## [Unreleased]
 
+- `meridian upgrade --apply --owner-reconciled`: registers the target
+  version and baseline snapshot without touching any managed file, for a
+  project too customized for the automatic three-way merge to ever resolve
+  cleanly (a permanently conflicting `AGENTS.md`/`CLAUDE.md`, not a one-off
+  conflict) whose developer has already reconciled every managed file by
+  hand. Mirrors `finalize-adoption --owner-accepted`'s escape-hatch shape.
+  `adopt` already had a capability-aware path for a project with no manifest
+  yet; `upgrade` had no equivalent for one that is already locked but too
+  divergent for line-based merging.
+
 Framework-CLI improvements to `bin/meridian` for capability-aware adoption.
 These change tooling and documentation only — no generated-project managed
 file changed, so no migration record or `VERSION` bump applies.
