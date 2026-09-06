@@ -4,9 +4,10 @@ Status: phases 1-4 shipped (markers on capabilities 001/002, version-aware
 detection, cosmetic-vs-real conflict resolution in `upgrade`, and
 `meridian audit`'s protected-region integrity check). Phase 5 (process
 discipline) is documented in `CONTRIBUTING.md`/`migrations/README.md`.
-Migrations 007-009 additionally shipped markers for 004/005 and the v2,
-path-parameterized canon for 001/002. An expanded retrofit (migrations
-010-012, plus a full Palimpsest retrofit) is in progress — see
+Migrations 007-010 additionally shipped markers for 004/005, the v2,
+path-parameterized canon for 001/002, and baseline capabilities for
+`PROJECT_WORKFLOW.md`'s eight sections. An expanded retrofit (migrations
+011-012, plus a full Palimpsest retrofit) is in progress — see
 "Addendum: expanded retrofit plan" near the end of this document for the
 current, authoritative state; treat the original Phase 1-5 plan below as
 historical design reasoning, not the up-to-date task list. This document
@@ -266,24 +267,31 @@ trade-off: the alternative (not bumping the version) would mean the same
 version label pointing at two different canonical texts, which breaks
 `meridian audit`'s entire premise.
 
-**Migrations 010-012 (planned): baseline capabilities for everything else
-that's binding but untracked.** One capability per genuinely independent
-rule, not one per file — a composite file keeps the same precision Phase 3
-relies on. Two files are deliberately excluded: `docs/ARCHITECTURE_DECISIONS.md`
-is a scaffold the project is meant to fill in, and `docs/OPERATOR_PROMPTS.md`
-is an explicitly non-normative cookbook (`check_repository.py` already
-enforces that it stays one) — protecting either would fight its purpose.
+**Migrations 010-012: baseline capabilities for everything else that's
+binding but untracked.** One capability per genuinely independent rule, not
+one per file — a composite file keeps the same precision Phase 3 relies on.
+Two files are deliberately excluded: `docs/ARCHITECTURE_DECISIONS.md` is a
+scaffold the project is meant to fill in, and `docs/OPERATOR_PROMPTS.md` is
+an explicitly non-normative cookbook (`check_repository.py` already enforces
+that it stays one) — protecting either would fight its purpose.
 
-- **010 — `PROJECT_WORKFLOW.md`**, one capability per `##` section:
+- **010 — `PROJECT_WORKFLOW.md` (shipped).** One capability per `##` section:
   `workflow-mode-lock`, `document-precedence`, `task-lifecycle`,
   `execution-assets`, `roles`, `review-policy`, `git-workflow` (folding in
   its `Reviewer-integrator identity` subsection), `execution-discipline`.
-- **011 — whole-file capabilities** for single-purpose files:
+  Introduced the migration schema's `capabilities` list field (alongside the
+  existing singular `capability`/`capabilityVersion`) so one migration
+  record could declare all eight at once, rather than eight near-duplicate
+  records — the same one-capability-per-record constraint that forced 008
+  and 009 apart would otherwise have applied eight times over. Verified
+  live: a fresh vanilla project passes `meridian audit` on all 20 marker
+  occurrences across every migration with markers so far.
+- **011 (planned) — whole-file capabilities** for single-purpose files:
   `language-policy` (`LANGUAGE_POLICY.md`), `task-blueprint`
   (`tasks/TASK_BLUEPRINT.md`), `code-organization`
   (`docs/CODE_ORGANIZATION.md`), `audit-prompt`
   (`docs/AUDIT_PROMPT_READ_ONLY.md`).
-- **012 — `AGENTS.md`/`CLAUDE.md` residual sections**: `command-triggers`
+- **012 (planned) — `AGENTS.md`/`CLAUDE.md` residual sections**: `command-triggers`
   (the trigger-phrase list itself), `review-mode-boundary`,
   `owner-acceptance-workflow`, `implementer-reviewer-handoff`,
   `reviewer-integrator-identity`. `### Implementation workflow`'s steps 1-4

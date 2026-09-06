@@ -155,23 +155,40 @@ def migration_record_paths(framework_root: Path, migration_ids_to_find: list[str
     return records
 
 
+def migration_capability_entries(data: dict[str, object]) -> list[tuple[str, int]]:
+    """A migration record's declared (capability, capabilityVersion) pairs.
+
+    Most migrations declare at most one, via the singular `capability` /
+    `capabilityVersion` fields. A migration introducing several independent,
+    pre-existing capabilities at once (a marker-retrofit pass over one file's
+    several sections, for example) may instead declare a `capabilities` list
+    of `{"capability": ..., "capabilityVersion": ...}` objects, so it doesn't
+    need one near-duplicate migration record per capability.
+    """
+    entries = []
+    capability = data.get("capability")
+    if capability:
+        entries.append((str(capability), int(data["capabilityVersion"])))
+    for entry in data.get("capabilities", []):
+        entries.append((str(entry["capability"]), int(entry["capabilityVersion"])))
+    return entries
+
+
 def capability_requirements(framework_root: Path) -> dict[str, tuple[int, str]]:
     """Map capability id -> (required version, the migration id that requires it).
 
-    Built from every migration record that declares a `capability` field. When
-    more than one migration touches the same capability, the highest declared
-    `capabilityVersion` wins — that is the version currently required.
+    Built from every migration record's declared capability entries (see
+    `migration_capability_entries`). When more than one migration touches the
+    same capability, the highest declared `capabilityVersion` wins — that is
+    the version currently required.
     """
     requirements: dict[str, tuple[int, str]] = {}
     for path in sorted((framework_root / "migrations").glob("*.json")):
         data = json.loads(path.read_text(encoding="utf-8"))
-        capability = data.get("capability")
-        if not capability:
-            continue
-        version = int(data["capabilityVersion"])
-        current = requirements.get(capability)
-        if current is None or version > current[0]:
-            requirements[capability] = (version, str(data["id"]))
+        for capability, version in migration_capability_entries(data):
+            current = requirements.get(capability)
+            if current is None or version > current[0]:
+                requirements[capability] = (version, str(data["id"]))
     return requirements
 
 
@@ -260,9 +277,9 @@ def capability_ids_for_file(framework_root: Path, target: Path) -> list[str]:
     ids = []
     for path in sorted((framework_root / "migrations").glob("*.json")):
         data = json.loads(path.read_text(encoding="utf-8"))
-        capability = data.get("capability")
-        if capability and str(target) in data.get("managedPaths", []):
-            ids.append(capability)
+        if str(target) not in data.get("managedPaths", []):
+            continue
+        ids.extend(capability for capability, _version in migration_capability_entries(data))
     return ids
 
 
