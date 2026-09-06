@@ -31,6 +31,7 @@ Follow `docs/CONTEXT_BUDGET_POLICY.md` for task-first context loading and reason
 
 Follow `docs/CODE_ORGANIZATION.md` for every production-source change: one owning module per responsibility, preserved dependency direction between layers, narrowest working visibility, and structural refactors kept out of behavior-change tasks. If a task needs a new ownership boundary or cannot fit the documented module structure without coupling responsibilities, stop and report the missing architectural decision instead of creating an opportunistic abstraction.
 
+<!-- MERIDIAN:BEGIN capability=command-triggers v1 -->
 ## Command triggers
 
 Treat these developer phrases as the complete authorization for the named workflow. Do not select a different task or act on an unassigned one.
@@ -40,6 +41,7 @@ Treat these developer phrases as the complete authorization for the named workfl
 - `Address review <TASK-ID>` — resolve exactly the outstanding findings in that task's review record.
 - `Run lifecycle <TASK-ID>` — coordinate that task through independent implementation, review, remediation, and integration under `docs/LIFECYCLE_ORCHESTRATION.md`.
 - `Accept <TASK-ID>` — run the owner-acceptance workflow below.
+<!-- MERIDIAN:END -->
 
 <!-- MERIDIAN:BEGIN capability=lifecycle-orchestration v2 -->
 ### Autonomous lifecycle orchestration
@@ -67,13 +69,15 @@ retry limit or any listed blocker.
 
 Never run two writing agents concurrently in the same worktree.
 
+<!-- MERIDIAN:BEGIN capability=review-mode-boundary v1 -->
 ### Review-mode boundary
 
 For `Review <TASK-ID>`, review is read-only until an explicit `APPROVE` verdict.
 Do not edit source code, tests, manifests, implementation documentation, task
 content, or queue records to remedy a finding. For `CHANGES_REQUESTED`, the
 only allowed mutation is a local review-handoff commit: create or append
-`tasks/reviews/<TASK-ID>.md` using `docs/REVIEW_RECORD_TEMPLATE.md`, change
+the declared review record (see `PROJECT_WORKFLOW.md`'s canonical locations)
+using `docs/REVIEW_RECORD_TEMPLATE.md`, change
 the task and queue status from `READY_FOR_REVIEW` to `IN_PROGRESS`, and commit
 only those three artifacts. The record must contain every actionable finding
 with priority and evidence; its unchecked findings are the implementer's
@@ -81,6 +85,7 @@ bounded remediation scope. Do not push this commit. Only after `APPROVE` and
 the required ancestry check may the reviewer append the approval evidence to
 the review record, make the two `ACCEPTED` status edits, and commit those three
 artifacts with the required reviewer-integrator author override.
+<!-- MERIDIAN:END -->
 
 <!-- MERIDIAN:BEGIN capability=review-remediation-record v2 -->
 ### Review-remediation workflow
@@ -100,12 +105,15 @@ validation. If a finding needs an authority or scope change, leave it
 unchecked and return `BLOCKED`.
 <!-- MERIDIAN:END -->
 
+<!-- MERIDIAN:BEGIN capability=owner-acceptance-workflow v1 -->
 ## Owner-acceptance workflow
 
 When the developer says `Accept <TASK-ID>` after personally reviewing a `Review: REQUIRED` task, treat it as explicit authorization to skip the agent review and perform only the acceptance-state handoff. Confirm that the task and its canonical queue row are both `READY_FOR_REVIEW`; do not re-review the implementation, rerun validation, change source code, or merge the branch.
 
 Update exactly the task `Status` and its canonical queue row to `ACCEPTED`, and commit only those two edits as `docs: accept <TASK-ID>` on the existing local task branch. Report the commit. If the required state records are missing or inconsistent, stop and report `BLOCKED`.
+<!-- MERIDIAN:END -->
 
+<!-- MERIDIAN:BEGIN capability=implementer-reviewer-handoff v1 -->
 ## Implementer-to-reviewer handoff
 
 After validation, create the task commit and push the task branch once for each
@@ -126,7 +134,9 @@ fast-forward merge the task branch, push `main` exactly once, and delete the
 local task branch. For `Review: NOT_REQUIRED`, the implementer performs the
 same acceptance commit and main integration after validation. Owner acceptance
 is status-only and does not automatically integrate the branch.
+<!-- MERIDIAN:END -->
 
+<!-- MERIDIAN:BEGIN capability=reviewer-integrator-identity v1 -->
 ## Reviewer-integrator identity on a single-operator project
 
 Review independence and Git identity separation are both mandatory controls; neither substitutes for the other. The review session must not have written the code and must re-derive evidence from the actual diff and cited sources rather than trusting the implementation report. Only for the `ACCEPTED` commit, use the project-scoped reviewer-specific author override:
@@ -136,3 +146,4 @@ git commit --author="<PROJECT_NAME> Reviewer-Integrator <reviewer-integrator@<pr
 ```
 
 Keep the operator's normal committer identity. Do not change global or repository Git config. The override applies only to the `ACCEPTED` commit and can be verified with `git log --format='%an <%ae>'`.
+<!-- MERIDIAN:END -->
