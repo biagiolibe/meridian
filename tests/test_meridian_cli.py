@@ -134,6 +134,32 @@ class MeridianCliTest(unittest.TestCase):
             "a verified (cosmetic-only) conflict must leave the local file untouched",
         )
 
+    def test_upgrade_does_not_require_a_capability_not_marked_in_this_file(self) -> None:
+        """A migration's `managedPaths` lists every file its diff touches, which
+        is not the same as every file that must carry its capability marker:
+        migration 002 lists `docs/CONTEXT_BUDGET_POLICY.md` because it mentions
+        lifecycle orchestration in prose, but only `validation-scoping` is
+        actually marked in that file's template. The per-file cosmetic-conflict
+        check must derive required capabilities from the template's own marker
+        set, not from `managedPaths`, or this file can never be verified."""
+        self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
+        policy = self.framework / "templates/workflows/governed-sdd/docs/CONTEXT_BUDGET_POLICY.md"
+        policy.write_text(
+            policy.read_text(encoding="utf-8").replace("## Task-first loading", "## Task-First Loading Rules"),
+            encoding="utf-8",
+        )
+        local = self.project / "docs/CONTEXT_BUDGET_POLICY.md"
+        local_text = local.read_text(encoding="utf-8")
+        self.assertIn("MERIDIAN:BEGIN capability=validation-scoping", local_text)
+        local.write_text(
+            local_text.replace("## Task-first loading", "## Our Task-First Loading"), encoding="utf-8"
+        )
+        (self.framework / "VERSION").write_text("1.1.1\n", encoding="utf-8")
+
+        checked = self.run_cli("upgrade", "--check")
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+        self.assertIn("VERIFIED docs/CONTEXT_BUDGET_POLICY.md", checked.stdout)
+
     def test_audit_passes_on_unmodified_markers(self) -> None:
         self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
         audited = self.run_cli("audit", "--mode", "governed-sdd")

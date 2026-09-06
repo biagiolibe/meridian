@@ -12,6 +12,27 @@ numbers follow the `frameworkVersion` tracked in generated projects'
 
 ## [Unreleased]
 
+- Fixed a bug in the Phase 3 cosmetic-vs-real conflict check (`upgrade`/
+  `adopt`): the set of capabilities a conflicting file had to satisfy to be
+  downgraded to `VERIFIED` was derived from each migration's `managedPaths`
+  — every file that migration's diff *touches* — rather than from which
+  capability markers the file's own template actually *carries*. A
+  migration can mention a capability in several files' prose while marking
+  it in only one (`migrations/011-whole-file-baseline-capabilities.json`
+  pairs four capabilities with four different single-purpose files via
+  parallel arrays); the old code required all four in every one of the
+  four files, so none of them could ever verify. `capability_ids_for_file`
+  is replaced by `capability_ids_in_template`, which reads the marker ids
+  directly out of the framework's own template for that file — the same
+  ground truth `audit` already uses. The satisfied-check itself is also
+  tightened from "marker version present" to a byte-exact comparison of
+  the local marker's content against the template's, closing a gap where a
+  version-tagged marker with corrupted inner text was wrongly accepted.
+  Caught while retrofitting a real, heavily customized project (Palimpsest)
+  onto capability markers: `meridian audit` passed all 31 markers while
+  `meridian upgrade --check` still reported 5 files as blocking `CONFLICT`s
+  — a contradiction between the two commands that shouldn't be possible
+  since they check the same protected regions.
 - `meridian audit --project <path> [--mode ...]`
   ([commands/meridian-audit.md](commands/meridian-audit.md)): a new,
   read-only command. Phase 4 of
