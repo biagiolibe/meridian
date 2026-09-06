@@ -78,6 +78,7 @@ class MeridianCliTest(unittest.TestCase):
                 "001-review-remediation-record",
                 "002-lifecycle-orchestration",
                 "003-framework-updater",
+                "004-validation-scoping",
             ],
         )
         baselines = sorted(path.name for path in (self.project / ".meridian/baselines").iterdir())
