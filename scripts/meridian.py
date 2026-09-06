@@ -198,8 +198,10 @@ LEGACY_CAPABILITY_EVIDENCE = {
 }
 
 
-def detect_capabilities(project_root: Path, mode: str, framework_root: Path) -> list[Capability]:
-    """Detect framework capabilities by behavior, not by exact wording.
+def capability_presence_map(
+    project_root: Path, mode: str, framework_root: Path
+) -> dict[str, tuple[bool, str]]:
+    """capability id -> (present, evidence), by behavior rather than exact wording.
 
     A capability is present when the project carries a
     `<!-- MERIDIAN:BEGIN capability=<id> vN --> ... <!-- MERIDIAN:END -->`
@@ -212,7 +214,7 @@ def detect_capabilities(project_root: Path, mode: str, framework_root: Path) -> 
     matching without breaking every project adopted before markers existed.
     """
     if mode != "governed-sdd":
-        return []
+        return {}
 
     combined_text = "\n".join(
         path.read_text(encoding="utf-8")
@@ -220,35 +222,59 @@ def detect_capabilities(project_root: Path, mode: str, framework_root: Path) -> 
         if path.is_file()
     )
 
-    capabilities = []
-    for capability_id, (required_version, migration_id) in sorted(
-        capability_requirements(framework_root).items()
-    ):
+    presence: dict[str, tuple[bool, str]] = {}
+    for capability_id, (required_version, _migration_id) in capability_requirements(framework_root).items():
         found_version = find_capability_marker_version(combined_text, capability_id)
         if found_version is not None:
             if found_version < required_version:
-                present = False
-                evidence = f"marker present at v{found_version}, but v{required_version} is required"
+                presence[capability_id] = (
+                    False,
+                    f"marker present at v{found_version}, but v{required_version} is required",
+                )
             else:
-                present = True
-                evidence = f"marker present at v{found_version} (>= required v{required_version})"
+                presence[capability_id] = (
+                    True,
+                    f"marker present at v{found_version} (>= required v{required_version})",
+                )
         else:
             legacy_check = LEGACY_CAPABILITY_EVIDENCE.get(capability_id)
             legacy_present = legacy_check is not None and legacy_check(project_root, combined_text)
             if legacy_present and required_version <= 1:
-                present = True
-                evidence = "no marker found; legacy pre-marker evidence confirms v1"
+                presence[capability_id] = (True, "no marker found; legacy pre-marker evidence confirms v1")
             elif legacy_present:
-                present = False
-                evidence = (
+                presence[capability_id] = (
+                    False,
                     "no marker found; legacy pre-marker evidence only confirms v1, but "
-                    f"v{required_version} is required"
+                    f"v{required_version} is required",
                 )
             else:
-                present = False
-                evidence = f"no MERIDIAN:BEGIN capability={capability_id} marker found"
-        capabilities.append(Capability(migration_id, present, evidence))
-    return capabilities
+                presence[capability_id] = (
+                    False,
+                    f"no MERIDIAN:BEGIN capability={capability_id} marker found",
+                )
+    return presence
+
+
+def capability_ids_for_file(framework_root: Path, target: Path) -> list[str]:
+    """Capability ids of every migration that declares one and manages `target`."""
+    ids = []
+    for path in sorted((framework_root / "migrations").glob("*.json")):
+        data = json.loads(path.read_text(encoding="utf-8"))
+        capability = data.get("capability")
+        if capability and str(target) in data.get("managedPaths", []):
+            ids.append(capability)
+    return ids
+
+
+def detect_capabilities(project_root: Path, mode: str, framework_root: Path) -> list[Capability]:
+    if mode != "governed-sdd":
+        return []
+    requirements = capability_requirements(framework_root)
+    presence = capability_presence_map(project_root, mode, framework_root)
+    return [
+        Capability(migration_id, *presence[capability_id])
+        for capability_id, (_required_version, migration_id) in sorted(requirements.items())
+    ]
 
 
 def parse_adoption_review(project_root: Path) -> "ReviewRecord | None":
@@ -680,6 +706,8 @@ def plan_from_baseline(
         "appliedMigrations": applied_migrations,
     }
 
+    requirements = capability_requirements(framework_root)
+
     plan = []
     for item in managed_files(framework_root, mode):
         local = project_root / item.target
@@ -701,7 +729,27 @@ def plan_from_baseline(
             plan.append(PlanItem(item, "keep", "local file already matches target"))
         else:
             clean, _ = merge_clean(local, base, item.source)
-            plan.append(PlanItem(item, "merge" if clean else "conflict", "three-way merge"))
+            if clean:
+                plan.append(PlanItem(item, "merge", "three-way merge"))
+                continue
+            capability_ids = capability_ids_for_file(framework_root, item.target)
+            local_text = local.read_text(encoding="utf-8")
+            satisfied_here = capability_ids and all(
+                (find_capability_marker_version(local_text, capability_id) or 0) >= requirements[capability_id][0]
+                for capability_id in capability_ids
+            )
+            if satisfied_here:
+                plan.append(
+                    PlanItem(
+                        item,
+                        "verified",
+                        "three-way merge conflicted, but this file's own capability marker(s) "
+                        f"({', '.join(sorted(capability_ids))}) already satisfy the required version — "
+                        "left untouched",
+                    )
+                )
+            else:
+                plan.append(PlanItem(item, "conflict", "three-way merge"))
     return manifest, plan
 
 

@@ -103,6 +103,37 @@ class MeridianCliTest(unittest.TestCase):
             "only the current frameworkVersion's baseline should remain after a second upgrade",
         )
 
+    def test_upgrade_downgrades_cosmetic_conflict_to_verified(self) -> None:
+        """Phase 3 of migrations/CAPABILITY_MARKERS.md: a conflict outside a
+        satisfied capability marker is cosmetic and should be left untouched,
+        not treated the same as a real, unverifiable conflict."""
+        self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
+        agents = self.framework / "templates/workflows/governed-sdd/AGENTS.md"
+        agents.write_text(
+            agents.read_text(encoding="utf-8").replace("## Code organization", "## Code Organization Rules"),
+            encoding="utf-8",
+        )
+        local = self.project / "AGENTS.md"
+        local_text = local.read_text(encoding="utf-8")
+        self.assertIn("MERIDIAN:BEGIN capability=review-remediation-record", local_text)
+        local.write_text(
+            local_text.replace("## Code organization", "## Our Code Organization"), encoding="utf-8"
+        )
+        (self.framework / "VERSION").write_text("1.1.1\n", encoding="utf-8")
+
+        checked = self.run_cli("upgrade", "--check")
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+        self.assertIn("VERIFIED AGENTS.md", checked.stdout)
+        self.assertIn("capability marker(s)", checked.stdout)
+
+        applied = self.run_cli("upgrade", "--apply")
+        self.assertEqual(applied.returncode, 0, applied.stderr)
+        self.assertIn(
+            "## Our Code Organization",
+            (self.project / "AGENTS.md").read_text(encoding="utf-8"),
+            "a verified (cosmetic-only) conflict must leave the local file untouched",
+        )
+
     def test_apply_refuses_conflicting_local_change(self) -> None:
         self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
         workflow = self.framework / "templates/workflows/governed-sdd/PROJECT_WORKFLOW.md"
