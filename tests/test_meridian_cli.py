@@ -145,7 +145,7 @@ class MeridianCliTest(unittest.TestCase):
         self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
         agents = self.project / "AGENTS.md"
         text = agents.read_text(encoding="utf-8")
-        self.assertIn("MERIDIAN:BEGIN capability=lifecycle-orchestration v1", text)
+        self.assertIn("MERIDIAN:BEGIN capability=lifecycle-orchestration v2", text)
         edited = text.replace(
             "Act only as the coordinator", "Act only as the coordinator (edited without an upgrade)"
         )
@@ -154,7 +154,7 @@ class MeridianCliTest(unittest.TestCase):
 
         audited = self.run_cli("audit", "--mode", "governed-sdd")
         self.assertEqual(audited.returncode, 2)
-        self.assertIn("FAIL AGENTS.md: capability=lifecycle-orchestration v1", audited.stdout)
+        self.assertIn("FAIL AGENTS.md: capability=lifecycle-orchestration v2", audited.stdout)
         self.assertIn("BLOCKED: 1 protected-region integrity failure", audited.stdout)
 
     def test_audit_skips_a_version_the_current_template_no_longer_carries(self) -> None:
@@ -163,7 +163,7 @@ class MeridianCliTest(unittest.TestCase):
             local = self.project / name
             local.write_text(
                 local.read_text(encoding="utf-8").replace(
-                    "MERIDIAN:BEGIN capability=lifecycle-orchestration v1",
+                    "MERIDIAN:BEGIN capability=lifecycle-orchestration v2",
                     "MERIDIAN:BEGIN capability=lifecycle-orchestration v99",
                 ),
                 encoding="utf-8",
@@ -264,10 +264,14 @@ class MeridianCliTest(unittest.TestCase):
         )
 
     def test_pre_marker_project_is_not_regressed_to_missing(self) -> None:
-        """A project adopted before migration 006 has no MERIDIAN markers at all,
-        only the old bare trigger phrases and template files. It must still be
-        detected as PRESENT via the legacy fallback — not regressed to MISSING
-        just because markers now exist for other, newer projects."""
+        """A project adopted before migration 006 has no MERIDIAN markers at
+        all, only the old bare trigger phrases and template files. The legacy
+        fallback correctly proves v1 for both capabilities — not the fully
+        MISSING a naive marker-only check would report — but since 008/009
+        bumped both to a required v2, v1-only evidence is now correctly
+        insufficient rather than falsely treated as fully satisfied. The
+        emitted delta must scope the fix to the v1->v2 change, not imply a
+        from-scratch rewrite of a capability the project already has."""
         shutil.rmtree(self.project)
         self.project.mkdir()
         source = self.framework / "release-baselines/1.0.0/templates/workflows/governed-sdd"
@@ -307,22 +311,25 @@ class MeridianCliTest(unittest.TestCase):
         planned = self.run_cli(
             "adopt", "--mode", "governed-sdd", "--from", "1.0.0", "--assisted", "--check"
         )
-        # Both capabilities are present, but with no prior review record this
-        # correctly asks for one before finalizing (compute_adoption_state's
-        # existing REVIEW_MIGRATION path) rather than failing detection.
         self.assertEqual(planned.returncode, 3, planned.stdout)
+        # The evidence text proves the legacy fallback did its job (v1 found),
+        # distinct from "no marker found" — it's the v1->v2 gap that's real.
         self.assertIn(
-            "CAPABILITY PRESENT 001-review-remediation-record — no marker found; legacy pre-marker evidence confirms v1",
+            "CAPABILITY MISSING 008-review-remediation-record-v2 — no marker found; "
+            "legacy pre-marker evidence only confirms v1, but v2 is required",
             planned.stdout,
         )
         self.assertIn(
-            "CAPABILITY PRESENT 002-lifecycle-orchestration — no marker found; legacy pre-marker evidence confirms v1",
+            "CAPABILITY MISSING 009-lifecycle-orchestration-v2 — no marker found; "
+            "legacy pre-marker evidence only confirms v1, but v2 is required",
             planned.stdout,
         )
-        # Match the standalone state line, not the generic orchestrator-prompt
-        # boilerplate that also mentions "NEXT_ACTION REVIEW_MIGRATION" as
-        # part of its own instructions further down the same output.
-        self.assertIn("\nNEXT_ACTION REVIEW_MIGRATION\n", planned.stdout)
+        self.assertIn("\nNEXT_ACTION IMPLEMENT_MIGRATION\n", planned.stdout)
+        # The implementer is pointed at the delta, not a from-scratch rewrite:
+        # the capability is already there, only the path reference is stale.
+        self.assertIn("apply only this", planned.stdout)
+        self.assertIn("008-review-remediation-record-v2: Replace the literal", planned.stdout)
+        self.assertIn("009-lifecycle-orchestration-v2: Replace the literal", planned.stdout)
 
     def test_assisted_adoption_detects_only_missing_lifecycle(self) -> None:
         shutil.rmtree(self.project)
@@ -355,8 +362,11 @@ class MeridianCliTest(unittest.TestCase):
             "adopt", "--mode", "governed-sdd", "--from", "1.0.0", "--assisted", "--check"
         )
         self.assertEqual(planned.returncode, 3)
-        self.assertIn("CAPABILITY PRESENT 001-review-remediation-record", planned.stdout)
-        self.assertIn("CAPABILITY MISSING 002-lifecycle-orchestration", planned.stdout)
+        # detect_capabilities() names the migration that introduced the
+        # highest required version, not necessarily the original one — 008
+        # carries the v2 delta a project stuck at v1 actually needs to apply.
+        self.assertIn("CAPABILITY PRESENT 008-review-remediation-record-v2", planned.stdout)
+        self.assertIn("CAPABILITY MISSING 009-lifecycle-orchestration-v2", planned.stdout)
         self.assertIn("AGENT_REQUIRED", planned.stdout)
         self.assertIn("\nNEXT_ACTION IMPLEMENT_MIGRATION\n", planned.stdout)
         self.assertIn("IMPLEMENTER_PROMPT_BEGIN", planned.stdout)
@@ -364,8 +374,8 @@ class MeridianCliTest(unittest.TestCase):
         self.assertIn("This reviewer session must be fresh", planned.stdout)
         self.assertIn("ORCHESTRATOR_PROMPT_BEGIN", planned.stdout)
         self.assertIn("adoption-review.md", planned.stdout)
-        self.assertIn("002-lifecycle-orchestration", planned.stdout)
-        self.assertIn("migrations/002-lifecycle-orchestration.json", planned.stdout)
+        self.assertIn("009-lifecycle-orchestration-v2", planned.stdout)
+        self.assertIn("migrations/009-lifecycle-orchestration-v2.json", planned.stdout)
         self.assertIn("/bin/meridian finalize-adoption", planned.stdout)
         self.assertFalse((self.project / ".meridian").exists())
 
@@ -551,21 +561,21 @@ class CapabilityMarkerTest(unittest.TestCase):
         )
         return begins
 
-    def test_agents_and_claude_carry_all_four_v1_markers(self) -> None:
+    def test_agents_and_claude_carry_expected_marker_versions(self) -> None:
         for name in ("AGENTS.md", "CLAUDE.md"):
             text = (self.WORKFLOW / name).read_text(encoding="utf-8")
             pairs = self.marker_pairs(text)
-            self.assertIn(("review-remediation-record", "1"), pairs, name)
-            self.assertIn(("lifecycle-orchestration", "1"), pairs, name)
+            self.assertIn(("review-remediation-record", "2"), pairs, name)
+            self.assertIn(("lifecycle-orchestration", "2"), pairs, name)
             self.assertIn(("validation-scoping", "1"), pairs, name)
 
     def test_review_record_template_carries_its_own_marker(self) -> None:
         text = (self.WORKFLOW / "docs/REVIEW_RECORD_TEMPLATE.md").read_text(encoding="utf-8")
-        self.assertEqual(self.marker_pairs(text), [("review-remediation-record", "1")])
+        self.assertEqual(self.marker_pairs(text), [("review-remediation-record", "2")])
 
     def test_lifecycle_orchestration_carries_its_own_marker(self) -> None:
         text = (self.WORKFLOW / "docs/LIFECYCLE_ORCHESTRATION.md").read_text(encoding="utf-8")
-        self.assertEqual(self.marker_pairs(text), [("lifecycle-orchestration", "1")])
+        self.assertEqual(self.marker_pairs(text), [("lifecycle-orchestration", "2")])
 
     def test_context_budget_policy_carries_validation_scoping_marker(self) -> None:
         text = (self.WORKFLOW / "docs/CONTEXT_BUDGET_POLICY.md").read_text(encoding="utf-8")

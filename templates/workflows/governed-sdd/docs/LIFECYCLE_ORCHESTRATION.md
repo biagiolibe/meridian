@@ -1,6 +1,6 @@
 # Autonomous Task Lifecycle Orchestration
 
-<!-- MERIDIAN:BEGIN capability=lifecycle-orchestration v1 -->
+<!-- MERIDIAN:BEGIN capability=lifecycle-orchestration v2 -->
 `Run lifecycle <TASK-ID>` authorizes an orchestrator to carry one dependency-ready
 task through implementation, independent review, requested-change remediation,
 acceptance, and `main` integration without further developer prompts. It does
@@ -22,8 +22,9 @@ Run lifecycle <TASK-ID>
        -> BLOCKED: stop and report the exact condition
 ```
 
-The task file, queue row, Git commits, completion report, and
-`tasks/reviews/<TASK-ID>.md` are the only handoff interface. Worker messages
+The task file, queue row, Git commits, completion report, and the declared
+review record (see `PROJECT_WORKFLOW.md`'s canonical locations) are the only
+handoff interface. Worker messages
 must be concise and structured as: verdict or state, task ID, commit SHA,
 review-record path when present, validation result, and blocker when present.
 The orchestrator passes only that information to the next worker; it never

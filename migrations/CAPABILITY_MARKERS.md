@@ -4,8 +4,9 @@ Status: phases 1-4 shipped (markers on capabilities 001/002, version-aware
 detection, cosmetic-vs-real conflict resolution in `upgrade`, and
 `meridian audit`'s protected-region integrity check). Phase 5 (process
 discipline) is documented in `CONTRIBUTING.md`/`migrations/README.md`.
-Migration 007 additionally shipped markers for 004/005. An expanded retrofit
-(migrations 008-011, plus a full Palimpsest retrofit) is in progress — see
+Migrations 007-009 additionally shipped markers for 004/005 and the v2,
+path-parameterized canon for 001/002. An expanded retrofit (migrations
+010-012, plus a full Palimpsest retrofit) is in progress — see
 "Addendum: expanded retrofit plan" near the end of this document for the
 current, authoritative state; treat the original Phase 1-5 plan below as
 historical design reasoning, not the up-to-date task list. This document
@@ -243,15 +244,29 @@ inline, mid-sentence marker (not just a marker on its own line), since
 `validation-scoping`'s text in `AGENTS.md`/`CLAUDE.md` is one clause inside a
 larger numbered step, not a standalone section.
 
-**Migration 008 (planned).** `review-remediation-record` and
-`lifecycle-orchestration` bump to `capabilityVersion: 2`: the canonical text
-stops hardcoding `tasks/reviews/<TASK-ID>.md` / `tasks/QUEUE.md` inline and
-instead references a project's declared "canonical locations" (a section
-`PROJECT_WORKFLOW.md` already has conceptually). `delta` describes only this
-reference change — no behavioral change for a vanilla project, since its
-declared locations already match the defaults.
+**Migrations 008 and 009 (shipped).** Split into two migrations, not one —
+the schema attaches only one `capability`/`capabilityVersion` pair per
+migration record, matching every migration shipped so far. `008` bumps
+`review-remediation-record` to `capabilityVersion: 2`: the canonical text in
+`AGENTS.md`/`CLAUDE.md`/`docs/REVIEW_RECORD_TEMPLATE.md` stops hardcoding
+`tasks/reviews/<TASK-ID>.md` inline and instead references a new "Canonical
+locations" paragraph added to `PROJECT_WORKFLOW.md`'s Execution assets
+section. `009` does the same for `lifecycle-orchestration` in
+`docs/LIFECYCLE_ORCHESTRATION.md`, and relabels the unchanged
+`AGENTS.md`/`CLAUDE.md` marker from v1 to v2 to match — every occurrence of
+one capability's marker must agree on version, or the lowest one found
+reports the whole capability stale.
 
-**Migrations 009-011 (planned): baseline capabilities for everything else
+Real, verified-live consequence, not a bug: `fusa` and `palimpsest` — the
+two real projects adopted so far — now report `review-remediation-record`
+and `lifecycle-orchestration` as `MISSING` (stale at v1) rather than
+`PRESENT`, since `LEGACY_CAPABILITY_EVIDENCE` only ever proves v1. Both need
+another assisted-adoption pass to reach `1.1.6`. This is the correct
+trade-off: the alternative (not bumping the version) would mean the same
+version label pointing at two different canonical texts, which breaks
+`meridian audit`'s entire premise.
+
+**Migrations 010-012 (planned): baseline capabilities for everything else
 that's binding but untracked.** One capability per genuinely independent
 rule, not one per file — a composite file keeps the same precision Phase 3
 relies on. Two files are deliberately excluded: `docs/ARCHITECTURE_DECISIONS.md`
@@ -259,16 +274,16 @@ is a scaffold the project is meant to fill in, and `docs/OPERATOR_PROMPTS.md`
 is an explicitly non-normative cookbook (`check_repository.py` already
 enforces that it stays one) — protecting either would fight its purpose.
 
-- **009 — `PROJECT_WORKFLOW.md`**, one capability per `##` section:
+- **010 — `PROJECT_WORKFLOW.md`**, one capability per `##` section:
   `workflow-mode-lock`, `document-precedence`, `task-lifecycle`,
   `execution-assets`, `roles`, `review-policy`, `git-workflow` (folding in
   its `Reviewer-integrator identity` subsection), `execution-discipline`.
-- **010 — whole-file capabilities** for single-purpose files:
+- **011 — whole-file capabilities** for single-purpose files:
   `language-policy` (`LANGUAGE_POLICY.md`), `task-blueprint`
   (`tasks/TASK_BLUEPRINT.md`), `code-organization`
   (`docs/CODE_ORGANIZATION.md`), `audit-prompt`
   (`docs/AUDIT_PROMPT_READ_ONLY.md`).
-- **011 — `AGENTS.md`/`CLAUDE.md` residual sections**: `command-triggers`
+- **012 — `AGENTS.md`/`CLAUDE.md` residual sections**: `command-triggers`
   (the trigger-phrase list itself), `review-mode-boundary`,
   `owner-acceptance-workflow`, `implementer-reviewer-handoff`,
   `reviewer-integrator-identity`. `### Implementation workflow`'s steps 1-4
@@ -278,7 +293,7 @@ enforces that it stays one) — protecting either would fight its purpose.
   does not support. Extending the grammar to support nesting is possible but
   deferred; it would mean revising a grammar already shipped in 006.
 
-**Palimpsest retrofit (planned, after 007-011 land).** Every managed file
+**Palimpsest retrofit (planned, after 007-012 land).** Every managed file
 except the two excluded ones gets the protected-region + extension pattern:
 canonical text byte-identical to the (parameterized, where applicable)
 framework version, Palimpsest's own material — explicit `cargo` commands,

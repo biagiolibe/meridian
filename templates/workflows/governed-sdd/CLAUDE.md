@@ -41,7 +41,7 @@ Treat these developer phrases as the complete authorization for the named workfl
 - `Run lifecycle <TASK-ID>` — coordinate that task through independent implementation, review, remediation, and integration under `docs/LIFECYCLE_ORCHESTRATION.md`.
 - `Accept <TASK-ID>` — run the owner-acceptance workflow below.
 
-<!-- MERIDIAN:BEGIN capability=lifecycle-orchestration v1 -->
+<!-- MERIDIAN:BEGIN capability=lifecycle-orchestration v2 -->
 ### Autonomous lifecycle orchestration
 
 For `Run lifecycle <TASK-ID>`, follow `docs/LIFECYCLE_ORCHESTRATION.md`
@@ -82,11 +82,12 @@ the required ancestry check may the reviewer append the approval evidence to
 the review record, make the two `ACCEPTED` status edits, and commit those three
 artifacts with the required reviewer-integrator author override.
 
-<!-- MERIDIAN:BEGIN capability=review-remediation-record v1 -->
+<!-- MERIDIAN:BEGIN capability=review-remediation-record v2 -->
 ### Review-remediation workflow
 
 For `Address review <TASK-ID>`, read the assigned task, its cited authority,
-the current `tasks/reviews/<TASK-ID>.md`, and `git status --short`. Confirm the
+the current review record at the location `PROJECT_WORKFLOW.md` declares for
+it, and `git status --short`. Confirm the
 task and queue both say `IN_PROGRESS`, that the review record has unchecked
 findings, and that its local review-handoff commit is present. Do not implement
 new work, reinterpret a finding, or erase prior reviewer evidence. Resolve
