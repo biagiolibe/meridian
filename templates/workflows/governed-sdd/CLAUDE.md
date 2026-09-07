@@ -58,7 +58,7 @@ retry limit or any listed blocker.
 
 ### Implementation workflow
 
-1. Read the assigned task, every referenced higher-precedence specification/ADR, and `git status --short`.
+1. Read the assigned task, every referenced higher-precedence specification/ADR, and `git status --short`. <!-- MERIDIAN:BEGIN capability=manual-verification-precondition v1 -->If the task declares `Manual verification: required`, confirm now — before any implementation — that you can produce that evidence (a running app, screenshot capability, or an available reviewer for it). If you cannot, return `BLOCKED` immediately instead of implementing first and discovering the gap later. When a deterministic test can serve as the change's primary acceptance evidence (for example, a geometry or layout assertion), treat manual or visual confirmation as a secondary check, not the only gate.<!-- MERIDIAN:END -->
 2. Before code changes, ensure the worktree contains no unrelated uncommitted changes. If it does, do not stage, modify, discard, or commit those changes; report the exact conflict and stop unless the developer explicitly directs how to proceed.
 3. Create and switch to a dedicated branch named after the normalized task ID, without a provider prefix (for example, `TASK-012` uses `task-012`). Only one task may write in this checkout at a time. If the branch already exists, inspect it and stop for direction rather than overwriting or rebasing it. Do not create or switch branches in a dirty checkout.
 4. State a short plan, then implement only the assigned task and its explicit dependencies. Preserve architectural boundaries and all SDD scope limits.

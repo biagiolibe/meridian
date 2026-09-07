@@ -612,7 +612,10 @@ class CapabilityMarkerTest(unittest.TestCase):
 
     def test_review_record_template_carries_its_own_marker(self) -> None:
         text = (self.WORKFLOW / "docs/REVIEW_RECORD_TEMPLATE.md").read_text(encoding="utf-8")
-        self.assertEqual(self.marker_pairs(text), [("review-remediation-record", "2")])
+        self.assertEqual(
+            self.marker_pairs(text),
+            [("review-remediation-record", "2"), ("manual-verification-record", "1")],
+        )
 
     def test_lifecycle_orchestration_carries_its_own_marker(self) -> None:
         text = (self.WORKFLOW / "docs/LIFECYCLE_ORCHESTRATION.md").read_text(encoding="utf-8")
@@ -622,8 +625,23 @@ class CapabilityMarkerTest(unittest.TestCase):
         text = (self.WORKFLOW / "docs/CONTEXT_BUDGET_POLICY.md").read_text(encoding="utf-8")
         self.assertEqual(
             self.marker_pairs(text),
-            [("minimal-read-only-status", "1"), ("validation-scoping", "1")],
+            [
+                ("role-scoped-agent-rules", "1"),
+                ("minimal-read-only-status", "1"),
+                ("validation-scoping", "1"),
+            ],
         )
+
+    def test_role_scoped_agent_rules_names_headings_by_role(self) -> None:
+        policy = (self.WORKFLOW / "docs/CONTEXT_BUDGET_POLICY.md").read_text(encoding="utf-8")
+        self.assertIn("Every role", policy)
+        self.assertIn('"Command triggers"', policy)
+        self.assertIn("Implementer", policy)
+        self.assertIn("Review-remediation workflow", policy)
+        self.assertIn("Reviewer-integrator", policy)
+        self.assertIn('"Review-mode boundary"', policy)
+        self.assertIn("Orchestrator", policy)
+        self.assertIn("read the whole file instead of guessing", policy)
 
     def test_minimal_read_only_status_profile_limits_context_expansion(self) -> None:
         policy = (self.WORKFLOW / "docs/CONTEXT_BUDGET_POLICY.md").read_text(encoding="utf-8")
@@ -634,13 +652,33 @@ class CapabilityMarkerTest(unittest.TestCase):
         self.assertIn("Do not load completed milestones", prompts)
 
     def test_ci_verified_validation_marker_in_each_of_its_three_docs(self) -> None:
-        for name in (
-            "docs/PULL_REQUEST_POLICY.md",
-            "docs/CODE_REVIEW_PROMPT.md",
-            "docs/COMPLETION_REPORT_TEMPLATE.md",
-        ):
+        for name in ("docs/PULL_REQUEST_POLICY.md", "docs/CODE_REVIEW_PROMPT.md"):
             text = (self.WORKFLOW / name).read_text(encoding="utf-8")
             self.assertEqual(self.marker_pairs(text), [("ci-verified-validation", "1")], name)
+
+        completion_report = (self.WORKFLOW / "docs/COMPLETION_REPORT_TEMPLATE.md").read_text(encoding="utf-8")
+        self.assertEqual(
+            self.marker_pairs(completion_report),
+            [("manual-verification-record", "1"), ("ci-verified-validation", "1")],
+        )
+
+    def test_manual_verification_precondition_gates_implementation_start(self) -> None:
+        for name in ("AGENTS.md", "CLAUDE.md"):
+            text = (self.WORKFLOW / name).read_text(encoding="utf-8")
+            pairs = self.marker_pairs(text)
+            self.assertIn(("manual-verification-precondition", "1"), pairs, name)
+        agents = (self.WORKFLOW / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("Manual verification: required", agents)
+        self.assertIn("return `BLOCKED` immediately", agents)
+        self.assertIn("deterministic test", agents)
+
+    def test_manual_verification_record_fields_in_completion_and_review_records(self) -> None:
+        completion_report = (self.WORKFLOW / "docs/COMPLETION_REPORT_TEMPLATE.md").read_text(encoding="utf-8")
+        self.assertIn("Manual verification: `<none | screenshot path", completion_report)
+        review_record = (self.WORKFLOW / "docs/REVIEW_RECORD_TEMPLATE.md").read_text(encoding="utf-8")
+        self.assertIn(("manual-verification-record", "1"), self.marker_pairs(review_record))
+        self.assertIn("Manual verification observed:", review_record)
+        self.assertIn("independently confirms", review_record)
 
     def test_project_workflow_carries_all_eight_baseline_capabilities(self) -> None:
         text = (self.WORKFLOW / "PROJECT_WORKFLOW.md").read_text(encoding="utf-8")
@@ -665,7 +703,7 @@ class CapabilityMarkerTest(unittest.TestCase):
     def test_whole_file_baseline_capabilities_each_carry_one_marker(self) -> None:
         expectations = {
             "LANGUAGE_POLICY.md": ("language-policy", "2"),
-            "tasks/TASK_BLUEPRINT.md": ("task-blueprint", "1"),
+            "tasks/TASK_BLUEPRINT.md": ("task-blueprint", "2"),
             "docs/CODE_ORGANIZATION.md": ("code-organization", "1"),
             "docs/AUDIT_PROMPT_READ_ONLY.md": ("audit-prompt", "1"),
         }

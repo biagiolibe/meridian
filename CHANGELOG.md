@@ -12,6 +12,69 @@ numbers follow the `frameworkVersion` tracked in generated projects'
 
 ## [Unreleased]
 
+## [1.1.14]
+
+### Added
+
+- Migration `017-manual-verification-precondition-and-record`: adds
+  `manual-verification-precondition` and `manual-verification-record` to
+  Governed SDD. Caught in real use: a task requiring manual/visual proof
+  passed every automated check and only then discovered, mid-implementation,
+  that the evidence itself was unavailable — forcing a wasted resumption
+  session to finish what a precondition check would have caught for free.
+  `manual-verification-precondition` (step 1 of `AGENTS.md`/`CLAUDE.md`'s
+  Implementation workflow) makes the implementer confirm evidence
+  availability *before* writing any code when the task declares `Manual
+  verification: required`, returning `BLOCKED` immediately instead of
+  discovering the gap later, and prefers a deterministic test as primary
+  acceptance evidence over a GUI check when one exists (e.g. a geometry or
+  layout assertion). `manual-verification-record` gives
+  `docs/COMPLETION_REPORT_TEMPLATE.md` and `docs/REVIEW_RECORD_TEMPLATE.md` a
+  dedicated field — a named screenshot, the view checked, and the result —
+  so a reviewer can use it without reconstructing the session; the review
+  record's own marker sits outside `review-remediation-record`'s existing
+  marker to avoid the documented nesting limitation.
+
+## [1.1.13]
+
+### Added
+
+- Migration `016-task-blueprint-manual-verification-v2`: bumps
+  `task-blueprint` to `capabilityVersion: 2`, adding a `Manual verification:
+  [none / required]` field immediately after `Review` — the declaration
+  migration 017's precondition and record capabilities key off.
+
+## [1.1.12]
+
+### Added
+
+- Migration `015-role-scoped-agent-rules`: adds the `role-scoped-agent-rules`
+  capability to Governed SDD. `AGENTS.md`/`CLAUDE.md` states rules for every
+  role in one file; this scopes how much of it a session actually needs to
+  read. Every role reads a shared core (introductory rules through "Command
+  triggers", plus "Owner-acceptance workflow"); an implementer additionally
+  reads the implementation-side sections, a reviewer-integrator the
+  review-side sections, and the orchestrator does not read the file at all
+  beyond confirming its own trigger phrases (already true per this policy's
+  existing "Lifecycle orchestration" section). Sections are matched by
+  heading text with an explicit fallback to reading the whole file when a
+  heading is missing or the mapping is unclear — this narrows a known-safe
+  read, it does not license skipping unfamiliar content.
+
+  This is the cheaper alternative to physically splitting `AGENTS.md`/
+  `CLAUDE.md` by role, which was evaluated and set aside: relocating an
+  existing capability marker to a new file would require a migration
+  category the framework doesn't have yet (previous migrations only ever
+  add or version a capability, never move it between files) and would orphan
+  the operative prose a customized project has already written next to that
+  marker in its current location (Palimpsest and fusa both did this in
+  their retrofit onto capability markers). A prompt-level reading rule gets
+  most of the same benefit — implementer and reviewer sessions each skip
+  roughly a quarter to a third of the file — with no migration risk and no
+  retrofit cost on already-adopted projects. Physical splitting stays a
+  future option once enough adopting projects exist to justify a one-time
+  relocation migration.
+
 ## [1.1.11]
 
 ### Added
