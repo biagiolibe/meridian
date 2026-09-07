@@ -12,6 +12,18 @@ numbers follow the `frameworkVersion` tracked in generated projects'
 
 ## [Unreleased]
 
+## [1.1.11]
+
+### Added
+
+- Migration `014-minimal-read-only-status`: adds the
+  `minimal-read-only-status` capability to Governed SDD. It distinguishes a
+  lightweight read-only project-status report from a conformance audit,
+  constraining the default reads to workflow mode, non-terminal queue state,
+  direct dependency readiness, and Git state. Expanded reads require a stated
+  evidence gap. The governed-SDD operator prompt and Codex/Claude Code skills
+  now route explicit status requests through this profile.
+
 - Fixed a bug in the Phase 3 cosmetic-vs-real conflict check (`upgrade`/
   `adopt`): the set of capabilities a conflicting file had to satisfy to be
   downgraded to `VERIFIED` was derived from each migration's `managedPaths`

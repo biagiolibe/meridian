@@ -13,6 +13,31 @@ For an implementation or review:
 
 Dependencies establish readiness; they do not automatically require rereading their entire implementation history.
 
+<!-- MERIDIAN:BEGIN capability=minimal-read-only-status v1 -->
+## Minimal read-only status
+
+For a request to report the current governed-SDD status without modifying
+files, minimize context deliberately:
+
+1. Read `LANGUAGE_POLICY.md`, then only the portions of `AGENTS.md` or
+   `CLAUDE.md` and `PROJECT_WORKFLOW.md` needed to confirm the active mode and
+   the local status-reporting rules.
+2. Read this policy, query the canonical queue for non-terminal entries only,
+   and inspect Git's current branch, clean/dirty state, and configured remote
+   relation when relevant.
+3. Read only the direct dependencies and task records needed to establish
+   readiness for the next permitted governance action.
+4. Do not load completed milestones, broad file inventories, full
+   specifications, ADRs, audit prompts, review records, or Git history unless
+   a concrete discrepancy, blocker, or requested handoff requires them.
+5. Before every expanded read, state the specific evidence gap it resolves.
+
+A status report is not a conformance audit. It reports workflow mode,
+non-terminal work, dependency readiness, Git state, the next permitted action,
+and blockers; use the audit procedure only when the developer asks for an
+audit.
+<!-- MERIDIAN:END -->
+
 ## Validation scope
 
 <!-- MERIDIAN:BEGIN capability=validation-scoping v1 -->

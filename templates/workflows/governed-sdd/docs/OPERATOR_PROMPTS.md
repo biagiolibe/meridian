@@ -28,16 +28,16 @@ Use this before deciding what to do next.
 ```text
 Report the current governed-SDD status without modifying files.
 
-Read LANGUAGE_POLICY.md, AGENTS.md or CLAUDE.md, PROJECT_WORKFLOW.md,
-docs/CONTEXT_BUDGET_POLICY.md, tasks/QUEUE.md,
-docs/PULL_REQUEST_POLICY.md, and docs/CODE_ORGANIZATION.md. Then load only
-the ADRs, specifications, tasks, completion reports, and Git state needed to
-verify <HANDOFF OR MILESTONE>.
+Use the minimal read-only status profile in docs/CONTEXT_BUDGET_POLICY.md.
+Confirm only the active workflow mode and local status rules, non-terminal
+queue entries, their direct dependency readiness, the current Git state, the
+next permitted governance action, and blockers.
 
-State the clean or dirty Git state, accepted and queued dependencies, the next
-permitted governance action, and any blocker. Do not select a task, implement
-code, review code, change files, create commits, or reconstruct prior chat
-context.
+Do not load completed milestones, broad file inventories, full specifications,
+ADRs, audit prompts, review records, or Git history unless a concrete
+discrepancy, blocker, or requested handoff requires them. State the specific
+evidence gap before every expanded read. Do not select a task, implement code,
+review code, change files, create commits, or reconstruct prior chat context.
 ```
 
 ## 2. Design a change or decompose a milestone

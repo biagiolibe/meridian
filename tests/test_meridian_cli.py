@@ -618,9 +618,20 @@ class CapabilityMarkerTest(unittest.TestCase):
         text = (self.WORKFLOW / "docs/LIFECYCLE_ORCHESTRATION.md").read_text(encoding="utf-8")
         self.assertEqual(self.marker_pairs(text), [("lifecycle-orchestration", "2")])
 
-    def test_context_budget_policy_carries_validation_scoping_marker(self) -> None:
+    def test_context_budget_policy_carries_its_capability_markers(self) -> None:
         text = (self.WORKFLOW / "docs/CONTEXT_BUDGET_POLICY.md").read_text(encoding="utf-8")
-        self.assertEqual(self.marker_pairs(text), [("validation-scoping", "1")])
+        self.assertEqual(
+            self.marker_pairs(text),
+            [("minimal-read-only-status", "1"), ("validation-scoping", "1")],
+        )
+
+    def test_minimal_read_only_status_profile_limits_context_expansion(self) -> None:
+        policy = (self.WORKFLOW / "docs/CONTEXT_BUDGET_POLICY.md").read_text(encoding="utf-8")
+        prompts = (self.WORKFLOW / "docs/OPERATOR_PROMPTS.md").read_text(encoding="utf-8")
+        self.assertIn("A status report is not a conformance audit.", policy)
+        self.assertIn("Before every expanded read", policy)
+        self.assertIn("Use the minimal read-only status profile", prompts)
+        self.assertIn("Do not load completed milestones", prompts)
 
     def test_ci_verified_validation_marker_in_each_of_its_three_docs(self) -> None:
         for name in (
