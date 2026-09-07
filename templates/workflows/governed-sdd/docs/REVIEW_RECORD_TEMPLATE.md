@@ -43,3 +43,11 @@ findings block approval; `P2` findings are included only when they require a
 bounded change in this task. Style-only commentary does not belong in the
 record.
 <!-- MERIDIAN:END -->
+
+<!-- MERIDIAN:BEGIN capability=manual-verification-record v1 -->
+When the task declared `Manual verification: required`, the reviewer
+independently confirms the named screenshot against the view it claims to
+show and adds `Manual verification observed: <screenshot path — view
+checked — result>` alongside the attempt's other evidence fields, rather
+than restating the implementer's claim unverified.
+<!-- MERIDIAN:END -->

@@ -1,9 +1,10 @@
 # Task [ID] — [Title]
 
-<!-- MERIDIAN:BEGIN capability=task-blueprint v1 -->
+<!-- MERIDIAN:BEGIN capability=task-blueprint v2 -->
 Priority: [P0 / P1 / P2]
 Status: QUEUED
 Review: REQUIRED
+Manual verification: [none / required]
 Dependencies: [none / TASK-ID, ...]
 Reasoning: medium
 Reasoning justification: [required for high/xhigh; omit for medium]
