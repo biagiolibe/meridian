@@ -20,7 +20,7 @@ Run the task validation plus the project baseline checks recorded in `CLAUDE.md`
 
 ## Execution policies
 
-Apply `docs/CONTEXT_BUDGET_POLICY.md` for task-first context loading, progressive expansion, and reasoning selection. Use `tasks/TASK_BLUEPRINT.md` for new or materially revised tasks, `docs/COMPLETION_REPORT_TEMPLATE.md` for the completion handoff, `docs/REVIEW_RECORD_TEMPLATE.md` for a durable requested-changes handoff, and `docs/LIFECYCLE_ORCHESTRATION.md` for the autonomous lifecycle command.
+Apply `docs/CONTEXT_BUDGET_POLICY.md` and the project-owned `docs/EXECUTION_EVIDENCE_PROFILE.md` for task-first context loading, proportionate evidence/output handling, progressive expansion, and reasoning selection. Use `tasks/TASK_BLUEPRINT.md` for new or materially revised tasks, `docs/COMPLETION_REPORT_TEMPLATE.md` for the completion handoff, `docs/REVIEW_RECORD_TEMPLATE.md` for a durable requested-changes handoff, and `docs/LIFECYCLE_ORCHESTRATION.md` for the autonomous lifecycle command.
 
 These documents define operating detail; this file remains the source for stable agent-wide rules and project invariants.
 
