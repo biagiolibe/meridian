@@ -134,6 +134,74 @@ class MeridianCliTest(unittest.TestCase):
             "a verified (cosmetic-only) conflict must leave the local file untouched",
         )
 
+    def test_upgrade_appends_new_marker_when_existing_marker_was_moved(self) -> None:
+        """A new protected capability must not conflict solely because a project
+        relocated an unchanged older protected block."""
+        policy = self.framework / "templates/workflows/governed-sdd/docs/CONTEXT_BUDGET_POLICY.md"
+        profile = self.framework / "templates/workflows/governed-sdd/docs/EXECUTION_EVIDENCE_PROFILE.md"
+        incoming_policy = policy.read_text(encoding="utf-8")
+        marker = re.search(
+            r"<!-- MERIDIAN:BEGIN capability=execution-evidence-profile v1 -->\n?.*?"
+            r"<!-- MERIDIAN:END -->\n?",
+            incoming_policy,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(marker)
+        policy.write_text(incoming_policy[: marker.start()] + incoming_policy[marker.end() :], encoding="utf-8")
+        profile.unlink()
+        (self.framework / "VERSION").write_text("1.1.14\n", encoding="utf-8")
+        shutil.rmtree(self.project)
+        self.project.mkdir()
+        self.copy_governed_templates()
+        self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
+
+        local_policy = self.project / "docs/CONTEXT_BUDGET_POLICY.md"
+        local_text = local_policy.read_text(encoding="utf-8")
+        validation = re.search(
+            r"<!-- MERIDIAN:BEGIN capability=validation-scoping v1 -->\n?.*?"
+            r"<!-- MERIDIAN:END -->\n?",
+            local_text,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(validation)
+        moved_validation = validation.group(0)
+        local_text = (
+            local_text[: validation.start()]
+            + "Project-local validation procedure remains at this location.\n"
+            + local_text[validation.end() :]
+        )
+        local_policy.write_text(
+            local_text.rstrip() + "\n\n## Project validation baseline\n\n" + moved_validation,
+            encoding="utf-8",
+        )
+
+        policy.write_text(incoming_policy, encoding="utf-8")
+        profile.write_text("# Project Execution Evidence Profile\n", encoding="utf-8")
+        (self.framework / "VERSION").write_text("1.1.15\n", encoding="utf-8")
+
+        appended = meridian.append_only_new_markers(
+            local_policy.read_text(encoding="utf-8"),
+            (self.project / ".meridian/baselines/1.1.14/docs/CONTEXT_BUDGET_POLICY.md").read_text(
+                encoding="utf-8"
+            ),
+            incoming_policy,
+        )
+        self.assertIsNotNone(appended)
+        self.assertIn("## Project validation baseline", appended)
+        self.assertIn("capability=execution-evidence-profile v1", appended)
+
+        checked = self.run_cli("upgrade", "--check")
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+        self.assertIn("MERGE    docs/CONTEXT_BUDGET_POLICY.md", checked.stdout)
+
+        applied = self.run_cli("upgrade", "--apply")
+        self.assertEqual(applied.returncode, 0, applied.stderr)
+        upgraded = local_policy.read_text(encoding="utf-8")
+        self.assertIn("## Project validation baseline", upgraded)
+        self.assertIn("capability=validation-scoping v1", upgraded)
+        self.assertIn("capability=execution-evidence-profile v1", upgraded)
+        self.assertTrue((self.project / "docs/EXECUTION_EVIDENCE_PROFILE.md").is_file())
+
     def test_upgrade_does_not_require_a_capability_not_marked_in_this_file(self) -> None:
         """A migration's `managedPaths` lists every file its diff touches, which
         is not the same as every file that must carry its capability marker:

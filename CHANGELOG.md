@@ -12,6 +12,17 @@ numbers follow the `frameworkVersion` tracked in generated projects'
 
 ## [Unreleased]
 
+## [1.1.16]
+
+### Fixed
+
+- Migration `019-marker-aware-capability-insertion`: framework upgrade now
+  handles the safe case where a project moved intact protected marker blocks
+  and a newer template adds a new protected capability. Rather than reporting
+  a line-based merge conflict, it appends the new byte-identical block without
+  changing project text. Altered or missing inherited protected blocks remain
+  blocking conflicts.
+
 ## [1.1.15]
 
 ### Added
