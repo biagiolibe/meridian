@@ -1,6 +1,6 @@
 # Autonomous Task Lifecycle Orchestration
 
-<!-- MERIDIAN:BEGIN capability=lifecycle-orchestration v2 -->
+<!-- MERIDIAN:BEGIN capability=lifecycle-orchestration v3 -->
 `Run lifecycle <TASK-ID>` authorizes an orchestrator to carry one dependency-ready
 task through implementation, independent review, requested-change remediation,
 acceptance, and `main` integration without further developer prompts. It does
@@ -33,10 +33,12 @@ copies findings between chats.
 ## Preconditions and stop conditions
 
 Before delegation, confirm that the task is assigned, dependency-ready, and
-that the checkout is clean. Use the task's declared reasoning profile for the
-implementer and reviewer; use the lowest available reasoning profile for the
-orchestrator. Do not run implementation and review concurrently in the same
-worktree.
+that the checkout is clean. The task's declared `Reasoning` value is the exact
+permitted effort for both implementer and reviewer, not a minimum: configure
+each fresh worker session to that value and stop before delegation if the
+effective setting differs or cannot be confirmed. Never escalate either worker
+automatically. Use the lowest available reasoning profile for the orchestrator.
+Do not run implementation and review concurrently in the same worktree.
 
 Continue automatically only while the current task and queue state permit the
 next transition. Stop with `BLOCKED` when validation fails, authority is

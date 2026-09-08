@@ -239,7 +239,7 @@ class MeridianCliTest(unittest.TestCase):
         self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
         agents = self.project / "AGENTS.md"
         text = agents.read_text(encoding="utf-8")
-        self.assertIn("MERIDIAN:BEGIN capability=lifecycle-orchestration v2", text)
+        self.assertIn("MERIDIAN:BEGIN capability=lifecycle-orchestration v3", text)
         edited = text.replace(
             "Act only as the coordinator", "Act only as the coordinator (edited without an upgrade)"
         )
@@ -248,7 +248,7 @@ class MeridianCliTest(unittest.TestCase):
 
         audited = self.run_cli("audit", "--mode", "governed-sdd")
         self.assertEqual(audited.returncode, 2)
-        self.assertIn("FAIL AGENTS.md: capability=lifecycle-orchestration v2", audited.stdout)
+        self.assertIn("FAIL AGENTS.md: capability=lifecycle-orchestration v3", audited.stdout)
         self.assertIn("BLOCKED: 1 protected-region integrity failure", audited.stdout)
 
     def test_audit_skips_a_version_the_current_template_no_longer_carries(self) -> None:
@@ -257,7 +257,7 @@ class MeridianCliTest(unittest.TestCase):
             local = self.project / name
             local.write_text(
                 local.read_text(encoding="utf-8").replace(
-                    "MERIDIAN:BEGIN capability=lifecycle-orchestration v2",
+                    "MERIDIAN:BEGIN capability=lifecycle-orchestration v3",
                     "MERIDIAN:BEGIN capability=lifecycle-orchestration v99",
                 ),
                 encoding="utf-8",
@@ -414,8 +414,8 @@ class MeridianCliTest(unittest.TestCase):
             planned.stdout,
         )
         self.assertIn(
-            "CAPABILITY MISSING 009-lifecycle-orchestration-v2 — no marker found; "
-            "legacy pre-marker evidence only confirms v1, but v2 is required",
+            "CAPABILITY MISSING 020-reasoning-budget-contract — no marker found; "
+            "legacy pre-marker evidence only confirms v1, but v3 is required",
             planned.stdout,
         )
         self.assertIn("\nNEXT_ACTION IMPLEMENT_MIGRATION\n", planned.stdout)
@@ -423,7 +423,7 @@ class MeridianCliTest(unittest.TestCase):
         # the capability is already there, only the path reference is stale.
         self.assertIn("apply only this", planned.stdout)
         self.assertIn("008-review-remediation-record-v2: Replace the literal", planned.stdout)
-        self.assertIn("009-lifecycle-orchestration-v2: Replace the literal", planned.stdout)
+        self.assertIn("020-reasoning-budget-contract", planned.stdout)
 
     def test_assisted_adoption_detects_only_missing_lifecycle(self) -> None:
         shutil.rmtree(self.project)
@@ -466,7 +466,7 @@ class MeridianCliTest(unittest.TestCase):
         # highest required version, not necessarily the original one — 008
         # carries the v2 delta a project stuck at v1 actually needs to apply.
         self.assertIn("CAPABILITY PRESENT 008-review-remediation-record-v2", planned.stdout)
-        self.assertIn("CAPABILITY MISSING 009-lifecycle-orchestration-v2", planned.stdout)
+        self.assertIn("CAPABILITY MISSING 020-reasoning-budget-contract", planned.stdout)
         self.assertIn("AGENT_REQUIRED", planned.stdout)
         self.assertIn("\nNEXT_ACTION IMPLEMENT_MIGRATION\n", planned.stdout)
         self.assertIn("IMPLEMENTER_PROMPT_BEGIN", planned.stdout)
@@ -474,8 +474,8 @@ class MeridianCliTest(unittest.TestCase):
         self.assertIn("This reviewer session must be fresh", planned.stdout)
         self.assertIn("ORCHESTRATOR_PROMPT_BEGIN", planned.stdout)
         self.assertIn("adoption-review.md", planned.stdout)
-        self.assertIn("009-lifecycle-orchestration-v2", planned.stdout)
-        self.assertIn("migrations/009-lifecycle-orchestration-v2.json", planned.stdout)
+        self.assertIn("020-reasoning-budget-contract", planned.stdout)
+        self.assertIn("migrations/020-reasoning-budget-contract.json", planned.stdout)
         self.assertIn("/bin/meridian finalize-adoption", planned.stdout)
         self.assertFalse((self.project / ".meridian").exists())
 
@@ -680,7 +680,7 @@ class CapabilityMarkerTest(unittest.TestCase):
             text = (self.WORKFLOW / name).read_text(encoding="utf-8")
             pairs = self.marker_pairs(text)
             self.assertIn(("review-remediation-record", "2"), pairs, name)
-            self.assertIn(("lifecycle-orchestration", "2"), pairs, name)
+            self.assertIn(("lifecycle-orchestration", "3"), pairs, name)
             self.assertIn(("validation-scoping", "1"), pairs, name)
 
     def test_review_record_template_carries_its_own_marker(self) -> None:
@@ -692,7 +692,7 @@ class CapabilityMarkerTest(unittest.TestCase):
 
     def test_lifecycle_orchestration_carries_its_own_marker(self) -> None:
         text = (self.WORKFLOW / "docs/LIFECYCLE_ORCHESTRATION.md").read_text(encoding="utf-8")
-        self.assertEqual(self.marker_pairs(text), [("lifecycle-orchestration", "2")])
+        self.assertEqual(self.marker_pairs(text), [("lifecycle-orchestration", "3")])
 
     def test_context_budget_policy_carries_its_capability_markers(self) -> None:
         text = (self.WORKFLOW / "docs/CONTEXT_BUDGET_POLICY.md").read_text(encoding="utf-8")
@@ -703,6 +703,7 @@ class CapabilityMarkerTest(unittest.TestCase):
                 ("minimal-read-only-status", "1"),
                 ("validation-scoping", "1"),
                 ("execution-evidence-profile", "1"),
+                ("reasoning-budget-contract", "1"),
             ],
         )
 
@@ -716,6 +717,31 @@ class CapabilityMarkerTest(unittest.TestCase):
         self.assertIn("Failure diagnostics", profile)
         self.assertIn("Manual evidence", profile)
         self.assertNotIn("cargo", profile.lower())
+
+    def test_reasoning_budget_contract_uses_an_exact_cap_without_auto_escalation(self) -> None:
+        blueprint = (self.WORKFLOW / "tasks/TASK_BLUEPRINT.md").read_text(encoding="utf-8")
+        policy = (self.WORKFLOW / "docs/CONTEXT_BUDGET_POLICY.md").read_text(
+            encoding="utf-8"
+        )
+        lifecycle = (self.WORKFLOW / "docs/LIFECYCLE_ORCHESTRATION.md").read_text(
+            encoding="utf-8"
+        )
+        prompts = (self.WORKFLOW / "docs/OPERATOR_PROMPTS.md").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn(("task-blueprint", "3"), self.marker_pairs(blueprint))
+        self.assertIn(("reasoning-budget-contract", "1"), self.marker_pairs(policy))
+        self.assertIn(("lifecycle-orchestration", "3"), self.marker_pairs(lifecycle))
+        self.assertIn("[low / medium / high / xhigh]", blueprint)
+        self.assertIn("exact permitted runtime cap", blueprint)
+        self.assertIn("must never raise its effort", blueprint)
+        self.assertIn("automatically", blueprint)
+        self.assertIn("cannot be confirmed", policy)
+        self.assertIn("explicit authorization", policy)
+        self.assertIn("Never escalate either worker", lifecycle)
+        self.assertIn("automatically", lifecycle)
+        self.assertIn("exact permitted cap", prompts)
 
     def test_role_scoped_agent_rules_names_headings_by_role(self) -> None:
         policy = (self.WORKFLOW / "docs/CONTEXT_BUDGET_POLICY.md").read_text(encoding="utf-8")
@@ -788,7 +814,7 @@ class CapabilityMarkerTest(unittest.TestCase):
     def test_whole_file_baseline_capabilities_each_carry_one_marker(self) -> None:
         expectations = {
             "LANGUAGE_POLICY.md": ("language-policy", "2"),
-            "tasks/TASK_BLUEPRINT.md": ("task-blueprint", "2"),
+            "tasks/TASK_BLUEPRINT.md": ("task-blueprint", "3"),
             "docs/CODE_ORGANIZATION.md": ("code-organization", "1"),
             "docs/AUDIT_PROMPT_READ_ONLY.md": ("audit-prompt", "1"),
         }
