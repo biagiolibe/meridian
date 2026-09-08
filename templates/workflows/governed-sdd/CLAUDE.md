@@ -14,7 +14,7 @@ return `BLOCKED` before making a mutation.
 
 Read `LANGUAGE_POLICY.md` before responding or writing. It is a mandatory invariant: use its persisted conversation language even when a prompt uses another language, and write every repository artifact in English.
 
-Follow `docs/CONTEXT_BUDGET_POLICY.md` for task-first context loading and reasoning selection. Use the assigned task as the navigation map, `docs/COMPLETION_REPORT_TEMPLATE.md` for the final handoff, `docs/REVIEW_RECORD_TEMPLATE.md` for a durable requested-changes handoff, and `docs/LIFECYCLE_ORCHESTRATION.md` for the autonomous lifecycle command.
+Follow `docs/CONTEXT_BUDGET_POLICY.md` and the project-owned `docs/EXECUTION_EVIDENCE_PROFILE.md` for task-first context loading, proportionate evidence/output handling, and reasoning selection. Use the assigned task as the navigation map, `docs/COMPLETION_REPORT_TEMPLATE.md` for the final handoff, `docs/REVIEW_RECORD_TEMPLATE.md` for a durable requested-changes handoff, and `docs/LIFECYCLE_ORCHESTRATION.md` for the autonomous lifecycle command.
 
 ## Commands
 

@@ -12,6 +12,20 @@ numbers follow the `frameworkVersion` tracked in generated projects'
 
 ## [Unreleased]
 
+## [1.1.15]
+
+### Added
+
+- Migration `018-execution-evidence-profile`: adds the
+  `execution-evidence-profile` capability to Governed SDD. It separates
+  stack-agnostic evidence discipline from project-specific commands: the
+  protected context policy requires concise successful output, progressive
+  diagnostics, complete per-hunk diff review, planned manual evidence, and no
+  duplicate session context, while the new project-owned
+  `docs/EXECUTION_EVIDENCE_PROFILE.md` records the actual commands, logs,
+  capture channels, and runtime settings. Required validation, independent
+  review, and manual acceptance evidence are unchanged.
+
 ## [1.1.14]
 
 ### Added

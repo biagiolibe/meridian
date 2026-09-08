@@ -85,6 +85,43 @@ matches the actual diff surface, that nothing relevant was skipped, and that
 nothing irrelevant was run and reported as if it were meaningful evidence.
 <!-- MERIDIAN:END -->
 
+<!-- MERIDIAN:BEGIN capability=execution-evidence-profile v1 -->
+## Execution evidence discipline
+
+Apply the project-specific `docs/EXECUTION_EVIDENCE_PROFILE.md` before an
+implementation, remediation, or review. It translates this stack-agnostic
+discipline into the project's commands, log locations, diagnostic tools, and
+manual-evidence channels. Configure that profile during bootstrap or before the
+first implementation after an upgrade that adds it.
+
+- Do not reload or reproduce instructions, source text, tool documentation, or
+  successful command output already available in the active session unless the
+  source changed or an exact passage is needed to resolve a recorded evidence
+  gap.
+- Execute every required validation command, but use the profile's concise
+  success-output form. Preserve the command and exit status; expose expanded
+  logs only for a failure, and start with the narrowest diagnostic output that
+  can identify the failing component.
+- Escalate diagnostics progressively. Do not request a full backtrace, trace,
+  verbose mode, or complete log until ordinary output and a targeted diagnostic
+  leave the cause or location unresolved. Record the reason for escalation.
+- Inspect every changed hunk, beginning with a change summary and then
+  per-file/hunk evidence. A complete printed diff is not required merely to
+  establish diff scope.
+- Plan manual evidence from the task's acceptance criteria before invoking UI
+  or capture tools. Gather only the distinct views the criteria require; do not
+  repeat a tool discovery call or acquire extra images without an evidence gap.
+  Prefer a project-declared direct capture path when it supplies the required
+  evidence without interaction.
+- Reuse unchanged successful validation evidence during independent review
+  unless a credibility or coverage gap requires a rerun. Independent source and
+  diff review remain mandatory.
+
+Choose the lowest reliable configured reasoning level. If the active agent
+interface offers a faster execution mode, it may be used only when it does not
+override the task's declared reasoning requirement or reduce required evidence.
+<!-- MERIDIAN:END -->
+
 ## Lifecycle orchestration
 
 For `Run lifecycle <TASK-ID>`, the orchestrator reads only the task and queue

@@ -419,6 +419,10 @@ class MeridianCliTest(unittest.TestCase):
         # have no legacy fallback of their own to satisfy any other way.
         for name in ("AGENTS.md", "CLAUDE.md"):
             shutil.copyfile(current / name, self.project / name)
+        shutil.copyfile(
+            current / "docs/EXECUTION_EVIDENCE_PROFILE.md",
+            self.project / "docs/EXECUTION_EVIDENCE_PROFILE.md",
+        )
 
         # All capabilities are now present, but nothing has been reviewed yet:
         # finalize must refuse, and the plan must ask for an independent review.
@@ -540,6 +544,7 @@ class MeridianCliTest(unittest.TestCase):
             "docs/REVIEW_RECORD_TEMPLATE.md",
             "docs/LIFECYCLE_ORCHESTRATION.md",
             "docs/CONTEXT_BUDGET_POLICY.md",
+            "docs/EXECUTION_EVIDENCE_PROFILE.md",
             "docs/PULL_REQUEST_POLICY.md",
             "docs/CODE_REVIEW_PROMPT.md",
             "docs/COMPLETION_REPORT_TEMPLATE.md",
@@ -629,8 +634,20 @@ class CapabilityMarkerTest(unittest.TestCase):
                 ("role-scoped-agent-rules", "1"),
                 ("minimal-read-only-status", "1"),
                 ("validation-scoping", "1"),
+                ("execution-evidence-profile", "1"),
             ],
         )
+
+    def test_execution_evidence_profile_is_stack_agnostic_and_configurable(self) -> None:
+        policy = (self.WORKFLOW / "docs/CONTEXT_BUDGET_POLICY.md").read_text(encoding="utf-8")
+        profile = (self.WORKFLOW / "docs/EXECUTION_EVIDENCE_PROFILE.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(("execution-evidence-profile", "1"), self.marker_pairs(policy))
+        self.assertIn("Successful validation output", profile)
+        self.assertIn("Failure diagnostics", profile)
+        self.assertIn("Manual evidence", profile)
+        self.assertNotIn("cargo", profile.lower())
 
     def test_role_scoped_agent_rules_names_headings_by_role(self) -> None:
         policy = (self.WORKFLOW / "docs/CONTEXT_BUDGET_POLICY.md").read_text(encoding="utf-8")
