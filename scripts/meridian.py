@@ -308,6 +308,50 @@ def extract_marker_block(text: str, capability: str, version: int) -> str | None
     return match.group(1) if match else None
 
 
+def extract_marked_block(text: str, capability: str, version: int) -> str | None:
+    """Return one complete protected marker block, delimiters included."""
+    pattern = re.compile(
+        rf"<!-- MERIDIAN:BEGIN capability={re.escape(capability)} v{version} -->\n?(.*?)"
+        r"<!-- MERIDIAN:END -->",
+        re.DOTALL,
+    )
+    match = pattern.search(text)
+    return match.group(0) if match else None
+
+
+def append_only_new_markers(local_text: str, base_text: str, template_text: str) -> str | None:
+    """Append newly introduced intact marker blocks to a customized local file.
+
+    A three-way line merge cannot recognize a protected block that a project has
+    moved elsewhere in a file. This narrowly handles the safe case: the target
+    adds one or more marker blocks, every marker inherited from the base still
+    matches the target byte-for-byte in the local file, and no existing marker
+    is changed. It never moves, edits, or replaces project-owned text.
+    """
+    base_pairs = {(capability, int(version)) for capability, version in CAPABILITY_MARKER.findall(base_text)}
+    local_pairs = {(capability, int(version)) for capability, version in CAPABILITY_MARKER.findall(local_text)}
+    template_pairs = [
+        (capability, int(version)) for capability, version in CAPABILITY_MARKER.findall(template_text)
+    ]
+    missing = [pair for pair in template_pairs if pair not in local_pairs]
+    if not missing or any(pair in base_pairs for pair in missing):
+        return None
+
+    for capability, version in base_pairs & set(template_pairs):
+        if extract_marker_block(local_text, capability, version) != extract_marker_block(
+            template_text, capability, version
+        ):
+            return None
+
+    new_blocks = []
+    for capability, version in missing:
+        block = extract_marked_block(template_text, capability, version)
+        if block is None:
+            return None
+        new_blocks.append(block)
+    return local_text.rstrip() + "\n\n" + "\n\n".join(new_blocks) + "\n"
+
+
 def audit_capability_markers(
     project_root: Path, framework_root: Path, mode: str
 ) -> list[tuple[str, str]]:
@@ -843,7 +887,25 @@ def plan_from_baseline(
                 continue
             capability_ids = capability_ids_in_template(item.source)
             local_text = local.read_text(encoding="utf-8")
+            base_text = base.read_text(encoding="utf-8")
             template_text = item.source.read_text(encoding="utf-8")
+            marker_append = append_only_new_markers(local_text, base_text, template_text)
+            if marker_append is not None:
+                added = [
+                    capability
+                    for capability, version in CAPABILITY_MARKER.findall(template_text)
+                    if (capability, int(version))
+                    not in {(capability, int(version)) for capability, version in CAPABILITY_MARKER.findall(local_text)}
+                ]
+                plan.append(
+                    PlanItem(
+                        item,
+                        "append-markers",
+                        "three-way merge conflicted, but existing protected markers are intact; "
+                        f"append new marker block(s) ({', '.join(added)}) without replacing local text",
+                    )
+                )
+                continue
             satisfied_here = capability_ids and all(
                 extract_marker_block(local_text, capability_id, requirements[capability_id][0]) is not None
                 and extract_marker_block(local_text, capability_id, requirements[capability_id][0])
@@ -931,6 +993,18 @@ def apply_plan(
             elif item.action == "merge":
                 _, merged = merge_clean(local, baseline_root / item.file.target, item.file.source)
                 local.write_bytes(merged)
+            elif item.action == "append-markers":
+                base = baseline_root / item.file.target
+                appended = append_only_new_markers(
+                    local.read_text(encoding="utf-8"),
+                    base.read_text(encoding="utf-8"),
+                    item.file.source.read_text(encoding="utf-8"),
+                )
+                if appended is None:
+                    raise MeridianError(
+                        f"marker-aware insertion is no longer safe for {item.file.target}; rerun upgrade --check"
+                    )
+                local.write_text(appended, encoding="utf-8")
 
     copy_baseline(project_root, framework_root, str(manifest["mode"]), target_version)
     prune_stale_baselines(project_root, target_version)
