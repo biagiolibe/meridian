@@ -13,13 +13,21 @@ The agent must communicate in the language persisted in `LANGUAGE_POLICY.md`, ev
 
 ## Choose the reasoning level before sending
 
-The chat's configured reasoning effort is the effective runtime setting. A task's `Reasoning` field is a required SDD instruction, but does not itself reconfigure an already-open chat. When the active agent supports reasoning selection, configure the chat first and use the lowest suitable level.
+The chat's configured reasoning effort is the effective runtime setting. A task's
+`Reasoning` field is its exact permitted cap, not a minimum or a suggestion;
+it does not reconfigure an already-open chat. When the active agent supports
+reasoning selection, create each worker chat at that exact level. If the
+effective setting differs or cannot be confirmed, do not start substantive
+work: launch a fresh chat at the declared level. Never raise an agent's effort
+automatically. A `high` task must carry its written rationale; an `xhigh` task
+also requires the developer's explicit authorization.
 
 | Work | Default | Escalate only when |
 | --- | --- | --- |
-| Routine implementation, review, and task decomposition | `medium` | Evidence is insufficient or the task is materially ambiguous. |
-| Design or architecture | `high` | Cross-layer trade-offs or unresolved authority interactions require it. |
-| Exceptional work | `xhigh` | The task explicitly justifies it and the active configuration supports it. |
+| Focused administrative or mechanical work | `low` | The task's bounded scope demonstrates that deeper reasoning is unnecessary. |
+| Routine implementation, review, and task decomposition | `medium` | The task has a written complexity rationale and is materially ambiguous. |
+| Design or architecture | `high` | The task records the cross-layer trade-off or unresolved authority interaction. |
+| Exceptional work | `xhigh` | The task records the exceptional need and the developer explicitly authorizes it. |
 
 ## 1. Report project status (read-only)
 
@@ -120,7 +128,7 @@ or implement a remedy. End with the next permitted governance state.
 
 ## 5. Implement exactly one task
 
-Use this in a dedicated implementation chat only after the task is dependency-ready. Configure the chat at the task's declared reasoning level first when supported.
+Use this in a dedicated implementation chat only after the task is dependency-ready. Configure the chat at the task's exact declared reasoning cap first when supported; if its effective level cannot be confirmed, do not proceed.
 
 ```text
 Proceed with <TASK-ID>.

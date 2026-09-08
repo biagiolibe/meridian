@@ -35,5 +35,7 @@ remain mandatory.
 
 ## Runtime configuration
 
-- Lowest reliable reasoning setting by task class: `[policy]`.
+- Lowest reliable reasoning cap by task class: `[policy]`.
+- How the task cap is checked against the chat's effective setting and how a
+  mismatch is relaunched: `[procedure]`.
 - Faster-execution-mode availability and constraints: `[policy]`.

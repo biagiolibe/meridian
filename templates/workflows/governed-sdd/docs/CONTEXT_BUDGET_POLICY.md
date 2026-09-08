@@ -122,6 +122,26 @@ interface offers a faster execution mode, it may be used only when it does not
 override the task's declared reasoning requirement or reduce required evidence.
 <!-- MERIDIAN:END -->
 
+<!-- MERIDIAN:BEGIN capability=reasoning-budget-contract v1 -->
+## Reasoning budget contract
+
+Select the lowest reliable reasoning effort while designing the task, then
+record it in the task's `Reasoning` field as the exact permitted runtime cap.
+It is not a minimum: a worker must not silently use a higher configured
+effort, and it must not raise its own effort because a task appears difficult.
+
+Before implementation, remediation, or independent review, confirm the
+worker's configured reasoning effort equals the task value. If it differs, or
+cannot be confirmed, stop before substantive work and start a fresh session at
+the declared value. Reducing or increasing the cap requires a material task
+revision with its rationale; `high` requires a written complexity rationale,
+and `xhigh` additionally requires the developer's explicit authorization.
+
+This contract governs worker sessions. A lifecycle orchestrator uses the
+lowest available effort because it only reads durable state and delegates no
+substantive work.
+<!-- MERIDIAN:END -->
+
 ## Lifecycle orchestration
 
 For `Run lifecycle <TASK-ID>`, the orchestrator reads only the task and queue

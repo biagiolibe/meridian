@@ -43,7 +43,7 @@ Treat these developer phrases as the complete authorization for the named workfl
 - `Accept <TASK-ID>` — run the owner-acceptance workflow below.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=lifecycle-orchestration v2 -->
+<!-- MERIDIAN:BEGIN capability=lifecycle-orchestration v3 -->
 ### Autonomous lifecycle orchestration
 
 For `Run lifecycle <TASK-ID>`, follow `docs/LIFECYCLE_ORCHESTRATION.md`

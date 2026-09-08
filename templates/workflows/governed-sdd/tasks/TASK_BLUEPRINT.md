@@ -1,13 +1,19 @@
 # Task [ID] — [Title]
 
-<!-- MERIDIAN:BEGIN capability=task-blueprint v2 -->
+<!-- MERIDIAN:BEGIN capability=task-blueprint v3 -->
 Priority: [P0 / P1 / P2]
 Status: QUEUED
 Review: REQUIRED
 Manual verification: [none / required]
 Dependencies: [none / TASK-ID, ...]
-Reasoning: medium
-Reasoning justification: [required for high/xhigh; omit for medium]
+Reasoning: [low / medium / high / xhigh]
+Reasoning justification: [required for high; for xhigh, include the developer's explicit authorization; omit for low/medium]
+
+`Reasoning` is this task's exact permitted runtime cap, not a minimum or a
+suggestion. Before implementation, remediation, or review, the worker's
+configured reasoning effort must equal this value. A mismatch requires a fresh
+session configured at the declared value; a worker must never raise its effort
+automatically. See `docs/CONTEXT_BUDGET_POLICY.md` for the preflight rule.
 
 ## Authority
 

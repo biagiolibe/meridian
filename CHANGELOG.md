@@ -12,6 +12,20 @@ numbers follow the `frameworkVersion` tracked in generated projects'
 
 ## [Unreleased]
 
+## [1.1.17]
+
+### Added
+
+- Migration `020-reasoning-budget-contract`: makes a task's `Reasoning`
+  declaration an exact permitted worker-runtime cap rather than a minimum or
+  a suggestion. It adds `low` for focused mechanical work, requires a written
+  rationale for `high`, and requires explicit developer authorization for
+  `xhigh`. Implementers and reviewers must use a fresh session configured at
+  the declared value; a mismatch or an unconfirmable setting blocks before
+  substantive work, and agents may never escalate effort automatically.
+  Lifecycle coordinators retain the lowest available effort because they only
+  inspect durable state and delegate substantive work.
+
 ## [1.1.16]
 
 ### Fixed
