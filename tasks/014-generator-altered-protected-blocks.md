@@ -44,7 +44,9 @@ Restore the three blocks, then make this class of change impossible to repeat.
 
 ## 🧩 Technical Context
 
-Observed on Palimpsest immediately after upgrading to 1.1.20:
+First observed on Palimpsest immediately after upgrading to 1.1.20 (that project
+has since stopped carrying the affected blocks, so it no longer reproduces the
+failure; see Constraints):
 
 ```
 FAIL CLAUDE.md: capability=command-triggers v1 — protected content does not match
@@ -83,9 +85,13 @@ recent versions; the guard needs git history or a per-version content digest.
   which is exactly the process this defect bypassed.
 - Deciding "semantically identical" is not automatable. Do not try. The rule is
   mechanical and absolute: generated output never alters marker content.
-- Palimpsest is at `1.1.20` with these three failures outstanding and was
-  deliberately left red rather than hand-patched, so the audit keeps pointing at
-  the real defect. It goes green when this task ships.
+- **Do not verify this against a downstream project's audit.** Palimpsest
+  carried the three failures until it reduced its `CLAUDE.md` to a pointer, which
+  removed the blocks the failures applied to. Its audit now reads clean while the
+  defect is untouched — a symptom silenced, not a fix. Verify against the
+  framework itself: compare the three blocks in
+  `templates/workflows/governed-sdd/CLAUDE.md` with their text before commit
+  `0e116e0`, which is the permanent evidence.
 
 ## 📌 Related finding — not in this task's scope
 
