@@ -18,20 +18,20 @@ Restore the three blocks, then make this class of change impossible to repeat.
 
 ## 📋 Acceptance Criteria
 
-- [ ] The three blocks in `templates/workflows/governed-sdd/CLAUDE.md` carry
+- [x] The three blocks in `templates/workflows/governed-sdd/CLAUDE.md` carry
       their released `v1` text again: `command-triggers`,
       `implementer-reviewer-handoff`, `reviewer-integrator-identity`.
-- [ ] The generator preserves marker-block content verbatim: it composes
+- [x] The generator preserves marker-block content verbatim: it composes
       `CLAUDE.md`'s non-marker body from `AGENTS.md` and **never writes inside
       `MERIDIAN:BEGIN`/`MERIDIAN:END` delimiters**. Changing a marker's content
       is a migration's job, without exception.
-- [ ] A test asserts that property directly: run the generator and confirm every
+- [x] A test asserts that property directly: run the generator and confirm every
       marker block in its output is byte-identical to the corresponding block in
       the committed `CLAUDE.md`.
-- [ ] A repository check fails when any template's marker content changes while
+- [x] A repository check fails when any template's marker content changes while
       its version does not, so a hand edit is caught as well as a generated one.
-- [ ] `meridian audit` on a project at `1.1.20` returns no failures afterwards.
-- [ ] `python3 scripts/check_repository.py` and the CLI suite pass.
+- [x] `meridian audit` on a project at `1.1.20` returns no failures afterwards.
+- [x] `python3 scripts/check_repository.py` and the CLI suite pass.
 
 ## 📁 Relevant Files
 
