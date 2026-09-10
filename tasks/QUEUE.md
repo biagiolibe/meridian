@@ -29,17 +29,9 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 
 ## 🏃 Active Queue
 
-Ordered by return, not by effort. Phases 1, 2, 2b, 3, and 3b are fully closed —
-see `tasks/QUEUE_ARCHIVE.md`.
-
-### Phase 4 — Stop the ratchet
-
-Buys no tokens directly. It is what keeps phases 1–3 from being undone by the next
-few upgrades.
-
-| Status | ID | Title | Priority | Depends on | Task File |
-|--------|----|-------|----------|-----------|-----------|
-| `[ ]` | 009 | Bound the queue read | 🟡 P2 | — | [009](009-bound-the-queue-read.md) |
+Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, and 4 are fully
+closed — see `tasks/QUEUE_ARCHIVE.md`. No open phases remain; new work
+starts a new phase here when it exists.
 
 ## 🧪 Quick Tasks (No File)
 
@@ -66,11 +58,11 @@ then folded it into the regenerated `CLAUDE.md`.
 | `[x]` | 011 | Warn about the head/SIGPIPE/pipefail trap in the template | [011](done/011-sigpipe-trap-in-template.md) |
 | `[x]` | 007 | A retirement path for capabilities | [007](done/007-capability-retirement-path.md) |
 | `[x]` | 008 | Retire `role-scoped-agent-rules` | [008](done/008-retire-role-scoped-rules.md) |
+| `[x]` | 009 | Bound the queue read | [009](done/009-bound-the-queue-read.md) |
 
-Phases 1, 2, 2b, 3, and 3b (001, 002, 006, 003, 004, 005, 012, 010, 014, 013)
-are fully closed and moved to `tasks/QUEUE_ARCHIVE.md`; this table keeps a
-flat completed-task index across both files. `007` and `008` (Phase 4) are
-complete but the phase is not — 009 remains open — so they stay here rather
-than moving to the archive.
+Phases 1, 2, 2b, 3, 3b, and 4 (001, 002, 006, 003, 004, 005, 012, 010, 014,
+013, 011, 007, 008, 009) are fully closed and moved to `tasks/QUEUE_ARCHIVE.md`;
+this table keeps a flat completed-task index across both files. No open
+phases remain in the Active Queue.
 
 *Last updated: 2026-09-10*

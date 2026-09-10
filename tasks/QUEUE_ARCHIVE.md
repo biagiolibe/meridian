@@ -65,4 +65,19 @@ capability version bump silently accumulates a contradictory pair.
 `013` shipped together with `011` (Phase 4), per `011`'s bundling constraint,
 both in migration `024-evidence-tiers-and-routing` (VERSION `1.1.21`).
 
+### Phase 4 — Stop the ratchet
+
+Buys no tokens directly. It is what keeps phases 1–3 from being undone by the next
+few upgrades.
+
+| Status | ID | Title | Priority | Depends on | Task File |
+|--------|----|-------|----------|-----------|-----------|
+| `[x]` | 011 | Warn about the head/SIGPIPE/pipefail trap in the template | 🟡 P2 | — | [011](done/011-sigpipe-trap-in-template.md) |
+| `[x]` | 007 | A retirement path for capabilities | 🟡 P2 | — | [007](done/007-capability-retirement-path.md) |
+| `[x]` | 008 | Retire `role-scoped-agent-rules` | 🟢 P3 | 004, 007 | [008](done/008-retire-role-scoped-rules.md) |
+| `[x]` | 009 | Bound the queue read | 🟡 P2 | — | [009](done/009-bound-the-queue-read.md) |
+
+`011` shipped bundled with `013` (Phase 3b), per its own bundling constraint —
+listed here too since it is formally a Phase 4 item.
+
 *Archived: 2026-09-10*

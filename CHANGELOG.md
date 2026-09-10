@@ -12,6 +12,24 @@ numbers follow the `frameworkVersion` tracked in generated projects'
 
 ## [Unreleased]
 
+## [1.1.23]
+
+### Added
+
+- Migration `026-bound-the-queue-read` (docs/AUDIT_TOKEN_EFFICIENCY.md F9):
+  `hooks/queue-briefing.sh` now resolves a project's declared queue location
+  (the `execution-assets` "Canonical locations" override, when present and
+  unambiguous) instead of only ever looking at `tasks/QUEUE.md`, and for
+  governed-SDD's table format classifies each `QUEUED` row as startable or
+  blocked on an unmet dependency (`ANSWERED` satisfies a dependency the same
+  as `ACCEPTED`, per `task-lifecycle` v2, without joining the `ACCEPTED`
+  tally), reading `QUEUE_ARCHIVE.md` too when a dependency has been archived.
+  `queue-briefing` v1 in `docs/CONTEXT_BUDGET_POLICY.md` points a session at
+  this resolved summary as the normal path. The hook runs from
+  `$CLAUDE_PLUGIN_ROOT`, not a per-project copy, so every project sees the
+  new briefing output immediately regardless of its own locked `VERSION`;
+  only the policy text explaining it arrives on upgrade.
+
 ## [1.1.22]
 
 ### Removed

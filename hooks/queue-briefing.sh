@@ -1,18 +1,128 @@
 #!/bin/bash
 # Meridian queue briefing — fires on UserPromptSubmit.
-# Outputs a compact status only if tasks/QUEUE.md exists in cwd.
+# Outputs a compact status only if the project's queue file exists in cwd.
 # Silent exit in non-Meridian projects.
 
-QUEUE="tasks/QUEUE.md"
+# governed-SDD's `execution-assets` capability defaults the queue to
+# `tasks/QUEUE.md` "unless this section declares different locations for
+# this project" (see templates/workflows/governed-sdd/PROJECT_WORKFLOW.md).
+# A project that customizes it does so in an annotated paragraph immediately
+# after that marker's END, still inside the "## Execution assets" section
+# (the pattern task 014 documented from Palimpsest's own adoption). Scan
+# exactly that zone for a `*queue*.md`-shaped path; a project with no
+# customization has nothing there and falls through to the default.
+resolve_queue_path() {
+  local workflow="PROJECT_WORKFLOW.md"
+  local default="tasks/QUEUE.md"
+  [ -f "$workflow" ] || { echo "$default"; return; }
+
+  local zone
+  zone=$(awk '
+    /<!-- MERIDIAN:BEGIN capability=execution-assets /{ inblock=1; next }
+    inblock && /<!-- MERIDIAN:END -->/ { inblock=0; inzone=1; next }
+    inzone && /^## / { exit }
+    inzone { print }
+  ' "$workflow")
+  [ -n "$zone" ] || { echo "$default"; return; }
+
+  # Case-insensitive, deduplicated candidates. Excluding an archive path
+  # matters: task 009 itself documents archiving terminal rows to a
+  # `*QUEUE*ARCHIVE*.md`-shaped file in this same zone, which would
+  # otherwise be indistinguishable from the live queue's own declaration.
+  local candidates
+  candidates=$(printf '%s\n' "$zone" \
+    | grep -Eio '[A-Za-z0-9_./-]*queue[A-Za-z0-9_./-]*\.md' \
+    | grep -Eiv 'archive' \
+    | sort -u)
+
+  # Exactly one distinct, non-archive candidate is a confident resolution.
+  # Zero, or more than one (an ambiguous zone this heuristic cannot safely
+  # pick between), silently keep the default rather than guess wrong — a
+  # briefing computed from the wrong file is worse than no briefing.
+  if [ "$(printf '%s\n' "$candidates" | grep -c .)" = "1" ]; then
+    echo "$candidates"
+  else
+    echo "$default"
+  fi
+}
+
+QUEUE=$(resolve_queue_path)
 [ -f "$QUEUE" ] || exit 0
 
+# An archived ACCEPTED row (this task's own archiving convention) still
+# satisfies a dependency and still counts toward the accepted tally; both
+# queue formats below read it from here alongside the active queue's own
+# rows, not as a separate uncounted total.
+ARCHIVE="$(dirname "$QUEUE")/QUEUE_ARCHIVE.md"
+
 # Governed SDD queues use explicit lifecycle states rather than checkbox rows.
-# Keep the briefing compact; dependency eligibility remains a task/spec decision.
 if grep -q '^| Order | ID | Priority | Status | Review | Dependencies |' "$QUEUE"; then
-  ACTIVE=$(grep -m1 '^| [0-9].* | IN_PROGRESS |' "$QUEUE" | sed -E 's/^\| [0-9]+ \| ([^|]*)\|.*/\1/' | xargs)
-  REVIEW=$(grep -m1 '^| [0-9].* | READY_FOR_REVIEW |' "$QUEUE" | sed -E 's/^\| [0-9]+ \| ([^|]*)\|.*/\1/' | xargs)
-  PENDING=$(grep '^| [0-9].* | QUEUED |' "$QUEUE" | head -2 | sed -E 's/^\| [0-9]+ \| ([^|]*)\|.*/\1/' | xargs)
-  ACCEPTED=$(grep -c '^| [0-9].* | ACCEPTED |' "$QUEUE" 2>/dev/null)
+  ARCHIVE_ARG=""
+  [ -f "$ARCHIVE" ] && ARCHIVE_ARG="$ARCHIVE"
+  # Single awk pass: collect every row's ID/status/dependencies, then
+  # resolve which QUEUED rows are actually startable (every dependency
+  # ACCEPTED or, for a SPIKE, ANSWERED — task-lifecycle v2's rule) versus
+  # blocked on an unmet one, so a session gets the same answer the queue's
+  # own "choose the highest-priority queued task whose dependencies are all
+  # accepted" instruction requires, without opening the file to compute it.
+  # ANSWERED/INCONCLUSIVE rows stay outside the ACCEPTED tally (the same
+  # capability's "invisible to those counts by design" rule for SPIKE rows) —
+  # this only widens what counts as satisfying a *dependency*, a separate
+  # question from what counts toward the accepted total.
+  eval "$(awk -F'\\|' '
+    function trim(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
+    # Single-quote a value for safe eval: close the quote, escape any
+    # embedded single quote, reopen it. Values here are queue row IDs, never
+    # attacker-controlled, but this is the only line standing between an
+    # unquoted field and `eval`, so it earns the defensive treatment anyway.
+    function shquote(s) { gsub(/'"'"'/, "'"'"'\\'"'"''"'"'", s); return "'"'"'" s "'"'"'" }
+    /^\| [0-9]+ /{
+      n++
+      id[n]     = trim($3)
+      status[n] = trim($5)
+      deps[n]   = trim($7)
+      by_status[id[n]] = status[n]
+    }
+    END {
+      active = ""; review = ""
+      ready_n = 0; blocked_n = 0
+      ready = ""; blocked = ""
+      accepted = 0
+      for (i = 1; i <= n; i++) {
+        s = status[i]
+        if (s == "ACCEPTED") accepted++
+        if (s == "IN_PROGRESS" && active == "") active = id[i]
+        else if (s == "READY_FOR_REVIEW" && review == "") review = id[i]
+        else if (s == "QUEUED") {
+          d = trim(deps[i])
+          gsub(/[][]/, "", d)
+          met = 1
+          if (d != "" && d != "—" && d != "-") {
+            split(d, parts, ",")
+            for (p in parts) {
+              dep = trim(parts[p])
+              dep_status = by_status[dep]
+              if (dep_status != "ACCEPTED" && dep_status != "ANSWERED") met = 0
+            }
+          }
+          if (met) {
+            ready_n++
+            if (ready_n <= 2) ready = ready (ready == "" ? "" : ", ") id[i]
+          } else {
+            blocked_n++
+            if (blocked_n <= 2) blocked = blocked (blocked == "" ? "" : ", ") id[i]
+          }
+        }
+      }
+      printf "ACTIVE=%s\n", shquote(active)
+      printf "REVIEW=%s\n", shquote(review)
+      printf "READY=%s\n", shquote(ready)
+      printf "READY_N=%d\n", ready_n
+      printf "BLOCKED=%s\n", shquote(blocked)
+      printf "BLOCKED_N=%d\n", blocked_n
+      printf "ACCEPTED=%d\n", accepted
+    }
+  ' "$QUEUE" $ARCHIVE_ARG)"
 
   echo "[Meridian Governed Queue]"
   [ -n "$ACTIVE" ] && echo "  🔴 In progress: $ACTIVE" || echo "  ✅ No active task"
@@ -28,15 +138,23 @@ if grep -q '^| Order | ID | Priority | Status | Review | Dependencies |' "$QUEUE
     fi
   fi
   [ -n "$REVIEW" ] && echo "  🔎 In review: $REVIEW"
-  [ -n "$PENDING" ] && echo "  ⏳ Queued: $PENDING"
-  echo "  ✅ Accepted: $ACCEPTED"
+  if [ "${READY_N:-0}" -gt 0 ]; then
+    SUFFIX=""
+    [ "$READY_N" -gt 2 ] && SUFFIX=" (+$((READY_N - 2)) more)"
+    echo "  ⏳ Queued (startable): $READY$SUFFIX"
+  fi
+  if [ "${BLOCKED_N:-0}" -gt 0 ]; then
+    SUFFIX=""
+    [ "$BLOCKED_N" -gt 2 ] && SUFFIX=" (+$((BLOCKED_N - 2)) more)"
+    echo "  🚧 Blocked on dependencies: $BLOCKED$SUFFIX"
+  fi
+  echo "  ✅ Accepted: ${ACCEPTED:-0}"
   exit 0
 fi
 
-# Closed phases can be moved out of QUEUE.md into an archive file (same
-# directory) to keep the active queue short — completed-task counts should
-# still cover the whole project, so this is included whenever present.
-ARCHIVE="tasks/QUEUE_ARCHIVE.md"
+# ARCHIVE was already resolved above, alongside QUEUE. Closed phases moved
+# there (same directory) keep the active queue short — completed-task counts
+# should still cover the whole project, so this is included whenever present.
 
 # Only match actual queue table rows: "| `[x]` | NNN | Title | ... |".
 # Anchoring on a leading "| `[x]` | NNN |" (a 3-digit task id right after
