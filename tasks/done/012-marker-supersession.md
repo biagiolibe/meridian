@@ -15,22 +15,28 @@ reads.
 
 ## 📋 Acceptance Criteria
 
-- [ ] `append_only_new_markers` distinguishes an **added** capability from a
+- [x] `append_only_new_markers` distinguishes an **added** capability from a
       **superseded** one, by capability name rather than by `(name, version)`.
-- [ ] When the local block for the older version matches the base byte-for-byte
+- [x] When the local block for the older version matches the base byte-for-byte
       (the project never edited it), the new version **replaces it in place**,
       preserving all surrounding project-owned text.
-- [ ] When the local block was modified, the function returns `None` so the file
+- [x] When the local block was modified, the function returns `None` so the file
       falls through to `conflict` and the operator reconciles it. It must never
-      silently discard a project's edit to a protected block.
-- [ ] `meridian audit` reports `FAIL` when two versions of the same capability
+      silently discard a project's edit to a protected block. (This also covers
+      an *unchanged*-version capability: the rewrite initially dropped the
+      original inherited-block integrity check for the `old_version ==
+      new_version` case — caught by advisor review before commit, restored, and
+      covered by a dedicated regression test.)
+- [x] `meridian audit` reports `FAIL` when two versions of the same capability
       are present in one managed file, so already-damaged projects are detected
       rather than left to accumulate.
-- [ ] Tests cover: added capability (appends, unchanged behaviour); bumped
+- [x] Tests cover: added capability (appends, unchanged behaviour); bumped
       capability with an unmodified local block (replaces in place); bumped
-      capability with a modified local block (returns `None`); and the new audit
-      check on a file carrying both versions.
-- [ ] `python3 scripts/check_repository.py` and the CLI suite pass.
+      capability with a modified local block (returns `None`); an edited
+      *unchanged*-version block blocking an otherwise-safe append; a local file
+      already carrying two versions of one capability; and the new audit check
+      on a file carrying both versions.
+- [x] `python3 scripts/check_repository.py` and the CLI suite pass (54 tests).
 
 ## 📁 Relevant Files
 
