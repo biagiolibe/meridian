@@ -12,6 +12,24 @@ numbers follow the `frameworkVersion` tracked in generated projects'
 
 ## [Unreleased]
 
+## [1.1.19]
+
+### Added
+
+- Migration `022-default-numeric-budgets`: replaces the execution-evidence
+  profile's empty diagnostic and evidence-capture `[policy]` placeholders
+  with concrete default caps a project inherits without configuring
+  anything — 3 diagnostic attempts per failure, 2 evidence captures per
+  acceptance criterion, and a newly declared 2 context expansions per task —
+  each with a one-line definition of what counts as one. Every default is a
+  cap, not a target: exhausting it requires `BLOCKED`, and raising one
+  requires a recorded rationale in the same shape `Reasoning justification`
+  already uses. `docs/CONTEXT_BUDGET_POLICY.md`'s "unbounded parameter
+  changes" wording now points at the profile's declared diagnostic-attempt
+  budget. `tasks/TASK_BLUEPRINT.md` gains three optional per-task override
+  fields for the same three caps. This makes the numbers exist; enforcing
+  them at runtime is later work.
+
 ## [1.1.18]
 
 ### Changed
