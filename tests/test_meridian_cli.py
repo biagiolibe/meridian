@@ -228,6 +228,132 @@ class MeridianCliTest(unittest.TestCase):
         self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
         self.assertIn("VERIFIED docs/CONTEXT_BUDGET_POLICY.md", checked.stdout)
 
+    def test_upgrade_retires_a_capability_from_a_conflicting_file(self) -> None:
+        """Task 007: a migration's `removes` entry deletes a retired capability's
+        block during `upgrade`, even when the file also has an unrelated local
+        customization that blocks a clean three-way merge -- the retirement
+        mirror of `test_upgrade_appends_new_marker_when_existing_marker_was_moved`.
+        """
+        self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
+
+        policy = self.framework / "templates/workflows/governed-sdd/docs/CONTEXT_BUDGET_POLICY.md"
+        incoming_policy = policy.read_text(encoding="utf-8")
+        marker = re.search(
+            r"<!-- MERIDIAN:BEGIN capability=minimal-read-only-status v1 -->\n?.*?"
+            r"<!-- MERIDIAN:END -->\n?",
+            incoming_policy,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(marker)
+        incoming_policy = incoming_policy[: marker.start()] + incoming_policy[marker.end() :]
+        # An unrelated framework-side edit, on the same line a local
+        # customization below also touches, so the three-way merge cannot
+        # auto-resolve and the file falls through to the retirement fallback.
+        incoming_policy = incoming_policy.replace(
+            "## Task-first loading", "## Task-First Loading (framework wording)"
+        )
+        policy.write_text(incoming_policy, encoding="utf-8")
+
+        (self.framework / "migrations/999-retire-minimal-read-only-status.json").write_text(
+            json.dumps(
+                {
+                    "id": "999-retire-minimal-read-only-status",
+                    "from": "1.1.0",
+                    "to": "1.1.1",
+                    "description": "test-only retirement",
+                    "removes": [
+                        {
+                            "capability": "minimal-read-only-status",
+                            "capabilityVersion": 1,
+                            "supersededBy": "role-scoped-agent-rules",
+                        }
+                    ],
+                    "managedPaths": ["docs/CONTEXT_BUDGET_POLICY.md"],
+                    "verification": ["test-only"],
+                }
+            ),
+            encoding="utf-8",
+        )
+        (self.framework / "VERSION").write_text("1.1.1\n", encoding="utf-8")
+
+        local_policy = self.project / "docs/CONTEXT_BUDGET_POLICY.md"
+        local_text = local_policy.read_text(encoding="utf-8")
+        self.assertIn("MERIDIAN:BEGIN capability=minimal-read-only-status v1", local_text)
+        local_policy.write_text(
+            local_text.replace("## Task-first loading", "## Task-First Loading (project wording)"),
+            encoding="utf-8",
+        )
+
+        checked = self.run_cli("upgrade", "--check")
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+        self.assertIn("RETIRE-MARKERS docs/CONTEXT_BUDGET_POLICY.md", checked.stdout)
+
+        applied = self.run_cli("upgrade", "--apply")
+        self.assertEqual(applied.returncode, 0, applied.stderr)
+        upgraded = local_policy.read_text(encoding="utf-8")
+        self.assertNotIn("capability=minimal-read-only-status", upgraded)
+        self.assertNotIn("A status report is not a conformance audit.", upgraded)
+        # The unrelated local customization survives untouched.
+        self.assertIn("## Task-First Loading (project wording)", upgraded)
+        # Every other still-required capability in this file is untouched.
+        self.assertIn("capability=validation-scoping v1", upgraded)
+        self.assertIn("capability=role-scoped-agent-rules v1", upgraded)
+
+        audited = self.run_cli("audit", "--mode", "governed-sdd")
+        self.assertNotIn("minimal-read-only-status", audited.stdout)
+
+    def test_upgrade_refuses_to_retire_a_locally_modified_block(self) -> None:
+        """The same retirement, but the local copy of the retired block itself
+        was edited -- must fall through to a blocking conflict rather than
+        silently discard the customization along with the block."""
+        self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
+
+        policy = self.framework / "templates/workflows/governed-sdd/docs/CONTEXT_BUDGET_POLICY.md"
+        incoming_policy = policy.read_text(encoding="utf-8")
+        marker = re.search(
+            r"<!-- MERIDIAN:BEGIN capability=minimal-read-only-status v1 -->\n?.*?"
+            r"<!-- MERIDIAN:END -->\n?",
+            incoming_policy,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(marker)
+        incoming_policy = incoming_policy[: marker.start()] + incoming_policy[marker.end() :]
+        incoming_policy = incoming_policy.replace(
+            "## Task-first loading", "## Task-First Loading (framework wording)"
+        )
+        policy.write_text(incoming_policy, encoding="utf-8")
+
+        (self.framework / "migrations/999-retire-minimal-read-only-status.json").write_text(
+            json.dumps(
+                {
+                    "id": "999-retire-minimal-read-only-status",
+                    "from": "1.1.0",
+                    "to": "1.1.1",
+                    "description": "test-only retirement",
+                    "removes": [{"capability": "minimal-read-only-status", "capabilityVersion": 1}],
+                    "managedPaths": ["docs/CONTEXT_BUDGET_POLICY.md"],
+                    "verification": ["test-only"],
+                }
+            ),
+            encoding="utf-8",
+        )
+        (self.framework / "VERSION").write_text("1.1.1\n", encoding="utf-8")
+
+        local_policy = self.project / "docs/CONTEXT_BUDGET_POLICY.md"
+        local_text = local_policy.read_text(encoding="utf-8")
+        local_text = local_text.replace("## Task-first loading", "## Task-First Loading (project wording)")
+        # Edit inside the very block that is about to be retired.
+        local_text = local_text.replace(
+            "A status report is not a conformance audit.",
+            "A status report is not a conformance audit, locally customized.",
+        )
+        local_policy.write_text(local_text, encoding="utf-8")
+
+        checked = self.run_cli("upgrade", "--check")
+        self.assertEqual(checked.returncode, 2, checked.stdout + checked.stderr)
+        self.assertIn("CONFLICT docs/CONTEXT_BUDGET_POLICY.md", checked.stdout)
+        self.assertIn("BLOCKED", checked.stdout)
+
     def test_audit_passes_on_unmodified_markers(self) -> None:
         self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
         audited = self.run_cli("audit", "--mode", "governed-sdd")
@@ -295,6 +421,47 @@ class MeridianCliTest(unittest.TestCase):
         self.assertIn("SKIP", audited.stdout)
         self.assertIn("lifecycle-orchestration v99", audited.stdout)
         self.assertNotIn("FAIL", audited.stdout)
+
+    def test_audit_fails_a_retired_marker_still_present_outside_managed_paths(self) -> None:
+        """Task 007: a marker whose exact (capability, version) some migration
+        declared `removes` must be reported FAIL, not the generic stale SKIP —
+        `meridian upgrade` only touches the files a retiring migration's
+        `managedPaths` names, so a marker left in an unlisted file would
+        otherwise sit as an invisible SKIP forever."""
+        self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
+        (self.framework / "migrations/999-retire-validation-scoping.json").write_text(
+            json.dumps(
+                {
+                    "id": "999-retire-validation-scoping",
+                    "from": "1.1.0",
+                    "to": "1.1.1",
+                    "description": "test-only retirement",
+                    "removes": [{"capability": "validation-scoping", "capabilityVersion": 1}],
+                    "managedPaths": ["docs/CONTEXT_BUDGET_POLICY.md"],
+                    "verification": ["test-only"],
+                }
+            ),
+            encoding="utf-8",
+        )
+        policy = self.framework / "templates/workflows/governed-sdd/docs/CONTEXT_BUDGET_POLICY.md"
+        policy_text = policy.read_text(encoding="utf-8")
+        marker = re.search(
+            r"<!-- MERIDIAN:BEGIN capability=validation-scoping v1 -->\n?.*?"
+            r"<!-- MERIDIAN:END -->\n?",
+            policy_text,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(marker)
+        policy.write_text(policy_text[: marker.start()] + policy_text[marker.end() :], encoding="utf-8")
+        (self.framework / "VERSION").write_text("1.1.1\n", encoding="utf-8")
+
+        # The project's local copy still carries the marker (upgrade has not
+        # run yet), so the audit must catch it as retired-but-present, not
+        # a generic "stale, run upgrade" SKIP.
+        audited = self.run_cli("audit", "--mode", "governed-sdd")
+        self.assertEqual(audited.returncode, 2, audited.stdout + audited.stderr)
+        self.assertIn("FAIL", audited.stdout)
+        self.assertIn("validation-scoping v1 is retired but still present", audited.stdout)
 
     def test_apply_refuses_conflicting_local_change(self) -> None:
         self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
@@ -753,6 +920,192 @@ class MarkerSupersessionTest(unittest.TestCase):
         )
         result = meridian.append_only_new_markers(local, self.BASE, template)
         self.assertIsNone(result)
+
+
+class CapabilityRetirementTest(unittest.TestCase):
+    """`remove_retired_markers` (task 007 of docs/PLAN_TOKEN_EFFICIENCY.md):
+    the retirement mirror of `append_only_new_markers`'s supersession case.
+    Safe to delete a capability's block only when the local copy still
+    matches the project's own locked baseline byte-for-byte; refuse
+    otherwise so a local edit under a marker about to be deleted is never
+    silently discarded along with it.
+    """
+
+    BASE = (
+        "intro\n\n"
+        "<!-- MERIDIAN:BEGIN capability=old-rule v1 -->\n"
+        "retired rule text.\n"
+        "<!-- MERIDIAN:END -->\n\n"
+        "tail\n"
+    )
+
+    def test_retires_an_unmodified_block(self) -> None:
+        result = meridian.remove_retired_markers(self.BASE, self.BASE, [("old-rule", 1)])
+        self.assertIsNotNone(result)
+        self.assertNotIn("capability=old-rule", result)
+        self.assertNotIn("retired rule text.", result)
+        # Surrounding project-owned text survives untouched.
+        self.assertIn("intro", result)
+        self.assertIn("tail", result)
+
+    def test_retiring_an_already_absent_block_is_idempotent(self) -> None:
+        local = self.BASE.replace(
+            "<!-- MERIDIAN:BEGIN capability=old-rule v1 -->\n"
+            "retired rule text.\n"
+            "<!-- MERIDIAN:END -->\n\n",
+            "",
+        )
+        result = meridian.remove_retired_markers(local, self.BASE, [("old-rule", 1)])
+        self.assertEqual(result, local)
+
+    def test_refuses_to_retire_a_locally_modified_block(self) -> None:
+        local = self.BASE.replace("retired rule text.", "retired rule text, locally customized.")
+        result = meridian.remove_retired_markers(local, self.BASE, [("old-rule", 1)])
+        self.assertIsNone(result)
+
+    def test_returns_input_unchanged_when_nothing_in_the_list_applies(self) -> None:
+        result = meridian.remove_retired_markers(self.BASE, self.BASE, [("unrelated-capability", 1)])
+        self.assertEqual(result, self.BASE)
+
+    def test_refuses_when_the_same_block_appears_twice_in_one_file(self) -> None:
+        """`str.replace` is content-addressed: deleting only the first of two
+        byte-identical occurrences would be a silent partial mutation. Must
+        refuse instead, the same duplicate-paste case `audit_duplicate_headings`
+        exists to catch."""
+        duplicated = self.BASE + (
+            "\n<!-- MERIDIAN:BEGIN capability=old-rule v1 -->\n"
+            "retired rule text.\n"
+            "<!-- MERIDIAN:END -->\n"
+        )
+        result = meridian.remove_retired_markers(duplicated, duplicated, [("old-rule", 1)])
+        self.assertIsNone(result)
+
+    def test_removal_collapses_only_the_local_blank_line_gap(self) -> None:
+        """The blank-line cleanup after a deletion must be scoped to the
+        splice point, never touching an unrelated run of blank lines
+        elsewhere in the same file."""
+        text = (
+            "intro\n\n"
+            "<!-- MERIDIAN:BEGIN capability=old-rule v1 -->\n"
+            "retired rule text.\n"
+            "<!-- MERIDIAN:END -->\n\n"
+            "middle\n\n\n\n"
+            "tail\n"
+        )
+        result = meridian.remove_retired_markers(text, text, [("old-rule", 1)])
+        self.assertIsNotNone(result)
+        self.assertEqual(result, "intro\n\nmiddle\n\n\n\ntail\n")
+
+    def test_capability_requirements_drops_a_retired_capability(self) -> None:
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        framework = Path(temporary.name)
+        migrations = framework / "migrations"
+        migrations.mkdir()
+        (migrations / "001-add.json").write_text(
+            json.dumps(
+                {
+                    "id": "001-add",
+                    "from": "1.0.0",
+                    "to": "1.1.0",
+                    "capability": "old-rule",
+                    "capabilityVersion": 1,
+                    "managedPaths": ["AGENTS.md"],
+                }
+            ),
+            encoding="utf-8",
+        )
+        (migrations / "002-retire.json").write_text(
+            json.dumps(
+                {
+                    "id": "002-retire",
+                    "from": "1.1.0",
+                    "to": "1.2.0",
+                    "removes": [{"capability": "old-rule", "capabilityVersion": 1}],
+                    "managedPaths": ["AGENTS.md"],
+                }
+            ),
+            encoding="utf-8",
+        )
+        requirements = meridian.capability_requirements(framework)
+        self.assertNotIn("old-rule", requirements)
+        self.assertIn("old-rule", meridian.retired_capability_ids(framework))
+
+    def test_capability_requirements_honors_a_later_reintroduction(self) -> None:
+        """A capability retired by one migration and reintroduced by a later
+        one must end up required again — removal and addition are applied in
+        migration sequence order, not as an unordered set operation."""
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        framework = Path(temporary.name)
+        migrations = framework / "migrations"
+        migrations.mkdir()
+        (migrations / "001-add.json").write_text(
+            json.dumps(
+                {
+                    "id": "001-add",
+                    "from": "1.0.0",
+                    "to": "1.1.0",
+                    "capability": "reused-rule",
+                    "capabilityVersion": 1,
+                    "managedPaths": ["AGENTS.md"],
+                }
+            ),
+            encoding="utf-8",
+        )
+        (migrations / "002-retire.json").write_text(
+            json.dumps(
+                {
+                    "id": "002-retire",
+                    "from": "1.1.0",
+                    "to": "1.2.0",
+                    "removes": [{"capability": "reused-rule", "capabilityVersion": 1}],
+                    "managedPaths": ["AGENTS.md"],
+                }
+            ),
+            encoding="utf-8",
+        )
+        (migrations / "003-reintroduce.json").write_text(
+            json.dumps(
+                {
+                    "id": "003-reintroduce",
+                    "from": "1.2.0",
+                    "to": "1.3.0",
+                    "capability": "reused-rule",
+                    "capabilityVersion": 1,
+                    "managedPaths": ["AGENTS.md"],
+                }
+            ),
+            encoding="utf-8",
+        )
+        requirements = meridian.capability_requirements(framework)
+        self.assertIn("reused-rule", requirements)
+        self.assertEqual(requirements["reused-rule"], (1, "003-reintroduce"))
+
+    def test_removals_for_managed_file_scopes_by_managed_paths(self) -> None:
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        framework = Path(temporary.name)
+        migrations = framework / "migrations"
+        migrations.mkdir()
+        (migrations / "001-retire.json").write_text(
+            json.dumps(
+                {
+                    "id": "001-retire",
+                    "from": "1.0.0",
+                    "to": "1.1.0",
+                    "removes": [{"capability": "old-rule", "capabilityVersion": 1, "supersededBy": "new-rule"}],
+                    "managedPaths": ["AGENTS.md", "CLAUDE.md"],
+                }
+            ),
+            encoding="utf-8",
+        )
+        for_agents = meridian.removals_for_managed_file(framework, ["001-retire"], Path("AGENTS.md"))
+        self.assertEqual(for_agents, [("old-rule", 1, "new-rule")])
+        for_unrelated = meridian.removals_for_managed_file(
+            framework, ["001-retire"], Path("docs/UNRELATED.md")
+        )
+        self.assertEqual(for_unrelated, [])
 
 
 class GenerateClaudeMdTest(unittest.TestCase):
@@ -1216,6 +1569,88 @@ class CapabilityMarkerTest(unittest.TestCase):
         )
         self.assertIsNotNone(match)
         self.assertNotIn("tasks/reviews/<TASK-ID>.md", match.group(1))
+
+
+class DuplicateHeadingAuditTest(unittest.TestCase):
+    """`audit_duplicate_headings` (task 007's duplication-detection half):
+    flags a capability whose marker sits under more than one distinct
+    heading within the same managed file -- the mechanical signature of an
+    accidental duplicate paste. Scoped to one file at a time: the same
+    capability legitimately appears under different heading names across
+    different consuming documents by design.
+    """
+
+    def test_real_templates_have_no_within_file_duplicate_headings(self) -> None:
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        project = Path(temporary.name) / "project"
+        source = ROOT / "templates" / "workflows" / "governed-sdd"
+        for path in source.rglob("*"):
+            if path.is_file():
+                destination = project / path.relative_to(source)
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(path, destination)
+        results = meridian.audit_duplicate_headings(project, ROOT, "governed-sdd")
+        self.assertEqual(results, [])
+
+    def test_flags_a_capability_duplicated_under_two_headings_in_one_file(self) -> None:
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        project = Path(temporary.name) / "project"
+        project.mkdir(parents=True)
+        (project / "PROJECT_WORKFLOW.md").write_text(
+            "## First section\n\n"
+            "<!-- MERIDIAN:BEGIN capability=dup-rule v1 -->\ntext.\n<!-- MERIDIAN:END -->\n\n"
+            "## Second section\n\n"
+            "<!-- MERIDIAN:BEGIN capability=dup-rule v1 -->\ntext.\n<!-- MERIDIAN:END -->\n",
+            encoding="utf-8",
+        )
+
+        class FakeManagedFile:
+            def __init__(self, target: Path) -> None:
+                self.target = target
+                self.source = project / target
+
+        original = meridian.managed_files
+        meridian.managed_files = lambda framework_root, mode: [FakeManagedFile(Path("PROJECT_WORKFLOW.md"))]
+        try:
+            results = meridian.audit_duplicate_headings(project, ROOT, "governed-sdd")
+        finally:
+            meridian.managed_files = original
+        self.assertEqual(len(results), 1)
+        status, message = results[0]
+        self.assertEqual(status, "FAIL")
+        self.assertIn("dup-rule", message)
+        self.assertIn("First section", message)
+        self.assertIn("Second section", message)
+
+    def test_does_not_flag_the_same_capability_under_the_same_heading_name_across_files(self) -> None:
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        project = Path(temporary.name) / "project"
+        project.mkdir(parents=True)
+        for name in ("AGENTS.md", "CLAUDE.md"):
+            (project / name).write_text(
+                "## Command triggers\n\n"
+                "<!-- MERIDIAN:BEGIN capability=command-triggers v1 -->\ntext.\n<!-- MERIDIAN:END -->\n",
+                encoding="utf-8",
+            )
+
+        class FakeManagedFile:
+            def __init__(self, target: Path) -> None:
+                self.target = target
+                self.source = project / target
+
+        original = meridian.managed_files
+        meridian.managed_files = lambda framework_root, mode: [
+            FakeManagedFile(Path("AGENTS.md")),
+            FakeManagedFile(Path("CLAUDE.md")),
+        ]
+        try:
+            results = meridian.audit_duplicate_headings(project, ROOT, "governed-sdd")
+        finally:
+            meridian.managed_files = original
+        self.assertEqual(results, [])
 
 
 class CapabilityVersionDetectionTest(unittest.TestCase):
