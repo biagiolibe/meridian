@@ -60,6 +60,12 @@ few upgrades.
 | `[ ]` | 007 | A retirement path for capabilities | 🟡 P2 | — | [007](007-capability-retirement-path.md) |
 | `[ ]` | 008 | Retire `role-scoped-agent-rules` | 🟢 P3 | 004, 007 | [008](008-retire-role-scoped-rules.md) |
 | `[ ]` | 009 | Bound the queue read | 🟡 P2 | — | [009](009-bound-the-queue-read.md) |
+| `[ ]` | 011 | Warn about the head/SIGPIPE/pipefail trap in the template | 🟡 P2 | — | [011](011-sigpipe-trap-in-template.md) |
+
+`011` must not ship as a standalone version bump: release it with whichever
+template change lands first, so an adopting project upgrades once rather than
+twice. See its Constraints for why bundling *records* is not what saves the
+reconciliation.
 
 ## 🧪 Quick Tasks (No File)
 
