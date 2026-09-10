@@ -29,21 +29,9 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 
 ## 🏃 Active Queue
 
-Ordered by return, not by effort. Phase 1 is the cost-reduction path and ends at the
-counter, which is where the large saving actually lives; phase 2 is correctness work
-that blocks nothing and can slip without cost.
-
-### Phase 1 — Cost reduction (~2–3 days)
-
-`001` and `002` are ~2h each and land the same day. `006` is the item that matters:
-phases 1–2 of the plan reduce the *size* of each iteration, but only `006` reduces
-their *number*, which is the quadratic term.
-
-| Status | ID | Title | Priority | Depends on | Task File |
-|--------|----|-------|----------|-----------|-----------|
-| `[x]` | 001 | Output bounds belong in the command string | 🔴 P1 | — | [001](done/001-output-bounds-in-command.md) |
-| `[x]` | 002 | Ship default numeric budgets, not empty brackets | 🔴 P1 | — | [002](done/002-default-numeric-budgets.md) |
-| `[ ]` | 006 | Budget state, CLI, and hook echo | 🔴 P1 | 002 | [006](006-budget-cli-and-hook.md) |
+Ordered by return, not by effort. Phase 1 (cost reduction, where the large saving
+actually lives) is fully closed — see `tasks/QUEUE_ARCHIVE.md`. Phase 2 is
+correctness work that blocks nothing and can slip without cost.
 
 ### Phase 2 — Correctness and drift (~1 day)
 
@@ -85,5 +73,9 @@ few upgrades.
 |--------|----|-------|------|
 | `[x]` | 001 | Output bounds belong in the command string | [001](done/001-output-bounds-in-command.md) |
 | `[x]` | 002 | Ship default numeric budgets, not empty brackets | [002](done/002-default-numeric-budgets.md) |
+| `[x]` | 006 | Budget state, CLI, and hook echo | [006](done/006-budget-cli-and-hook.md) |
+
+Phase 1 (001, 002, 006) is fully closed and moved to `tasks/QUEUE_ARCHIVE.md`;
+this table keeps a flat completed-task index across both files.
 
 *Last updated: 2026-09-10*
