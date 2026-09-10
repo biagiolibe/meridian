@@ -13,8 +13,8 @@
       "version": 3
     },
     "manual-verification-precondition": {
-      "sha256": "847e9724d48bed4491107b5582e05873a0514c207f1f57e60b56d7b4f684f272",
-      "version": 2
+      "sha256": "db52e2880255e12678b2e0d41c2cefcefcba247606da05054623a34207b60bf1",
+      "version": 3
     },
     "owner-acceptance-workflow": {
       "sha256": "4bb6a3258ed7ffd5df92da2720833184e1f9150cbfe60116a0ed966cdbff433c",
@@ -55,8 +55,8 @@
       "version": 3
     },
     "manual-verification-precondition": {
-      "sha256": "847e9724d48bed4491107b5582e05873a0514c207f1f57e60b56d7b4f684f272",
-      "version": 2
+      "sha256": "db52e2880255e12678b2e0d41c2cefcefcba247606da05054623a34207b60bf1",
+      "version": 3
     },
     "owner-acceptance-workflow": {
       "sha256": "4bb6a3258ed7ffd5df92da2720833184e1f9150cbfe60116a0ed966cdbff433c",
@@ -139,6 +139,10 @@
     "ci-verified-validation": {
       "sha256": "fb3cdf763f143aadb73cc75f9e2e1a7bfa5ac60a67f446de619cb021a46f81f7",
       "version": 1
+    },
+    "manual-verification-review-check": {
+      "sha256": "298f88d5c9b4ad1d7384ef36b627b702d5dd8f1f1540314cc655a46a3f1d437f",
+      "version": 1
     }
   },
   "templates/workflows/governed-sdd/docs/COMPLETION_REPORT_TEMPLATE.md": {
@@ -152,6 +156,10 @@
     }
   },
   "templates/workflows/governed-sdd/docs/CONTEXT_BUDGET_POLICY.md": {
+    "evidence-tiers": {
+      "sha256": "17e3cf089faf004c49dadfcd2874a795a7679bb6af9e6166a39abee5049ae379",
+      "version": 1
+    },
     "execution-evidence-profile": {
       "sha256": "9c5d169d79633b77d84b8492bc2de5bfe3d6b6cbc6ab35894d663069ec505be5",
       "version": 3
@@ -197,8 +205,8 @@
   },
   "templates/workflows/governed-sdd/tasks/TASK_BLUEPRINT.md": {
     "task-blueprint": {
-      "sha256": "d179010ceab9385c58119e6ff90ab3c772b17b9df6910d4d653606031bf6e978",
-      "version": 5
+      "sha256": "4b07e4946726cd5cbf4f61fcdaef88fe58bf8c3d35f4d5a452d4e1c441044938",
+      "version": 6
     }
   }
 }

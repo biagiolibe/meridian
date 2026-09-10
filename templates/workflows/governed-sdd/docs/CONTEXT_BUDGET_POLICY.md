@@ -85,6 +85,19 @@ matches the actual diff surface, that nothing relevant was skipped, and that
 nothing irrelevant was run and reported as if it were meaningful evidence.
 <!-- MERIDIAN:END -->
 
+<!-- MERIDIAN:BEGIN capability=evidence-tiers v1 -->
+## Evidence tiers
+
+Before declaring `Manual verification: required`, name which tier the
+property belongs to; only tier 3 justifies it.
+
+1. **Structural** — counts, presence, identity, ordering, spawn/despawn invariants. Assertable directly.
+2. **Derived value** — any observable the program itself computes and can read back: layout geometry, formatted output, serialized state, a colour held as a value, a duration. Assertable once you know where to read it.
+3. **Perceptual** — exists only in the rendered artifact and nowhere as a value: shading, font rendering, visual balance, "does it read correctly".
+
+If the property is readable as a value anywhere in the program, assert it instead of capturing it.
+<!-- MERIDIAN:END -->
+
 <!-- MERIDIAN:BEGIN capability=execution-evidence-profile v3 -->
 ## Execution evidence discipline
 
