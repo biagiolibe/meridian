@@ -29,18 +29,8 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 
 ## 🏃 Active Queue
 
-Ordered by return, not by effort. Phases 1 and 2 are fully closed — see
+Ordered by return, not by effort. Phases 1, 2, and 2b are fully closed — see
 `tasks/QUEUE_ARCHIVE.md`.
-
-### Phase 2b — Found in the field
-
-Not planned from the audit: surfaced while reconciling Palimpsest onto 1.1.19.
-Ahead of phase 3 because every adopted project that receives an inline
-capability version bump silently accumulates a contradictory pair.
-
-| Status | ID | Title | Priority | Depends on | Task File |
-|--------|----|-------|----------|-----------|-----------|
-| `[ ]` | 012 | `append_only_new_markers` treats a version bump as a new capability | 🔴 P1 | — | [012](012-marker-supersession.md) |
 
 ### Phase 3 — The cause
 
@@ -83,9 +73,10 @@ then folded it into the regenerated `CLAUDE.md`.
 | `[x]` | 003 | Close the probe / escape-hatch composition | [003](done/003-probe-escape-hatch.md) |
 | `[x]` | 004 | Generate `CLAUDE.md` from `AGENTS.md` | [004](done/004-generate-claude-md.md) |
 | `[x]` | 005 | Stop instructing sessions to read both files | [005](done/005-prompts-read-one-file.md) |
+| `[x]` | 012 | `append_only_new_markers` treats a version bump as a new capability | [012](done/012-marker-supersession.md) |
 
-Phases 1 and 2 (001, 002, 006, 003, 004, 005) are fully closed and moved to
-`tasks/QUEUE_ARCHIVE.md`; this table keeps a flat completed-task index across
-both files.
+Phases 1, 2, and 2b (001, 002, 006, 003, 004, 005, 012) are fully closed and
+moved to `tasks/QUEUE_ARCHIVE.md`; this table keeps a flat completed-task
+index across both files.
 
 *Last updated: 2026-09-10*
