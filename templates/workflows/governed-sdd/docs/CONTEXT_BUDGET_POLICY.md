@@ -13,33 +13,6 @@ For an implementation or review:
 
 Dependencies establish readiness; they do not automatically require rereading their entire implementation history.
 
-<!-- MERIDIAN:BEGIN capability=role-scoped-agent-rules v1 -->
-## Role-scoped agent-rules reading
-
-`AGENTS.md`/`CLAUDE.md` states rules for every role in one file; reading all
-of it in every session is more than a given role needs. Read only the
-sections your current role requires, identified by heading text:
-
-- **Every role** reads the file's shared core: the introductory rules
-  through "Command triggers", plus "Owner-acceptance workflow".
-- **Implementer** (`Proceed with <TASK-ID>`, `Address review <TASK-ID>`)
-  additionally reads "Autonomous lifecycle orchestration", "Implementation
-  workflow", "Review-remediation workflow", and "Implementer-to-reviewer
-  handoff".
-- **Reviewer-integrator** (`Review <TASK-ID>`) additionally reads
-  "Autonomous lifecycle orchestration", "Review-mode boundary",
-  "Reviewer-integrator identity", and "Implementer-to-reviewer handoff".
-- **Orchestrator** (`Run lifecycle <TASK-ID>`) does not read this file at
-  all beyond confirming the command triggers it issues exist; see this
-  policy's "Lifecycle orchestration" section for what it reads instead.
-
-Match sections by heading text, not by line number or position, since a
-future migration can move content between headings without renaming them.
-If a heading this rule names is missing, renamed, or the mapping is
-otherwise unclear, read the whole file instead of guessing — this rule
-narrows a known-safe read; it never licenses skipping unfamiliar content.
-<!-- MERIDIAN:END -->
-
 <!-- MERIDIAN:BEGIN capability=minimal-read-only-status v1 -->
 ## Minimal read-only status
 

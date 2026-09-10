@@ -297,7 +297,7 @@ class MeridianCliTest(unittest.TestCase):
         self.assertIn("## Task-First Loading (project wording)", upgraded)
         # Every other still-required capability in this file is untouched.
         self.assertIn("capability=validation-scoping v1", upgraded)
-        self.assertIn("capability=role-scoped-agent-rules v1", upgraded)
+        self.assertIn("capability=evidence-tiers v1", upgraded)
 
         audited = self.run_cli("audit", "--mode", "governed-sdd")
         self.assertNotIn("minimal-read-only-status", audited.stdout)
@@ -353,6 +353,105 @@ class MeridianCliTest(unittest.TestCase):
         self.assertEqual(checked.returncode, 2, checked.stdout + checked.stderr)
         self.assertIn("CONFLICT docs/CONTEXT_BUDGET_POLICY.md", checked.stdout)
         self.assertIn("BLOCKED", checked.stdout)
+
+    def _reinsert_role_scoped_agent_rules_block(self, text: str) -> str:
+        block = (
+            "<!-- MERIDIAN:BEGIN capability=role-scoped-agent-rules v1 -->\n"
+            "## Role-scoped agent-rules reading\n\n"
+            "`AGENTS.md`/`CLAUDE.md` states rules for every role in one file; reading all\n"
+            "of it in every session is more than a given role needs. Read only the\n"
+            "sections your current role requires, identified by heading text:\n\n"
+            "- **Every role** reads the file's shared core: the introductory rules\n"
+            "  through \"Command triggers\", plus \"Owner-acceptance workflow\".\n"
+            "<!-- MERIDIAN:END -->\n\n"
+        )
+        anchor = "<!-- MERIDIAN:BEGIN capability=minimal-read-only-status v1 -->"
+        self.assertIn(anchor, text)
+        return text.replace(anchor, block + anchor, 1)
+
+    def test_upgrade_removes_role_scoped_agent_rules_via_the_real_migration(self) -> None:
+        """Task 008, using migration 025 itself (not a synthetic fixture): a
+        project locked before the retirement has the block cleanly removed by
+        `meridian upgrade` to 1.1.22."""
+        policy = self.framework / "templates/workflows/governed-sdd/docs/CONTEXT_BUDGET_POLICY.md"
+        policy.write_text(
+            self._reinsert_role_scoped_agent_rules_block(policy.read_text(encoding="utf-8")),
+            encoding="utf-8",
+        )
+        (self.framework / "VERSION").write_text("1.1.21\n", encoding="utf-8")
+        shutil.rmtree(self.project)
+        self.project.mkdir()
+        self.copy_governed_templates()
+        self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
+        local_policy = self.project / "docs/CONTEXT_BUDGET_POLICY.md"
+        self.assertIn("capability=role-scoped-agent-rules v1", local_policy.read_text(encoding="utf-8"))
+
+        # Restore the framework to its real, current (post-025) state.
+        policy.write_text(
+            (ROOT / "templates/workflows/governed-sdd/docs/CONTEXT_BUDGET_POLICY.md").read_text(
+                encoding="utf-8"
+            ),
+            encoding="utf-8",
+        )
+        (self.framework / "VERSION").write_text("1.1.22\n", encoding="utf-8")
+
+        checked = self.run_cli("upgrade", "--check")
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+
+        applied = self.run_cli("upgrade", "--apply")
+        self.assertEqual(applied.returncode, 0, applied.stderr)
+        upgraded = local_policy.read_text(encoding="utf-8")
+        self.assertNotIn("role-scoped-agent-rules", upgraded)
+        self.assertNotIn("Role-scoped agent-rules reading", upgraded)
+        self.assertIn("capability=validation-scoping v1", upgraded)
+
+        audited = self.run_cli("audit", "--mode", "governed-sdd")
+        self.assertEqual(audited.returncode, 0, audited.stdout + audited.stderr)
+
+    def test_upgrade_refuses_role_scoped_agent_rules_removal_when_locally_modified(self) -> None:
+        """Task 008's other half of AC3: the real migration 025 must refuse
+        to discard a local edit inside the block it is retiring."""
+        policy = self.framework / "templates/workflows/governed-sdd/docs/CONTEXT_BUDGET_POLICY.md"
+        policy.write_text(
+            self._reinsert_role_scoped_agent_rules_block(policy.read_text(encoding="utf-8")),
+            encoding="utf-8",
+        )
+        (self.framework / "VERSION").write_text("1.1.21\n", encoding="utf-8")
+        shutil.rmtree(self.project)
+        self.project.mkdir()
+        self.copy_governed_templates()
+        self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
+
+        local_policy = self.project / "docs/CONTEXT_BUDGET_POLICY.md"
+        local_text = local_policy.read_text(encoding="utf-8")
+        local_text = local_text.replace(
+            "reading all\nof it in every session is more than a given role needs.",
+            "reading all\nof it in every session is more than a given role needs, locally customized.",
+        )
+        # Also force a genuine three-way-merge conflict on an unrelated line
+        # (both sides rename the same heading differently): migration 025's
+        # real diff only deletes the retired block, so nothing else in it
+        # would otherwise make `merge_clean` fail on its own, and this test's
+        # actual target is `remove_retired_markers`'s own refusal once the
+        # merge does fail for any reason.
+        local_text = local_text.replace("## Task-first loading", "## Task-First Loading (project wording)")
+        local_policy.write_text(local_text, encoding="utf-8")
+
+        incoming_policy = (ROOT / "templates/workflows/governed-sdd/docs/CONTEXT_BUDGET_POLICY.md").read_text(
+            encoding="utf-8"
+        )
+        incoming_policy = incoming_policy.replace(
+            "## Task-first loading", "## Task-First Loading (framework wording)"
+        )
+        policy.write_text(incoming_policy, encoding="utf-8")
+        (self.framework / "VERSION").write_text("1.1.22\n", encoding="utf-8")
+
+        checked = self.run_cli("upgrade", "--check")
+        self.assertEqual(checked.returncode, 2, checked.stdout + checked.stderr)
+        self.assertIn("CONFLICT docs/CONTEXT_BUDGET_POLICY.md", checked.stdout)
+        self.assertIn("BLOCKED", checked.stdout)
+        # The local customization must still be on disk, untouched.
+        self.assertIn("locally customized.", local_policy.read_text(encoding="utf-8"))
 
     def test_audit_passes_on_unmodified_markers(self) -> None:
         self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
@@ -1391,7 +1490,6 @@ class CapabilityMarkerTest(unittest.TestCase):
         self.assertEqual(
             self.marker_pairs(text),
             [
-                ("role-scoped-agent-rules", "1"),
                 ("minimal-read-only-status", "1"),
                 ("validation-scoping", "1"),
                 ("evidence-tiers", "1"),
@@ -1436,16 +1534,17 @@ class CapabilityMarkerTest(unittest.TestCase):
         self.assertIn("automatically", lifecycle)
         self.assertIn("exact permitted cap", prompts)
 
-    def test_role_scoped_agent_rules_names_headings_by_role(self) -> None:
+    def test_role_scoped_agent_rules_was_retired_not_merely_deleted_by_hand(self) -> None:
+        """Task 008 retired `role-scoped-agent-rules` (docs/AUDIT_TOKEN_EFFICIENCY.md
+        F5) through migration 025's `removes` field, task 007's retirement
+        path — not a direct template edit. This is the regression guard for
+        that decision: the capability, and the section it named, must stay
+        gone, and `capability_requirements()` must no longer require it."""
         policy = (self.WORKFLOW / "docs/CONTEXT_BUDGET_POLICY.md").read_text(encoding="utf-8")
-        self.assertIn("Every role", policy)
-        self.assertIn('"Command triggers"', policy)
-        self.assertIn("Implementer", policy)
-        self.assertIn("Review-remediation workflow", policy)
-        self.assertIn("Reviewer-integrator", policy)
-        self.assertIn('"Review-mode boundary"', policy)
-        self.assertIn("Orchestrator", policy)
-        self.assertIn("read the whole file instead of guessing", policy)
+        self.assertNotIn("role-scoped-agent-rules", policy)
+        self.assertNotIn("Role-scoped agent-rules reading", policy)
+        self.assertIn("role-scoped-agent-rules", meridian.retired_capability_ids(ROOT))
+        self.assertNotIn("role-scoped-agent-rules", meridian.capability_requirements(ROOT))
 
     def test_minimal_read_only_status_profile_limits_context_expansion(self) -> None:
         policy = (self.WORKFLOW / "docs/CONTEXT_BUDGET_POLICY.md").read_text(encoding="utf-8")

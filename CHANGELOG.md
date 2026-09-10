@@ -12,6 +12,21 @@ numbers follow the `frameworkVersion` tracked in generated projects'
 
 ## [Unreleased]
 
+## [1.1.22]
+
+### Removed
+
+- Migration `025-retire-role-scoped-agent-rules`: retires `role-scoped-agent-rules`
+  v1 (docs/AUDIT_TOKEN_EFFICIENCY.md F5), the first real use of task 007's
+  retirement path. Under Claude Code's `CLAUDE.md` auto-injection the file
+  enters the session in full before the rule is ever read, so it saved
+  nothing there; for `AGENTS.md`, the rule's own fallback clause ("read the
+  whole file instead of guessing" when a heading is unclear) meant it
+  degraded to the unoptimized behavior under exactly the conditions where a
+  session is least sure what it is reading — a conditional saving that
+  vanishes under uncertainty, at the cost of ~1.4 KB of always-loaded policy
+  text. Pure deletion, no `supersededBy`: nothing replaces this rule.
+
 ## [1.1.21]
 
 ### Added

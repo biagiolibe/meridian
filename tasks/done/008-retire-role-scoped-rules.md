@@ -13,11 +13,26 @@ every asset carrying it. First real exercise of task 007's retirement path.
 
 ## 📋 Acceptance Criteria
 
-- [ ] The capability block is gone from every managed path.
-- [ ] A `migrations/NNN-*.json` record uses task 007's `removes` field.
-- [ ] Running `meridian upgrade` on a fixture project removes the block cleanly and
+- [x] The capability block is gone from every managed path.
+- [x] A `migrations/NNN-*.json` record uses task 007's `removes` field.
+- [x] Running `meridian upgrade` on a fixture project removes the block cleanly and
       leaves a locally modified copy untouched with a reported conflict.
-- [ ] `python3 -m unittest discover -s tests -v` and `python3 scripts/check_repository.py` pass.
+- [x] `python3 -m unittest discover -s tests -v` and `python3 scripts/check_repository.py` pass.
+
+### Outcome
+
+Migration `025-retire-role-scoped-agent-rules` (VERSION `1.1.22`) ships the
+`removes` entry for `role-scoped-agent-rules` v1, no `supersededBy` (pure
+deletion, nothing replaces it). `docs/CONTEXT_BUDGET_POLICY.md` was the only
+managed file carrying the marker, confirmed by grep before editing.
+
+No finding against task 007: the retirement path worked cleanly on this
+first real use, both directions verified against the actual migration (not
+a synthetic fixture) —
+`test_upgrade_removes_role_scoped_agent_rules_via_the_real_migration` and
+`test_upgrade_refuses_role_scoped_agent_rules_removal_when_locally_modified`
+in `tests/test_meridian_cli.py`. A fresh project locked at `1.1.22` audits
+clean with no trace of the retired capability.
 
 ## 🧩 Technical Context
 
