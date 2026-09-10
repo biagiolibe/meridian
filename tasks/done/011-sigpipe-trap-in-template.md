@@ -16,19 +16,22 @@ the trap; the template should name it.
 
 ## 📋 Acceptance Criteria
 
-- [ ] The profile's validation-output section states that a first-lines bound
+- [x] The profile's validation-output section states that a first-lines bound
       must consume the whole stream — `awk 'NR<=N'` or `sed -n '1,Np'` — and
       that `head -n N` and `sed 'Nq'` must not be used.
-- [ ] It gives the mechanism in one sentence: the early-exiting stage closes the
+- [x] It gives the mechanism in one sentence: the early-exiting stage closes the
       pipe, `SIGPIPE` kills the producer with status 141, and `pipefail` reports
       a failed pipeline for a command that succeeded.
-- [ ] It states that the fault is intermittent — it fires only when output
+- [x] It states that the fault is intermittent — it fires only when output
       exceeds the bound — so it passes on a small project and starts failing as
       the suite grows.
-- [ ] The text stays **stack-agnostic**: shell mechanics only, no language,
+- [x] The text stays **stack-agnostic**: shell mechanics only, no language,
       build tool, or test runner. Per-stack examples stay in `WORKFLOW_GUIDE.md`.
-- [ ] A migration record ships it, bundled per the constraint below.
-- [ ] `python3 scripts/check_repository.py` and the CLI test suite pass.
+- [x] A migration record ships it, bundled per the constraint below.
+- [x] `python3 scripts/check_repository.py` and the CLI test suite pass.
+
+Shipped bundled with task 013 in migration `024-evidence-tiers-and-routing`
+(VERSION `1.1.21`), per this task's own bundling constraint.
 
 ## 📁 Relevant Files
 

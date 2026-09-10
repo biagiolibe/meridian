@@ -29,16 +29,8 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 
 ## 🏃 Active Queue
 
-Ordered by return, not by effort. Phases 1, 2, 2b, and 3 are fully closed —
+Ordered by return, not by effort. Phases 1, 2, 2b, 3, and 3b are fully closed —
 see `tasks/QUEUE_ARCHIVE.md`.
-
-### Phase 3b — Route work away from manual evidence
-
-| Status | ID | Title | Priority | Depends on | Task File |
-|--------|----|-------|----------|-----------|-----------|
-| `[ ]` | 013 | Evidence tiers and a routing rule for `Manual verification` | 🔴 P1 | — | [013](013-evidence-tiers-and-routing.md) |
-
-Ship `013` together with `011`, per `011`'s bundling constraint.
 
 ### Phase 4 — Stop the ratchet
 
@@ -50,12 +42,6 @@ few upgrades.
 | `[ ]` | 007 | A retirement path for capabilities | 🟡 P2 | — | [007](007-capability-retirement-path.md) |
 | `[ ]` | 008 | Retire `role-scoped-agent-rules` | 🟢 P3 | 004, 007 | [008](008-retire-role-scoped-rules.md) |
 | `[ ]` | 009 | Bound the queue read | 🟡 P2 | — | [009](009-bound-the-queue-read.md) |
-| `[ ]` | 011 | Warn about the head/SIGPIPE/pipefail trap in the template | 🟡 P2 | — | [011](011-sigpipe-trap-in-template.md) |
-
-`011` must not ship as a standalone version bump: release it with whichever
-template change lands first, so an adopting project upgrades once rather than
-twice. See its Constraints for why bundling *records* is not what saves the
-reconciliation.
 
 ## 🧪 Quick Tasks (No File)
 
@@ -78,9 +64,11 @@ then folded it into the regenerated `CLAUDE.md`.
 | `[x]` | 012 | `append_only_new_markers` treats a version bump as a new capability | [012](done/012-marker-supersession.md) |
 | `[x]` | 010 | A `SPIKE` task class | [010](done/010-spike-task-class.md) |
 | `[x]` | 014 | The `CLAUDE.md` generator altered protected marker content | [014](done/014-generator-altered-protected-blocks.md) |
+| `[x]` | 013 | Evidence tiers and a routing rule for `Manual verification` | [013](done/013-evidence-tiers-and-routing.md) |
+| `[x]` | 011 | Warn about the head/SIGPIPE/pipefail trap in the template | [011](done/011-sigpipe-trap-in-template.md) |
 
-Phases 1, 2, 2b, and 3 (001, 002, 006, 003, 004, 005, 012, 010) are fully
-closed and moved to `tasks/QUEUE_ARCHIVE.md`; this table keeps a flat
-completed-task index across both files.
+Phases 1, 2, 2b, 3, and 3b (001, 002, 006, 003, 004, 005, 012, 010, 014, 013)
+are fully closed and moved to `tasks/QUEUE_ARCHIVE.md`; this table keeps a
+flat completed-task index across both files.
 
 *Last updated: 2026-09-10*

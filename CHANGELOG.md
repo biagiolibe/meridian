@@ -12,6 +12,27 @@ numbers follow the `frameworkVersion` tracked in generated projects'
 
 ## [Unreleased]
 
+## [1.1.21]
+
+### Added
+
+- Migration `024-evidence-tiers-and-routing`: makes `Manual verification:
+  required` cost one sentence of justification instead of being free to
+  declare. `evidence-tiers` v1 in `docs/CONTEXT_BUDGET_POLICY.md` names three
+  stack-agnostic tiers — structural, derived value, perceptual — and states
+  that only tier 3 justifies manual verification. `task-blueprint` v6 adds a
+  mandatory `Manual verification rationale` field. `manual-verification-precondition`
+  v3 checks that rationale first, before the probe: a missing or
+  wrongly-tiered rationale returns `BLOCKED` asking for the task to be
+  re-scoped, without running the probe at all.
+  `manual-verification-review-check` v1 in `docs/CODE_REVIEW_PROMPT.md` has
+  the reviewer confirm the rationale matches the evidence actually gathered.
+  Bundled with task 011's fix (unmarked, since `docs/EXECUTION_EVIDENCE_PROFILE.md`
+  carries no protected markers): a warning that a first-lines output bound
+  must consume the whole stream (`awk 'NR<=N'` / `sed -n '1,Np'`), never
+  `head -n N` / `sed 'Nq'`, which turns `pipefail` into an intermittent
+  false-failure generator as output grows past the bound.
+
 ## [1.1.20]
 
 ### Added

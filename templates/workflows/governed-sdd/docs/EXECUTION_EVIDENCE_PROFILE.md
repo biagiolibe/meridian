@@ -43,6 +43,14 @@ status of its last stage (here, `tail`), which is always success, so a
 failing validation command silently reads as passing. Where the shell lacks
 `pipefail`, capture `${PIPESTATUS[0]}` explicitly instead.
 
+If the chosen bound instead keeps only the *first* N lines, it must consume
+the whole stream — `awk 'NR<=N'` or `sed -n '1,Np'` — never `head -n N` or
+`sed 'Nq'`: an early-exiting stage closes the pipe, `SIGPIPE` kills the
+producer with status 141, and `pipefail` then reports a failed pipeline for a
+command that actually succeeded. The fault is intermittent — it fires only
+once output exceeds the bound — so it passes on a small project and starts
+failing as the suite grows. See `WORKFLOW_GUIDE.md` for the measured example.
+
 - Required validation commands, each as the exact string executed —
   command, redirection, and output bound together: `[commands]`.
 - Exit-status mechanism this project uses (`set -o pipefail` or
@@ -70,6 +78,9 @@ failing validation command silently reads as passing. Where the shell lacks
 
 ## Manual evidence
 
+- How this project's own observables realize `docs/CONTEXT_BUDGET_POLICY.md`'s
+  evidence tiers — where a tier-2 derived value is read back, and what channel
+  captures a genuine tier-3 perceptual one: `[tier mapping]`.
 - Primary deterministic evidence when available: `[tests or checks]`.
 - Distinct capture views normally required and the escalation rule for more:
   `Evidence captures`: 2 per acceptance criterion. One capture is one

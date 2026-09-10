@@ -1041,6 +1041,7 @@ class CapabilityMarkerTest(unittest.TestCase):
                 ("role-scoped-agent-rules", "1"),
                 ("minimal-read-only-status", "1"),
                 ("validation-scoping", "1"),
+                ("evidence-tiers", "1"),
                 ("execution-evidence-profile", "3"),
                 ("reasoning-budget-contract", "1"),
             ],
@@ -1069,7 +1070,7 @@ class CapabilityMarkerTest(unittest.TestCase):
             encoding="utf-8"
         )
 
-        self.assertIn(("task-blueprint", "5"), self.marker_pairs(blueprint))
+        self.assertIn(("task-blueprint", "6"), self.marker_pairs(blueprint))
         self.assertIn(("reasoning-budget-contract", "1"), self.marker_pairs(policy))
         self.assertIn(("lifecycle-orchestration", "3"), self.marker_pairs(lifecycle))
         self.assertIn("[low / medium / high / xhigh]", blueprint)
@@ -1102,9 +1103,14 @@ class CapabilityMarkerTest(unittest.TestCase):
         self.assertIn("Do not load completed milestones", prompts)
 
     def test_ci_verified_validation_marker_in_each_of_its_three_docs(self) -> None:
-        for name in ("docs/PULL_REQUEST_POLICY.md", "docs/CODE_REVIEW_PROMPT.md"):
-            text = (self.WORKFLOW / name).read_text(encoding="utf-8")
-            self.assertEqual(self.marker_pairs(text), [("ci-verified-validation", "1")], name)
+        pull_request_policy = (self.WORKFLOW / "docs/PULL_REQUEST_POLICY.md").read_text(encoding="utf-8")
+        self.assertEqual(self.marker_pairs(pull_request_policy), [("ci-verified-validation", "1")])
+
+        code_review_prompt = (self.WORKFLOW / "docs/CODE_REVIEW_PROMPT.md").read_text(encoding="utf-8")
+        self.assertEqual(
+            self.marker_pairs(code_review_prompt),
+            [("manual-verification-review-check", "1"), ("ci-verified-validation", "1")],
+        )
 
         completion_report = (self.WORKFLOW / "docs/COMPLETION_REPORT_TEMPLATE.md").read_text(encoding="utf-8")
         self.assertEqual(
@@ -1116,7 +1122,7 @@ class CapabilityMarkerTest(unittest.TestCase):
         for name in ("AGENTS.md", "CLAUDE.md"):
             text = (self.WORKFLOW / name).read_text(encoding="utf-8")
             pairs = self.marker_pairs(text)
-            self.assertIn(("manual-verification-precondition", "2"), pairs, name)
+            self.assertIn(("manual-verification-precondition", "3"), pairs, name)
         agents = (self.WORKFLOW / "AGENTS.md").read_text(encoding="utf-8")
         self.assertIn("Manual verification: required", agents)
         self.assertIn("return `BLOCKED` immediately", agents)
@@ -1131,6 +1137,8 @@ class CapabilityMarkerTest(unittest.TestCase):
             "attempted and failed",
             agents,
         )
+        self.assertIn("check its `Manual verification rationale` first, before any probe", agents)
+        self.assertIn("do not run the probe", agents)
 
     def test_manual_verification_record_fields_in_completion_and_review_records(self) -> None:
         completion_report = (self.WORKFLOW / "docs/COMPLETION_REPORT_TEMPLATE.md").read_text(encoding="utf-8")
@@ -1161,7 +1169,7 @@ class CapabilityMarkerTest(unittest.TestCase):
     def test_whole_file_baseline_capabilities_each_carry_one_marker(self) -> None:
         expectations = {
             "LANGUAGE_POLICY.md": ("language-policy", "2"),
-            "tasks/TASK_BLUEPRINT.md": ("task-blueprint", "5"),
+            "tasks/TASK_BLUEPRINT.md": ("task-blueprint", "6"),
             "docs/CODE_ORGANIZATION.md": ("code-organization", "1"),
             "docs/AUDIT_PROMPT_READ_ONLY.md": ("audit-prompt", "1"),
         }

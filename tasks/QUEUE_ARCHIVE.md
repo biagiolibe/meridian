@@ -55,4 +55,14 @@ capability version bump silently accumulates a contradictory pair.
 |--------|----|-------|----------|-----------|-----------|
 | `[x]` | 010 | A `SPIKE` task class | 🟡 P2 | — | [010](done/010-spike-task-class.md) |
 
+### Phase 3b — Route work away from manual evidence
+
+| Status | ID | Title | Priority | Depends on | Task File |
+|--------|----|-------|----------|-----------|-----------|
+| `[x]` | 014 | The `CLAUDE.md` generator altered protected marker content | 🔴 P1 | — | [014](done/014-generator-altered-protected-blocks.md) |
+| `[x]` | 013 | Evidence tiers and a routing rule for `Manual verification` | 🔴 P1 | — | [013](done/013-evidence-tiers-and-routing.md) |
+
+`013` shipped together with `011` (Phase 4), per `011`'s bundling constraint,
+both in migration `024-evidence-tiers-and-routing` (VERSION `1.1.21`).
+
 *Archived: 2026-09-10*

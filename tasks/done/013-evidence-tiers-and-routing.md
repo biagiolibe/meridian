@@ -19,21 +19,21 @@ ladder, and check it before the expensive path starts.
 
 ## 📋 Acceptance Criteria
 
-- [ ] `docs/CONTEXT_BUDGET_POLICY.md` defines the three evidence tiers, in
+- [x] `docs/CONTEXT_BUDGET_POLICY.md` defines the three evidence tiers, in
       stack-agnostic terms, in no more than ten lines.
-- [ ] `tasks/TASK_BLUEPRINT.md` (`task-blueprint` v6) adds
+- [x] `tasks/TASK_BLUEPRINT.md` (`task-blueprint` v6) adds
       `Manual verification rationale:` — mandatory when `Manual verification:
       required`, omitted otherwise — which must name the perceptual criterion no
       tier-1 or tier-2 check can express.
-- [ ] `manual-verification-precondition` (v3) makes the rationale the **first**
+- [x] `manual-verification-precondition` (v3) makes the rationale the **first**
       preflight step, before the probe: if it is missing, or names a property
       that is readable as a value somewhere in the program, return `BLOCKED`
       asking for the task to be re-scoped rather than running the probe.
-- [ ] `docs/CODE_REVIEW_PROMPT.md` has the reviewer confirm the rationale
+- [x] `docs/CODE_REVIEW_PROMPT.md` has the reviewer confirm the rationale
       matches the evidence actually gathered.
-- [ ] A migration record ships it, bundled with task 011 per that task's
+- [x] A migration record ships it, bundled with task 011 per that task's
       constraint.
-- [ ] `python3 scripts/check_repository.py` and the CLI suite pass.
+- [x] `python3 scripts/check_repository.py` and the CLI suite pass.
 
 ## 📁 Relevant Files
 
