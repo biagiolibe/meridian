@@ -172,10 +172,6 @@
       "sha256": "61399cc90c87a4de172354cb3626c20d185c7ec88a665192cf70663dcc7a4bba",
       "version": 1
     },
-    "role-scoped-agent-rules": {
-      "sha256": "b4b495b5d8fb0084b046a0016cff49ca826830f8929e19342ee74f34fb5a95a7",
-      "version": 1
-    },
     "validation-scoping": {
       "sha256": "fe8f3d6bf7bd3b49f613c1e9759583bda5cf8678396d52578ef877b504c3c68f",
       "version": 1

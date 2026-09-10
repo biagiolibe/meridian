@@ -39,7 +39,6 @@ few upgrades.
 
 | Status | ID | Title | Priority | Depends on | Task File |
 |--------|----|-------|----------|-----------|-----------|
-| `[ ]` | 008 | Retire `role-scoped-agent-rules` | 🟢 P3 | 004, 007 | [008](008-retire-role-scoped-rules.md) |
 | `[ ]` | 009 | Bound the queue read | 🟡 P2 | — | [009](009-bound-the-queue-read.md) |
 
 ## 🧪 Quick Tasks (No File)
@@ -66,11 +65,12 @@ then folded it into the regenerated `CLAUDE.md`.
 | `[x]` | 013 | Evidence tiers and a routing rule for `Manual verification` | [013](done/013-evidence-tiers-and-routing.md) |
 | `[x]` | 011 | Warn about the head/SIGPIPE/pipefail trap in the template | [011](done/011-sigpipe-trap-in-template.md) |
 | `[x]` | 007 | A retirement path for capabilities | [007](done/007-capability-retirement-path.md) |
+| `[x]` | 008 | Retire `role-scoped-agent-rules` | [008](done/008-retire-role-scoped-rules.md) |
 
 Phases 1, 2, 2b, 3, and 3b (001, 002, 006, 003, 004, 005, 012, 010, 014, 013)
 are fully closed and moved to `tasks/QUEUE_ARCHIVE.md`; this table keeps a
-flat completed-task index across both files. `007` (Phase 4) is complete but
-its phase is not — 008 and 009 remain open — so it stays here rather than
-moving to the archive.
+flat completed-task index across both files. `007` and `008` (Phase 4) are
+complete but the phase is not — 009 remains open — so they stay here rather
+than moving to the archive.
 
 *Last updated: 2026-09-10*
