@@ -14,19 +14,37 @@ drift.
 
 ## 📋 Acceptance Criteria
 
-- [ ] A generator in `scripts/meridian.py` produces `CLAUDE.md` from `AGENTS.md`.
-- [ ] The generated `CLAUDE.md` contains the pointer preamble plus only what Claude
+- [x] A generator in `scripts/meridian.py` produces `CLAUDE.md` from `AGENTS.md`.
+      (`generate_claude_md(mode, agents_text, claude_text)`, exposed as
+      `meridian generate-claude-md --mode <mode> --check|--write`.)
+- [x] The generated `CLAUDE.md` contains the pointer preamble plus only what Claude
       Code specifically needs. Duplicated capability blocks are **removed, not
-      regenerated**.
-- [ ] A `tests/test_meridian_cli.py` case asserts the committed `CLAUDE.md` matches
-      the generator's output.
-- [ ] That test fails against the tree **as it stands before this task**, proving it
-      catches the live drift, then passes after the templates are regenerated. The
-      concrete failing case: `AGENTS.md` step 1 says "and the profile's declared
-      change-summary command" and `CLAUDE.md`'s identical step 1 does not. Do not
-      hand-mirror that line first — it is this task's proof.
-- [ ] No rule's content changes. Pure de-duplication.
-- [ ] `python3 -m unittest discover -s tests -v` and `python3 scripts/check_repository.py` pass.
+      regenerated**. (Each mode's `CLAUDE.md` keeps its own hand-authored preamble
+      up to a shared anchor heading — `## Code organization` for governed-sdd,
+      `## Command triggers` for lean-delivery, matched by heading text per this
+      repo's own role-scoped-agent-rules precedent, not by position — and
+      everything from that heading onward is copied verbatim from `AGENTS.md`.)
+- [x] A `tests/test_meridian_cli.py` case asserts the committed `CLAUDE.md` matches
+      the generator's output (`GenerateClaudeMdTest`, both modes).
+- [x] That test fails against the tree **as it stands before this task**, proving it
+      catches the live drift, then passes after the templates are regenerated.
+      Verified by stashing the regenerated `CLAUDE.md` files and rerunning the test:
+      it failed with `AssertionError: ... governed-sdd: CLAUDE.md has drifted from
+      AGENTS.md past the shared anchor '## Code organization'`, naming exactly the
+      proof case (the change-summary clause) plus four more pre-existing drifts
+      found in the same pass (see commit message).
+- [x] No rule's content changes. Pure de-duplication — `AGENTS.md`'s wording was not
+      edited by this task (the change-summary clause was already an uncommitted
+      pre-task edit; this task only commits it, per its own drift-detection logic).
+      One exception, made deliberately and not hidden: `CLAUDE.md`'s
+      `command-triggers` block previously carried a Claude-Code-specific aside
+      ("ideally in a fresh chat or Task-tool subagent") with no `AGENTS.md`
+      counterpart. A verbatim-copy generator has no way to keep a per-consumer
+      addition inside an otherwise-shared block without new templating machinery,
+      which is out of this task's scope; the aside is dropped by regeneration. Flag
+      for the developer: recover it later as an explicit Claude-Code-only addendum
+      capability if wanted, rather than reintroducing hand-drift.
+- [x] `python3 -m unittest discover -s tests -v` and `python3 scripts/check_repository.py` pass.
 
 ## 📁 Relevant Files
 
