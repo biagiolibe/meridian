@@ -12,39 +12,38 @@ numbers follow the `frameworkVersion` tracked in generated projects'
 
 ## [Unreleased]
 
-## [1.1.19]
-
-### Added
-
-- Migration `022-default-numeric-budgets`: replaces the execution-evidence
-  profile's empty diagnostic and evidence-capture `[policy]` placeholders
-  with concrete default caps a project inherits without configuring
-  anything — 3 diagnostic attempts per failure, 2 evidence captures per
-  acceptance criterion, and a newly declared 2 context expansions per task —
-  each with a one-line definition of what counts as one. Every default is a
-  cap, not a target: exhausting it requires `BLOCKED`, and raising one
-  requires a recorded rationale in the same shape `Reasoning justification`
-  already uses. `docs/CONTEXT_BUDGET_POLICY.md`'s "unbounded parameter
-  changes" wording now points at the profile's declared diagnostic-attempt
-  budget. `tasks/TASK_BLUEPRINT.md` gains three optional per-task override
-  fields for the same three caps. This makes the numbers exist; enforcing
-  them at runtime is later work.
-
 ## [1.1.18]
 
 ### Changed
 
-- Migration `021-output-bounds-in-command`: moves the output bound for
-  validation evidence from prose into the literal command string. The
-  execution-evidence profile's "Successful validation output" section now
-  records each required check as the exact command executed, including its
-  own output-bounding pipeline stage, with `set -o pipefail` (or
-  `${PIPESTATUS[0]}`) mandatory so the pipeline reports the validation
-  command's own exit status. `docs/CONTEXT_BUDGET_POLICY.md` is amended to
-  match: run the profile's literal declared command, do not run the bare
-  command and summarize afterwards. The template still names no language,
-  build tool, or test runner; per-stack worked examples live only in this
-  repository's own `WORKFLOW_GUIDE.md`.
+- Migration `021-concrete-execution-budgets`: makes the execution-evidence
+  profile's bounds concrete instead of nominal, in the two places it
+  previously left them to prose or to an empty placeholder.
+
+  The output bound moves from prose into the literal command string. A worker
+  previously ran a bare validation command and was asked to report a "concise
+  success-output form" afterwards, but that instruction can only govern how
+  output is restated once it has already returned to the session and been
+  billed in full. The profile now records each required check as the exact
+  command executed, including its own output-bounding pipeline stage, with
+  `set -o pipefail` (or `${PIPESTATUS[0]}`) mandatory so the pipeline reports
+  the validation command's own exit status rather than the trailing
+  formatter's.
+
+  The empty `[policy]` placeholders become default caps a project inherits
+  without configuring anything: 3 diagnostic attempts per failure, 2 evidence
+  captures per acceptance criterion, and a newly declared 2 context
+  expansions per task, each with a one-line definition of what counts as one.
+  Every default is a cap, not a target — exhausting it requires `BLOCKED` —
+  and raising one requires a recorded rationale in the same shape
+  `Reasoning justification` already uses.
+
+  `docs/CONTEXT_BUDGET_POLICY.md` is amended on both counts, and
+  `tasks/TASK_BLUEPRINT.md` gains three optional per-task override fields for
+  the same caps. The template still names no language, build tool, or test
+  runner, and prescribes no bound value; per-stack worked examples live only
+  in this repository's own `WORKFLOW_GUIDE.md`. This makes the bounds exist
+  and makes them concrete; enforcing them at runtime is later work.
 
 ## [1.1.17]
 
