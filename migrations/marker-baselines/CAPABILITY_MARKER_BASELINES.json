@@ -168,6 +168,10 @@
       "sha256": "744ce34f52706fc6fe4dc03c8073a1d3387c48d8b69e2071ba0598bdef0c97f3",
       "version": 1
     },
+    "queue-briefing": {
+      "sha256": "8180d822aa58891fd6e5e312567ed2c6293d207de893c78e2cb34a110d19daa3",
+      "version": 1
+    },
     "reasoning-budget-contract": {
       "sha256": "61399cc90c87a4de172354cb3626c20d185c7ec88a665192cf70663dcc7a4bba",
       "version": 1

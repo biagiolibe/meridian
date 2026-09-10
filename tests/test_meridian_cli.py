@@ -1490,6 +1490,7 @@ class CapabilityMarkerTest(unittest.TestCase):
         self.assertEqual(
             self.marker_pairs(text),
             [
+                ("queue-briefing", "1"),
                 ("minimal-read-only-status", "1"),
                 ("validation-scoping", "1"),
                 ("evidence-tiers", "1"),
