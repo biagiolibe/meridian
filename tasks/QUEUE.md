@@ -37,6 +37,7 @@ see `tasks/QUEUE_ARCHIVE.md`.
 | Status | ID | Title | Priority | Depends on | Task File |
 |--------|----|-------|----------|-----------|-----------|
 | `[ ]` | 013 | Evidence tiers and a routing rule for `Manual verification` | 🔴 P1 | — | [013](013-evidence-tiers-and-routing.md) |
+| `[ ]` | 014 | The `CLAUDE.md` generator altered protected marker content | 🔴 P1 | — | [014](014-generator-altered-protected-blocks.md) |
 
 Ship `013` together with `011`, per `011`'s bundling constraint.
 
