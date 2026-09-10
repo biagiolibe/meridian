@@ -14,18 +14,22 @@ its evidence probe had already failed.
 
 ## 📋 Acceptance Criteria
 
-- [ ] `manual-verification-precondition` becomes v2 and requires an **executable
+- [x] `manual-verification-precondition` becomes v2 and requires an **executable
       probe that actually succeeds** before implementation, replacing "confirm you
       can produce that evidence".
-- [ ] The deterministic-test escape hatch is narrowed so it suspends the
+- [x] The deterministic-test escape hatch is narrowed so it suspends the
       *requirement to capture* but never the *stop on a probe already attempted and
       failed*.
-- [ ] The new text names the forbidden recovery explicitly: do not respond to a
+- [x] The new text names the forbidden recovery explicitly: do not respond to a
       failed probe by exploring the local environment for an alternative.
-- [ ] Every asset carrying the capability is updated (`AGENTS.md`, `CLAUDE.md`, and
-      any doc `check_repository.py` ties to it).
-- [ ] A `migrations/023-*.json` record exists with `capabilityVersion: 2`.
-- [ ] `python3 -m unittest discover -s tests -v` and `python3 scripts/check_repository.py` pass.
+- [x] Every asset carrying the capability is updated (`AGENTS.md`, `CLAUDE.md`;
+      `check_repository.py` ties no doc to this specific capability — verified by
+      grep, nothing else to update).
+- [x] A `migrations/022-*.json` record exists with `capabilityVersion: 2`. (Numbered
+      `022`, not `023` as drafted: an external refactor collapsed migrations 021/022
+      into one `021-concrete-execution-budgets` before this task started, shifting the
+      next free slot down by one.)
+- [x] `python3 -m unittest discover -s tests -v` and `python3 scripts/check_repository.py` pass.
 
 ## 📁 Relevant Files
 

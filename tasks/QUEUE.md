@@ -40,7 +40,7 @@ session meant to obey it. Zero risk, and nothing depends on them.
 
 | Status | ID | Title | Priority | Depends on | Task File |
 |--------|----|-------|----------|-----------|-----------|
-| `[ ]` | 003 | Close the probe / escape-hatch composition | 🔴 P1 | — | [003](003-probe-escape-hatch.md) |
+| `[x]` | 003 | Close the probe / escape-hatch composition | 🔴 P1 | — | [003](done/003-probe-escape-hatch.md) |
 | `[ ]` | 004 | Generate `CLAUDE.md` from `AGENTS.md` | 🔴 P1 | — | [004](004-generate-claude-md.md) |
 | `[ ]` | 005 | Stop instructing sessions to read both files | 🟡 P2 | 004 | [005](005-prompts-read-one-file.md) |
 
@@ -74,6 +74,7 @@ few upgrades.
 | `[x]` | 001 | Output bounds belong in the command string | [001](done/001-output-bounds-in-command.md) |
 | `[x]` | 002 | Ship default numeric budgets, not empty brackets | [002](done/002-default-numeric-budgets.md) |
 | `[x]` | 006 | Budget state, CLI, and hook echo | [006](done/006-budget-cli-and-hook.md) |
+| `[x]` | 003 | Close the probe / escape-hatch composition | [003](done/003-probe-escape-hatch.md) |
 
 Phase 1 (001, 002, 006) is fully closed and moved to `tasks/QUEUE_ARCHIVE.md`;
 this table keeps a flat completed-task index across both files.
