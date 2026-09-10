@@ -657,6 +657,95 @@ class MeridianCliTest(unittest.TestCase):
         self.assertIn("Assisted adoption 1.0.0 ->", result.stdout)
 
 
+class GenerateClaudeMdTest(unittest.TestCase):
+    """`CLAUDE.md` is generated from `AGENTS.md` (task 004 of
+    docs/PLAN_TOKEN_EFFICIENCY.md): from `meridian.CLAUDE_MD_SHARED_ANCHOR`'s
+    heading onward, the committed `CLAUDE.md` must be byte-identical to what
+    `generate_claude_md` derives from the committed `AGENTS.md`, so the two
+    files cannot independently drift on content meant to be shared. Everything
+    above the anchor is each file's own hand-authored preamble and is exempt.
+    """
+
+    def test_committed_claude_md_matches_the_generator_for_every_mode(self) -> None:
+        for mode in meridian.CLAUDE_MD_SHARED_ANCHOR:
+            workflow = ROOT / "templates" / "workflows" / mode
+            agents_text = (workflow / "AGENTS.md").read_text(encoding="utf-8")
+            claude_text = (workflow / "CLAUDE.md").read_text(encoding="utf-8")
+            generated = meridian.generate_claude_md(mode, agents_text, claude_text)
+            self.assertEqual(
+                generated,
+                claude_text,
+                f"{mode}: CLAUDE.md has drifted from AGENTS.md past the shared anchor "
+                f"{meridian.CLAUDE_MD_SHARED_ANCHOR[mode]!r}",
+            )
+
+    def test_generator_reports_drift_when_claude_md_diverges(self) -> None:
+        agents_text = (
+            "# [Project Name] — Agent Rules\n\npreamble\n\n"
+            "## Code organization\n\nshared body.\n"
+        )
+        stale_claude_text = (
+            "# [Project Name]\n\nown preamble\n\n"
+            "## Code organization\n\nSTALE shared body.\n"
+        )
+        generated = meridian.generate_claude_md("governed-sdd", agents_text, stale_claude_text)
+        self.assertNotEqual(generated, stale_claude_text)
+        self.assertIn("own preamble", generated)
+        self.assertIn("shared body.\n", generated)
+        self.assertNotIn("STALE", generated)
+
+    def test_generator_raises_when_the_anchor_heading_is_missing(self) -> None:
+        with self.assertRaises(meridian.MeridianError):
+            meridian.generate_claude_md("governed-sdd", "no anchor here", "## Code organization\nbody")
+        with self.assertRaises(meridian.MeridianError):
+            meridian.generate_claude_md("governed-sdd", "## Code organization\nbody", "no anchor here")
+
+    def test_cli_check_and_write_round_trip_on_a_stale_copy(self) -> None:
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        framework = Path(temporary.name) / "framework"
+        workflow = framework / "templates" / "workflows" / "governed-sdd"
+        workflow.mkdir(parents=True)
+        source = ROOT / "templates" / "workflows" / "governed-sdd"
+        agents_text = (source / "AGENTS.md").read_text(encoding="utf-8")
+        claude_text = (source / "CLAUDE.md").read_text(encoding="utf-8")
+        (workflow / "AGENTS.md").write_text(
+            agents_text.replace("## Code organization", "## Code organization\n\nstale.", 1),
+            encoding="utf-8",
+        )
+        (workflow / "CLAUDE.md").write_text(claude_text, encoding="utf-8")
+
+        def run(*extra: str) -> subprocess.CompletedProcess[str]:
+            return subprocess.run(
+                [
+                    sys.executable,
+                    str(CLI),
+                    "--framework-root",
+                    str(framework),
+                    "generate-claude-md",
+                    "--mode",
+                    "governed-sdd",
+                    *extra,
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+        checked_before = run("--check")
+        self.assertEqual(checked_before.returncode, 2)
+        self.assertIn("STALE", checked_before.stderr)
+
+        written = run("--write")
+        self.assertEqual(written.returncode, 0, written.stderr)
+
+        checked_after = run("--check")
+        self.assertEqual(checked_after.returncode, 0, checked_after.stderr)
+        self.assertIn(
+            "stale.", (workflow / "CLAUDE.md").read_text(encoding="utf-8")
+        )
+
+
 class BudgetCliTest(unittest.TestCase):
     """`meridian budget`: durable per-task-per-attempt diagnostic/evidence/
     context-expansion counters (task 006 of docs/PLAN_TOKEN_EFFICIENCY.md)."""
