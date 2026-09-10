@@ -411,6 +411,17 @@ Delivery splits in two, and the split matters for planning:
 - **Applies cleanly.** W1.3 and W3.3 edit capability marker blocks, which is
   exactly what the marker mechanism exists to update. `meridian upgrade` handles
   these.
+**Correction.** An earlier draft, and commit `76ef6c8`'s message, justified
+collapsing two migration records by saying it halves the adopting project's
+reconciliation. That is wrong. `scripts/meridian.py`'s `merge_clean` performs a
+single three-way merge per file, from the stored baseline snapshot to the
+*current* template (`plan_from_baseline`) — not a replay of each migration in
+turn. Reconciliation cost is therefore per upgrade **run**, per file, and is
+unaffected by how many records the run spans. Collapsing those two records was
+still right — one coherent record, one CHANGELOG entry, and it resolved a schema
+inconsistency — but the saving it buys is in history and review, not in operator
+effort. What actually spares an operator is not making the project upgrade twice.
+
 - **Needs an operator reconciliation pass.** W1.1 and W1.2 change
   `EXECUTION_EVIDENCE_PROFILE.md` — a *project-owned* file that Palimpsest has
   legitimately filled in with substantial custom content (its Rust command forms,
