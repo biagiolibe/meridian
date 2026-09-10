@@ -1,9 +1,10 @@
 # Task [ID] — [Title]
 
-<!-- MERIDIAN:BEGIN capability=task-blueprint v4 -->
+<!-- MERIDIAN:BEGIN capability=task-blueprint v5 -->
 Priority: [P0 / P1 / P2]
 Status: QUEUED
 Review: REQUIRED
+Class: [omit for a normal task / SPIKE]
 Manual verification: [none / required]
 Dependencies: [none / TASK-ID, ...]
 Reasoning: [low / medium / high / xhigh]
@@ -24,6 +25,25 @@ optional per-task caps; omit any of them to inherit
 exhausting it requires `BLOCKED`, not a silently raised cap. Setting one
 above the profile's default requires a one-line rationale in this task, the
 same way `Reasoning justification` documents `high`/`xhigh`.
+
+## Spike shape
+
+A `Class: SPIKE` task replaces `Review`, `Goal`, `Expected code surface`, and
+`Acceptance criteria` with:
+
+```text
+Class:       SPIKE
+Question:    [the thing that is not known]
+Budget:      [max iterations / max wall time]
+Deliverable: an ADR or a documented reference value — not production code
+Branch:      throwaway, never merged
+```
+
+The branch may contain code needed to answer `Question` — a probe binary, a
+reproduction, a benchmark harness. Only the branch is throwaway, not
+everything run on it: the constraint is on what gets merged (nothing) and
+what ships (the `Deliverable` alone, committed directly to `main`), not on
+what the investigation is allowed to execute.
 
 ## Authority
 
@@ -56,4 +76,5 @@ same way `Reasoning justification` documents `high`/`xhigh`.
 
 - For `Review: REQUIRED`, set this task and its queue row to `READY_FOR_REVIEW` only after validation passes.
 - For `Review: NOT_REQUIRED`, set this task and its queue row to `ACCEPTED` only after validation passes.
+- For `Class: SPIKE`, once `Budget` is exhausted or `Question` is answered, whichever comes first, self-administer `PROJECT_WORKFLOW.md`'s spike close-out gate and set this task and its queue row to `ANSWERED` or `INCONCLUSIVE`.
 <!-- MERIDIAN:END -->

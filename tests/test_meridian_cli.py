@@ -969,6 +969,7 @@ class CapabilityMarkerTest(unittest.TestCase):
             self.assertIn(("review-remediation-record", "2"), pairs, name)
             self.assertIn(("lifecycle-orchestration", "3"), pairs, name)
             self.assertIn(("validation-scoping", "1"), pairs, name)
+            self.assertIn(("spike-routing", "1"), pairs, name)
 
     def test_review_record_template_carries_its_own_marker(self) -> None:
         text = (self.WORKFLOW / "docs/REVIEW_RECORD_TEMPLATE.md").read_text(encoding="utf-8")
@@ -1017,7 +1018,7 @@ class CapabilityMarkerTest(unittest.TestCase):
             encoding="utf-8"
         )
 
-        self.assertIn(("task-blueprint", "4"), self.marker_pairs(blueprint))
+        self.assertIn(("task-blueprint", "5"), self.marker_pairs(blueprint))
         self.assertIn(("reasoning-budget-contract", "1"), self.marker_pairs(policy))
         self.assertIn(("lifecycle-orchestration", "3"), self.marker_pairs(lifecycle))
         self.assertIn("[low / medium / high / xhigh]", blueprint)
@@ -1091,27 +1092,25 @@ class CapabilityMarkerTest(unittest.TestCase):
     def test_project_workflow_carries_all_eight_baseline_capabilities(self) -> None:
         text = (self.WORKFLOW / "PROJECT_WORKFLOW.md").read_text(encoding="utf-8")
         pairs = self.marker_pairs(text)
-        self.assertEqual(
-            sorted(pairs),
-            sorted(
-                (capability, "1")
-                for capability in (
-                    "workflow-mode-lock",
-                    "document-precedence",
-                    "task-lifecycle",
-                    "execution-assets",
-                    "roles",
-                    "review-policy",
-                    "git-workflow",
-                    "execution-discipline",
-                )
-            ),
-        )
+        expected = {
+            capability: "1"
+            for capability in (
+                "workflow-mode-lock",
+                "document-precedence",
+                "execution-assets",
+                "roles",
+                "git-workflow",
+                "execution-discipline",
+            )
+        }
+        expected["task-lifecycle"] = "2"
+        expected["review-policy"] = "2"
+        self.assertEqual(sorted(pairs), sorted(expected.items()))
 
     def test_whole_file_baseline_capabilities_each_carry_one_marker(self) -> None:
         expectations = {
             "LANGUAGE_POLICY.md": ("language-policy", "2"),
-            "tasks/TASK_BLUEPRINT.md": ("task-blueprint", "4"),
+            "tasks/TASK_BLUEPRINT.md": ("task-blueprint", "5"),
             "docs/CODE_ORGANIZATION.md": ("code-organization", "1"),
             "docs/AUDIT_PROMPT_READ_ONLY.md": ("audit-prompt", "1"),
         }
