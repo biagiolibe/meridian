@@ -1114,6 +1114,93 @@ def finalize_adoption(
     print("Adoption finalized. Review the migration diff and commit the project baseline.")
 
 
+BUDGET_PATH = Path(".meridian/budget.json")
+BUDGET_KINDS = ("diagnostic", "captures", "expansions")
+BUDGET_DEFAULT_CAPS = {"diagnostic": 3, "captures": 2, "expansions": 2}
+BUDGET_FIELD_NAMES = {
+    "diagnostic": "Diagnostic attempts",
+    "captures": "Evidence captures",
+    "expansions": "Context expansions",
+}
+
+
+def load_budget_state(project_root: Path) -> dict[str, object]:
+    path = project_root / BUDGET_PATH
+    if not path.is_file():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        raise MeridianError(f"invalid budget state: {path}") from error
+
+
+def write_budget_state(project_root: Path, state: dict[str, object]) -> None:
+    path = project_root / BUDGET_PATH
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def read_task_field(text: str, field: str) -> str | None:
+    match = re.search(rf"^{re.escape(field)}:\s*(.+)$", text, re.MULTILINE)
+    if not match:
+        return None
+    return match.group(1).strip()
+
+
+def task_cap(text: str, kind: str) -> int:
+    raw = read_task_field(text, BUDGET_FIELD_NAMES[kind])
+    if raw and raw.isdigit():
+        return int(raw)
+    return BUDGET_DEFAULT_CAPS[kind]
+
+
+def resolve_budget_key(project_root: Path, state: dict[str, object], task_id: str) -> tuple[str, str]:
+    """Return the qualified `<TASK-ID>:<attempt>` state key and the task file's
+    text, bumping `state`'s attempt bookkeeping in place when the task file
+    shows a fresh READY_FOR_REVIEW -> IN_PROGRESS transition (a new
+    remediation attempt) since the last time this was resolved.
+    """
+    task_file = project_root / "tasks" / f"{task_id}.md"
+    if not task_file.is_file():
+        raise MeridianError(f"unknown task: {task_id}")
+    text = task_file.read_text(encoding="utf-8")
+    status = read_task_field(text, "Status") or "UNKNOWN"
+    meta = dict(state.get(task_id) or {"attempt": 1, "lastStatus": None})
+    if meta.get("lastStatus") == "READY_FOR_REVIEW" and status == "IN_PROGRESS":
+        meta["attempt"] = int(meta.get("attempt", 1)) + 1
+    meta["lastStatus"] = status
+    state[task_id] = meta
+    return f"{task_id}:{meta['attempt']}", text
+
+
+def budget_show(project_root: Path, task_id: str) -> str:
+    state = load_budget_state(project_root)
+    key, text = resolve_budget_key(project_root, state, task_id)
+    write_budget_state(project_root, state)
+    counters = state.get(key, {})
+    parts = []
+    for kind, label in (("diagnostic", "Diagnostics"), ("captures", "Captures"), ("expansions", "Expansions")):
+        parts.append(f"{label} {int(counters.get(kind, 0))}/{task_cap(text, kind)}")
+    return " · ".join(parts)
+
+
+def budget_spend(project_root: Path, task_id: str, kind: str) -> tuple[int, int]:
+    state = load_budget_state(project_root)
+    key, text = resolve_budget_key(project_root, state, task_id)
+    counters = dict(state.get(key, {}))
+    count = int(counters.get(kind, 0)) + 1
+    counters[kind] = count
+    state[key] = counters
+    write_budget_state(project_root, state)
+    cap = task_cap(text, kind)
+    if count >= cap:
+        raise MeridianError(
+            f"{BUDGET_FIELD_NAMES[kind]} exhausted for {task_id} ({count}/{cap}); "
+            "return BLOCKED, do not raise the cap"
+        )
+    return count, cap
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(prog="meridian")
     parser.add_argument(
@@ -1194,6 +1281,23 @@ def main() -> int:
         help="detected from the project's PROJECT_WORKFLOW.md mode lock when omitted",
     )
 
+    budget = subparsers.add_parser(
+        "budget",
+        help="track a governed-SDD task's diagnostic/evidence/context-expansion caps",
+    )
+    budget_sub = budget.add_subparsers(dest="budget_command", required=True)
+
+    budget_show_parser = budget_sub.add_parser("show", help="print the active attempt's budget state")
+    budget_show_parser.add_argument("task_id")
+    budget_show_parser.add_argument("--project", type=Path, default=Path.cwd())
+
+    budget_spend_parser = budget_sub.add_parser(
+        "spend", help="record one diagnostic/evidence/context use and check the declared cap"
+    )
+    budget_spend_parser.add_argument("task_id")
+    budget_spend_parser.add_argument("kind", choices=BUDGET_KINDS)
+    budget_spend_parser.add_argument("--project", type=Path, default=Path.cwd())
+
     arguments = parser.parse_args()
     framework_root = arguments.framework_root.resolve()
     project_root = arguments.project.resolve()
@@ -1228,6 +1332,12 @@ def main() -> int:
         elif arguments.command == "audit":
             mode = arguments.mode or detect_mode(project_root)
             return run_audit(project_root, framework_root, mode)
+        elif arguments.command == "budget":
+            if arguments.budget_command == "show":
+                print(budget_show(project_root, arguments.task_id))
+            else:
+                count, cap = budget_spend(project_root, arguments.task_id, arguments.kind)
+                print(f"{arguments.task_id}: {arguments.kind} {count}/{cap}")
         elif arguments.check:
             if arguments.owner_reconciled:
                 raise MeridianError("--owner-reconciled only applies to --apply")

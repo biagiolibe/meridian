@@ -657,6 +657,106 @@ class MeridianCliTest(unittest.TestCase):
         self.assertIn("Assisted adoption 1.0.0 ->", result.stdout)
 
 
+class BudgetCliTest(unittest.TestCase):
+    """`meridian budget`: durable per-task-per-attempt diagnostic/evidence/
+    context-expansion counters (task 006 of docs/PLAN_TOKEN_EFFICIENCY.md)."""
+
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory()
+        self.project = Path(self.temporary.name) / "project"
+        (self.project / "tasks").mkdir(parents=True)
+
+    def tearDown(self) -> None:
+        self.temporary.cleanup()
+
+    def write_task(self, task_id: str, status: str, **overrides: str) -> None:
+        lines = [f"Status: {status}"]
+        for field, value in overrides.items():
+            lines.append(f"{field}: {value}")
+        (self.project / "tasks" / f"{task_id}.md").write_text(
+            "\n".join(lines) + "\n", encoding="utf-8"
+        )
+
+    def budget_state(self) -> dict:
+        return json.loads((self.project / ".meridian/budget.json").read_text(encoding="utf-8"))
+
+    def run_cli(self, *arguments: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [sys.executable, str(CLI), *arguments, "--project", str(self.project)],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+    def test_show_defaults_with_no_state(self) -> None:
+        self.write_task("TASK-001", "IN_PROGRESS")
+        result = self.run_cli("budget", "show", "TASK-001")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            result.stdout.strip(), "Diagnostics 0/3 · Captures 0/2 · Expansions 0/2"
+        )
+
+    def test_spend_increments_and_reports(self) -> None:
+        self.write_task("TASK-002", "IN_PROGRESS")
+        first = self.run_cli("budget", "spend", "TASK-002", "diagnostic")
+        self.assertEqual(first.returncode, 0, first.stderr)
+        self.assertEqual(first.stdout.strip(), "TASK-002: diagnostic 1/3")
+        second = self.run_cli("budget", "spend", "TASK-002", "diagnostic")
+        self.assertEqual(second.stdout.strip(), "TASK-002: diagnostic 2/3")
+
+    def test_spend_returns_non_zero_and_names_blocked_once_cap_reached(self) -> None:
+        self.write_task("TASK-003", "IN_PROGRESS")
+        # Default cap is 2 captures; the first spend stays under it.
+        self.assertEqual(
+            self.run_cli("budget", "spend", "TASK-003", "captures").returncode, 0
+        )
+        exhausted = self.run_cli("budget", "spend", "TASK-003", "captures")
+        self.assertNotEqual(exhausted.returncode, 0)
+        self.assertIn("BLOCKED", exhausted.stderr)
+        self.assertIn("Evidence captures exhausted", exhausted.stderr)
+        self.assertIn("(2/2)", exhausted.stderr)
+
+    def test_spend_respects_task_override_cap(self) -> None:
+        self.write_task("TASK-004", "IN_PROGRESS", **{"Diagnostic attempts": "1"})
+        first = self.run_cli("budget", "spend", "TASK-004", "diagnostic")
+        self.assertNotEqual(first.returncode, 0)
+        self.assertIn("(1/1)", first.stderr)
+
+    def test_unknown_task_is_blocked_without_writing_state(self) -> None:
+        result = self.run_cli("budget", "show", "TASK-NOPE")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("unknown task", result.stderr)
+        self.assertFalse((self.project / ".meridian/budget.json").exists())
+
+    def test_missing_budget_file_is_treated_as_a_fresh_project(self) -> None:
+        self.write_task("TASK-005", "IN_PROGRESS")
+        self.assertFalse((self.project / ".meridian/budget.json").exists())
+        result = self.run_cli("budget", "show", "TASK-005")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("0/3", result.stdout)
+
+    def test_new_review_attempt_gets_a_fresh_allocation(self) -> None:
+        self.write_task("TASK-006", "IN_PROGRESS")
+        self.run_cli("budget", "spend", "TASK-006", "diagnostic")
+        self.run_cli("budget", "spend", "TASK-006", "diagnostic")
+
+        # Reviewer's handoff commit moves the task to READY_FOR_REVIEW...
+        self.write_task("TASK-006", "READY_FOR_REVIEW")
+        self.run_cli("budget", "show", "TASK-006")
+        # ...then `Address review TASK-006` moves it back to IN_PROGRESS: a
+        # new remediation attempt, which must not inherit the old counters.
+        self.write_task("TASK-006", "IN_PROGRESS")
+
+        after = self.run_cli("budget", "spend", "TASK-006", "diagnostic")
+        self.assertEqual(after.returncode, 0, after.stderr)
+        self.assertEqual(after.stdout.strip(), "TASK-006: diagnostic 1/3")
+
+        state = self.budget_state()
+        self.assertEqual(state["TASK-006"]["attempt"], 2)
+        self.assertEqual(state["TASK-006:1"]["diagnostic"], 2)
+        self.assertEqual(state["TASK-006:2"]["diagnostic"], 1)
+
+
 class CapabilityMarkerTest(unittest.TestCase):
     """Phase 1 of migrations/CAPABILITY_MARKERS.md: markers exist and are well-formed.
 

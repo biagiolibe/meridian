@@ -16,6 +16,17 @@ if grep -q '^| Order | ID | Priority | Status | Review | Dependencies |' "$QUEUE
 
   echo "[Meridian Governed Queue]"
   [ -n "$ACTIVE" ] && echo "  🔴 In progress: $ACTIVE" || echo "  ✅ No active task"
+  # Echo the active task's diagnostic/evidence/context-expansion budget so
+  # the cap stays at maximum salience every turn instead of a rule read once
+  # at turn 1. Silent whenever there is no active task, no meridian CLI, or
+  # the CLI itself has nothing to report (unknown task, stale queue row).
+  if [ -n "$ACTIVE" ] && [ -n "$CLAUDE_PLUGIN_ROOT" ] && [ -x "$CLAUDE_PLUGIN_ROOT/bin/meridian" ]; then
+    BUDGET=$("$CLAUDE_PLUGIN_ROOT/bin/meridian" budget show "$ACTIVE" --project . 2>/dev/null)
+    if [ -n "$BUDGET" ]; then
+      echo "  ⏱  $BUDGET"
+      echo "  ⛔ On exhaustion: return BLOCKED. Do not raise a cap."
+    fi
+  fi
   [ -n "$REVIEW" ] && echo "  🔎 In review: $REVIEW"
   [ -n "$PENDING" ] && echo "  ⏳ Queued: $PENDING"
   echo "  ✅ Accepted: $ACCEPTED"

@@ -14,17 +14,17 @@ the audit exists to argue for.
 
 ## 📋 Acceptance Criteria
 
-- [ ] `.meridian/budget.json` stores per-task-per-attempt counters.
-- [ ] `meridian budget show <TASK-ID>` prints the current state.
-- [ ] `meridian budget spend <TASK-ID> <kind>` increments, and **returns non-zero
+- [x] `.meridian/budget.json` stores per-task-per-attempt counters.
+- [x] `meridian budget show <TASK-ID>` prints the current state.
+- [x] `meridian budget spend <TASK-ID> <kind>` increments, and **returns non-zero
       once the declared cap is reached**, with a message naming `BLOCKED` as the
       required next move.
-- [ ] `hooks/queue-briefing.sh` prints the active task's budget line.
-- [ ] The briefing stays silent in a non-Meridian project and when no task is active,
+- [x] `hooks/queue-briefing.sh` prints the active task's budget line.
+- [x] The briefing stays silent in a non-Meridian project and when no task is active,
       matching the hook's existing behavior.
-- [ ] Unit tests cover: increment, cap reached, unknown task, missing budget file,
+- [x] Unit tests cover: increment, cap reached, unknown task, missing budget file,
       and a fresh allocation on a new attempt.
-- [ ] `python3 -m unittest discover -s tests -v` and `python3 scripts/check_repository.py` pass.
+- [x] `python3 -m unittest discover -s tests -v` and `python3 scripts/check_repository.py` pass.
 
 ## 📁 Relevant Files
 
