@@ -41,7 +41,7 @@ session meant to obey it. Zero risk, and nothing depends on them.
 | Status | ID | Title | Priority | Depends on | Task File |
 |--------|----|-------|----------|-----------|-----------|
 | `[x]` | 003 | Close the probe / escape-hatch composition | 🔴 P1 | — | [003](done/003-probe-escape-hatch.md) |
-| `[ ]` | 004 | Generate `CLAUDE.md` from `AGENTS.md` | 🔴 P1 | — | [004](004-generate-claude-md.md) |
+| `[x]` | 004 | Generate `CLAUDE.md` from `AGENTS.md` | 🔴 P1 | — | [004](done/004-generate-claude-md.md) |
 | `[ ]` | 005 | Stop instructing sessions to read both files | 🟡 P2 | 004 | [005](005-prompts-read-one-file.md) |
 
 ### Phase 2b — Found in the field
@@ -79,9 +79,11 @@ reconciliation.
 
 ## 🧪 Quick Tasks (No File)
 
-| Status | Description | Priority |
-|--------|-------------|----------|
-| `[ ]` | Decide the fate of the one remaining uncommitted working-tree edit (`AGENTS.md`'s change-summary line) — see the standing caution in `docs/PLAN_TOKEN_EFFICIENCY.md`. It is task 004's proof case for the `AGENTS.md`/`CLAUDE.md` asymmetry; do not hand-mirror it. The other two edits are resolved: task 001 shipped the output-bound rewrite and task 002 filled the `[policy]` placeholder with a default number. | 🟡 P2 |
+None currently. The three pre-queue uncommitted working-tree edits flagged at
+project start are all resolved: task 001 shipped the output-bound rewrite,
+task 002 filled the `[policy]` placeholder with a default number, and task 004
+committed the `AGENTS.md` change-summary line as its own drift proof case,
+then folded it into the regenerated `CLAUDE.md`.
 
 ## ✅ Archived (Completed)
 
@@ -91,6 +93,7 @@ reconciliation.
 | `[x]` | 002 | Ship default numeric budgets, not empty brackets | [002](done/002-default-numeric-budgets.md) |
 | `[x]` | 006 | Budget state, CLI, and hook echo | [006](done/006-budget-cli-and-hook.md) |
 | `[x]` | 003 | Close the probe / escape-hatch composition | [003](done/003-probe-escape-hatch.md) |
+| `[x]` | 004 | Generate `CLAUDE.md` from `AGENTS.md` | [004](done/004-generate-claude-md.md) |
 
 Phase 1 (001, 002, 006) is fully closed and moved to `tasks/QUEUE_ARCHIVE.md`;
 this table keeps a flat completed-task index across both files.
