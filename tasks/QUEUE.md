@@ -32,6 +32,14 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 Ordered by return, not by effort. Phases 1, 2, 2b, and 3 are fully closed —
 see `tasks/QUEUE_ARCHIVE.md`.
 
+### Phase 3b — Route work away from manual evidence
+
+| Status | ID | Title | Priority | Depends on | Task File |
+|--------|----|-------|----------|-----------|-----------|
+| `[ ]` | 013 | Evidence tiers and a routing rule for `Manual verification` | 🔴 P1 | — | [013](013-evidence-tiers-and-routing.md) |
+
+Ship `013` together with `011`, per `011`'s bundling constraint.
+
 ### Phase 4 — Stop the ratchet
 
 Buys no tokens directly. It is what keeps phases 1–3 from being undone by the next
