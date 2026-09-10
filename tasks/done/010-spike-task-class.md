@@ -14,14 +14,14 @@ reason to brake.
 
 ## 📋 Acceptance Criteria
 
-- [ ] `PROJECT_WORKFLOW.md` defines the `SPIKE` class and its lifecycle.
-- [ ] `TASK_BLUEPRINT.md` defines the spike task shape.
-- [ ] `AGENTS.md` defines the routing rule: an implementation task whose acceptance
+- [x] `PROJECT_WORKFLOW.md` defines the `SPIKE` class and its lifecycle.
+- [x] `TASK_BLUEPRINT.md` defines the spike task shape.
+- [x] `AGENTS.md` defines the routing rule: an implementation task whose acceptance
       criteria cannot be evaluated without first discovering an unknown must return
       `BLOCKED` **naming the spike it needs**.
-- [ ] The four design questions below are answered in the shipped text, not left open.
-- [ ] A migration record ships it.
-- [ ] `python3 -m unittest discover -s tests -v` and `python3 scripts/check_repository.py` pass.
+- [x] The four design questions below are answered in the shipped text, not left open.
+- [x] A migration record ships it.
+- [x] `python3 -m unittest discover -s tests -v` and `python3 scripts/check_repository.py` pass.
 
 ## 🧩 Technical Context
 

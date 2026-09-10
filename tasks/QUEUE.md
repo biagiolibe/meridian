@@ -29,14 +29,8 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 
 ## 🏃 Active Queue
 
-Ordered by return, not by effort. Phases 1, 2, and 2b are fully closed — see
-`tasks/QUEUE_ARCHIVE.md`.
-
-### Phase 3 — The cause
-
-| Status | ID | Title | Priority | Depends on | Task File |
-|--------|----|-------|----------|-----------|-----------|
-| `[ ]` | 010 | A `SPIKE` task class | 🟡 P2 | — | [010](010-spike-task-class.md) |
+Ordered by return, not by effort. Phases 1, 2, 2b, and 3 are fully closed —
+see `tasks/QUEUE_ARCHIVE.md`.
 
 ### Phase 4 — Stop the ratchet
 
@@ -74,9 +68,10 @@ then folded it into the regenerated `CLAUDE.md`.
 | `[x]` | 004 | Generate `CLAUDE.md` from `AGENTS.md` | [004](done/004-generate-claude-md.md) |
 | `[x]` | 005 | Stop instructing sessions to read both files | [005](done/005-prompts-read-one-file.md) |
 | `[x]` | 012 | `append_only_new_markers` treats a version bump as a new capability | [012](done/012-marker-supersession.md) |
+| `[x]` | 010 | A `SPIKE` task class | [010](done/010-spike-task-class.md) |
 
-Phases 1, 2, and 2b (001, 002, 006, 003, 004, 005, 012) are fully closed and
-moved to `tasks/QUEUE_ARCHIVE.md`; this table keeps a flat completed-task
-index across both files.
+Phases 1, 2, 2b, and 3 (001, 002, 006, 003, 004, 005, 012, 010) are fully
+closed and moved to `tasks/QUEUE_ARCHIVE.md`; this table keeps a flat
+completed-task index across both files.
 
 *Last updated: 2026-09-10*

@@ -49,4 +49,10 @@ capability version bump silently accumulates a contradictory pair.
 |--------|----|-------|----------|-----------|-----------|
 | `[x]` | 012 | `append_only_new_markers` treats a version bump as a new capability | 🔴 P1 | — | [012](done/012-marker-supersession.md) |
 
+### Phase 3 — The cause
+
+| Status | ID | Title | Priority | Depends on | Task File |
+|--------|----|-------|----------|-----------|-----------|
+| `[x]` | 010 | A `SPIKE` task class | 🟡 P2 | — | [010](done/010-spike-task-class.md) |
+
 *Archived: 2026-09-10*
