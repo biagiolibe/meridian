@@ -85,7 +85,7 @@ matches the actual diff surface, that nothing relevant was skipped, and that
 nothing irrelevant was run and reported as if it were meaningful evidence.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=execution-evidence-profile v1 -->
+<!-- MERIDIAN:BEGIN capability=execution-evidence-profile v2 -->
 ## Execution evidence discipline
 
 Apply the project-specific `docs/EXECUTION_EVIDENCE_PROFILE.md` before an
@@ -98,10 +98,13 @@ first implementation after an upgrade that adds it.
   successful command output already available in the active session unless the
   source changed or an exact passage is needed to resolve a recorded evidence
   gap.
-- Execute every required validation command, but use the profile's concise
-  success-output form. Preserve the command and exit status; expose expanded
-  logs only for a failure, and start with the narrowest diagnostic output that
-  can identify the failing component.
+- Run the profile's literal declared command string for every required
+  validation command, output bound included; do not run the bare command and
+  summarize or truncate its output afterwards, since a bound applied only
+  after the fact cannot stop already-billed output from entering context.
+  Preserve the command and its exit status; expose expanded logs only for a
+  failure, and start with the narrowest diagnostic output that can identify
+  the failing component.
 - Escalate diagnostics progressively. Do not request a full backtrace, trace,
   verbose mode, or complete log until ordinary output and a targeted diagnostic
   leave the cause or location unresolved. Record the reason for escalation.

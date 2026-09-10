@@ -141,7 +141,7 @@ class MeridianCliTest(unittest.TestCase):
         profile = self.framework / "templates/workflows/governed-sdd/docs/EXECUTION_EVIDENCE_PROFILE.md"
         incoming_policy = policy.read_text(encoding="utf-8")
         marker = re.search(
-            r"<!-- MERIDIAN:BEGIN capability=execution-evidence-profile v1 -->\n?.*?"
+            r"<!-- MERIDIAN:BEGIN capability=execution-evidence-profile v2 -->\n?.*?"
             r"<!-- MERIDIAN:END -->\n?",
             incoming_policy,
             re.DOTALL,
@@ -188,7 +188,7 @@ class MeridianCliTest(unittest.TestCase):
         )
         self.assertIsNotNone(appended)
         self.assertIn("## Project validation baseline", appended)
-        self.assertIn("capability=execution-evidence-profile v1", appended)
+        self.assertIn("capability=execution-evidence-profile v2", appended)
 
         checked = self.run_cli("upgrade", "--check")
         self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
@@ -199,7 +199,7 @@ class MeridianCliTest(unittest.TestCase):
         upgraded = local_policy.read_text(encoding="utf-8")
         self.assertIn("## Project validation baseline", upgraded)
         self.assertIn("capability=validation-scoping v1", upgraded)
-        self.assertIn("capability=execution-evidence-profile v1", upgraded)
+        self.assertIn("capability=execution-evidence-profile v2", upgraded)
         self.assertTrue((self.project / "docs/EXECUTION_EVIDENCE_PROFILE.md").is_file())
 
     def test_upgrade_does_not_require_a_capability_not_marked_in_this_file(self) -> None:
@@ -702,7 +702,7 @@ class CapabilityMarkerTest(unittest.TestCase):
                 ("role-scoped-agent-rules", "1"),
                 ("minimal-read-only-status", "1"),
                 ("validation-scoping", "1"),
-                ("execution-evidence-profile", "1"),
+                ("execution-evidence-profile", "2"),
                 ("reasoning-budget-contract", "1"),
             ],
         )
@@ -712,7 +712,7 @@ class CapabilityMarkerTest(unittest.TestCase):
         profile = (self.WORKFLOW / "docs/EXECUTION_EVIDENCE_PROFILE.md").read_text(
             encoding="utf-8"
         )
-        self.assertIn(("execution-evidence-profile", "1"), self.marker_pairs(policy))
+        self.assertIn(("execution-evidence-profile", "2"), self.marker_pairs(policy))
         self.assertIn("Successful validation output", profile)
         self.assertIn("Failure diagnostics", profile)
         self.assertIn("Manual evidence", profile)

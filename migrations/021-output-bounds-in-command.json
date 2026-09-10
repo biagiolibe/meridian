@@ -1,0 +1,18 @@
+{
+  "id": "021-output-bounds-in-command",
+  "from": "1.1.17",
+  "to": "1.1.18",
+  "description": "Moves the output bound for validation evidence from prose into the literal command string itself. A worker previously ran a bare validation command and was asked to report a 'concise success-output form' afterwards; that instruction can only govern how output is restated once it has already returned to the session and been billed in full, since it arrives whole regardless of how it is later summarized. The execution-evidence profile's 'Successful validation output' section now records each required check as the exact command string executed, including its own output-bounding pipeline stage, with `set -o pipefail` (or `${PIPESTATUS[0]}`) mandatory so the pipeline reports the validation command's own exit status rather than the trailing formatter's. `docs/CONTEXT_BUDGET_POLICY.md`'s execution-evidence-discipline capability is amended to match: run the profile's literal declared command, do not run the bare command and summarize afterwards. The template remains stack-agnostic and does not prescribe a bound value or name a language, build tool, or test runner; per-stack worked examples live only in the framework repository's own `WORKFLOW_GUIDE.md`, not in a shipped template.",
+  "capability": "execution-evidence-profile",
+  "capabilityVersion": 2,
+  "delta": "Replace the 'Execute every required validation command, but use the profile's concise success-output form' bullet with a rule to run the profile's literal declared command string, output bound included, instead of running the bare command and summarizing afterwards. No other bullet in the execution-evidence-profile marker changes.",
+  "managedPaths": [
+    "docs/CONTEXT_BUDGET_POLICY.md",
+    "docs/EXECUTION_EVIDENCE_PROFILE.md"
+  ],
+  "verification": [
+    "docs/CONTEXT_BUDGET_POLICY.md's execution-evidence-profile marker is v2 and its validation-command bullet requires running the profile's literal declared command string rather than a bare command plus prose summarization",
+    "docs/EXECUTION_EVIDENCE_PROFILE.md's 'Successful validation output' section asks for the complete literal command string including its output bound, states the pipefail/PIPESTATUS exit-status rule and why a pipeline otherwise reports success, and leaves the bound value to the project",
+    "docs/EXECUTION_EVIDENCE_PROFILE.md names no language, build tool, or test runner"
+  ]
+}

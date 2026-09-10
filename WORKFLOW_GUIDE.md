@@ -69,6 +69,47 @@ After the agent finishes:
 3. Mark it `[x]` in `QUEUE.md` and `PROJECT_PLAN.md`.
 4. When the last open task in an Active Queue phase or section is complete, move that section to `tasks/QUEUE_ARCHIVE.md` (create it when absent). `QUEUE.md` should contain only work with something still open, keeping the context cost low.
 
+## Bounded validation commands by stack
+
+`docs/EXECUTION_EVIDENCE_PROFILE.md` asks a governed-SDD project to record
+each required validation check as the literal command string it runs,
+output bound included, using the stack-agnostic shape:
+
+```bash
+set -o pipefail
+<validation command> 2>&1 | tail -n <chosen bound>
+```
+
+The template itself names no language, build tool, or test runner; these
+worked examples exist only here, in this repository's own documentation, not
+in anything copied into a project.
+
+**Rust (`cargo`)**
+
+```bash
+set -o pipefail
+cargo test --workspace 2>&1 | tail -n 60
+```
+
+**Node.js (`npm`)**
+
+```bash
+set -o pipefail
+npm test --silent 2>&1 | tail -n 60
+```
+
+**Python (`pytest`)**
+
+```bash
+set -o pipefail
+python3 -m pytest -q 2>&1 | tail -n 60
+```
+
+In each case, `set -o pipefail` is what makes the pipeline's exit status
+reflect the validation command instead of `tail`'s (which always succeeds).
+Where the shell lacks `pipefail`, capture `${PIPESTATUS[0]}` immediately
+after the pipeline and report that value instead.
+
 ## Tips for success
 
 - **Keep tasks atomic**: if a task takes more than two hours, it can probably be split into smaller tasks.
