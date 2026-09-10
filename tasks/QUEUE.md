@@ -29,20 +29,8 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 
 ## 🏃 Active Queue
 
-Ordered by return, not by effort. Phase 1 (cost reduction, where the large saving
-actually lives) is fully closed — see `tasks/QUEUE_ARCHIVE.md`. Phase 2 is
-correctness work that blocks nothing and can slip without cost.
-
-### Phase 2 — Correctness and drift (~1 day)
-
-Little token value on their own; each fixes a rule that does not currently reach the
-session meant to obey it. Zero risk, and nothing depends on them.
-
-| Status | ID | Title | Priority | Depends on | Task File |
-|--------|----|-------|----------|-----------|-----------|
-| `[x]` | 003 | Close the probe / escape-hatch composition | 🔴 P1 | — | [003](done/003-probe-escape-hatch.md) |
-| `[x]` | 004 | Generate `CLAUDE.md` from `AGENTS.md` | 🔴 P1 | — | [004](done/004-generate-claude-md.md) |
-| `[ ]` | 005 | Stop instructing sessions to read both files | 🟡 P2 | 004 | [005](005-prompts-read-one-file.md) |
+Ordered by return, not by effort. Phases 1 and 2 are fully closed — see
+`tasks/QUEUE_ARCHIVE.md`.
 
 ### Phase 2b — Found in the field
 
@@ -94,8 +82,10 @@ then folded it into the regenerated `CLAUDE.md`.
 | `[x]` | 006 | Budget state, CLI, and hook echo | [006](done/006-budget-cli-and-hook.md) |
 | `[x]` | 003 | Close the probe / escape-hatch composition | [003](done/003-probe-escape-hatch.md) |
 | `[x]` | 004 | Generate `CLAUDE.md` from `AGENTS.md` | [004](done/004-generate-claude-md.md) |
+| `[x]` | 005 | Stop instructing sessions to read both files | [005](done/005-prompts-read-one-file.md) |
 
-Phase 1 (001, 002, 006) is fully closed and moved to `tasks/QUEUE_ARCHIVE.md`;
-this table keeps a flat completed-task index across both files.
+Phases 1 and 2 (001, 002, 006, 003, 004, 005) are fully closed and moved to
+`tasks/QUEUE_ARCHIVE.md`; this table keeps a flat completed-task index across
+both files.
 
 *Last updated: 2026-09-10*

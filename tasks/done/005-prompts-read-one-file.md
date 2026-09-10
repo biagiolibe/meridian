@@ -14,10 +14,14 @@ generated pointer. Name `AGENTS.md` only.
 
 ## 📋 Acceptance Criteria
 
-- [ ] `scripts/meridian.py:548` and `:607` no longer list both files.
-- [ ] No other prompt string in `scripts/meridian.py` still lists both.
-- [ ] `python3 -m unittest discover -s tests -v` passes; any test asserting the old
-      prompt text is updated.
+- [x] `scripts/meridian.py:548` and `:607` no longer list both files.
+- [x] No other prompt string in `scripts/meridian.py` still lists both (verified by
+      grep; the only other `AGENTS.md`/`CLAUDE.md` co-occurrences are the
+      `managed_files_for_workflow` copy manifest at line 89 and this task's own
+      `generate-claude-md` CLI help text, neither of which instructs a session to
+      read both).
+- [x] `python3 -m unittest discover -s tests -v` passes; no test asserted the old
+      prompt text, so none needed updating.
 
 ## 📁 Relevant Files
 

@@ -28,4 +28,15 @@ their *number*, which is the quadratic term.
 | `[x]` | 002 | Ship default numeric budgets, not empty brackets | 🔴 P1 | — | [002](done/002-default-numeric-budgets.md) |
 | `[x]` | 006 | Budget state, CLI, and hook echo | 🔴 P1 | 002 | [006](done/006-budget-cli-and-hook.md) |
 
+### Phase 2 — Correctness and drift (~1 day)
+
+Little token value on their own; each fixes a rule that does not currently reach the
+session meant to obey it. Zero risk, and nothing depends on them.
+
+| Status | ID | Title | Priority | Depends on | Task File |
+|--------|----|-------|----------|-----------|-----------|
+| `[x]` | 003 | Close the probe / escape-hatch composition | 🔴 P1 | — | [003](done/003-probe-escape-hatch.md) |
+| `[x]` | 004 | Generate `CLAUDE.md` from `AGENTS.md` | 🔴 P1 | — | [004](done/004-generate-claude-md.md) |
+| `[x]` | 005 | Stop instructing sessions to read both files | 🟡 P2 | 004 | [005](done/005-prompts-read-one-file.md) |
+
 *Archived: 2026-09-10*
