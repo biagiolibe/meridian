@@ -44,6 +44,16 @@ session meant to obey it. Zero risk, and nothing depends on them.
 | `[ ]` | 004 | Generate `CLAUDE.md` from `AGENTS.md` | 🔴 P1 | — | [004](004-generate-claude-md.md) |
 | `[ ]` | 005 | Stop instructing sessions to read both files | 🟡 P2 | 004 | [005](005-prompts-read-one-file.md) |
 
+### Phase 2b — Found in the field
+
+Not planned from the audit: surfaced while reconciling Palimpsest onto 1.1.19.
+Ahead of phase 3 because every adopted project that receives an inline
+capability version bump silently accumulates a contradictory pair.
+
+| Status | ID | Title | Priority | Depends on | Task File |
+|--------|----|-------|----------|-----------|-----------|
+| `[ ]` | 012 | `append_only_new_markers` treats a version bump as a new capability | 🔴 P1 | — | [012](012-marker-supersession.md) |
+
 ### Phase 3 — The cause
 
 | Status | ID | Title | Priority | Depends on | Task File |
