@@ -1201,6 +1201,35 @@ def budget_spend(project_root: Path, task_id: str, kind: str) -> tuple[int, int]
     return count, cap
 
 
+# `CLAUDE.md` is Claude Code's own instructions file; it cannot be reduced to a
+# bare pointer, since a Claude Code session never reads `AGENTS.md` itself. So
+# each workflow's `CLAUDE.md` keeps a hand-authored preamble (title, pointer
+# paragraph, any Claude-Code-specific sections) up to this anchor heading, and
+# everything from the anchor onward — the actual shared rule content, capability
+# markers included — is generated verbatim from `AGENTS.md`, which stays the
+# single source of truth for that text. The anchor is matched by heading text,
+# not position, per this repo's own role-scoped-agent-rules precedent: it must
+# be a heading that both files currently carry.
+CLAUDE_MD_SHARED_ANCHOR = {
+    "governed-sdd": "## Code organization",
+    "lean-delivery": "## Command triggers",
+}
+
+
+def generate_claude_md(mode: str, agents_text: str, existing_claude_text: str) -> str:
+    anchor = CLAUDE_MD_SHARED_ANCHOR[mode]
+    pattern = re.compile(rf"^{re.escape(anchor)}$", re.MULTILINE)
+    agents_match = pattern.search(agents_text)
+    if agents_match is None:
+        raise MeridianError(f"AGENTS.md ({mode}) is missing the expected anchor heading {anchor!r}")
+    claude_match = pattern.search(existing_claude_text)
+    if claude_match is None:
+        raise MeridianError(f"CLAUDE.md ({mode}) is missing the expected anchor heading {anchor!r}")
+    preamble = existing_claude_text[: claude_match.start()]
+    shared_body = agents_text[agents_match.start() :]
+    return preamble + shared_body
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(prog="meridian")
     parser.add_argument(
@@ -1298,9 +1327,18 @@ def main() -> int:
     budget_spend_parser.add_argument("kind", choices=BUDGET_KINDS)
     budget_spend_parser.add_argument("--project", type=Path, default=Path.cwd())
 
+    generate_claude = subparsers.add_parser(
+        "generate-claude-md",
+        help="regenerate a workflow template's CLAUDE.md shared body from its AGENTS.md (framework-internal)",
+    )
+    generate_claude.add_argument("--mode", choices=tuple(CLAUDE_MD_SHARED_ANCHOR), required=True)
+    generate_group = generate_claude.add_mutually_exclusive_group(required=True)
+    generate_group.add_argument("--check", action="store_true", help="exit non-zero if CLAUDE.md is stale")
+    generate_group.add_argument("--write", action="store_true", help="regenerate CLAUDE.md in place")
+
     arguments = parser.parse_args()
     framework_root = arguments.framework_root.resolve()
-    project_root = arguments.project.resolve()
+    project_root = arguments.project.resolve() if hasattr(arguments, "project") else None
     try:
         if arguments.command == "lock":
             lock_project(project_root, framework_root, arguments.mode)
@@ -1338,6 +1376,22 @@ def main() -> int:
             else:
                 count, cap = budget_spend(project_root, arguments.task_id, arguments.kind)
                 print(f"{arguments.task_id}: {arguments.kind} {count}/{cap}")
+        elif arguments.command == "generate-claude-md":
+            workflow = framework_root / "templates" / "workflows" / arguments.mode
+            agents_path = workflow / "AGENTS.md"
+            claude_path = workflow / "CLAUDE.md"
+            agents_text = agents_path.read_text(encoding="utf-8")
+            claude_text = claude_path.read_text(encoding="utf-8")
+            generated = generate_claude_md(arguments.mode, agents_text, claude_text)
+            if arguments.check:
+                if generated == claude_text:
+                    print(f"CLAUDE.md ({arguments.mode}) matches the generator's output.")
+                else:
+                    print(f"STALE {claude_path}: does not match AGENTS.md-generated output.", file=sys.stderr)
+                    return 2
+            else:
+                claude_path.write_text(generated, encoding="utf-8")
+                print(f"Regenerated {claude_path}.")
         elif arguments.check:
             if arguments.owner_reconciled:
                 raise MeridianError("--owner-reconciled only applies to --apply")

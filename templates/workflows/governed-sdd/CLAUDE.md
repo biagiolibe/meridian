@@ -37,7 +37,7 @@ Follow `docs/CODE_ORGANIZATION.md` for every production-source change: one ownin
 Treat these developer phrases as the complete authorization for the named workflow. Do not select a different task or act on an unassigned one.
 
 - `Proceed with <TASK-ID>` — run the implementation workflow below for exactly that task.
-- `Review <TASK-ID>` — act as an independent reviewer-integrator using `docs/CODE_REVIEW_PROMPT.md`, ideally in a fresh chat or Task-tool subagent.
+- `Review <TASK-ID>` — act as an independent reviewer-integrator using `docs/CODE_REVIEW_PROMPT.md`.
 - `Address review <TASK-ID>` — resolve exactly the outstanding findings in that task's review record.
 - `Run lifecycle <TASK-ID>` — coordinate that task through independent implementation, review, remediation, and integration under `docs/LIFECYCLE_ORCHESTRATION.md`.
 - `Accept <TASK-ID>` — run the owner-acceptance workflow below.
@@ -58,11 +58,11 @@ retry limit or any listed blocker.
 
 ### Implementation workflow
 
-1. Read the assigned task, every referenced higher-precedence specification/ADR, and `git status --short`. <!-- MERIDIAN:BEGIN capability=manual-verification-precondition v2 -->If the task declares `Manual verification: required`, confirm evidence availability before any implementation, not after: run an end-to-end probe that actually succeeds and produces the exact evidence channel the task will record, confirmed readable by the responsible agent or reviewer. A visible terminal entry, a launched process, or a presumed ability to automate an application window is not evidence availability; the probe must actually locate the application window and acquire its image, or otherwise produce and open the real artifact. If no such probe succeeds before implementation, return `BLOCKED` immediately; do not implement in the hope the channel will become available later. A probe that has been attempted and failed is positive evidence about the environment: report it and request the evidence channel from the developer before continuing, whatever the evidence tier — never respond to a failed probe by exploring the local environment for an alternative. When a deterministic test can serve as the change's primary acceptance evidence (for example, a geometry or layout assertion), it suspends only the requirement to *capture* manual or visual confirmation as the sole gate; it never suspends the requirement to stop on a probe that has already been attempted and failed.<!-- MERIDIAN:END -->
+1. Read the assigned task, every referenced higher-precedence specification/ADR, `git status --short`, and the profile's declared change-summary command. <!-- MERIDIAN:BEGIN capability=manual-verification-precondition v2 -->If the task declares `Manual verification: required`, confirm evidence availability before any implementation, not after: run an end-to-end probe that actually succeeds and produces the exact evidence channel the task will record, confirmed readable by the responsible agent or reviewer. A visible terminal entry, a launched process, or a presumed ability to automate an application window is not evidence availability; the probe must actually locate the application window and acquire its image, or otherwise produce and open the real artifact. If no such probe succeeds before implementation, return `BLOCKED` immediately; do not implement in the hope the channel will become available later. A probe that has been attempted and failed is positive evidence about the environment: report it and request the evidence channel from the developer before continuing, whatever the evidence tier — never respond to a failed probe by exploring the local environment for an alternative. When a deterministic test can serve as the change's primary acceptance evidence (for example, a geometry or layout assertion), it suspends only the requirement to *capture* manual or visual confirmation as the sole gate; it never suspends the requirement to stop on a probe that has already been attempted and failed.<!-- MERIDIAN:END -->
 2. Before code changes, ensure the worktree contains no unrelated uncommitted changes. If it does, do not stage, modify, discard, or commit those changes; report the exact conflict and stop unless the developer explicitly directs how to proceed.
 3. Create and switch to a dedicated branch named after the normalized task ID, without a provider prefix (for example, `TASK-012` uses `task-012`). Only one task may write in this checkout at a time. If the branch already exists, inspect it and stop for direction rather than overwriting or rebasing it. Do not create or switch branches in a dirty checkout.
 4. State a short plan, then implement only the assigned task and its explicit dependencies. Preserve architectural boundaries and all SDD scope limits.
-5. Run the task's validation commands and the project baseline checks from the `## Commands` section, <!-- MERIDIAN:BEGIN capability=validation-scoping v1 -->scoped to the diff's actual surface per `docs/CONTEXT_BUDGET_POLICY.md`'s validation-scope rule — skip a full build/test/lint suite for a documentation/policy-only change and state so explicitly.<!-- MERIDIAN:END --> Also skip a command that is inapplicable because the task has not yet established its required project artifact. Report every skipped command and why.
+5. Run the task's validation commands and the project baseline checks, <!-- MERIDIAN:BEGIN capability=validation-scoping v1 -->scoped to the diff's actual surface per `docs/CONTEXT_BUDGET_POLICY.md`'s validation-scope rule — skip a full build/test/lint suite for a documentation/policy-only change and state so explicitly.<!-- MERIDIAN:END --> Also skip a command that is inapplicable because the task has not yet established its required project artifact. Report every skipped command and why.
 6. When every required validation passes, record completion according to the task's review policy: `READY_FOR_REVIEW` for `Review: REQUIRED`, `ACCEPTED` for `Review: NOT_REQUIRED`. Make no status change if any validation failed, a required manual check is incomplete, or acceptance criteria are not met.
 7. Review the diff to confirm it contains only the assigned task and its required status updates. Create one atomic commit using Conventional Commit style and the task ID. Follow `docs/PULL_REQUEST_POLICY.md` for the branch push and hand-off.
 8. Report the branch name, commit hash, changed files, acceptance-criteria evidence, validation results, and assumptions. If validation fails or scope is ambiguous, do not commit a partial implementation; report the blocker.
@@ -117,9 +117,9 @@ Update exactly the task `Status` and its canonical queue row to `ACCEPTED`, and 
 ## Implementer-to-reviewer handoff
 
 After validation, create the task commit and push the task branch once for each
-review attempt. Record the branch name, implementation commit, and base `main`
-commit in the completion handoff. Leave the primary checkout clean and on the
-task branch; do not switch back to `main`.
+review attempt. The completion handoff must record the branch name,
+implementation commit, and base `main` commit. Leave the primary checkout
+clean and on the task branch; do not switch back to `main`.
 
 The reviewer-integrator uses that same primary checkout in a fresh agent session that did not write the implementation. If the reviewer session starts on clean `main`, run `git switch <task-branch>`. If the branch is missing locally, or a dirty checkout prevents switching, return `BLOCKED` with the exact condition.
 
@@ -139,11 +139,14 @@ is status-only and does not automatically integrate the branch.
 <!-- MERIDIAN:BEGIN capability=reviewer-integrator-identity v1 -->
 ## Reviewer-integrator identity on a single-operator project
 
-Review independence and Git identity separation are both mandatory controls; neither substitutes for the other. The review session must not have written the code and must re-derive evidence from the actual diff and cited sources rather than trusting the implementation report. Only for the `ACCEPTED` commit, use the project-scoped reviewer-specific author override:
+Both controls are mandatory and neither substitutes for the other:
 
-```bash
-git commit --author="<PROJECT_NAME> Reviewer-Integrator <reviewer-integrator@<project-slug>.local>" -m "docs: reviewer-integrator pass <TASK-ID>; independently re-verified diff, cited sources, acceptance evidence, and validation"
-```
+- Review runs in a fresh agent session that did not write the code. Re-derive evidence from the actual diff and cited sources; do not trust the implementation report.
+- Only for the `ACCEPTED` commit, use the project-scoped reviewer author override below, with the project's actual name and slug:
+
+  ```bash
+  git commit --author="<PROJECT_NAME> Reviewer-Integrator <reviewer-integrator@<project-slug>.local>" -m "docs: reviewer-integrator pass <TASK-ID>; independently re-verified diff, cited sources, acceptance evidence, and validation"
+  ```
 
 Keep the operator's normal committer identity. Do not change global or repository Git config. The override applies only to the `ACCEPTED` commit and can be verified with `git log --format='%an <%ae>'`.
 <!-- MERIDIAN:END -->
