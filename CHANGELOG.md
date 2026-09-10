@@ -12,11 +12,30 @@ numbers follow the `frameworkVersion` tracked in generated projects'
 
 ## [Unreleased]
 
+## [1.1.20]
+
+### Added
+
+- Migration `023-spike-task-class`: adds a `SPIKE` task class so an
+  implementation task that cannot evaluate its own acceptance criteria
+  without first resolving an unknown has a named, bounded place to route
+  to, instead of investigating inside its own branch and budget.
+  `task-lifecycle` v2 adds the `ANSWERED | INCONCLUSIVE` lifecycle and
+  states that only `ANSWERED` satisfies a dependency. `review-policy` v2
+  names `SPIKE` as a third case alongside `Review: REQUIRED`/`NOT_REQUIRED`,
+  with its own self-administered close-out gate, rather than leaving it in
+  conflict with the prior prohibition on `NOT_REQUIRED` for unresolved
+  design questions. `task-blueprint` v5 adds the spike shape
+  (`Class`/`Question`/`Budget`/`Deliverable`/`Branch`) inside the existing
+  single marker. `spike-routing` v1 adds the routing rule as a numbered
+  step inside AGENTS.md/CLAUDE.md's Implementation workflow, so it is
+  reachable without a second capability bump.
+
 ## [1.1.19]
 
 ### Fixed
 
-- Migration `023-executable-probe-precondition`: closes a composition defect
+- Migration `022-executable-probe-precondition`: closes a composition defect
   between two individually defensible rules. `manual-verification-precondition`
   v1 only asked an implementer to confirm they "can" produce manual/visual
   evidence before implementation, and its deterministic-test escape hatch let

@@ -36,7 +36,7 @@ When documents conflict, the first applicable document wins:
 Implementation never resolves a conflict silently: update the lower-precedence document or record an ADR.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=task-lifecycle v1 -->
+<!-- MERIDIAN:BEGIN capability=task-lifecycle v2 -->
 ## Task lifecycle
 
 ```text
@@ -47,9 +47,23 @@ QUEUED -> IN_PROGRESS -> READY_FOR_REVIEW -> ACCEPTED
 
 Review: NOT_REQUIRED
 QUEUED -> IN_PROGRESS -> ACCEPTED
+
+Class: SPIKE
+QUEUED -> IN_PROGRESS -> ANSWERED | INCONCLUSIVE
 ```
 
-Only `ACCEPTED` tasks satisfy dependencies.
+Only `ACCEPTED` tasks satisfy dependencies. `ANSWERED` also satisfies a
+dependency — it is a `SPIKE`'s completion state and records that its
+deliverable (an ADR or a documented reference value; see `tasks/TASK_BLUEPRINT.md`'s
+spike shape) answered the declared `Question`. `INCONCLUSIVE` does not
+satisfy a dependency: it records that the spike's `Budget` was exhausted
+without answering `Question`, and the dependent task stays blocked until a
+follow-up spike or a redesign removes the dependency.
+
+Tooling that tallies queue rows by `Review: REQUIRED`/`NOT_REQUIRED` lifecycle
+states (for example, the queue-briefing hook) does not recognize
+`ANSWERED`/`INCONCLUSIVE`; a `SPIKE` row is invisible to those counts by
+design, since it never merges production code for them to track.
 <!-- MERIDIAN:END -->
 
 <!-- MERIDIAN:BEGIN capability=execution-assets v1 -->
@@ -84,10 +98,28 @@ not a hardcoded path of its own.
 The developer drives these roles with five command triggers, defined in `AGENTS.md`/`CLAUDE.md`: `Proceed with <TASK-ID>` starts implementation, `Review <TASK-ID>` starts independent review, `Address review <TASK-ID>` starts the bounded remediation recorded by the reviewer, `Run lifecycle <TASK-ID>` authorizes the orchestrated implementation-to-integration loop, and `Accept <TASK-ID>` performs the owner-acceptance status handoff after the developer's own review, skipping the agent review without skipping the status/queue update.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=review-policy v1 -->
+<!-- MERIDIAN:BEGIN capability=review-policy v2 -->
 ## Review policy
 
-Every task declares `Review: REQUIRED` or `Review: NOT_REQUIRED`. The latter is restricted to low-risk documentation, mechanical configuration, simple scaffolding, or focused tests that add no production behavior. It is prohibited for public APIs, dependencies, security, state transitions, deterministic rules, persistence/history, or unresolved design questions.
+Every task declares `Review: REQUIRED`, `Review: NOT_REQUIRED`, or is a
+`Class: SPIKE` task governed by its own gate below. `Review: NOT_REQUIRED` is
+restricted to low-risk documentation, mechanical configuration, simple
+scaffolding, or focused tests that add no production behavior. It is
+prohibited for public APIs, dependencies, security, state transitions,
+deterministic rules, persistence/history, or unresolved design questions —
+unless the task itself is a `SPIKE`, whose entire purpose is investigating one
+unresolved design question and whose deliverable is never production code.
+
+A `SPIKE` task does not declare `Review: REQUIRED` or `NOT_REQUIRED`; its
+queue row carries `SPIKE` in the `Review` column instead. At close-out
+the implementer self-administers this gate: does the committed
+deliverable answer the declared `Question` within the declared `Budget`? If
+yes, record `ANSWERED`; if `Budget` is exhausted first, record
+`INCONCLUSIVE`. No separate reviewer pass is required — a spike's bounded
+blast radius (throwaway branch that is never merged, no production code
+ships, a declared budget) is what justifies skipping full review. If the
+committed deliverable does not self-evidently answer `Question`, record
+`INCONCLUSIVE` rather than `ANSWERED` on the strength of author judgment.
 <!-- MERIDIAN:END -->
 
 <!-- MERIDIAN:BEGIN capability=git-workflow v1 -->
