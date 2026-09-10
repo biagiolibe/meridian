@@ -12,6 +12,28 @@ numbers follow the `frameworkVersion` tracked in generated projects'
 
 ## [Unreleased]
 
+## [1.1.19]
+
+### Fixed
+
+- Migration `023-executable-probe-precondition`: closes a composition defect
+  between two individually defensible rules. `manual-verification-precondition`
+  v1 only asked an implementer to confirm they "can" produce manual/visual
+  evidence before implementation, and its deterministic-test escape hatch let
+  a passing automated test demote a failed manual/visual check to a secondary
+  concern with no floor under it — in the incident this traces to, a failed
+  GPU screenshot probe was demoted rather than treated as a stop condition,
+  and nothing then bounded the exploration that followed. v2 promotes
+  wording already proven in a downstream consumer project: evidence
+  availability is confirmed only after an end-to-end probe actually
+  succeeds and produces the exact channel the task will record, with a
+  `BLOCKED` return when none succeeds. The deterministic-test escape hatch
+  now suspends only the requirement to *capture* manual/visual confirmation
+  as the sole gate, never the requirement to stop on a probe already
+  attempted and failed, and the forbidden recovery is named explicitly:
+  never respond to a failed probe by exploring the local environment for an
+  alternative.
+
 ## [1.1.18]
 
 ### Changed
