@@ -85,7 +85,7 @@ matches the actual diff surface, that nothing relevant was skipped, and that
 nothing irrelevant was run and reported as if it were meaningful evidence.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=execution-evidence-profile v2 -->
+<!-- MERIDIAN:BEGIN capability=execution-evidence-profile v3 -->
 ## Execution evidence discipline
 
 Apply the project-specific `docs/EXECUTION_EVIDENCE_PROFILE.md` before an
@@ -108,6 +108,13 @@ first implementation after an upgrade that adds it.
 - Escalate diagnostics progressively. Do not request a full backtrace, trace,
   verbose mode, or complete log until ordinary output and a targeted diagnostic
   leave the cause or location unresolved. Record the reason for escalation.
+- Do not use repeated test-and-tune cycles as a substitute for an approved
+  implementation strategy. Before a second diagnostic attempt that changes an
+  implementation hypothesis, state the evidence gap it will resolve. If a
+  focused failure exposes a conflict between the task's acceptance criteria,
+  authority, or allowed code surface, return `BLOCKED`; do not continue
+  searching for a workaround past the profile's declared diagnostic-attempt
+  budget.
 - Inspect every changed hunk, beginning with a change summary and then
   per-file/hunk evidence. A complete printed diff is not required merely to
   establish diff scope.

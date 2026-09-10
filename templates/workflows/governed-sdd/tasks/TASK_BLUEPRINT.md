@@ -1,6 +1,6 @@
 # Task [ID] — [Title]
 
-<!-- MERIDIAN:BEGIN capability=task-blueprint v3 -->
+<!-- MERIDIAN:BEGIN capability=task-blueprint v4 -->
 Priority: [P0 / P1 / P2]
 Status: QUEUED
 Review: REQUIRED
@@ -8,12 +8,22 @@ Manual verification: [none / required]
 Dependencies: [none / TASK-ID, ...]
 Reasoning: [low / medium / high / xhigh]
 Reasoning justification: [required for high; for xhigh, include the developer's explicit authorization; omit for low/medium]
+Diagnostic attempts: [optional; overrides the profile's default cap]
+Evidence captures: [optional; overrides the profile's default cap]
+Context expansions: [optional; overrides the profile's default cap]
 
 `Reasoning` is this task's exact permitted runtime cap, not a minimum or a
 suggestion. Before implementation, remediation, or review, the worker's
 configured reasoning effort must equal this value. A mismatch requires a fresh
 session configured at the declared value; a worker must never raise its effort
 automatically. See `docs/CONTEXT_BUDGET_POLICY.md` for the preflight rule.
+
+`Diagnostic attempts`, `Evidence captures`, and `Context expansions` are
+optional per-task caps; omit any of them to inherit
+`docs/EXECUTION_EVIDENCE_PROFILE.md`'s default. Each is a cap, not a target:
+exhausting it requires `BLOCKED`, not a silently raised cap. Setting one
+above the profile's default requires a one-line rationale in this task, the
+same way `Reasoning justification` documents `high`/`xhigh`.
 
 ## Authority
 
