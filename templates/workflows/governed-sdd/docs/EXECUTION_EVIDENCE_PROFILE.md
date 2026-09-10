@@ -13,8 +13,31 @@ remain mandatory.
 
 ## Successful validation output
 
-- Required validation commands and concise success-output forms: `[commands]`.
-- How command exit status is retained and reported: `[method]`.
+Record each required check as the complete literal command string that is
+actually run, including its own output-bounding stage — not a bare command
+plus a prose instruction to summarize or truncate the output afterwards. A
+bound stated only in prose can govern nothing but how the output gets
+*restated* once it has already been returned to the session and billed in
+full; the command string is the only point that controls how much output
+ever enters context at all. The shell shape is:
+
+```bash
+set -o pipefail
+<validation command> 2>&1 | tail -n <this project's chosen bound>
+```
+
+`set -o pipefail` is not optional: without it, a pipeline reports the exit
+status of its last stage (here, `tail`), which is always success, so a
+failing validation command silently reads as passing. Where the shell lacks
+`pipefail`, capture `${PIPESTATUS[0]}` explicitly instead.
+
+- Required validation commands, each as the exact string executed —
+  command, redirection, and output bound together: `[commands]`.
+- Exit-status mechanism this project uses (`set -o pipefail` or
+  `${PIPESTATUS[0]}`) and how the captured status is reported: `[method]`.
+- The output bound itself (line count, byte count, or equivalent) is this
+  project's own choice; record the chosen value and where it is applied:
+  `[bound]`.
 
 ## Failure diagnostics
 

@@ -12,6 +12,22 @@ numbers follow the `frameworkVersion` tracked in generated projects'
 
 ## [Unreleased]
 
+## [1.1.18]
+
+### Changed
+
+- Migration `021-output-bounds-in-command`: moves the output bound for
+  validation evidence from prose into the literal command string. The
+  execution-evidence profile's "Successful validation output" section now
+  records each required check as the exact command executed, including its
+  own output-bounding pipeline stage, with `set -o pipefail` (or
+  `${PIPESTATUS[0]}`) mandatory so the pipeline reports the validation
+  command's own exit status. `docs/CONTEXT_BUDGET_POLICY.md` is amended to
+  match: run the profile's literal declared command, do not run the bare
+  command and summarize afterwards. The template still names no language,
+  build tool, or test runner; per-stack worked examples live only in this
+  repository's own `WORKFLOW_GUIDE.md`.
+
 ## [1.1.17]
 
 ### Added
