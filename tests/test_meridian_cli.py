@@ -877,11 +877,21 @@ class CapabilityMarkerTest(unittest.TestCase):
         for name in ("AGENTS.md", "CLAUDE.md"):
             text = (self.WORKFLOW / name).read_text(encoding="utf-8")
             pairs = self.marker_pairs(text)
-            self.assertIn(("manual-verification-precondition", "1"), pairs, name)
+            self.assertIn(("manual-verification-precondition", "2"), pairs, name)
         agents = (self.WORKFLOW / "AGENTS.md").read_text(encoding="utf-8")
         self.assertIn("Manual verification: required", agents)
         self.assertIn("return `BLOCKED` immediately", agents)
         self.assertIn("deterministic test", agents)
+        self.assertIn("probe that actually succeeds", agents)
+        self.assertIn(
+            "never respond to a failed probe by exploring the local environment for an alternative",
+            agents,
+        )
+        self.assertIn(
+            "it never suspends the requirement to stop on a probe that has already been "
+            "attempted and failed",
+            agents,
+        )
 
     def test_manual_verification_record_fields_in_completion_and_review_records(self) -> None:
         completion_report = (self.WORKFLOW / "docs/COMPLETION_REPORT_TEMPLATE.md").read_text(encoding="utf-8")
