@@ -110,6 +110,47 @@ reflect the validation command instead of `tail`'s (which always succeeds).
 Where the shell lacks `pipefail`, capture `${PIPESTATUS[0]}` immediately
 after the pipeline and report that value instead.
 
+### Which end to keep
+
+`tail` suits a test runner, which stops at the failing target and prints the
+panic, assertion, and failure list last. A compiler or formatter is the
+opposite: it emits findings in source order, the first is usually the root
+cause and the later ones its consequences, so a tail bound cuts exactly the
+line worth reading. Choose the stage per command rather than uniformly — for
+example, head-bounded `cargo check` / `cargo fmt --check` alongside
+tail-bounded `cargo test`.
+
+### Never use `head` for the first-lines bound
+
+Use `awk 'NR<=40'` (or `sed -n '1,40p'`), never `head -n 40`:
+
+```bash
+set -o pipefail
+<compiler or formatter> 2>&1 | awk 'NR<=40'
+```
+
+`head` exits after its last line. The producer then writes into a closed
+pipe, `SIGPIPE` kills it with status 141, and `pipefail` reports a failed
+pipeline for a command that succeeded. Measured on a real project whose
+passing test suite emits 111 lines against a 40-line bound:
+
+| Pipeline | Exit status |
+|---|---|
+| `cargo test --workspace --quiet \| head -n 40` | **101** — suite passing |
+| `cargo test --workspace --quiet \| awk 'NR<=40'` | 0 |
+| `cargo test --workspace --quiet \| tail -n 40` | 0 |
+
+The distinction is not `head` versus `awk` as such — it is which stage exits
+early. `head -n N` and `sed 'Nq'` close the pipe; `awk 'NR<=N'` and
+`sed -n '1,Np'` consume the whole stream and only stop printing. `tail` is
+safe for the same reason: it must reach the end to know where the end is.
+
+The fault is intermittent by construction: it fires only when output exceeds
+the bound, so it passes on a small project and starts failing as the suite
+grows. Neither idiom masks a real failure — a failing command still exits
+non-zero through `awk` or `tail` when `pipefail` is set, and exits 0 through
+either without it.
+
 ## Tips for success
 
 - **Keep tasks atomic**: if a task takes more than two hours, it can probably be split into smaller tasks.
