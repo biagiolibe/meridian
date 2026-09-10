@@ -23,6 +23,10 @@ PROTOCOL_VERSION = 1
 ADOPTION_VERDICTS = ("APPROVE", "CHANGES_REQUESTED", "BLOCKED")
 ADOPTION_RETRY_LIMIT = 2
 CAPABILITY_MARKER = re.compile(r"<!-- MERIDIAN:BEGIN capability=([a-z0-9-]+) v(\d+) -->")
+MARKED_BLOCK = re.compile(
+    r"<!-- MERIDIAN:BEGIN capability=([a-z0-9-]+) v(\d+) -->\n?.*?<!-- MERIDIAN:END -->",
+    re.DOTALL,
+)
 
 
 class MeridianError(RuntimeError):
@@ -1309,6 +1313,21 @@ def generate_claude_md(mode: str, agents_text: str, existing_claude_text: str) -
         raise MeridianError(f"CLAUDE.md ({mode}) is missing the expected anchor heading {anchor!r}")
     preamble = existing_claude_text[: claude_match.start()]
     shared_body = agents_text[agents_match.start() :]
+
+    # A capability marker's content is versioned; changing it without bumping
+    # the version is exactly the defect this generator must never reproduce
+    # (see tasks/014-generator-altered-protected-blocks.md). So the shared
+    # body is copied from AGENTS.md everywhere *except* inside a marker: there,
+    # CLAUDE.md's own existing block for that same capability+version wins
+    # verbatim, byte for byte, if one is already present. A capability with no
+    # prior block in CLAUDE.md (a brand-new marker) has nothing to preserve,
+    # so it is copied from AGENTS.md like the rest of the shared body.
+    def preserve_existing_marker(match: re.Match[str]) -> str:
+        capability, version = match.group(1), int(match.group(2))
+        existing_block = extract_marked_block(existing_claude_text, capability, version)
+        return existing_block if existing_block is not None else match.group(0)
+
+    shared_body = MARKED_BLOCK.sub(preserve_existing_marker, shared_body)
     return preamble + shared_body
 
 

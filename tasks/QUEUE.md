@@ -37,7 +37,6 @@ see `tasks/QUEUE_ARCHIVE.md`.
 | Status | ID | Title | Priority | Depends on | Task File |
 |--------|----|-------|----------|-----------|-----------|
 | `[ ]` | 013 | Evidence tiers and a routing rule for `Manual verification` | 🔴 P1 | — | [013](013-evidence-tiers-and-routing.md) |
-| `[ ]` | 014 | The `CLAUDE.md` generator altered protected marker content | 🔴 P1 | — | [014](014-generator-altered-protected-blocks.md) |
 
 Ship `013` together with `011`, per `011`'s bundling constraint.
 
@@ -78,6 +77,7 @@ then folded it into the regenerated `CLAUDE.md`.
 | `[x]` | 005 | Stop instructing sessions to read both files | [005](done/005-prompts-read-one-file.md) |
 | `[x]` | 012 | `append_only_new_markers` treats a version bump as a new capability | [012](done/012-marker-supersession.md) |
 | `[x]` | 010 | A `SPIKE` task class | [010](done/010-spike-task-class.md) |
+| `[x]` | 014 | The `CLAUDE.md` generator altered protected marker content | [014](done/014-generator-altered-protected-blocks.md) |
 
 Phases 1, 2, 2b, and 3 (001, 002, 006, 003, 004, 005, 012, 010) are fully
 closed and moved to `tasks/QUEUE_ARCHIVE.md`; this table keeps a flat

@@ -37,7 +37,7 @@ Follow `docs/CODE_ORGANIZATION.md` for every production-source change: one ownin
 Treat these developer phrases as the complete authorization for the named workflow. Do not select a different task or act on an unassigned one.
 
 - `Proceed with <TASK-ID>` — run the implementation workflow below for exactly that task.
-- `Review <TASK-ID>` — act as an independent reviewer-integrator using `docs/CODE_REVIEW_PROMPT.md`.
+- `Review <TASK-ID>` — act as an independent reviewer-integrator using `docs/CODE_REVIEW_PROMPT.md`, ideally in a fresh chat or Task-tool subagent.
 - `Address review <TASK-ID>` — resolve exactly the outstanding findings in that task's review record.
 - `Run lifecycle <TASK-ID>` — coordinate that task through independent implementation, review, remediation, and integration under `docs/LIFECYCLE_ORCHESTRATION.md`.
 - `Accept <TASK-ID>` — run the owner-acceptance workflow below.
@@ -118,9 +118,9 @@ Update exactly the task `Status` and its canonical queue row to `ACCEPTED`, and 
 ## Implementer-to-reviewer handoff
 
 After validation, create the task commit and push the task branch once for each
-review attempt. The completion handoff must record the branch name,
-implementation commit, and base `main` commit. Leave the primary checkout
-clean and on the task branch; do not switch back to `main`.
+review attempt. Record the branch name, implementation commit, and base `main`
+commit in the completion handoff. Leave the primary checkout clean and on the
+task branch; do not switch back to `main`.
 
 The reviewer-integrator uses that same primary checkout in a fresh agent session that did not write the implementation. If the reviewer session starts on clean `main`, run `git switch <task-branch>`. If the branch is missing locally, or a dirty checkout prevents switching, return `BLOCKED` with the exact condition.
 
@@ -140,14 +140,11 @@ is status-only and does not automatically integrate the branch.
 <!-- MERIDIAN:BEGIN capability=reviewer-integrator-identity v1 -->
 ## Reviewer-integrator identity on a single-operator project
 
-Both controls are mandatory and neither substitutes for the other:
+Review independence and Git identity separation are both mandatory controls; neither substitutes for the other. The review session must not have written the code and must re-derive evidence from the actual diff and cited sources rather than trusting the implementation report. Only for the `ACCEPTED` commit, use the project-scoped reviewer-specific author override:
 
-- Review runs in a fresh agent session that did not write the code. Re-derive evidence from the actual diff and cited sources; do not trust the implementation report.
-- Only for the `ACCEPTED` commit, use the project-scoped reviewer author override below, with the project's actual name and slug:
-
-  ```bash
-  git commit --author="<PROJECT_NAME> Reviewer-Integrator <reviewer-integrator@<project-slug>.local>" -m "docs: reviewer-integrator pass <TASK-ID>; independently re-verified diff, cited sources, acceptance evidence, and validation"
-  ```
+```bash
+git commit --author="<PROJECT_NAME> Reviewer-Integrator <reviewer-integrator@<project-slug>.local>" -m "docs: reviewer-integrator pass <TASK-ID>; independently re-verified diff, cited sources, acceptance evidence, and validation"
+```
 
 Keep the operator's normal committer identity. Do not change global or repository Git config. The override applies only to the `ACCEPTED` commit and can be verified with `git log --format='%an <%ae>'`.
 <!-- MERIDIAN:END -->
