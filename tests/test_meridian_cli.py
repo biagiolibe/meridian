@@ -251,6 +251,33 @@ class MeridianCliTest(unittest.TestCase):
         self.assertIn("FAIL AGENTS.md: capability=lifecycle-orchestration v3", audited.stdout)
         self.assertIn("BLOCKED: 1 protected-region integrity failure", audited.stdout)
 
+    def test_audit_fails_when_a_file_carries_two_versions_of_one_capability(self) -> None:
+        """Task 012: a version bump that was appended instead of replacing the
+        version it supersedes leaves a contradictory pair behind — the audit
+        must surface that, not just per-version drift."""
+        self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
+        agents = self.project / "AGENTS.md"
+        text = agents.read_text(encoding="utf-8")
+        self.assertIn("MERIDIAN:BEGIN capability=command-triggers v1", text)
+        relabeled = text.replace(
+            "MERIDIAN:BEGIN capability=command-triggers v1",
+            "MERIDIAN:BEGIN capability=command-triggers v2",
+            1,
+        )
+        duplicate_block = re.search(
+            r"<!-- MERIDIAN:BEGIN capability=command-triggers v2 -->.*?<!-- MERIDIAN:END -->",
+            relabeled,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(duplicate_block)
+        agents.write_text(text.rstrip() + "\n\n" + duplicate_block.group(0) + "\n", encoding="utf-8")
+
+        audited = self.run_cli("audit", "--mode", "governed-sdd")
+        self.assertEqual(audited.returncode, 2)
+        self.assertIn(
+            "FAIL AGENTS.md: capability=command-triggers carries 2 versions (v1, v2)", audited.stdout
+        )
+
     def test_audit_skips_a_version_the_current_template_no_longer_carries(self) -> None:
         self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
         for name in ("AGENTS.md", "CLAUDE.md"):
@@ -655,6 +682,77 @@ class MeridianCliTest(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 3, result.stderr)
         self.assertIn("Assisted adoption 1.0.0 ->", result.stdout)
+
+
+class MarkerSupersessionTest(unittest.TestCase):
+    """`append_only_new_markers` must distinguish an added capability from a
+    superseded one by name, not by `(name, version)` pair — task 012 of
+    docs/PLAN_TOKEN_EFFICIENCY.md. Under pair comparison, a version bump is
+    indistinguishable from an unrelated new capability: the bumped pair is
+    absent from both the local and base pair sets exactly like a genuinely
+    new one, so the old block gets left in place while the new one is
+    appended at the end, where nothing reads it.
+    """
+
+    BASE = (
+        "intro\n\n"
+        "<!-- MERIDIAN:BEGIN capability=mvp v1 -->\n"
+        "old rule text.\n"
+        "<!-- MERIDIAN:END -->\n\n"
+        "tail\n"
+    )
+    OLD_BLOCK = "<!-- MERIDIAN:BEGIN capability=mvp v1 -->\nold rule text.\n<!-- MERIDIAN:END -->"
+    NEW_BLOCK = "<!-- MERIDIAN:BEGIN capability=mvp v2 -->\nnew rule text.\n<!-- MERIDIAN:END -->"
+
+    def test_added_capability_still_appends(self) -> None:
+        template = self.BASE + (
+            "\n<!-- MERIDIAN:BEGIN capability=other v1 -->\n"
+            "new capability.\n"
+            "<!-- MERIDIAN:END -->\n"
+        )
+        result = meridian.append_only_new_markers(self.BASE, self.BASE, template)
+        self.assertIsNotNone(result)
+        self.assertIn("old rule text.", result)
+        self.assertIn("new capability.", result)
+
+    def test_bumped_capability_with_unmodified_block_replaces_in_place(self) -> None:
+        template = self.BASE.replace(self.OLD_BLOCK, self.NEW_BLOCK)
+        result = meridian.append_only_new_markers(self.BASE, self.BASE, template)
+        self.assertIsNotNone(result)
+        self.assertIn("capability=mvp v2", result)
+        self.assertIn("new rule text.", result)
+        self.assertNotIn("capability=mvp v1", result)
+        self.assertNotIn("old rule text.", result)
+        # Surrounding project-owned text is preserved untouched, in place.
+        self.assertIn("intro", result)
+        self.assertIn("tail", result)
+        self.assertEqual(result.index("intro"), self.BASE.index("intro"))
+
+    def test_bumped_capability_with_modified_block_returns_none(self) -> None:
+        local = self.BASE.replace("old rule text.", "old rule text, locally customized.")
+        template = self.BASE.replace(self.OLD_BLOCK, self.NEW_BLOCK)
+        result = meridian.append_only_new_markers(local, self.BASE, template)
+        self.assertIsNone(result)
+
+    def test_local_file_with_two_existing_versions_is_left_untouched(self) -> None:
+        local = self.BASE + "\n" + self.NEW_BLOCK + "\n"
+        template = self.BASE.replace(self.OLD_BLOCK, self.NEW_BLOCK)
+        result = meridian.append_only_new_markers(local, self.BASE, template)
+        self.assertIsNone(result)
+
+    def test_edited_unchanged_version_block_blocks_an_otherwise_safe_append(self) -> None:
+        """A capability whose version does not change must still be checked
+        against the base: an unrelated new capability elsewhere in the same
+        template must not cause the function to silently accept a project's
+        edit to a different, already-current protected block."""
+        local = self.BASE.replace("old rule text.", "old rule text, locally edited.")
+        template = self.BASE + (
+            "\n<!-- MERIDIAN:BEGIN capability=other v1 -->\n"
+            "new capability.\n"
+            "<!-- MERIDIAN:END -->\n"
+        )
+        result = meridian.append_only_new_markers(local, self.BASE, template)
+        self.assertIsNone(result)
 
 
 class GenerateClaudeMdTest(unittest.TestCase):

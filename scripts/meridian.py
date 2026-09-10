@@ -319,37 +319,90 @@ def extract_marked_block(text: str, capability: str, version: int) -> str | None
     return match.group(0) if match else None
 
 
+def marker_pairs(text: str) -> list[tuple[str, int]]:
+    return [(capability, int(version)) for capability, version in CAPABILITY_MARKER.findall(text)]
+
+
 def append_only_new_markers(local_text: str, base_text: str, template_text: str) -> str | None:
-    """Append newly introduced intact marker blocks to a customized local file.
+    """Reconcile newly introduced or superseded marker blocks into a customized
+    local file, without touching any other project-owned text.
 
     A three-way line merge cannot recognize a protected block that a project has
-    moved elsewhere in a file. This narrowly handles the safe case: the target
-    adds one or more marker blocks, every marker inherited from the base still
-    matches the target byte-for-byte in the local file, and no existing marker
-    is changed. It never moves, edits, or replaces project-owned text.
+    moved elsewhere in a file. This narrowly handles two safe cases, distinguished
+    by capability *name* rather than by `(name, version)` pair — comparing pairs
+    alone cannot tell a version bump from an unrelated new capability, since the
+    bumped pair is absent from both the local and base pair sets exactly like a
+    genuinely new one would be:
+
+    - **Added**: the template introduces a capability the local file does not
+      carry at all, and the base never carried it either. Its block is
+      appended at the end, as before.
+    - **Superseded**: the template raises a capability's version, and the
+      local file's block for the *old* version still matches the base
+      byte-for-byte (the project never edited it). The new version's block
+      replaces the old one in place, preserving all surrounding text — never
+      appended alongside it, where a stale rule would sit in the position an
+      agent actually reads while the fix sits inert at the end of the file.
+
+    Any other case returns None so the caller falls through to a manual
+    conflict instead of guessing: a capability whose local block was edited
+    from the base, a capability the base carried but the local file no longer
+    does (a deliberate removal, not a merge target), or a local file that
+    already carries more than one version of the same capability (itself the
+    symptom of this defect; do not compound it, let `meridian audit` surface
+    it for manual reconciliation instead).
     """
-    base_pairs = {(capability, int(version)) for capability, version in CAPABILITY_MARKER.findall(base_text)}
-    local_pairs = {(capability, int(version)) for capability, version in CAPABILITY_MARKER.findall(local_text)}
-    template_pairs = [
-        (capability, int(version)) for capability, version in CAPABILITY_MARKER.findall(template_text)
-    ]
-    missing = [pair for pair in template_pairs if pair not in local_pairs]
-    if not missing or any(pair in base_pairs for pair in missing):
+    base_pairs = set(marker_pairs(base_text))
+    local_pairs = marker_pairs(local_text)
+    template_pairs = marker_pairs(template_text)
+
+    local_names = [capability for capability, _version in local_pairs]
+    if len(local_names) != len(set(local_names)):
         return None
 
-    for capability, version in base_pairs & set(template_pairs):
-        if extract_marker_block(local_text, capability, version) != extract_marker_block(
-            template_text, capability, version
-        ):
-            return None
+    local_by_name = dict(local_pairs)
+    to_append: list[tuple[str, int]] = []
+    to_supersede: list[tuple[str, int, int]] = []
+    for capability, new_version in template_pairs:
+        old_version = local_by_name.get(capability)
+        if old_version is None:
+            if (capability, new_version) in base_pairs:
+                return None
+            to_append.append((capability, new_version))
+        elif old_version < new_version:
+            to_supersede.append((capability, old_version, new_version))
+        elif old_version == new_version:
+            if extract_marker_block(local_text, capability, old_version) != extract_marker_block(
+                template_text, capability, new_version
+            ):
+                return None
+        # old_version > new_version: local is already ahead; leave it alone.
 
-    new_blocks = []
-    for capability, version in missing:
-        block = extract_marked_block(template_text, capability, version)
-        if block is None:
+    if not to_append and not to_supersede:
+        return None
+
+    result = local_text
+    for capability, old_version, new_version in to_supersede:
+        base_block = extract_marker_block(base_text, capability, old_version)
+        local_block = extract_marker_block(result, capability, old_version)
+        if base_block is None or local_block != base_block:
             return None
-        new_blocks.append(block)
-    return local_text.rstrip() + "\n\n" + "\n\n".join(new_blocks) + "\n"
+        old_marked = extract_marked_block(result, capability, old_version)
+        new_marked = extract_marked_block(template_text, capability, new_version)
+        if old_marked is None or new_marked is None:
+            return None
+        result = result.replace(old_marked, new_marked, 1)
+
+    if to_append:
+        new_blocks = []
+        for capability, version in to_append:
+            block = extract_marked_block(template_text, capability, version)
+            if block is None:
+                return None
+            new_blocks.append(block)
+        result = result.rstrip() + "\n\n" + "\n\n".join(new_blocks) + "\n"
+
+    return result
 
 
 def audit_capability_markers(
@@ -366,7 +419,11 @@ def audit_capability_markers(
     outside `meridian upgrade`; `SKIP` means the project's marker version
     predates what the current template carries, so there is nothing current
     to verify against yet (a staleness question for `upgrade`, not a drift
-    question for this audit).
+    question for this audit). Also reports `FAIL` when a single file carries
+    more than one version of the same capability — the symptom left behind
+    when a version bump was appended instead of replacing the version it
+    superseded, so an already-damaged project is found instead of left to
+    accumulate a growing set of contradictory pairs.
     """
     if mode != "governed-sdd":
         return []
@@ -376,6 +433,20 @@ def audit_capability_markers(
         if not local.is_file():
             continue
         local_text = local.read_text(encoding="utf-8")
+        local_pairs = marker_pairs(local_text)
+        versions_by_name: dict[str, list[int]] = {}
+        for capability, version in local_pairs:
+            versions_by_name.setdefault(capability, []).append(version)
+        for capability, versions in versions_by_name.items():
+            if len(versions) > 1:
+                results.append(
+                    (
+                        "FAIL",
+                        f"{item.target}: capability={capability} carries {len(versions)} versions "
+                        f"({', '.join(f'v{v}' for v in sorted(versions))}) in the same file — a "
+                        "superseded marker was left in place instead of replaced; reconcile by hand",
+                    )
+                )
         for capability, version_text in CAPABILITY_MARKER.findall(local_text):
             version = int(version_text)
             local_block = extract_marker_block(local_text, capability, version)
@@ -891,18 +962,29 @@ def plan_from_baseline(
             template_text = item.source.read_text(encoding="utf-8")
             marker_append = append_only_new_markers(local_text, base_text, template_text)
             if marker_append is not None:
+                local_by_name = dict(marker_pairs(local_text))
                 added = [
                     capability
-                    for capability, version in CAPABILITY_MARKER.findall(template_text)
-                    if (capability, int(version))
-                    not in {(capability, int(version)) for capability, version in CAPABILITY_MARKER.findall(local_text)}
+                    for capability, version in marker_pairs(template_text)
+                    if capability not in local_by_name
                 ]
+                superseded = [
+                    f"{capability} v{local_by_name[capability]}->v{version}"
+                    for capability, version in marker_pairs(template_text)
+                    if capability in local_by_name and version > local_by_name[capability]
+                ]
+                detail = "three-way merge conflicted, but existing protected markers are intact; "
+                parts = []
+                if added:
+                    parts.append(f"add new marker block(s) ({', '.join(added)})")
+                if superseded:
+                    parts.append(f"replace superseded block(s) in place ({', '.join(superseded)})")
+                detail += " and ".join(parts) + " without touching other local text"
                 plan.append(
                     PlanItem(
                         item,
                         "append-markers",
-                        "three-way merge conflicted, but existing protected markers are intact; "
-                        f"append new marker block(s) ({', '.join(added)}) without replacing local text",
+                        detail,
                     )
                 )
                 continue

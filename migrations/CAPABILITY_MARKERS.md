@@ -218,6 +218,27 @@ reports `SKIP` (a staleness question for `upgrade`) rather than a false
 would need a durable per-version text archive that does not exist yet — left
 for a future revision if it turns out to matter in practice.
 
+**Phase 4b — Supersession-aware insertion. Shipped.**
+Migration 019's marker-aware insertion (`append_only_new_markers`) originally
+compared `(capability, version)` pairs to decide what was "new." That cannot
+distinguish a version bump from an unrelated new capability: a bumped pair is
+absent from both the local and base pair sets exactly like a genuinely new
+one is, so a template raising `manual-verification-precondition` from v1 to
+v2 got appended as if v2 were a brand-new capability, leaving the stale v1
+block — the one still read in place — untouched. Observed for real upgrading
+Palimpsest to 1.1.19; corrected there by hand, in Palimpsest's own history
+(commit `a83d88b`), before this framework fix landed. The function now groups by capability *name*: a name
+absent from the local file (and never present in the base either) is still a
+pure addition, appended as before; a name whose local version is lower than
+the template's is a supersession, and its old block is replaced in place
+*only* when it still matches the base byte-for-byte — otherwise the function
+refuses and the file falls through to a blocking `CONFLICT` for manual
+reconciliation, the same conservative default Phase 3 established. `meridian
+audit` additionally reports `FAIL` when a single file carries more than one
+version of the same capability, so a project already damaged by the old
+behavior is found rather than left to accumulate a growing set of
+contradictory pairs.
+
 **Phase 5 — Process discipline. Documentation shipped; retrofit ongoing.**
 `CONTRIBUTING.md` and `migrations/README.md` now require: a migration that
 modifies existing framework-mandated prose (not just adds a new file) must
