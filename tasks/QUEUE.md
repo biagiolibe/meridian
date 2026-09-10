@@ -42,7 +42,7 @@ their *number*, which is the quadratic term.
 | Status | ID | Title | Priority | Depends on | Task File |
 |--------|----|-------|----------|-----------|-----------|
 | `[x]` | 001 | Output bounds belong in the command string | 🔴 P1 | — | [001](done/001-output-bounds-in-command.md) |
-| `[ ]` | 002 | Ship default numeric budgets, not empty brackets | 🔴 P1 | — | [002](002-default-numeric-budgets.md) |
+| `[/]` | 002 | Ship default numeric budgets, not empty brackets | 🔴 P1 | — | [002](002-default-numeric-budgets.md) |
 | `[ ]` | 006 | Budget state, CLI, and hook echo | 🔴 P1 | 002 | [006](006-budget-cli-and-hook.md) |
 
 ### Phase 2 — Correctness and drift (~1 day)
@@ -77,7 +77,7 @@ few upgrades.
 
 | Status | Description | Priority |
 |--------|-------------|----------|
-| `[ ]` | Decide the fate of the three uncommitted working-tree edits — see the standing caution in `docs/PLAN_TOKEN_EFFICIENCY.md`. Two are prose and will be violated the way the existing prose was; the third is the `[policy]` placeholder that task 002 replaces with a default number. | 🔴 P1 |
+| `[ ]` | Commit the three pre-queue working-tree edits as they stand. None is obsolete: the profile's `[policy]` field is task 002's raw material, `CONTEXT_BUDGET_POLICY.md`'s test-and-tune paragraph is the principle 002's number implements, and the `AGENTS.md`/`CLAUDE.md` asymmetry is task 004's proof case — do not hand-mirror it. | 🟡 P2 |
 
 ## ✅ Archived (Completed)
 
