@@ -253,6 +253,82 @@ Each phase after Phase 1 is optional to do immediately — the design holds
 together even if only markers + version-aware detection ship and the
 integrity audit lands later once `meridian audit` itself exists.
 
+**Phase 6 — Retirement path (task 007). Shipped.** Every phase above is
+additive: `capability`/`capabilityVersion` only ever introduces or bumps a
+marker. Nothing could delete, merge, or supersede one, so the only way to
+retire a rule was to leave a stale marker in place forever or edit it by
+hand outside the protected mechanism entirely — Phase 4's own integrity
+check would then flag that hand edit as unauthorized drift.
+
+A migration record gains an optional `removes` list, the mirror of
+`capabilities`:
+
+```json
+"removes": [
+  { "capability": "old-rule", "capabilityVersion": 1, "supersededBy": "new-rule" }
+]
+```
+
+`supersededBy` is optional and documentation-only — named in `meridian
+upgrade`'s plan and `meridian audit` output, never written into a managed
+file as a cross-reference line. A slot left behind inside a block the merge
+keeps reconciling is the same protected-content-with-an-editable-hole
+tension task 014 recorded as out of scope for `execution-assets`; retirement
+does not reopen it. If a human wants a pointer left behind for readers, that
+is ordinary unprotected prose added in the same migration, outside any
+marker — the framework enforces nothing about it.
+
+`capability_requirements()` processes migrations in order and drops a
+capability the moment a `removes` entry retires it, so `meridian audit`
+stops requiring it project-wide — the same requirements map `upgrade` and
+`detect_capabilities` already share, not a second one. `meridian upgrade`
+deletes the marker block from every managed path a migration's `removes`
+entry applies to (scoped by that migration's own `managedPaths`, exactly
+like the additive case), but only when the project's local copy still
+matches its own locked baseline for that capability+version byte-for-byte —
+`remove_retired_markers`, the structural mirror of the existing
+supersession path in `append_only_new_markers`: safe to mutate only what
+provably was not customized, refuse otherwise. A block the operator edited
+under a marker the upgrade is about to delete is not silently discarded; the
+file falls through to a blocking three-way-merge conflict for manual
+reconciliation, the same conservative default every other unsafe case in
+this mechanism already uses. Retiring an already-absent capability (never
+adopted, or already removed by hand) is a no-op, not an error — running the
+same retiring migration twice, or upgrading a project that skipped straight
+to a later version, must never fail on that account.
+
+The repository's own integrity guard (`scripts/check_repository.py`'s
+`check_capability_marker_baselines`, added by task 014 to catch the
+framework's own templates drifting silently — see commit `aaa1d57`) reuses
+this exact requirements/removals data rather than a second record of "what
+was this capability's content": a capability recorded in
+`migrations/marker-baselines/CAPABILITY_MARKER_BASELINES.json` that is now
+absent from the live templates is only accepted when
+`retired_capability_ids()` confirms some migration actually declared it
+`removes`; an unexplained absence still fails the guard exactly as before.
+That baseline file itself carries no history — it is a snapshot of the
+templates' *current* content, not an archive of every version ever
+released (Phase 4's own "would need a durable per-version text archive
+that does not exist yet" gap, still open); retirement's "was this modified"
+check instead uses the project's own `.meridian/baselines/<version>/`
+snapshot, already the reference `plan_from_baseline`'s three-way merge and
+`append_only_new_markers` use for the identical question.
+
+`meridian audit` also gains a structural duplication check,
+`audit_duplicate_headings`: a capability whose marker sits under more than
+one distinct heading *within the same managed file* is flagged, the
+mechanical signature of an accidental duplicate paste. It is deliberately
+scoped to one file at a time — the same capability legitimately appears
+under different heading names in different consuming documents by design
+(`ci-verified-validation` in both `docs/CODE_REVIEW_PROMPT.md` and
+`docs/COMPLETION_REPORT_TEMPLATE.md`, for one), and a cross-file version of
+this check produced five false positives against exactly that pattern
+before this narrower scope was chosen. It cannot catch a *paraphrased*
+duplicate with no shared marker at all, such as the reviewer-integrator-identity
+triplication that originally motivated this task (task 007's Technical
+Context) — that has no marker to compare and remains a human review
+concern, invisible to any mechanical check, diff tool included.
+
 ## Addendum: expanded retrofit plan
 
 Decided while bringing Palimpsest to full compliance: Palimpsest's own

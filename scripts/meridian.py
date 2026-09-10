@@ -178,13 +178,34 @@ def migration_capability_entries(data: dict[str, object]) -> list[tuple[str, int
     return entries
 
 
+def migration_capability_removals(data: dict[str, object]) -> list[tuple[str, int, str | None]]:
+    """A migration record's declared (capability, capabilityVersion, supersededBy)
+    retirements — the mirror of `migration_capability_entries` for task 007's
+    retirement path. `supersededBy` is an optional pointer, named in reports
+    only, to the capability that now covers the same rule; nothing writes it
+    into a managed file (see tasks/007-capability-retirement-path.md — a slot
+    left behind inside a merge target is exactly the tension task 014 flagged
+    as out of scope)."""
+    return [
+        (str(entry["capability"]), int(entry["capabilityVersion"]), entry.get("supersededBy"))
+        for entry in data.get("removes", [])
+    ]
+
+
 def capability_requirements(framework_root: Path) -> dict[str, tuple[int, str]]:
     """Map capability id -> (required version, the migration id that requires it).
 
     Built from every migration record's declared capability entries (see
-    `migration_capability_entries`). When more than one migration touches the
-    same capability, the highest declared `capabilityVersion` wins — that is
-    the version currently required.
+    `migration_capability_entries`), processed in migration order (the glob
+    is already sorted by the zero-padded numeric filename prefix, the same
+    order `migration_ids` and `check_migrations` assume is contiguous). When
+    more than one migration touches the same capability, the highest
+    declared `capabilityVersion` wins. A migration's `removes` entries then
+    drop that capability from the requirements entirely — no version of it
+    is required — unless a *later* migration reintroduces it, which
+    naturally wins back by virtue of running after the removal in sequence.
+    Without this, `capability_presence_map` would report a correctly retired
+    capability as MISSING on every project that removed it exactly as asked.
     """
     requirements: dict[str, tuple[int, str]] = {}
     for path in sorted((framework_root / "migrations").glob("*.json")):
@@ -193,7 +214,63 @@ def capability_requirements(framework_root: Path) -> dict[str, tuple[int, str]]:
             current = requirements.get(capability)
             if current is None or version > current[0]:
                 requirements[capability] = (version, str(data["id"]))
+        for capability, _version, _superseded_by in migration_capability_removals(data):
+            requirements.pop(capability, None)
     return requirements
+
+
+def retired_capability_ids(framework_root: Path) -> set[str]:
+    """Every capability id ever declared `removes` by a migration, regardless
+    of whether a later migration reintroduced it. Used to distinguish a
+    legitimate, migration-declared removal from an unexplained one — see
+    `check_capability_marker_baselines` in check_repository.py, which must
+    not fail merely because a retired capability's marker is gone from the
+    framework's own current templates.
+    """
+    ids: set[str] = set()
+    for path in sorted((framework_root / "migrations").glob("*.json")):
+        data = json.loads(path.read_text(encoding="utf-8"))
+        for capability, _version, _superseded_by in migration_capability_removals(data):
+            ids.add(capability)
+    return ids
+
+
+def pending_capability_removals(
+    framework_root: Path, migration_ids_to_find: list[str]
+) -> list[tuple[str, int, str | None, list[str]]]:
+    """(capability, version, supersededBy, managedPaths) for every retirement
+    declared by the specific migrations about to be applied in one upgrade
+    run (not every removal in framework history — that scope belongs to
+    `retired_capability_ids`). `managedPaths` scopes which files an upgrade
+    should attempt to remove the marker from, the same field migration
+    records already use for the additive case.
+    """
+    result: list[tuple[str, int, str | None, list[str]]] = []
+    wanted = set(migration_ids_to_find)
+    for path in sorted((framework_root / "migrations").glob("*.json")):
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if str(data["id"]) not in wanted:
+            continue
+        managed_paths = [str(p) for p in data.get("managedPaths", [])]
+        for capability, version, superseded_by in migration_capability_removals(data):
+            result.append((capability, version, superseded_by, managed_paths))
+    return result
+
+
+def removals_for_managed_file(
+    framework_root: Path, migration_ids_to_find: list[str], target: Path
+) -> list[tuple[str, int, str | None]]:
+    """(capability, version, supersededBy) triples a pending upgrade should
+    retire from this one managed file — `pending_capability_removals`
+    filtered to the entries whose migration declares this file among its
+    `managedPaths`."""
+    return [
+        (capability, version, superseded_by)
+        for capability, version, superseded_by, managed_paths in pending_capability_removals(
+            framework_root, migration_ids_to_find
+        )
+        if str(target) in managed_paths
+    ]
 
 
 def find_capability_marker_version(text: str, capability: str) -> int | None:
@@ -409,6 +486,76 @@ def append_only_new_markers(local_text: str, base_text: str, template_text: str)
     return result
 
 
+def remove_retired_markers(
+    local_text: str, base_text: str, removals: list[tuple[str, int]]
+) -> str | None:
+    """Delete each retired capability's marker block from a customized local
+    file — task 007's retirement path, the mirror of `append_only_new_markers`'s
+    supersession case. Safe only when the local block still matches the
+    project's own locked baseline for that capability+version byte-for-byte
+    (unmodified since the project last upgraded): the same "replace in place
+    only when it still matches the base" rule that case already applies,
+    reused here for "remove" instead of "replace."
+
+    Idempotent by design: a capability already absent locally (never present,
+    or already removed by hand) is skipped, not an error, so retiring the
+    same capability twice — or upgrading a project that already lacks it —
+    never fails. Returns the input unchanged when no listed capability was
+    found to remove, so a caller that only wants to know whether removal
+    actually did anything can compare the result to `local_text`.
+
+    Refuses (returns `None`) the moment a targeted block is present locally
+    but no longer matches the base: a local edit under a marker this upgrade
+    is about to delete, which must be reconciled by hand rather than
+    silently discarded along with the block. Also refuses when the exact
+    same block text occurs more than once in the file — `str.replace` is
+    content-addressed, not position-addressed, and would otherwise delete
+    only the first occurrence and silently leave the second (the duplicate-
+    paste case `audit_duplicate_headings` exists to catch), a partial
+    mutation this function's contract promises never to produce.
+    """
+    result = local_text
+    changed = False
+    for capability, version in removals:
+        local_block = extract_marked_block(result, capability, version)
+        if local_block is None:
+            continue
+        if result.count(local_block) > 1:
+            return None
+        base_block = extract_marked_block(base_text, capability, version)
+        if base_block is None or local_block != base_block:
+            return None
+        start = result.index(local_block)
+        end = start + len(local_block)
+        before, after = result[:start], result[end:]
+        # Collapse the blank-line run the deletion leaves behind, bounded to
+        # a small window right at the splice point so a run of blank lines
+        # anywhere else in the file — this project's own, unrelated to this
+        # removal — is never touched.
+        boundary = re.sub(r"\n{3,}", "\n\n", before[-4:] + after[:4])
+        result = before[:-4] + boundary + after[4:]
+        changed = True
+    return result if changed else local_text
+
+
+def retired_capability_versions(framework_root: Path) -> set[tuple[str, int]]:
+    """Every exact (capability, version) pair ever declared `removes` by a
+    migration, regardless of which files its `managedPaths` named. Used by
+    `audit_capability_markers` to tell "stale, upgrade hasn't run yet" apart
+    from "retired, and this marker should already be gone" — the latter
+    reported `FAIL` rather than `SKIP`, since `meridian upgrade`'s own
+    retirement path only ever touches the specific files a migration lists,
+    so a marker in a file that migration's `managedPaths` omitted would
+    otherwise sit as an invisible `SKIP` forever.
+    """
+    pairs: set[tuple[str, int]] = set()
+    for path in sorted((framework_root / "migrations").glob("*.json")):
+        data = json.loads(path.read_text(encoding="utf-8"))
+        for capability, version, _superseded_by in migration_capability_removals(data):
+            pairs.add((capability, version))
+    return pairs
+
+
 def audit_capability_markers(
     project_root: Path, framework_root: Path, mode: str
 ) -> list[tuple[str, str]]:
@@ -431,6 +578,7 @@ def audit_capability_markers(
     """
     if mode != "governed-sdd":
         return []
+    retired_versions = retired_capability_versions(framework_root)
     results: list[tuple[str, str]] = []
     for item in managed_files(framework_root, mode):
         local = project_root / item.target
@@ -456,7 +604,16 @@ def audit_capability_markers(
             local_block = extract_marker_block(local_text, capability, version)
             template_text = item.source.read_text(encoding="utf-8")
             template_block = extract_marker_block(template_text, capability, version)
-            if template_block is None:
+            if template_block is None and (capability, version) in retired_versions:
+                results.append(
+                    (
+                        "FAIL",
+                        f"{item.target}: capability={capability} v{version} is retired but still "
+                        "present here; run `meridian upgrade`, or reconcile by hand if this file was "
+                        "outside the retiring migration's `managedPaths`",
+                    )
+                )
+            elif template_block is None:
                 results.append(
                     (
                         "SKIP",
@@ -480,8 +637,77 @@ def audit_capability_markers(
     return sorted(results, key=lambda pair: pair[1])
 
 
+HEADING = re.compile(r"^(#{1,6})\s+(.+?)\s*$", re.MULTILINE)
+
+
+def marker_headings(text: str) -> list[tuple[str, int, str | None]]:
+    """(capability, version, nearest preceding heading text) for every marker
+    in `text`. `None` when a marker appears before any heading in the file.
+    """
+    headings = [(match.start(), match.group(2).strip()) for match in HEADING.finditer(text)]
+    result: list[tuple[str, int, str | None]] = []
+    for match in CAPABILITY_MARKER.finditer(text):
+        capability, version = match.group(1), int(match.group(2))
+        heading = None
+        for offset, title in headings:
+            if offset <= match.start():
+                heading = title
+            else:
+                break
+        result.append((capability, int(version), heading))
+    return result
+
+
+def audit_duplicate_headings(project_root: Path, framework_root: Path, mode: str) -> list[tuple[str, str]]:
+    """Task 007's duplication-detection half: flag a capability whose marker
+    sits under more than one distinct heading *within the same managed file*
+    — the mechanical signature of an accidental duplicate paste, or a
+    section split in two without updating the marker placement.
+
+    Deliberately scoped to one file at a time, not across a project's whole
+    managed-files set: the same capability legitimately appears under
+    different heading names in different documents by design (for example
+    `ci-verified-validation` under "Code Review and Integration Prompt" in
+    `docs/CODE_REVIEW_PROMPT.md` and under "Completion Report" in
+    `docs/COMPLETION_REPORT_TEMPLATE.md` — one canonical rule, several
+    consuming documents, not a drifted duplicate). A cross-file heuristic
+    was tried against these templates and produced five false positives on
+    exactly that intentional pattern before this scope was chosen. This does
+    not (and cannot) catch a *paraphrased* duplicate with no shared marker at
+    all, such as the reviewer-integrator-identity triplication that
+    motivated this task — that is invisible to any mechanical check and
+    remains a human review concern; this only catches the structural case a
+    marker can see.
+    """
+    if mode != "governed-sdd":
+        return []
+    results: list[tuple[str, str]] = []
+    for item in managed_files(framework_root, mode):
+        local = project_root / item.target
+        if not local.is_file():
+            continue
+        by_capability: dict[str, set[str]] = {}
+        for capability, _version, heading in marker_headings(local.read_text(encoding="utf-8")):
+            if heading is not None:
+                by_capability.setdefault(capability, set()).add(heading)
+        for capability, headings in sorted(by_capability.items()):
+            if len(headings) > 1:
+                results.append(
+                    (
+                        "FAIL",
+                        f"{item.target}: capability={capability} appears under {len(headings)} "
+                        f"distinct headings ({', '.join(sorted(headings))}) in this file — merge "
+                        "into one canonical location, or retire the duplicate via a migration's "
+                        "`removes`/`supersededBy`",
+                    )
+                )
+    return results
+
+
 def run_audit(project_root: Path, framework_root: Path, mode: str) -> int:
     results = audit_capability_markers(project_root, framework_root, mode)
+    results += audit_duplicate_headings(project_root, framework_root, mode)
+    results = sorted(results, key=lambda pair: pair[1])
     if not results:
         print("No capability markers found to audit.")
         return 0
@@ -935,6 +1161,12 @@ def plan_from_baseline(
     }
 
     requirements = capability_requirements(framework_root)
+    applied = {str(migration) for migration in applied_migrations}
+    pending_migrations = [
+        migration
+        for migration in migration_ids(framework_root, installed_version, target_version)
+        if migration not in applied
+    ]
 
     plan = []
     for item in managed_files(framework_root, mode):
@@ -992,11 +1224,42 @@ def plan_from_baseline(
                     )
                 )
                 continue
-            satisfied_here = capability_ids and all(
-                extract_marker_block(local_text, capability_id, requirements[capability_id][0]) is not None
-                and extract_marker_block(local_text, capability_id, requirements[capability_id][0])
-                == extract_marker_block(template_text, capability_id, requirements[capability_id][0])
-                for capability_id in capability_ids
+            removals = removals_for_managed_file(framework_root, pending_migrations, item.target)
+            retirement_conflict = False
+            if removals:
+                removal_pairs = [(capability, version) for capability, version, _superseded_by in removals]
+                retired = remove_retired_markers(local_text, base_text, removal_pairs)
+                if retired is not None and retired != local_text:
+                    labels = [
+                        f"{capability} -> {superseded_by}" if superseded_by else capability
+                        for capability, _version, superseded_by in removals
+                    ]
+                    plan.append(
+                        PlanItem(
+                            item,
+                            "retire-markers",
+                            "three-way merge conflicted, but the retired capability block(s) "
+                            f"({', '.join(labels)}) still matched the installed baseline and were "
+                            "removed in place",
+                        )
+                    )
+                    continue
+                # A locally modified block awaiting retirement must never be
+                # silently downgraded to VERIFIED below: `capability_ids`
+                # comes from the *current* template, which by definition no
+                # longer carries a capability this migration just retired, so
+                # that check alone is blind to this exact conflict.
+                retirement_conflict = retired is None
+            satisfied_here = (
+                not retirement_conflict
+                and capability_ids
+                and all(
+                    extract_marker_block(local_text, capability_id, requirements[capability_id][0])
+                    is not None
+                    and extract_marker_block(local_text, capability_id, requirements[capability_id][0])
+                    == extract_marker_block(template_text, capability_id, requirements[capability_id][0])
+                    for capability_id in capability_ids
+                )
             )
             if satisfied_here:
                 plan.append(
@@ -1071,6 +1334,12 @@ def apply_plan(
             "by hand outside the three-way merge."
         )
     else:
+        applied = {str(migration) for migration in manifest.get("appliedMigrations", [])}
+        pending_migrations = [
+            migration
+            for migration in migration_ids(framework_root, installed_version, target_version)
+            if migration not in applied
+        ]
         for item in plan:
             local = project_root / item.file.target
             if item.action == "replace" or item.action == "add":
@@ -1091,6 +1360,17 @@ def apply_plan(
                         f"marker-aware insertion is no longer safe for {item.file.target}; rerun upgrade --check"
                     )
                 local.write_text(appended, encoding="utf-8")
+            elif item.action == "retire-markers":
+                base = baseline_root / item.file.target
+                removals = removals_for_managed_file(framework_root, pending_migrations, item.file.target)
+                removal_pairs = [(capability, version) for capability, version, _superseded_by in removals]
+                local_text = local.read_text(encoding="utf-8")
+                retired = remove_retired_markers(local_text, base.read_text(encoding="utf-8"), removal_pairs)
+                if retired is None or retired == local_text:
+                    raise MeridianError(
+                        f"marker retirement is no longer safe for {item.file.target}; rerun upgrade --check"
+                    )
+                local.write_text(retired, encoding="utf-8")
 
     copy_baseline(project_root, framework_root, str(manifest["mode"]), target_version)
     prune_stale_baselines(project_root, target_version)

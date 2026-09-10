@@ -274,10 +274,11 @@ def check_capability_marker_baselines(root: Path = ROOT) -> None:
                     "baseline; run `python3 scripts/check_repository.py --write-marker-baselines` to record "
                     "this deliberate change"
                 )
+    retired = meridian.retired_capability_ids(root)
     for relative, markers in recorded.items():
         current_file = current.get(relative, {})
         for capability in markers:
-            if capability not in current_file:
+            if capability not in current_file and capability not in retired:
                 fail(f"{relative}: recorded capability={capability} baseline no longer present in the template")
 
 

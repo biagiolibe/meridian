@@ -97,6 +97,48 @@ class CapabilityMarkerBaselineTest(unittest.TestCase):
         with self.assertRaises(SystemExit):
             cr.check_capability_marker_baselines(self.root)
 
+    def _remove_marker_block(self, target: Path, capability: str, version: int) -> None:
+        import re
+
+        text = target.read_text(encoding="utf-8")
+        pattern = re.compile(
+            rf"<!-- MERIDIAN:BEGIN capability={capability} v{version} -->\n?.*?<!-- MERIDIAN:END -->\n?",
+            re.DOTALL,
+        )
+        match = pattern.search(text)
+        self.assertIsNotNone(match, f"capability={capability} v{version} not found in {target}")
+        target.write_text(text[: match.start()] + text[match.end() :], encoding="utf-8")
+
+    def test_a_capability_removed_without_a_removes_declaration_still_fails(self) -> None:
+        """The baseline guard's original task-014 behavior: an absence with
+        no accounting migration is still an unauthorized change, retirement
+        infrastructure or not."""
+        for name in ("AGENTS.md", "CLAUDE.md"):
+            self._remove_marker_block(
+                self.root / "templates/workflows/governed-sdd" / name, "spike-routing", 1
+            )
+        with self.assertRaises(SystemExit):
+            cr.check_capability_marker_baselines(self.root)
+
+    def test_a_capability_removed_by_a_declared_migration_passes(self) -> None:
+        """Task 007: `check_capability_marker_baselines` must reuse the same
+        `removes` declaration `meridian upgrade` honors, not a second,
+        independent notion of what a legitimate removal looks like."""
+        for name in ("AGENTS.md", "CLAUDE.md"):
+            self._remove_marker_block(
+                self.root / "templates/workflows/governed-sdd" / name, "spike-routing", 1
+            )
+        (self.root / "migrations" / "999-retire-spike-routing.json").write_text(
+            '{"id": "999-retire-spike-routing", "from": "1.1.20", "to": "1.1.21", '
+            '"description": "test-only", "removes": '
+            '[{"capability": "spike-routing", "capabilityVersion": 1}], '
+            '"managedPaths": ["AGENTS.md", "CLAUDE.md"], "verification": ["test-only"]}',
+            encoding="utf-8",
+        )
+        # No SystemExit: the recorded baseline's spike-routing entry is
+        # stale relative to the live templates, but its absence is explained.
+        cr.check_capability_marker_baselines(self.root)
+
 
 if __name__ == "__main__":
     unittest.main()
