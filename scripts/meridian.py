@@ -545,7 +545,7 @@ def assisted_implementer_prompt(
         [
             "Perform the capability-aware Meridian adoption migration for this project.",
             "",
-            "Read the local LANGUAGE_POLICY.md, PROJECT_WORKFLOW.md, AGENTS.md, CLAUDE.md,",
+            "Read the local LANGUAGE_POLICY.md, PROJECT_WORKFLOW.md, AGENTS.md,",
             "and docs/CONTEXT_BUDGET_POLICY.md before editing.",
             "Read these framework migration records before planning the change:",
             *[f"- {path}" for path in records],
@@ -604,7 +604,7 @@ def assisted_reviewer_prompt(
             "Independently review the completed capability-aware Meridian adoption migration.",
             "",
             "This reviewer session must be fresh and must not have implemented the migration.",
-            "Read the local LANGUAGE_POLICY.md, PROJECT_WORKFLOW.md, AGENTS.md, CLAUDE.md,",
+            "Read the local LANGUAGE_POLICY.md, PROJECT_WORKFLOW.md, AGENTS.md,",
             "docs/CONTEXT_BUDGET_POLICY.md, the exact migration diff, and these records:",
             *[f"- {path}" for path in records],
             f"- {framework_root / 'migrations/ASSISTED_ADOPTION.md'}",
