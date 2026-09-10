@@ -87,6 +87,39 @@ recent versions; the guard needs git history or a per-version content digest.
   deliberately left red rather than hand-patched, so the audit keeps pointing at
   the real defect. It goes green when this task ships.
 
+## 📌 Related finding — not in this task's scope
+
+While confirming the defect above, a second boundary problem surfaced in the
+same area. `execution-assets v1` is a protected marker block whose own text
+invites a project to customize it:
+
+> "Task files live at `tasks/<TASK-ID>.md`, the queue at `tasks/QUEUE.md` … 
+> **unless this section declares different locations for this project.**"
+
+A project that accepts that invitation and edits the block fails `meridian
+audit` as an unauthorized edit. The block asks for something the marker forbids.
+
+Palimpsest resolves it correctly, but by convention rather than by construction:
+it leaves the block untouched and declares its real locations
+(`docs/TASK_QUEUE.md`, `docs/tasks/<milestone>/`,
+`docs/tasks/reviews/<TASK-ID>.md`) in an annotated paragraph immediately after
+the block's `MERIDIAN:END`, still inside the section — which satisfies "this
+section declares" without touching protected text. That works, and the same
+annotation pattern is used consistently elsewhere in that file. But it depends
+on a reader noticing the tension and inventing the workaround. A fresh project,
+or an agent, edits the block and gets a red audit with no explanation.
+
+The general rule this suggests: **if a protected block contains a slot the
+project is meant to fill, the slot belongs outside the delimiters by
+construction, not by local convention.** Applied here, `execution-assets` would
+state the defaults and the precedence rule inside the marker, and leave the
+declaration itself to a clearly named, unprotected slot.
+
+This is not part of this task's acceptance criteria — it changes a capability's
+shape and needs its own version bump and migration. Recorded here because it is
+the same boundary question: what may live inside a protected block, and who is
+allowed to write there.
+
 ## 🔗 Dependencies
 
 - **Depends on**: none
