@@ -6,10 +6,22 @@ next implementation after a framework upgrade adds this file. Keep commands and
 tool choices current; the task's declared validation and acceptance criteria
 remain mandatory.
 
+The diagnostic-attempt, evidence-capture, and context-expansion budgets below
+are caps, not targets: reaching one requires `BLOCKED`, never a silently
+raised cap. Raising a default above its stated value requires a recorded
+rationale, in the same shape the task blueprint's `Reasoning justification`
+field already uses.
+
 ## Context reuse
 
 - Sources already supplied by the active agent environment: `[describe them]`.
 - When an exact reread is justified: `[describe the evidence-gap standard]`.
+- Context-expansion budget and the condition that requires `BLOCKED` rather
+  than another expansion: `Context expansions`: 2 per task. One expansion is
+  one read beyond the task's declared `Authority` and `Expected code
+  surface` — a file, ADR, specification, or prior chat opened to resolve a
+  blocker or verify an acceptance criterion. Override with the task's
+  `Context expansions` field.
 
 ## Successful validation output
 
@@ -43,17 +55,27 @@ failing validation command silently reads as passing. Where the shell lacks
 
 - First targeted diagnostic or bounded-log procedure: `[procedure]`.
 - Conditions for full traces, verbose output, or complete logs: `[conditions]`.
+- Diagnostic-attempt budget and the condition that requires `BLOCKED` rather
+  than another implementation hypothesis: `Diagnostic attempts`: 3 per
+  failure. One attempt is one diagnostic action that changes the
+  implementation hypothesis — a new targeted probe, log capture, or
+  parameter change aimed at a different cause. Override with the task's
+  `Diagnostic attempts` field.
 
 ## Diff inspection
 
-- Change-summary command or procedure: `[command or procedure]`.
+- Change-summary command or procedure, run before the first code edit and
+  after each material change: `[command or procedure]`.
 - Per-file/hunk inspection procedure: `[command or procedure]`.
 
 ## Manual evidence
 
 - Primary deterministic evidence when available: `[tests or checks]`.
 - Distinct capture views normally required and the escalation rule for more:
-  `[policy]`.
+  `Evidence captures`: 2 per acceptance criterion. One capture is one
+  distinct manual-evidence view — one screenshot, log export, or
+  interactive-tool session — gathered for a single acceptance criterion.
+  Override with the task's `Evidence captures` field.
 - Direct capture path and interactive-tool fallback: `[tools or procedure]`.
 
 ## Runtime configuration
