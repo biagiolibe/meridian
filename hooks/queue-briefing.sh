@@ -56,7 +56,10 @@ QUEUE=$(resolve_queue_path)
 ARCHIVE="$(dirname "$QUEUE")/QUEUE_ARCHIVE.md"
 
 # Governed SDD queues use explicit lifecycle states rather than checkbox rows.
-if grep -q '^| Order | ID | Priority | Status | Review | Dependencies |' "$QUEUE"; then
+# A governed queue needs lifecycle columns, not one exact framework-shaped
+# header.  Established projects may intentionally omit the optional `Review`
+# or task-file columns.  The parser below maps the required columns by name.
+if grep -Eq '^\| Order \| ID \|.*\| Status \|.*Dependencies \|' "$QUEUE"; then
   ARCHIVE_ARG=""
   [ -f "$ARCHIVE" ] && ARCHIVE_ARG="$ARCHIVE"
   # Single awk pass: collect every row's ID/status/dependencies, then
@@ -76,11 +79,19 @@ if grep -q '^| Order | ID | Priority | Status | Review | Dependencies |' "$QUEUE
     # attacker-controlled, but this is the only line standing between an
     # unquoted field and `eval`, so it earns the defensive treatment anyway.
     function shquote(s) { gsub(/'"'"'/, "'"'"'\\'"'"''"'"'", s); return "'"'"'" s "'"'"'" }
+    /^\|/ && $0 ~ /\| Order \|/ {
+      for (column = 2; column <= NF - 1; column++) {
+        name = trim($column)
+        if (name != "") columns[name] = column
+      }
+      next
+    }
     /^\| [0-9]+ /{
+      if (!("ID" in columns) || !("Status" in columns) || !("Dependencies" in columns)) next
       n++
-      id[n]     = trim($3)
-      status[n] = trim($5)
-      deps[n]   = trim($7)
+      id[n]     = trim($(columns["ID"]))
+      status[n] = trim($(columns["Status"]))
+      deps[n]   = trim($(columns["Dependencies"]))
       by_status[id[n]] = status[n]
     }
     END {

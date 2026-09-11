@@ -135,6 +135,28 @@ class QueueBriefingTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Queued (startable): TASK-001", result.stdout)
 
+    def test_accepts_a_governed_queue_without_optional_review_column(self) -> None:
+        """Palimpsest's established queue omits `Review`; lifecycle parsing
+        must use the required named columns rather than fall back to Lean."""
+        queue = self.project / "docs/TASK_QUEUE.md"
+        queue.parent.mkdir(parents=True, exist_ok=True)
+        queue.write_text(
+            "| Order | ID | Priority | Status | Dependencies | Estimate |\n"
+            "|---:|---|---|---|---|---:|\n"
+            "| 1 | TASK-001 | P0 | IN_PROGRESS | — | 10m |\n",
+            encoding="utf-8",
+        )
+        (self.project / "PROJECT_WORKFLOW.md").write_text(
+            "<!-- MERIDIAN:BEGIN capability=execution-assets v1 -->\n"
+            "<!-- MERIDIAN:END -->\n"
+            "The queue is `docs/TASK_QUEUE.md`.\n\n## Roles\n",
+            encoding="utf-8",
+        )
+        result = run_hook(self.project)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("[Meridian Governed Queue]", result.stdout)
+        self.assertIn("In progress: TASK-001", result.stdout)
+
     def test_ambiguous_declared_zone_falls_back_to_the_default_silently(self) -> None:
         """The zone also documents archiving to a *QUEUE*ARCHIVE*.md-shaped
         file (task 009's own recommendation) -- indistinguishable from a

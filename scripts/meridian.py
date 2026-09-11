@@ -1513,11 +1513,45 @@ def read_task_field(text: str, field: str) -> str | None:
     return match.group(1).strip()
 
 
-def task_cap(text: str, kind: str) -> int:
+def profile_cap(project_root: Path, kind: str) -> int:
+    """Read the project's declared budget default, retaining framework defaults
+    only for pre-profile projects.
+
+    The profile is prose by design, but each shipped default has a stable
+    backticked field name followed by its numeric cap.  Keeping this lookup
+    here prevents the CLI's default silently drifting from project policy.
+    """
+    profile = project_root / "docs" / "EXECUTION_EVIDENCE_PROFILE.md"
+    if not profile.is_file():
+        return BUDGET_DEFAULT_CAPS[kind]
+    field = re.escape(BUDGET_FIELD_NAMES[kind])
+    match = re.search(rf"`{field}`:\s*(\d+)", profile.read_text(encoding="utf-8"))
+    return int(match.group(1)) if match else BUDGET_DEFAULT_CAPS[kind]
+
+
+def task_cap(project_root: Path, text: str, kind: str) -> int:
     raw = read_task_field(text, BUDGET_FIELD_NAMES[kind])
     if raw and raw.isdigit():
         return int(raw)
-    return BUDGET_DEFAULT_CAPS[kind]
+    return profile_cap(project_root, kind)
+
+
+def find_task_file(project_root: Path, task_id: str) -> Path:
+    """Locate a task in either the framework default or a project-declared tree.
+
+    The common `docs/tasks/<milestone>/<TASK-ID>.md` layout is deliberately
+    supported without forcing a mature project to migrate its task archive.
+    Ambiguity is an error: a budget attached to the wrong task is worse than
+    no budget at all.
+    """
+    candidates = [project_root / "tasks" / f"{task_id}.md"]
+    docs_tasks = project_root / "docs" / "tasks"
+    if docs_tasks.is_dir():
+        candidates.extend(docs_tasks.rglob(f"{task_id}.md"))
+    existing = [path for path in candidates if path.is_file()]
+    if len(existing) != 1:
+        raise MeridianError(f"unknown task or ambiguous task path: {task_id}")
+    return existing[0]
 
 
 def resolve_budget_key(project_root: Path, state: dict[str, object], task_id: str) -> tuple[str, str]:
@@ -1526,9 +1560,7 @@ def resolve_budget_key(project_root: Path, state: dict[str, object], task_id: st
     shows a fresh READY_FOR_REVIEW -> IN_PROGRESS transition (a new
     remediation attempt) since the last time this was resolved.
     """
-    task_file = project_root / "tasks" / f"{task_id}.md"
-    if not task_file.is_file():
-        raise MeridianError(f"unknown task: {task_id}")
+    task_file = find_task_file(project_root, task_id)
     text = task_file.read_text(encoding="utf-8")
     status = read_task_field(text, "Status") or "UNKNOWN"
     meta = dict(state.get(task_id) or {"attempt": 1, "lastStatus": None})
@@ -1546,7 +1578,7 @@ def budget_show(project_root: Path, task_id: str) -> str:
     counters = state.get(key, {})
     parts = []
     for kind, label in (("diagnostic", "Diagnostics"), ("captures", "Captures"), ("expansions", "Expansions")):
-        parts.append(f"{label} {int(counters.get(kind, 0))}/{task_cap(text, kind)}")
+        parts.append(f"{label} {int(counters.get(kind, 0))}/{task_cap(project_root, text, kind)}")
     return " · ".join(parts)
 
 
@@ -1558,7 +1590,7 @@ def budget_spend(project_root: Path, task_id: str, kind: str) -> tuple[int, int]
     counters[kind] = count
     state[key] = counters
     write_budget_state(project_root, state)
-    cap = task_cap(text, kind)
+    cap = task_cap(project_root, text, kind)
     if count >= cap:
         raise MeridianError(
             f"{BUDGET_FIELD_NAMES[kind]} exhausted for {task_id} ({count}/{cap}); "
