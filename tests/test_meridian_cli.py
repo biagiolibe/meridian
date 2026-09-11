@@ -1405,6 +1405,34 @@ class BudgetCliTest(unittest.TestCase):
             result.stdout.strip(), "Diagnostics 0/4 · Captures 0/5 · Expansions 0/6"
         )
 
+    def test_execution_preflight_requires_profile_and_task_contract(self) -> None:
+        self.write_task("TASK-008", "QUEUED")
+        missing = self.run_cli("execution", "preflight", "TASK-008")
+        self.assertNotEqual(missing.returncode, 0)
+        self.assertIn("missing docs/EXECUTION_EVIDENCE_PROFILE.md", missing.stderr)
+        (self.project / "docs").mkdir()
+        (self.project / "docs/EXECUTION_EVIDENCE_PROFILE.md").write_text("profile\n", encoding="utf-8")
+        (self.project / "tasks/TASK-008.md").write_text(
+            "Status: QUEUED\n\n## Authority\n\n## Expected code surface\n\n## Validation\n",
+            encoding="utf-8",
+        )
+        passed = self.run_cli("execution", "preflight", "TASK-008")
+        self.assertEqual(passed.returncode, 0, passed.stderr)
+        self.assertIn("Execution contract:", passed.stdout)
+
+    def test_handoff_check_rejects_missing_budget_usage(self) -> None:
+        report = self.project / "handoff.md"
+        report.write_text(
+            "## Completion Report — TASK-009\n\n"
+            "- Files changed: `a.rs`\n- Validation: `cargo test` exit 0\n"
+            "- Manual verification: none\n- Acceptance criteria: all met\n"
+            "- Blockers/deviations: none\n",
+            encoding="utf-8",
+        )
+        result = self.run_cli("execution", "handoff-check", "TASK-009", str(report))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Budget usage", result.stderr)
+
     def test_spend_increments_and_reports(self) -> None:
         self.write_task("TASK-002", "IN_PROGRESS")
         first = self.run_cli("budget", "spend", "TASK-002", "diagnostic")
