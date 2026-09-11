@@ -251,6 +251,15 @@ class MeridianCliTest(unittest.TestCase):
         changed_fence = reflowed.replace("exact value", "different value")
         self.assertIsNone(meridian.reflowed_marker_normalization(changed_fence, template))
 
+    def test_marker_deduplication_removes_only_identical_template_copies(self) -> None:
+        block = "<!-- MERIDIAN:BEGIN capability=example v1 -->\nRule.\n<!-- MERIDIAN:END -->\n"
+        duplicated = "# Policy\n\n" + block + "\n" + block
+        normalized = meridian.deduplicate_identical_template_markers(duplicated, block)
+        self.assertIsNotNone(normalized)
+        self.assertEqual(normalized.count("capability=example v1"), 1)
+        divergent = duplicated.replace("Rule.\n<!-- MERIDIAN:END -->\n\n<!--", "Different.\n<!-- MERIDIAN:END -->\n\n<!--", 1)
+        self.assertIsNone(meridian.deduplicate_identical_template_markers(divergent, block))
+
     def test_upgrade_does_not_require_a_capability_not_marked_in_this_file(self) -> None:
         """A migration's `managedPaths` lists every file its diff touches, which
         is not the same as every file that must carry its capability marker:
