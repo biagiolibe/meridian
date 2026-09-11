@@ -46,7 +46,10 @@ resolve_queue_path() {
   fi
 }
 
-QUEUE=$(resolve_queue_path)
+if [ -n "$CLAUDE_PLUGIN_ROOT" ] && [ -x "$CLAUDE_PLUGIN_ROOT/bin/meridian" ]; then
+  QUEUE=$("$CLAUDE_PLUGIN_ROOT/bin/meridian" locations --project . --field queue 2>/dev/null)
+fi
+QUEUE=${QUEUE:-$(resolve_queue_path)}
 [ -f "$QUEUE" ] || exit 0
 
 # An archived ACCEPTED row (this task's own archiving convention) still
