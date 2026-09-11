@@ -193,6 +193,12 @@
       "version": 1
     }
   },
+  "templates/workflows/governed-sdd/docs/EXECUTION_EVIDENCE_PROFILE.md": {
+    "investigation-scope": {
+      "sha256": "7240335b50be2872123ce878fc37eb988f3c0bf0c84db887e0a02d93363f25ca",
+      "version": 1
+    }
+  },
   "templates/workflows/governed-sdd/docs/LIFECYCLE_ORCHESTRATION.md": {
     "lifecycle-orchestration": {
       "sha256": "e787247609ac89be68e8cf327e387aadb2816db4f98bd3cdca50d9014b99c91d",
