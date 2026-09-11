@@ -1386,6 +1386,25 @@ class BudgetCliTest(unittest.TestCase):
             result.stdout.strip(), "Diagnostics 0/3 · Captures 0/2 · Expansions 0/2"
         )
 
+    def test_show_resolves_nested_project_tasks_and_profile_defaults(self) -> None:
+        (self.project / "tasks/TASK-007.md").unlink(missing_ok=True)
+        nested = self.project / "docs/tasks/M19"
+        nested.mkdir(parents=True)
+        (nested / "TASK-007.md").write_text("Status: IN_PROGRESS\n", encoding="utf-8")
+        profile = self.project / "docs/EXECUTION_EVIDENCE_PROFILE.md"
+        profile.parent.mkdir(exist_ok=True)
+        profile.write_text(
+            "`Diagnostic attempts`: 4 per failure.\n"
+            "`Evidence captures`: 5 per acceptance criterion.\n"
+            "`Context expansions`: 6 per task.\n",
+            encoding="utf-8",
+        )
+        result = self.run_cli("budget", "show", "TASK-007")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            result.stdout.strip(), "Diagnostics 0/4 · Captures 0/5 · Expansions 0/6"
+        )
+
     def test_spend_increments_and_reports(self) -> None:
         self.write_task("TASK-002", "IN_PROGRESS")
         first = self.run_cli("budget", "spend", "TASK-002", "diagnostic")
