@@ -68,6 +68,12 @@ class AdoptionState:
     reason: str
 
 
+@dataclass(frozen=True)
+class ProjectLocations:
+    queue: Path
+    task_roots: tuple[Path, ...]
+
+
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -1529,6 +1535,31 @@ def profile_cap(project_root: Path, kind: str) -> int:
     return int(match.group(1)) if match else BUDGET_DEFAULT_CAPS[kind]
 
 
+def resolve_project_locations(project_root: Path) -> ProjectLocations:
+    """Resolve project customizations declared after execution-assets.
+
+    The same resolver backs the CLI and the hook, avoiding separate default
+    paths for a project's queue and its nested task records.
+    """
+    workflow = project_root / "PROJECT_WORKFLOW.md"
+    zone = ""
+    if workflow.is_file():
+        match = re.search(
+            r"<!-- MERIDIAN:BEGIN capability=execution-assets .*?<!-- MERIDIAN:END -->\s*(.*?)(?=^## |\Z)",
+            workflow.read_text(encoding="utf-8"), re.MULTILINE | re.DOTALL,
+        )
+        zone = match.group(1) if match else ""
+    queue_matches = re.findall(r"`([^`]*queue[^`]*\.md)`", zone, re.IGNORECASE)
+    queues = [Path(path) for path in dict.fromkeys(path for path in queue_matches if "archive" not in path.lower())]
+    queue = queues[0] if len(queues) == 1 else Path("tasks/QUEUE.md")
+    roots = [Path("tasks")]
+    for raw in re.findall(r"task files live under\s+`?([^`\s<]+)(?:/<[^>]+>)?/?`?", zone, re.IGNORECASE):
+        root = Path(raw.rstrip("/"))
+        if root not in roots:
+            roots.append(root)
+    return ProjectLocations(queue=queue, task_roots=tuple(roots))
+
+
 def task_cap(project_root: Path, text: str, kind: str) -> int:
     raw = read_task_field(text, BUDGET_FIELD_NAMES[kind])
     if raw and raw.isdigit():
@@ -1544,11 +1575,13 @@ def find_task_file(project_root: Path, task_id: str) -> Path:
     Ambiguity is an error: a budget attached to the wrong task is worse than
     no budget at all.
     """
-    candidates = [project_root / "tasks" / f"{task_id}.md"]
-    docs_tasks = project_root / "docs" / "tasks"
-    if docs_tasks.is_dir():
-        candidates.extend(docs_tasks.rglob(f"{task_id}.md"))
-    existing = [path for path in candidates if path.is_file()]
+    candidates: list[Path] = []
+    for root in resolve_project_locations(project_root).task_roots:
+        absolute = project_root / root
+        candidates.append(absolute / f"{task_id}.md")
+        if absolute.is_dir():
+            candidates.extend(absolute.rglob(f"{task_id}.md"))
+    existing = list(dict.fromkeys(path for path in candidates if path.is_file()))
     if len(existing) != 1:
         raise MeridianError(f"unknown task or ambiguous task path: {task_id}")
     return existing[0]
@@ -1608,6 +1641,7 @@ HANDOFF_FIELDS = (
     "Budget usage",
     "Blockers/deviations",
 )
+EXECUTION_EVIDENCE_PATH = Path(".meridian/execution-evidence.json")
 
 
 def execution_preflight(project_root: Path, task_id: str) -> str:
@@ -1629,6 +1663,22 @@ def execution_preflight(project_root: Path, task_id: str) -> str:
     status = read_task_field(text, "Status")
     if status not in ("QUEUED", "IN_PROGRESS"):
         raise MeridianError(f"execution preflight BLOCKED: {task_id} status is {status or 'missing'}")
+    queue = project_root / resolve_project_locations(project_root).queue
+    if queue.is_file():
+        header = next((line for line in queue.read_text(encoding="utf-8").splitlines() if line.startswith("| Order |")), "")
+        columns = [value.strip() for value in header.strip("|").split("|")]
+        if "ID" in columns and "Status" in columns:
+            for line in queue.read_text(encoding="utf-8").splitlines():
+                if not re.match(r"^\|\s*\d+\s*\|", line):
+                    continue
+                values = [value.strip() for value in line.strip("|").split("|")]
+                if len(values) == len(columns) and values[columns.index("ID")] == task_id:
+                    queued_status = values[columns.index("Status")]
+                    if queued_status != status:
+                        raise MeridianError(
+                            f"execution preflight BLOCKED: task status {status} disagrees with queue status {queued_status}"
+                        )
+                    break
     caps = ", ".join(
         f"{BUDGET_FIELD_NAMES[kind]}={task_cap(project_root, text, kind)}" for kind in BUDGET_KINDS
     )
@@ -1646,6 +1696,84 @@ def check_handoff(task_id: str, report: Path) -> str:
     if f"Completion Report — {task_id}" not in text:
         raise MeridianError(f"handoff check BLOCKED: report does not identify {task_id}")
     return f"Handoff evidence complete for {task_id}: {report}"
+
+
+def validation_commands(text: str) -> dict[str, str]:
+    """Read named, literal validation commands from one task's Validation block."""
+    section = re.search(r"^## Validation\s*$\n(.*?)(?=^## |\Z)", text, re.MULTILINE | re.DOTALL)
+    if section is None:
+        return {}
+    commands: dict[str, str] = {}
+    for match in re.finditer(r"^- `([^`]+)`: `([^`]+)`\s*$", section.group(1), re.MULTILINE):
+        command_id, command = match.groups()
+        commands[command_id] = command
+    return commands
+
+
+def record_validation(project_root: Path, task_id: str, command_id: str, command: str, status: int) -> None:
+    path = project_root / EXECUTION_EVIDENCE_PATH
+    state: dict[str, object] = {}
+    if path.is_file():
+        try:
+            state = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as error:
+            raise MeridianError(f"invalid execution evidence state: {path}") from error
+    entries = list(state.get(task_id, []))
+    entries.append({"id": command_id, "command": command, "exitStatus": status})
+    state[task_id] = entries
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def run_validation(project_root: Path, task_id: str, command_id: str) -> int:
+    """Execute only the task-declared literal command and retain its outcome."""
+    execution_preflight(project_root, task_id)
+    text = find_task_file(project_root, task_id).read_text(encoding="utf-8")
+    commands = validation_commands(text)
+    if command_id not in commands:
+        available = ", ".join(sorted(commands)) or "none"
+        raise MeridianError(
+            f"validation BLOCKED: {command_id!r} is not a declared validation ID for {task_id} (available: {available})"
+        )
+    command = commands[command_id]
+    completed = subprocess.run(command, shell=True, executable="/bin/bash", cwd=project_root, check=False)
+    record_validation(project_root, task_id, command_id, command, completed.returncode)
+    print(f"Validation {task_id}/{command_id}: exit {completed.returncode}")
+    return completed.returncode
+
+
+def record_execution_event(
+    project_root: Path,
+    task_id: str,
+    kind: str,
+    gap: str,
+    criterion: str | None,
+    artifact: str | None,
+) -> str:
+    """Spend a semantic budget only alongside the evidence that justifies it."""
+    if not gap.strip():
+        raise MeridianError("execution evidence BLOCKED: --gap is required")
+    if kind == "captures" and (not criterion or not artifact):
+        raise MeridianError("execution evidence BLOCKED: captures require --criterion and --artifact")
+    count, cap = budget_spend(project_root, task_id, kind)
+    path = project_root / EXECUTION_EVIDENCE_PATH
+    state: dict[str, object] = {}
+    if path.is_file():
+        try:
+            state = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as error:
+            raise MeridianError(f"invalid execution evidence state: {path}") from error
+    events = list(state.get(task_id, []))
+    event: dict[str, object] = {"kind": kind, "gap": gap, "count": count, "cap": cap}
+    if criterion:
+        event["criterion"] = criterion
+    if artifact:
+        event["artifact"] = artifact
+    events.append(event)
+    state[task_id] = events
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return f"Evidence {task_id}: {kind} {count}/{cap} recorded"
 
 
 # `CLAUDE.md` is Claude Code's own instructions file; it cannot be reduced to a
@@ -1772,6 +1900,10 @@ def main() -> int:
         help="detected from the project's PROJECT_WORKFLOW.md mode lock when omitted",
     )
 
+    locations = subparsers.add_parser("locations", help="print resolved project queue and task locations")
+    locations.add_argument("--project", type=Path, default=Path.cwd())
+    locations.add_argument("--field", choices=("queue", "task-roots"))
+
     budget = subparsers.add_parser(
         "budget",
         help="track a governed-SDD task's diagnostic/evidence/context-expansion caps",
@@ -1798,6 +1930,17 @@ def main() -> int:
     handoff.add_argument("task_id")
     handoff.add_argument("report", type=Path)
     handoff.add_argument("--project", type=Path, default=Path.cwd())
+    validate = execution_sub.add_parser("validate", help="run one task-declared literal validation command")
+    validate.add_argument("task_id")
+    validate.add_argument("validation_id")
+    validate.add_argument("--project", type=Path, default=Path.cwd())
+    evidence = execution_sub.add_parser("evidence", help="record the gap and one budgeted diagnostic, capture, or expansion")
+    evidence.add_argument("task_id")
+    evidence.add_argument("kind", choices=BUDGET_KINDS)
+    evidence.add_argument("--gap", required=True)
+    evidence.add_argument("--criterion")
+    evidence.add_argument("--artifact")
+    evidence.add_argument("--project", type=Path, default=Path.cwd())
 
     generate_claude = subparsers.add_parser(
         "generate-claude-md",
@@ -1842,6 +1985,14 @@ def main() -> int:
         elif arguments.command == "audit":
             mode = arguments.mode or detect_mode(project_root)
             return run_audit(project_root, framework_root, mode)
+        elif arguments.command == "locations":
+            locations = resolve_project_locations(project_root)
+            if arguments.field == "queue":
+                print(locations.queue)
+            elif arguments.field == "task-roots":
+                print("\n".join(str(root) for root in locations.task_roots))
+            else:
+                print(json.dumps({"queue": str(locations.queue), "taskRoots": [str(root) for root in locations.task_roots]}))
         elif arguments.command == "budget":
             if arguments.budget_command == "show":
                 print(budget_show(project_root, arguments.task_id))
@@ -1851,6 +2002,13 @@ def main() -> int:
         elif arguments.command == "execution":
             if arguments.execution_command == "preflight":
                 print(execution_preflight(project_root, arguments.task_id))
+            elif arguments.execution_command == "validate":
+                return run_validation(project_root, arguments.task_id, arguments.validation_id)
+            elif arguments.execution_command == "evidence":
+                print(record_execution_event(
+                    project_root, arguments.task_id, arguments.kind, arguments.gap,
+                    arguments.criterion, arguments.artifact,
+                ))
             else:
                 print(check_handoff(arguments.task_id, arguments.report))
         elif arguments.command == "generate-claude-md":

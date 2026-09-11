@@ -1391,6 +1391,12 @@ class BudgetCliTest(unittest.TestCase):
         nested = self.project / "docs/tasks/M19"
         nested.mkdir(parents=True)
         (nested / "TASK-007.md").write_text("Status: IN_PROGRESS\n", encoding="utf-8")
+        (self.project / "PROJECT_WORKFLOW.md").write_text(
+            "<!-- MERIDIAN:BEGIN capability=execution-assets v1 -->\n"
+            "<!-- MERIDIAN:END -->\n"
+            "Task files live under `docs/tasks/<milestone>/`; queue is `docs/TASK_QUEUE.md`.\n\n## Roles\n",
+            encoding="utf-8",
+        )
         profile = self.project / "docs/EXECUTION_EVIDENCE_PROFILE.md"
         profile.parent.mkdir(exist_ok=True)
         profile.write_text(
@@ -1404,6 +1410,29 @@ class BudgetCliTest(unittest.TestCase):
         self.assertEqual(
             result.stdout.strip(), "Diagnostics 0/4 · Captures 0/5 · Expansions 0/6"
         )
+
+    def test_locations_and_preflight_use_the_declared_queue(self) -> None:
+        (self.project / "docs/tasks/M19").mkdir(parents=True)
+        (self.project / "docs/tasks/M19/TASK-007.md").write_text(
+            "Status: IN_PROGRESS\n\n## Authority\n\n## Expected code surface\n\n## Validation\n",
+            encoding="utf-8",
+        )
+        (self.project / "docs/TASK_QUEUE.md").write_text(
+            "| Order | ID | Priority | Status | Dependencies |\n|---:|---|---|---|---|\n"
+            "| 1 | TASK-007 | P0 | QUEUED | — |\n",
+            encoding="utf-8",
+        )
+        (self.project / "docs/EXECUTION_EVIDENCE_PROFILE.md").write_text("profile\n", encoding="utf-8")
+        (self.project / "PROJECT_WORKFLOW.md").write_text(
+            "<!-- MERIDIAN:BEGIN capability=execution-assets v1 -->\n<!-- MERIDIAN:END -->\n"
+            "Task files live under `docs/tasks/<milestone>/`; queue is `docs/TASK_QUEUE.md`.\n\n## Roles\n",
+            encoding="utf-8",
+        )
+        locations = self.run_cli("locations", "--field", "queue")
+        self.assertEqual(locations.stdout.strip(), "docs/TASK_QUEUE.md")
+        preflight = self.run_cli("execution", "preflight", "TASK-007")
+        self.assertNotEqual(preflight.returncode, 0)
+        self.assertIn("disagrees with queue status", preflight.stderr)
 
     def test_execution_preflight_requires_profile_and_task_contract(self) -> None:
         self.write_task("TASK-008", "QUEUED")
@@ -1432,6 +1461,37 @@ class BudgetCliTest(unittest.TestCase):
         result = self.run_cli("execution", "handoff-check", "TASK-009", str(report))
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("Budget usage", result.stderr)
+
+    def test_validation_runs_only_a_declared_literal_command_and_records_status(self) -> None:
+        (self.project / "docs").mkdir()
+        (self.project / "docs/EXECUTION_EVIDENCE_PROFILE.md").write_text("profile\n", encoding="utf-8")
+        (self.project / "tasks/TASK-010.md").write_text(
+            "Status: IN_PROGRESS\n\n## Authority\n\n## Expected code surface\n\n"
+            "## Validation\n\n- `probe`: `printf validation-ok`\n",
+            encoding="utf-8",
+        )
+        result = self.run_cli("execution", "validate", "TASK-010", "probe")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("validation-ok", result.stdout)
+        evidence = json.loads((self.project / ".meridian/execution-evidence.json").read_text(encoding="utf-8"))
+        self.assertEqual(evidence["TASK-010"][0]["id"], "probe")
+        missing = self.run_cli("execution", "validate", "TASK-010", "not-declared")
+        self.assertNotEqual(missing.returncode, 0)
+        self.assertIn("not a declared validation ID", missing.stderr)
+
+    def test_evidence_requires_a_gap_and_capture_provenance(self) -> None:
+        self.write_task("TASK-011", "IN_PROGRESS")
+        missing = self.run_cli("execution", "evidence", "TASK-011", "captures", "--gap", "text is perceptual")
+        self.assertNotEqual(missing.returncode, 0)
+        self.assertIn("require --criterion and --artifact", missing.stderr)
+        recorded = self.run_cli(
+            "execution", "evidence", "TASK-011", "captures", "--gap", "text is perceptual",
+            "--criterion", "AC-4", "--artifact", "/tmp/capture.png",
+        )
+        self.assertEqual(recorded.returncode, 0, recorded.stderr)
+        evidence = json.loads((self.project / ".meridian/execution-evidence.json").read_text(encoding="utf-8"))
+        self.assertEqual(evidence["TASK-011"][0]["criterion"], "AC-4")
+        self.assertEqual(evidence["TASK-011"][0]["artifact"], "/tmp/capture.png")
 
     def test_spend_increments_and_reports(self) -> None:
         self.write_task("TASK-002", "IN_PROGRESS")
@@ -1569,7 +1629,7 @@ class CapabilityMarkerTest(unittest.TestCase):
             encoding="utf-8"
         )
 
-        self.assertIn(("task-blueprint", "6"), self.marker_pairs(blueprint))
+        self.assertIn(("task-blueprint", "7"), self.marker_pairs(blueprint))
         self.assertIn(("reasoning-budget-contract", "1"), self.marker_pairs(policy))
         self.assertIn(("lifecycle-orchestration", "3"), self.marker_pairs(lifecycle))
         self.assertIn("[low / medium / high / xhigh]", blueprint)
@@ -1669,7 +1729,7 @@ class CapabilityMarkerTest(unittest.TestCase):
     def test_whole_file_baseline_capabilities_each_carry_one_marker(self) -> None:
         expectations = {
             "LANGUAGE_POLICY.md": ("language-policy", "2"),
-            "tasks/TASK_BLUEPRINT.md": ("task-blueprint", "6"),
+            "tasks/TASK_BLUEPRINT.md": ("task-blueprint", "7"),
             "docs/CODE_ORGANIZATION.md": ("code-organization", "1"),
             "docs/AUDIT_PROMPT_READ_ONLY.md": ("audit-prompt", "1"),
         }

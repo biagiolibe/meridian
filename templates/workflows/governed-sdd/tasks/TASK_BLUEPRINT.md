@@ -1,6 +1,6 @@
 # Task [ID] — [Title]
 
-<!-- MERIDIAN:BEGIN capability=task-blueprint v6 -->
+<!-- MERIDIAN:BEGIN capability=task-blueprint v7 -->
 Priority: [P0 / P1 / P2]
 Status: QUEUED
 Review: REQUIRED
@@ -76,7 +76,18 @@ what the investigation is allowed to execute.
 
 ## Validation
 
-- `[project validation command]`
+- `<validation-id>`: `<complete literal command, including its output bound and exit-status handling>`
+
+Run source/build validation only through `meridian execution validate <TASK-ID>
+<validation-id> --project .`. The command is deliberately stored in this task:
+the runner executes no agent-supplied shell text and records its exit status in
+`.meridian/execution-evidence.json` for the completion handoff.
+
+Before a budgeted diagnostic, capture, or context expansion, record its
+specific evidence gap with `meridian execution evidence <TASK-ID>
+<diagnostic|captures|expansions> --gap <reason> --project .`. A capture also
+requires its acceptance-criterion ID and artifact path; the command consumes
+the corresponding cap and stores the durable evidence record.
 
 ## Completion
 
