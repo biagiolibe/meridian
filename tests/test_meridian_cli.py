@@ -1565,6 +1565,26 @@ class BudgetCliTest(unittest.TestCase):
         self.assertEqual(applied.returncode, 0, applied.stderr)
         self.assertEqual(self.run_cli("execution", "preflight", "TASK-014").returncode, 0)
 
+    def test_reconcile_is_idempotent_when_contract_is_the_final_section(self) -> None:
+        (self.project / "docs").mkdir()
+        (self.project / "docs/EXECUTION_EVIDENCE_PROFILE.md").write_text("profile\n", encoding="utf-8")
+        task = self.project / "tasks/TASK-016.md"
+        task.write_text(
+            "Status: QUEUED\n\n## Authority\n\n## Expected code surface\n\n## Validation\n",
+            encoding="utf-8",
+        )
+
+        preview = self.run_cli("execution", "reconcile", "TASK-016")
+        self.assertIn("rerun with --apply", preview.stdout)
+        applied = self.run_cli("execution", "reconcile", "TASK-016", "--apply")
+        self.assertEqual(applied.returncode, 0, applied.stderr)
+        reconciled = task.read_text(encoding="utf-8")
+
+        current = self.run_cli("execution", "reconcile", "TASK-016")
+        self.assertEqual(current.returncode, 0, current.stderr)
+        self.assertIn("already current", current.stdout)
+        self.assertEqual(task.read_text(encoding="utf-8"), reconciled)
+
     def test_reconcile_preserves_terminal_task_history(self) -> None:
         (self.project / "docs").mkdir()
         (self.project / "docs/EXECUTION_EVIDENCE_PROFILE.md").write_text("profile\n", encoding="utf-8")

@@ -1955,8 +1955,10 @@ def reconcile_execution_contract(project_root: Path, task_id: str, apply: bool) 
         re.MULTILINE | re.DOTALL,
     )
     replacement = generated + "\n\n"
-    if section.search(text):
-        reconciled = section.sub(replacement, text, count=1)
+    match = section.search(text)
+    if match:
+        separator = "\n\n" if match.end() < len(text) else "\n"
+        reconciled = text[:match.start()] + generated + separator + text[match.end():]
     elif re.search(r"^## Completion\s*$", text, re.MULTILINE):
         reconciled = re.sub(r"^## Completion\s*$", replacement + "## Completion", text, count=1, flags=re.MULTILINE)
     else:
