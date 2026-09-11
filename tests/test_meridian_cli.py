@@ -1370,6 +1370,10 @@ class BudgetCliTest(unittest.TestCase):
     def budget_state(self) -> dict:
         return json.loads((self.project / ".meridian/budget.json").read_text(encoding="utf-8"))
 
+    def append_contract(self, task_id: str) -> None:
+        path = self.project / "tasks" / f"{task_id}.md"
+        path.write_text(path.read_text(encoding="utf-8") + "\n" + meridian.execution_contract(self.project, task_id) + "\n", encoding="utf-8")
+
     def run_cli(self, *arguments: str) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
             [sys.executable, str(CLI), *arguments, "--project", str(self.project)],
@@ -1428,6 +1432,11 @@ class BudgetCliTest(unittest.TestCase):
             "Task files live under `docs/tasks/<milestone>/`; queue is `docs/TASK_QUEUE.md`.\n\n## Roles\n",
             encoding="utf-8",
         )
+        nested_task = self.project / "docs/tasks/M19/TASK-007.md"
+        nested_task.write_text(
+            nested_task.read_text(encoding="utf-8") + "\n" + meridian.execution_contract(self.project, "TASK-007") + "\n",
+            encoding="utf-8",
+        )
         locations = self.run_cli("locations", "--field", "queue")
         self.assertEqual(locations.stdout.strip(), "docs/TASK_QUEUE.md")
         preflight = self.run_cli("execution", "preflight", "TASK-007")
@@ -1445,6 +1454,7 @@ class BudgetCliTest(unittest.TestCase):
             "Status: QUEUED\n\n## Authority\n\n## Expected code surface\n\n## Validation\n",
             encoding="utf-8",
         )
+        self.append_contract("TASK-008")
         passed = self.run_cli("execution", "preflight", "TASK-008")
         self.assertEqual(passed.returncode, 0, passed.stderr)
         self.assertIn("Execution contract:", passed.stdout)
@@ -1462,6 +1472,25 @@ class BudgetCliTest(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("Budget usage", result.stderr)
 
+    def test_ready_check_combines_preflight_and_handoff(self) -> None:
+        (self.project / "docs").mkdir()
+        (self.project / "docs/EXECUTION_EVIDENCE_PROFILE.md").write_text("profile\n", encoding="utf-8")
+        (self.project / "tasks/TASK-012.md").write_text(
+            "Status: IN_PROGRESS\n\n## Authority\n\n## Expected code surface\n\n## Validation\n",
+            encoding="utf-8",
+        )
+        self.append_contract("TASK-012")
+        report = self.project / "ready.md"
+        report.write_text(
+            "## Completion Report — TASK-012\n\n- Files changed: none\n- Validation: exit 0\n"
+            "- Manual verification: none\n- Acceptance criteria: all met\n- Budget usage: 0/3\n"
+            "- Blockers/deviations: none\n",
+            encoding="utf-8",
+        )
+        result = self.run_cli("execution", "ready-check", "TASK-012", str(report))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("READY_FOR_REVIEW gate passed", result.stdout)
+
     def test_validation_runs_only_a_declared_literal_command_and_records_status(self) -> None:
         (self.project / "docs").mkdir()
         (self.project / "docs/EXECUTION_EVIDENCE_PROFILE.md").write_text("profile\n", encoding="utf-8")
@@ -1470,6 +1499,7 @@ class BudgetCliTest(unittest.TestCase):
             "## Validation\n\n- `probe`: `printf validation-ok`\n",
             encoding="utf-8",
         )
+        self.append_contract("TASK-010")
         result = self.run_cli("execution", "validate", "TASK-010", "probe")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("validation-ok", result.stdout)
@@ -1492,6 +1522,13 @@ class BudgetCliTest(unittest.TestCase):
         evidence = json.loads((self.project / ".meridian/execution-evidence.json").read_text(encoding="utf-8"))
         self.assertEqual(evidence["TASK-011"][0]["criterion"], "AC-4")
         self.assertEqual(evidence["TASK-011"][0]["artifact"], "/tmp/capture.png")
+        other = self.run_cli(
+            "execution", "evidence", "TASK-011", "captures", "--gap", "second criterion",
+            "--criterion", "AC-5", "--artifact", "/tmp/second.png",
+        )
+        self.assertEqual(other.returncode, 0, other.stderr)
+        shown = self.run_cli("budget", "show", "TASK-011")
+        self.assertIn("AC-4 1/2, AC-5 1/2", shown.stdout)
 
     def test_spend_increments_and_reports(self) -> None:
         self.write_task("TASK-002", "IN_PROGRESS")
@@ -1629,7 +1666,7 @@ class CapabilityMarkerTest(unittest.TestCase):
             encoding="utf-8"
         )
 
-        self.assertIn(("task-blueprint", "7"), self.marker_pairs(blueprint))
+        self.assertIn(("task-blueprint", "9"), self.marker_pairs(blueprint))
         self.assertIn(("reasoning-budget-contract", "1"), self.marker_pairs(policy))
         self.assertIn(("lifecycle-orchestration", "3"), self.marker_pairs(lifecycle))
         self.assertIn("[low / medium / high / xhigh]", blueprint)
@@ -1722,6 +1759,7 @@ class CapabilityMarkerTest(unittest.TestCase):
                 "execution-discipline",
             )
         }
+        expected["execution-assets"] = "2"
         expected["task-lifecycle"] = "2"
         expected["review-policy"] = "2"
         self.assertEqual(sorted(pairs), sorted(expected.items()))
@@ -1729,7 +1767,7 @@ class CapabilityMarkerTest(unittest.TestCase):
     def test_whole_file_baseline_capabilities_each_carry_one_marker(self) -> None:
         expectations = {
             "LANGUAGE_POLICY.md": ("language-policy", "2"),
-            "tasks/TASK_BLUEPRINT.md": ("task-blueprint", "7"),
+            "tasks/TASK_BLUEPRINT.md": ("task-blueprint", "9"),
             "docs/CODE_ORGANIZATION.md": ("code-organization", "1"),
             "docs/AUDIT_PROMPT_READ_ONLY.md": ("audit-prompt", "1"),
         }

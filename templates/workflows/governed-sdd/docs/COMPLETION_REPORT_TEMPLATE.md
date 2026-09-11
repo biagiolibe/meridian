@@ -1,6 +1,8 @@
 # Concise Completion Report
 
 Use this handoff after validation. Keep it short and make every deviation explicit.
+Save it at `tasks/handoffs/<TASK-ID>.md`; `meridian execution handoff-check`
+and `ready-check` use that canonical path when no report path is supplied.
 
 ```md
 ## Completion Report — <TASK-ID>

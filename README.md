@@ -202,6 +202,50 @@ findings, records resolution evidence, validates, and opens the next review
 attempt. This keeps the chat as a notification channel instead of the system
 of record.
 
+### Governed execution evidence
+
+For source/build tasks, the execution-evidence profile is resolved into the
+task before implementation. This makes the task—not a separately remembered
+policy document—the operational contract for validation, evidence budgets, and
+the review handoff.
+
+```text
+Create or materially re-scope task
+        |
+        +-- declare authority, scope, acceptance criteria, budget caps,
+        |   and named literal validation commands
+        |
+        +-- meridian execution contract <TASK-ID> --project .
+              records the profile digest and resolved contract in the task
+        |
+meridian execution preflight <TASK-ID> --project .
+        |
+        +-- requires a current profile digest, executable task state,
+        |   complete task contract, and matching task/queue state
+        |
+Implement and collect evidence
+        |
+        +-- meridian execution validate <TASK-ID> <validation-id>
+        +-- meridian execution evidence <TASK-ID> diagnostic|expansions --gap <reason>
+        +-- meridian execution evidence <TASK-ID> captures --gap <reason>
+        |      --criterion <AC-ID> --artifact <absolute-path>
+        |
+Completion report
+        |
+meridian execution ready-check <TASK-ID> <report> --project .
+        |
+        +-- verifies preflight and structured handoff evidence
+        |
+READY_FOR_REVIEW --> independent review --> APPROVE --> ACCEPTED/integration
+                    |                         |
+                    +-- CHANGES_REQUESTED ----+--> IN_PROGRESS/remediation
+```
+
+The wrapper records validation exit statuses and budgeted evidence in
+`.meridian/execution-evidence.json`; task-attempt counters live in
+`.meridian/budget.json`. A project upgrades its templates before using these
+gates, then backfills only non-terminal tasks with their resolved contracts.
+
 For a fully delegated required-review task, `Run lifecycle <TASK-ID>` adds a
 coordination-only agent that starts distinct implementer and reviewer sessions,
 loops through the durable review record when changes are requested, and
