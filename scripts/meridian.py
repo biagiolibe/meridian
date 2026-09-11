@@ -1615,7 +1615,15 @@ def find_task_file(project_root: Path, task_id: str) -> Path:
         absolute = project_root / root
         candidates.append(absolute / f"{task_id}.md")
         if absolute.is_dir():
-            candidates.extend(absolute.rglob(f"{task_id}.md"))
+            # Review records deliberately share a task ID with their task, but
+            # are not task contracts.  Do not let the conventional nested
+            # review-record directory turn an otherwise unambiguous task into
+            # an ambiguity.
+            candidates.extend(
+                path
+                for path in absolute.rglob(f"{task_id}.md")
+                if "reviews" not in path.relative_to(absolute).parts
+            )
     existing = list(dict.fromkeys(path for path in candidates if path.is_file()))
     if len(existing) != 1:
         raise MeridianError(f"unknown task or ambiguous task path: {task_id}")
