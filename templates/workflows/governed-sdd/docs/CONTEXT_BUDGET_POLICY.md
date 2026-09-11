@@ -14,6 +14,33 @@ For an implementation or review:
 
 Dependencies establish readiness; they do not automatically require rereading their entire implementation history.
 
+<!-- MERIDIAN:BEGIN capability=isolated-exploration v1 -->
+## Isolated exploration
+
+When one specific question requires broad or uncertain-yield material outside a
+task's declared `Authority` or `Expected code surface`, use a bounded
+exploration before loading its raw material into the implementation session.
+The mechanism is deliberately host-agnostic: it may be a separate session, a
+worker, or a direct read when the declared scope is small.
+
+- State the exact question, the expected answer shape, and the source scope
+  before reading. A file already named by the task remains a targeted direct
+  read; do not add process overhead for it.
+- Record broad exploration with `meridian execution investigate <TASK-ID>`:
+  question, scope units, sources materially used, and the distilled finding.
+  Return or retain that finding, not a raw transcript or unconstrained search
+  output.
+- Delegation never erases cost. Each scope unit covers at most three primary
+  files or 300 lines of primary material; a larger scope consumes additional
+  `Investigation scope` budget or requires a task revision.
+- The implementation worker remains responsible for validating any finding
+  that becomes material to an acceptance criterion or implementation decision.
+
+Use isolated exploration only for a genuinely open-ended question. Do not use
+it to bypass a task's authority boundary, conceal a broad repository scan, or
+replace a required spike when the unknown changes the task's design premise.
+<!-- MERIDIAN:END -->
+
 <!-- MERIDIAN:BEGIN capability=minimal-read-only-status v1 -->
 ## Minimal read-only status
 

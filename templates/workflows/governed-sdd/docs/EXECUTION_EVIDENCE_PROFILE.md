@@ -6,11 +6,11 @@ next implementation after a framework upgrade adds this file. Keep commands and
 tool choices current; the task's declared validation and acceptance criteria
 remain mandatory.
 
-The diagnostic-attempt, evidence-capture, and context-expansion budgets below
-are caps, not targets: reaching one requires `BLOCKED`, never a silently
-raised cap. Raising a default above its stated value requires a recorded
-rationale, in the same shape the task blueprint's `Reasoning justification`
-field already uses.
+The diagnostic-attempt, evidence-capture, context-expansion, and investigation
+budgets below are caps, not targets: reaching one requires `BLOCKED`, never a
+silently raised cap. Raising a default above its stated value requires a
+recorded rationale, in the same shape the task blueprint's `Reasoning
+justification` field already uses.
 
 ## Context reuse
 
@@ -22,6 +22,13 @@ field already uses.
   surface` — a file, ADR, specification, or prior chat opened to resolve a
   blocker or verify an acceptance criterion. Override with the task's
   `Context expansions` field.
+- Isolated-exploration budget and the condition that requires `BLOCKED` rather
+  than a broader search: `Investigation scope`: 2 per task. One scope unit is
+  at most three primary files or 300 lines of primary material consulted to
+  answer one declared question outside the task's initial authority. Override
+  with the task's `Investigation scope` field. Record it with `meridian
+  execution investigate`; changing worker or session does not remove this
+  cost.
 
 ## Successful validation output
 

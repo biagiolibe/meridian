@@ -14,7 +14,8 @@ and `ready-check` use that canonical path when no report path is supplied.
 - Validation: `<exact commands run with their exit status, or the CI check run and its conclusion for this exact commit — not a bare "passed">`
 - Manual verification: `<none | screenshot path — view checked — result>`
 - Acceptance criteria: `<all met | list criterion IDs/status>`
-- Budget usage: `<diagnostics used/cap; captures used/cap by criterion; context expansions used/cap>`
+- Budget usage: `<diagnostics used/cap; captures used/cap by criterion; context expansions used/cap; investigation scope used/cap>`
+- Isolated exploration: `<none | question(s) recorded through meridian execution investigate>`
 - Blockers/deviations: `<none | concrete issue, scope expansion, or context expansion and reason>`
 ```
 

@@ -1387,7 +1387,8 @@ class BudgetCliTest(unittest.TestCase):
         result = self.run_cli("budget", "show", "TASK-001")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(
-            result.stdout.strip(), "Diagnostics 0/3 · Captures 0/2 · Expansions 0/2"
+            result.stdout.strip(),
+            "Diagnostics 0/3 · Captures 0/2 · Expansions 0/2 · Investigations 0/2",
         )
 
     def test_show_resolves_nested_project_tasks_and_profile_defaults(self) -> None:
@@ -1406,13 +1407,15 @@ class BudgetCliTest(unittest.TestCase):
         profile.write_text(
             "`Diagnostic attempts`: 4 per failure.\n"
             "`Evidence captures`: 5 per acceptance criterion.\n"
-            "`Context expansions`: 6 per task.\n",
+            "`Context expansions`: 6 per task.\n"
+            "`Investigation scope`: 7 per task.\n",
             encoding="utf-8",
         )
         result = self.run_cli("budget", "show", "TASK-007")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(
-            result.stdout.strip(), "Diagnostics 0/4 · Captures 0/5 · Expansions 0/6"
+            result.stdout.strip(),
+            "Diagnostics 0/4 · Captures 0/5 · Expansions 0/6 · Investigations 0/7",
         )
 
     def test_locations_and_preflight_use_the_declared_queue(self) -> None:
@@ -1459,6 +1462,39 @@ class BudgetCliTest(unittest.TestCase):
         self.assertEqual(passed.returncode, 0, passed.stderr)
         self.assertIn("Execution contract:", passed.stdout)
 
+    def test_reconcile_upgrades_a_nonterminal_legacy_contract_before_preflight(self) -> None:
+        (self.project / "docs").mkdir()
+        (self.project / "docs/EXECUTION_EVIDENCE_PROFILE.md").write_text("profile\n", encoding="utf-8")
+        task = self.project / "tasks/TASK-014.md"
+        task.write_text(
+            "Status: QUEUED\n\n## Authority\n\n## Expected code surface\n\n## Validation\n\n## Completion\n",
+            encoding="utf-8",
+        )
+        legacy_contract = meridian.execution_contract(self.project, "TASK-014").replace(
+            "- Execution commands: `required via meridian execution`", ""
+        )
+        task.write_text(task.read_text(encoding="utf-8").replace("## Completion", legacy_contract + "\n\n## Completion"), encoding="utf-8")
+        blocked = self.run_cli("execution", "preflight", "TASK-014")
+        self.assertNotEqual(blocked.returncode, 0)
+        self.assertIn("execution-command gate", blocked.stderr)
+        preview = self.run_cli("execution", "reconcile", "TASK-014")
+        self.assertEqual(preview.returncode, 0, preview.stderr)
+        self.assertIn("rerun with --apply", preview.stdout)
+        applied = self.run_cli("execution", "reconcile", "TASK-014", "--apply")
+        self.assertEqual(applied.returncode, 0, applied.stderr)
+        self.assertEqual(self.run_cli("execution", "preflight", "TASK-014").returncode, 0)
+
+    def test_reconcile_preserves_terminal_task_history(self) -> None:
+        (self.project / "docs").mkdir()
+        (self.project / "docs/EXECUTION_EVIDENCE_PROFILE.md").write_text("profile\n", encoding="utf-8")
+        task = self.project / "tasks/TASK-015.md"
+        task.write_text("Status: ACCEPTED\n\n## Completion\n- historical record\n", encoding="utf-8")
+        original = task.read_text(encoding="utf-8")
+        result = self.run_cli("execution", "reconcile", "TASK-015", "--apply")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("skipped for terminal task", result.stdout)
+        self.assertEqual(task.read_text(encoding="utf-8"), original)
+
     def test_handoff_check_rejects_missing_budget_usage(self) -> None:
         report = self.project / "handoff.md"
         report.write_text(
@@ -1484,12 +1520,52 @@ class BudgetCliTest(unittest.TestCase):
         report.write_text(
             "## Completion Report — TASK-012\n\n- Files changed: none\n- Validation: exit 0\n"
             "- Manual verification: none\n- Acceptance criteria: all met\n- Budget usage: 0/3\n"
+            "- Isolated exploration: none\n"
             "- Blockers/deviations: none\n",
             encoding="utf-8",
         )
         result = self.run_cli("execution", "ready-check", "TASK-012", str(report))
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("READY_FOR_REVIEW gate passed", result.stdout)
+
+    def test_handoff_rejects_fabricated_validation_and_requires_recorded_investigation(self) -> None:
+        (self.project / "docs").mkdir()
+        (self.project / "docs/EXECUTION_EVIDENCE_PROFILE.md").write_text("profile\n", encoding="utf-8")
+        (self.project / "tasks/TASK-013.md").write_text(
+            "Status: IN_PROGRESS\n\n## Authority\n\n## Expected code surface\n\n"
+            "## Validation\n\n- `probe`: `printf validation-ok`\n",
+            encoding="utf-8",
+        )
+        self.append_contract("TASK-013")
+        report = self.project / "evidence.md"
+        report.write_text(
+            "## Completion Report — TASK-013\n\n- Files changed: none\n"
+            "- Validation: `printf validation-ok` exit 0\n- Manual verification: none\n"
+            "- Acceptance criteria: all met\n- Budget usage: 0/3\n"
+            "- Isolated exploration: none\n- Blockers/deviations: none\n",
+            encoding="utf-8",
+        )
+        fabricated = self.run_cli("execution", "handoff-check", "TASK-013", str(report))
+        self.assertNotEqual(fabricated.returncode, 0)
+        self.assertIn("successful durable validation is missing", fabricated.stderr)
+
+        self.assertEqual(self.run_cli("execution", "validate", "TASK-013", "probe").returncode, 0)
+        investigated = self.run_cli(
+            "execution", "investigate", "TASK-013", "--question", "Which API owns the value?",
+            "--scope", "1", "--source", "vendor/api.rs", "--finding", "Window owns the value.",
+        )
+        self.assertEqual(investigated.returncode, 0, investigated.stderr)
+        missing_question = self.run_cli("execution", "handoff-check", "TASK-013", str(report))
+        self.assertNotEqual(missing_question.returncode, 0)
+        self.assertIn("says no isolated exploration", missing_question.stderr)
+        report.write_text(
+            report.read_text(encoding="utf-8").replace(
+                "- Isolated exploration: none",
+                "- Isolated exploration: Which API owns the value? — Window owns the value.",
+            ),
+            encoding="utf-8",
+        )
+        self.assertEqual(self.run_cli("execution", "handoff-check", "TASK-013", str(report)).returncode, 0)
 
     def test_validation_runs_only_a_declared_literal_command_and_records_status(self) -> None:
         (self.project / "docs").mkdir()
@@ -1615,6 +1691,7 @@ class CapabilityMarkerTest(unittest.TestCase):
             pairs = self.marker_pairs(text)
             self.assertIn(("review-remediation-record", "2"), pairs, name)
             self.assertIn(("lifecycle-orchestration", "3"), pairs, name)
+            self.assertIn(("execution-command-gate", "1"), pairs, name)
             self.assertIn(("validation-scoping", "1"), pairs, name)
             self.assertIn(("spike-routing", "1"), pairs, name)
 
@@ -1635,6 +1712,7 @@ class CapabilityMarkerTest(unittest.TestCase):
             self.marker_pairs(text),
             [
                 ("queue-briefing", "1"),
+                ("isolated-exploration", "1"),
                 ("minimal-read-only-status", "1"),
                 ("validation-scoping", "1"),
                 ("evidence-tiers", "1"),
@@ -1666,7 +1744,7 @@ class CapabilityMarkerTest(unittest.TestCase):
             encoding="utf-8"
         )
 
-        self.assertIn(("task-blueprint", "9"), self.marker_pairs(blueprint))
+        self.assertIn(("task-blueprint", "11"), self.marker_pairs(blueprint))
         self.assertIn(("reasoning-budget-contract", "1"), self.marker_pairs(policy))
         self.assertIn(("lifecycle-orchestration", "3"), self.marker_pairs(lifecycle))
         self.assertIn("[low / medium / high / xhigh]", blueprint)
@@ -1767,7 +1845,7 @@ class CapabilityMarkerTest(unittest.TestCase):
     def test_whole_file_baseline_capabilities_each_carry_one_marker(self) -> None:
         expectations = {
             "LANGUAGE_POLICY.md": ("language-policy", "2"),
-            "tasks/TASK_BLUEPRINT.md": ("task-blueprint", "9"),
+            "tasks/TASK_BLUEPRINT.md": ("task-blueprint", "11"),
             "docs/CODE_ORGANIZATION.md": ("code-organization", "1"),
             "docs/AUDIT_PROMPT_READ_ONLY.md": ("audit-prompt", "1"),
         }
