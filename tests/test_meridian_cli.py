@@ -1418,6 +1418,29 @@ class BudgetCliTest(unittest.TestCase):
             "Diagnostics 0/4 · Captures 0/5 · Expansions 0/6 · Investigations 0/7",
         )
 
+    def test_show_ignores_nested_review_record_with_the_same_task_id(self) -> None:
+        nested = self.project / "docs/tasks/M19"
+        review = self.project / "docs/tasks/reviews"
+        nested.mkdir(parents=True)
+        review.mkdir(parents=True)
+        (nested / "M19-HUD-010.md").write_text(
+            "Status: IN_PROGRESS\n", encoding="utf-8"
+        )
+        (review / "M19-HUD-010.md").write_text(
+            "Verdict: CHANGES_REQUESTED\n", encoding="utf-8"
+        )
+        (self.project / "PROJECT_WORKFLOW.md").write_text(
+            "<!-- MERIDIAN:BEGIN capability=execution-assets v1 -->\n"
+            "<!-- MERIDIAN:END -->\n"
+            "Task files live under `docs/tasks/<milestone>/`; queue is `docs/TASK_QUEUE.md`.\n\n## Roles\n",
+            encoding="utf-8",
+        )
+
+        result = self.run_cli("budget", "show", "M19-HUD-010")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Diagnostics 0/3", result.stdout)
+
     def test_locations_and_preflight_use_the_declared_queue(self) -> None:
         (self.project / "docs/tasks/M19").mkdir(parents=True)
         (self.project / "docs/tasks/M19/TASK-007.md").write_text(
