@@ -3,6 +3,20 @@
 # Outputs a compact status only if the project's queue file exists in cwd.
 # Silent exit in non-Meridian projects.
 
+# The hook must be able to find the CLI when invoked directly, from a local
+# plugin, or by any host. Its own parent directory is the authoritative bundled
+# location. Host-provided plugin-root variables are equivalent fallbacks, not
+# a preference for any particular AI tool.
+HOOK_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+MERIDIAN_BIN="$HOOK_ROOT/bin/meridian"
+for PLUGIN_DIRECTORY in "${PLUGIN_ROOT:-}" "${CLAUDE_PLUGIN_ROOT:-}"; do
+  [ -x "$MERIDIAN_BIN" ] && break
+  [ -n "$PLUGIN_DIRECTORY" ] && MERIDIAN_BIN="$PLUGIN_DIRECTORY/bin/meridian"
+done
+if [ ! -x "$MERIDIAN_BIN" ]; then
+  MERIDIAN_BIN="$(command -v meridian 2>/dev/null || true)"
+fi
+
 # governed-SDD's `execution-assets` capability defaults the queue to
 # `tasks/QUEUE.md` "unless this section declares different locations for
 # this project" (see templates/workflows/governed-sdd/PROJECT_WORKFLOW.md).
@@ -46,8 +60,8 @@ resolve_queue_path() {
   fi
 }
 
-if [ -n "$CLAUDE_PLUGIN_ROOT" ] && [ -x "$CLAUDE_PLUGIN_ROOT/bin/meridian" ]; then
-  QUEUE=$("$CLAUDE_PLUGIN_ROOT/bin/meridian" locations --project . --field queue 2>/dev/null)
+if [ -n "$MERIDIAN_BIN" ] && [ -x "$MERIDIAN_BIN" ]; then
+  QUEUE=$("$MERIDIAN_BIN" locations --project . --field queue 2>/dev/null)
 fi
 QUEUE=${QUEUE:-$(resolve_queue_path)}
 [ -f "$QUEUE" ] || exit 0
@@ -142,14 +156,18 @@ if grep -Eq '^\| Order \| ID \|.*\| Status \|.*Dependencies \|' "$QUEUE"; then
   [ -n "$ACTIVE" ] && echo "  🔴 In progress: $ACTIVE" || echo "  ✅ No active task"
   # Echo the active task's diagnostic/evidence/context-expansion budget so
   # the cap stays at maximum salience every turn instead of a rule read once
-  # at turn 1. Silent whenever there is no active task, no meridian CLI, or
-  # the CLI itself has nothing to report (unknown task, stale queue row).
-  if [ -n "$ACTIVE" ] && [ -n "$CLAUDE_PLUGIN_ROOT" ] && [ -x "$CLAUDE_PLUGIN_ROOT/bin/meridian" ]; then
-    BUDGET=$("$CLAUDE_PLUGIN_ROOT/bin/meridian" budget show "$ACTIVE" --project . 2>/dev/null)
+  # at turn 1. A missing runner is visible: silently omitting the line would
+  # turn a control-plane failure into a misleadingly normal briefing.
+  if [ -n "$ACTIVE" ] && [ -n "$MERIDIAN_BIN" ] && [ -x "$MERIDIAN_BIN" ]; then
+    BUDGET=$("$MERIDIAN_BIN" budget show "$ACTIVE" --project . 2>/dev/null)
     if [ -n "$BUDGET" ]; then
       echo "  ⏱  $BUDGET"
       echo "  ⛔ On exhaustion: return BLOCKED. Do not raise a cap."
+    else
+      echo "  ⚠ Budget state unavailable for: $ACTIVE"
     fi
+  elif [ -n "$ACTIVE" ]; then
+    echo "  ⚠ Meridian budget runner unavailable"
   fi
   [ -n "$REVIEW" ] && echo "  🔎 In review: $REVIEW"
   if [ "${READY_N:-0}" -gt 0 ]; then
