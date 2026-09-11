@@ -1599,6 +1599,55 @@ def budget_spend(project_root: Path, task_id: str, kind: str) -> tuple[int, int]
     return count, cap
 
 
+PREFLIGHT_HEADINGS = ("Authority", "Expected code surface", "Validation")
+HANDOFF_FIELDS = (
+    "Files changed",
+    "Validation",
+    "Manual verification",
+    "Acceptance criteria",
+    "Budget usage",
+    "Blockers/deviations",
+)
+
+
+def execution_preflight(project_root: Path, task_id: str) -> str:
+    """Validate the minimum durable execution contract before implementation.
+
+    This intentionally does not inspect a chat's reasoning setting: that is a
+    host concern and is outside this command's authority.
+    """
+    profile = project_root / "docs" / "EXECUTION_EVIDENCE_PROFILE.md"
+    if not profile.is_file():
+        raise MeridianError("execution preflight BLOCKED: missing docs/EXECUTION_EVIDENCE_PROFILE.md")
+    task_file = find_task_file(project_root, task_id)
+    text = task_file.read_text(encoding="utf-8")
+    missing = [heading for heading in PREFLIGHT_HEADINGS if not re.search(rf"^## {re.escape(heading)}\s*$", text, re.MULTILINE)]
+    if missing:
+        raise MeridianError(
+            "execution preflight BLOCKED: task is missing " + ", ".join(f"## {heading}" for heading in missing)
+        )
+    status = read_task_field(text, "Status")
+    if status not in ("QUEUED", "IN_PROGRESS"):
+        raise MeridianError(f"execution preflight BLOCKED: {task_id} status is {status or 'missing'}")
+    caps = ", ".join(
+        f"{BUDGET_FIELD_NAMES[kind]}={task_cap(project_root, text, kind)}" for kind in BUDGET_KINDS
+    )
+    return f"Execution contract: {task_file.relative_to(project_root)} · {caps}"
+
+
+def check_handoff(task_id: str, report: Path) -> str:
+    """Reject incomplete completion evidence before it can be used as a handoff."""
+    if not report.is_file():
+        raise MeridianError(f"handoff check BLOCKED: report is missing: {report}")
+    text = report.read_text(encoding="utf-8")
+    missing = [field for field in HANDOFF_FIELDS if not re.search(rf"^- {re.escape(field)}:\s*\S+", text, re.MULTILINE)]
+    if missing:
+        raise MeridianError("handoff check BLOCKED: missing required fields: " + ", ".join(missing))
+    if f"Completion Report — {task_id}" not in text:
+        raise MeridianError(f"handoff check BLOCKED: report does not identify {task_id}")
+    return f"Handoff evidence complete for {task_id}: {report}"
+
+
 # `CLAUDE.md` is Claude Code's own instructions file; it cannot be reduced to a
 # bare pointer, since a Claude Code session never reads `AGENTS.md` itself. So
 # each workflow's `CLAUDE.md` keeps a hand-authored preamble (title, pointer
@@ -1740,6 +1789,16 @@ def main() -> int:
     budget_spend_parser.add_argument("kind", choices=BUDGET_KINDS)
     budget_spend_parser.add_argument("--project", type=Path, default=Path.cwd())
 
+    execution = subparsers.add_parser("execution", help="validate a governed task's durable execution evidence")
+    execution_sub = execution.add_subparsers(dest="execution_command", required=True)
+    preflight = execution_sub.add_parser("preflight", help="check the task contract before implementation")
+    preflight.add_argument("task_id")
+    preflight.add_argument("--project", type=Path, default=Path.cwd())
+    handoff = execution_sub.add_parser("handoff-check", help="check a structured completion handoff")
+    handoff.add_argument("task_id")
+    handoff.add_argument("report", type=Path)
+    handoff.add_argument("--project", type=Path, default=Path.cwd())
+
     generate_claude = subparsers.add_parser(
         "generate-claude-md",
         help="regenerate a workflow template's CLAUDE.md shared body from its AGENTS.md (framework-internal)",
@@ -1789,6 +1848,11 @@ def main() -> int:
             else:
                 count, cap = budget_spend(project_root, arguments.task_id, arguments.kind)
                 print(f"{arguments.task_id}: {arguments.kind} {count}/{cap}")
+        elif arguments.command == "execution":
+            if arguments.execution_command == "preflight":
+                print(execution_preflight(project_root, arguments.task_id))
+            else:
+                print(check_handoff(arguments.task_id, arguments.report))
         elif arguments.command == "generate-claude-md":
             workflow = framework_root / "templates" / "workflows" / arguments.mode
             agents_path = workflow / "AGENTS.md"

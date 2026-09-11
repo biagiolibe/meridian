@@ -12,6 +12,7 @@ Use this handoff after validation. Keep it short and make every deviation explic
 - Validation: `<exact commands run with their exit status, or the CI check run and its conclusion for this exact commit — not a bare "passed">`
 - Manual verification: `<none | screenshot path — view checked — result>`
 - Acceptance criteria: `<all met | list criterion IDs/status>`
+- Budget usage: `<diagnostics used/cap; captures used/cap by criterion; context expansions used/cap>`
 - Blockers/deviations: `<none | concrete issue, scope expansion, or context expansion and reason>`
 ```
 
