@@ -1735,6 +1735,7 @@ def execution_contract(project_root: Path, task_id: str) -> str:
     """Render the profile-derived execution block placed in a task at design time."""
     task = find_task_file(project_root, task_id)
     text = task.read_text(encoding="utf-8")
+    require_named_validation_commands(text)
     commands = ", ".join(validation_commands(text)) or "none"
     caps = ", ".join(f"{BUDGET_FIELD_NAMES[kind]}: {task_cap(project_root, text, kind)}" for kind in BUDGET_KINDS)
     return "\n".join((
@@ -1899,6 +1900,7 @@ def execution_preflight(project_root: Path, task_id: str) -> str:
     """
     task_file = find_task_file(project_root, task_id)
     text = task_file.read_text(encoding="utf-8")
+    require_named_validation_commands(text)
     expected_digest = profile_digest(project_root)
     recorded_digest = contract_digest(text)
     if recorded_digest is None:
@@ -2075,6 +2077,19 @@ def validation_commands(text: str) -> dict[str, str]:
         command_id, command = match.groups()
         commands[command_id] = command
     return commands
+
+
+def require_named_validation_commands(text: str) -> None:
+    """Reject free-form Validation entries that the execution runner cannot run."""
+    section = re.search(r"^## Validation\s*$\n(.*?)(?=^## |\Z)", text, re.MULTILINE | re.DOTALL)
+    if section is None:
+        return
+    entries = [line for line in section.group(1).splitlines() if line.startswith("- ")]
+    if entries and len(validation_commands(text)) != len(entries):
+        raise MeridianError(
+            "execution contract BLOCKED: every Validation entry must use "
+            "`- `validation-id`: `literal command``"
+        )
 
 
 def record_validation(project_root: Path, task_id: str, command_id: str, command: str, status: int) -> None:

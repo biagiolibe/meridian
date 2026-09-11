@@ -1585,6 +1585,23 @@ class BudgetCliTest(unittest.TestCase):
         self.assertIn("already current", current.stdout)
         self.assertEqual(task.read_text(encoding="utf-8"), reconciled)
 
+    def test_execution_contract_blocks_unnamed_validation_entries(self) -> None:
+        (self.project / "docs").mkdir()
+        (self.project / "docs/EXECUTION_EVIDENCE_PROFILE.md").write_text("profile\n", encoding="utf-8")
+        task = self.project / "tasks/TASK-017.md"
+        task.write_text(
+            "Status: QUEUED\n\n## Authority\n\n## Expected code surface\n\n"
+            "## Validation\n\n- `cargo fmt --check`\n",
+            encoding="utf-8",
+        )
+
+        reconcile = self.run_cli("execution", "reconcile", "TASK-017")
+        self.assertNotEqual(reconcile.returncode, 0)
+        self.assertIn("every Validation entry must use", reconcile.stderr)
+        preflight = self.run_cli("execution", "preflight", "TASK-017")
+        self.assertNotEqual(preflight.returncode, 0)
+        self.assertIn("every Validation entry must use", preflight.stderr)
+
     def test_reconcile_preserves_terminal_task_history(self) -> None:
         (self.project / "docs").mkdir()
         (self.project / "docs/EXECUTION_EVIDENCE_PROFILE.md").write_text("profile\n", encoding="utf-8")
