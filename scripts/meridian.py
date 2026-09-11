@@ -486,10 +486,98 @@ def append_only_new_markers(local_text: str, base_text: str, template_text: str)
             block = extract_marked_block(template_text, capability, version)
             if block is None:
                 return None
-            new_blocks.append(block)
-        result = result.rstrip() + "\n\n" + "\n\n".join(new_blocks) + "\n"
+            content = extract_marker_block(template_text, capability, version)
+            # A project can have manually adopted the exact new rule before a
+            # later framework release wraps it in a marker. Promote that one
+            # durable occurrence in place rather than appending a duplicate.
+            if content and content not in base_text and result.count(content) == 1:
+                result = result.replace(content, block, 1)
+            else:
+                new_blocks.append(block)
+        if new_blocks:
+            result = result.rstrip() + "\n\n" + "\n\n".join(new_blocks) + "\n"
 
     return result
+
+
+def is_agents_pointer(text: str) -> bool:
+    """Recognize a project-owned CLAUDE.md that deliberately delegates to AGENTS.
+
+    This narrow signature keeps the exception explicit: a short Claude file is
+    not enough. It must name AGENTS as authoritative and explicitly say that
+    Meridian markers live there once, which makes the duplicate-context tradeoff
+    durable and reviewable.
+    """
+    return (
+        "`AGENTS.md`, which is authoritative" in text
+        and "Every Meridian capability marker" in text
+        and "lives in `AGENTS.md`, once" in text
+        and "Keep this file a pointer" in text
+        and not marker_pairs(text)
+    )
+
+
+def agents_pointer_satisfies_claude(
+    project_root: Path, framework_root: Path, mode: str, claude_template_text: str, claude_local_text: str
+) -> bool:
+    """A pointer is safe only when AGENTS carries every shared Claude marker."""
+    if not is_agents_pointer(claude_local_text):
+        return False
+    agent_local = project_root / "AGENTS.md"
+    agent_template = framework_root / "templates" / "workflows" / mode / "AGENTS.md"
+    if not agent_local.is_file() or not agent_template.is_file():
+        return False
+    local_text = agent_local.read_text(encoding="utf-8")
+    template_text = agent_template.read_text(encoding="utf-8")
+    pairs = marker_pairs(claude_template_text)
+    return bool(pairs) and all(
+        extract_marker_block(local_text, capability, version)
+        == extract_marker_block(template_text, capability, version)
+        for capability, version in pairs
+    )
+
+
+def reflowed_marker_normalization(local_text: str, template_text: str) -> str | None:
+    """Canonicalize protected prose whose only drift is hard line wrapping.
+
+    Fenced blocks must remain byte-identical. Outside fences, paragraph
+    boundaries and non-whitespace characters must be identical; this permits a
+    formatter's line wrap, not a content edit.
+    """
+    def paragraphs(value: str) -> list[str] | None:
+        chunks = re.split(r"(```.*?```)", value, flags=re.DOTALL)
+        result: list[str] = []
+        for index, chunk in enumerate(chunks):
+            if index % 2:
+                result.append("FENCE:" + chunk)
+                continue
+            result.extend(
+                " ".join(paragraph.split())
+                for paragraph in re.split(r"\n\s*\n", chunk)
+                if paragraph.strip()
+            )
+        return result
+
+    local_pairs = dict(marker_pairs(local_text))
+    template_pairs = dict(marker_pairs(template_text))
+    if local_pairs != template_pairs:
+        return None
+    result = local_text
+    changed = False
+    for capability, version in marker_pairs(template_text):
+        local_content = extract_marker_block(result, capability, version)
+        template_content = extract_marker_block(template_text, capability, version)
+        if local_content == template_content:
+            continue
+        if local_content is None or template_content is None or paragraphs(local_content) != paragraphs(template_content):
+            return None
+        local_marked = extract_marked_block(result, capability, version)
+        template_marked = extract_marked_block(template_text, capability, version)
+        if local_marked is None or template_marked is None or result.count(local_marked) != 1:
+            return None
+        result = result.replace(local_marked, template_marked, 1)
+        changed = True
+    return result if changed else None
 
 
 def remove_retired_markers(
@@ -1198,10 +1286,21 @@ def plan_from_baseline(
             if clean:
                 plan.append(PlanItem(item, "merge", "three-way merge"))
                 continue
-            capability_ids = capability_ids_in_template(item.source)
             local_text = local.read_text(encoding="utf-8")
             base_text = base.read_text(encoding="utf-8")
             template_text = item.source.read_text(encoding="utf-8")
+            if item.target == Path("CLAUDE.md") and agents_pointer_satisfies_claude(
+                project_root, framework_root, mode, template_text, local_text
+            ):
+                plan.append(
+                    PlanItem(
+                        item,
+                        "pointer-verified",
+                        "project declares CLAUDE.md as an AGENTS.md pointer; all shared markers are current in AGENTS.md",
+                    )
+                )
+                continue
+            capability_ids = capability_ids_in_template(item.source)
             marker_append = append_only_new_markers(local_text, base_text, template_text)
             if marker_append is not None:
                 local_by_name = dict(marker_pairs(local_text))
@@ -1227,6 +1326,16 @@ def plan_from_baseline(
                         item,
                         "append-markers",
                         detail,
+                    )
+                )
+                continue
+            normalized_markers = reflowed_marker_normalization(local_text, template_text)
+            if normalized_markers is not None:
+                plan.append(
+                    PlanItem(
+                        item,
+                        "normalize-markers",
+                        "three-way merge conflicted, but protected marker content differs only by prose line wrapping; normalize to the current canonical block",
                     )
                 )
                 continue
@@ -1366,6 +1475,15 @@ def apply_plan(
                         f"marker-aware insertion is no longer safe for {item.file.target}; rerun upgrade --check"
                     )
                 local.write_text(appended, encoding="utf-8")
+            elif item.action == "normalize-markers":
+                normalized = reflowed_marker_normalization(
+                    local.read_text(encoding="utf-8"), item.file.source.read_text(encoding="utf-8")
+                )
+                if normalized is None:
+                    raise MeridianError(
+                        f"marker normalization is no longer safe for {item.file.target}; rerun upgrade --check"
+                    )
+                local.write_text(normalized, encoding="utf-8")
             elif item.action == "retire-markers":
                 base = baseline_root / item.file.target
                 removals = removals_for_managed_file(framework_root, pending_migrations, item.file.target)

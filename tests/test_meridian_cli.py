@@ -202,6 +202,55 @@ class MeridianCliTest(unittest.TestCase):
         self.assertIn("capability=execution-evidence-profile v3", upgraded)
         self.assertTrue((self.project / "docs/EXECUTION_EVIDENCE_PROFILE.md").is_file())
 
+    def test_upgrade_preserves_a_verified_agents_pointer_claude_file(self) -> None:
+        self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
+        agent_template = self.framework / "templates/workflows/governed-sdd/AGENTS.md"
+        claude_template = self.framework / "templates/workflows/governed-sdd/CLAUDE.md"
+        marker = "<!-- MERIDIAN:BEGIN capability=pointer-test v1 -->\nShared gate.\n<!-- MERIDIAN:END -->\n"
+        agent_template.write_text(agent_template.read_text(encoding="utf-8") + "\n" + marker, encoding="utf-8")
+        claude_template.write_text(claude_template.read_text(encoding="utf-8") + "\n" + marker, encoding="utf-8")
+        agent = self.project / "AGENTS.md"
+        agent.write_text(agent.read_text(encoding="utf-8") + "\n" + marker, encoding="utf-8")
+        pointer = self.project / "CLAUDE.md"
+        pointer.write_text(
+            "# Project instructions\n\nThis repository is governed by `AGENTS.md`, which is authoritative.\n\n"
+            "Every Meridian capability marker lives in `AGENTS.md`, once.\n\nKeep this file a pointer.\n",
+            encoding="utf-8",
+        )
+        (self.framework / "VERSION").write_text("1.1.1\n", encoding="utf-8")
+        checked = self.run_cli("upgrade", "--check")
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+        self.assertIn("POINTER-VERIFIED CLAUDE.md", checked.stdout)
+        applied = self.run_cli("upgrade", "--apply")
+        self.assertEqual(applied.returncode, 0, applied.stderr)
+        self.assertEqual(pointer.read_text(encoding="utf-8"),
+                         "# Project instructions\n\nThis repository is governed by `AGENTS.md`, which is authoritative.\n\nEvery Meridian capability marker lives in `AGENTS.md`, once.\n\nKeep this file a pointer.\n")
+
+    def test_marker_insertion_promotes_an_identical_unmarked_local_rule(self) -> None:
+        template = (
+            "# Profile\n\n<!-- MERIDIAN:BEGIN capability=investigation-scope v1 -->\n"
+            "- Investigation scope: 2 per task.\n<!-- MERIDIAN:END -->\n"
+        )
+        content = meridian.extract_marker_block(template, "investigation-scope", 1)
+        self.assertIsNotNone(content)
+        local = "# Profile\n\n" + content
+        upgraded = meridian.append_only_new_markers(local, "# Profile\n", template)
+        self.assertIsNotNone(upgraded)
+        self.assertEqual(upgraded.count("Investigation scope: 2 per task."), 1)
+        self.assertIn("capability=investigation-scope v1", upgraded)
+
+    def test_marker_normalization_accepts_prose_reflow_but_not_fenced_content(self) -> None:
+        template = (
+            "<!-- MERIDIAN:BEGIN capability=example v1 -->\n"
+            "One long policy sentence wraps here.\n\n```text\nexact value\n```\n"
+            "<!-- MERIDIAN:END -->\n"
+        )
+        reflowed = template.replace("One long policy sentence wraps here.", "One long policy\nsentence wraps here.")
+        normalized = meridian.reflowed_marker_normalization(reflowed, template)
+        self.assertEqual(normalized, template)
+        changed_fence = reflowed.replace("exact value", "different value")
+        self.assertIsNone(meridian.reflowed_marker_normalization(changed_fence, template))
+
     def test_upgrade_does_not_require_a_capability_not_marked_in_this_file(self) -> None:
         """A migration's `managedPaths` lists every file its diff touches, which
         is not the same as every file that must carry its capability marker:

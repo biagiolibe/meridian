@@ -22,6 +22,7 @@ justification` field already uses.
   surface` — a file, ADR, specification, or prior chat opened to resolve a
   blocker or verify an acceptance criterion. Override with the task's
   `Context expansions` field.
+<!-- MERIDIAN:BEGIN capability=investigation-scope v1 -->
 - Isolated-exploration budget and the condition that requires `BLOCKED` rather
   than a broader search: `Investigation scope`: 2 per task. One scope unit is
   at most three primary files or 300 lines of primary material consulted to
@@ -29,6 +30,7 @@ justification` field already uses.
   with the task's `Investigation scope` field. Record it with `meridian
   execution investigate`; changing worker or session does not remove this
   cost.
+<!-- MERIDIAN:END -->
 
 ## Successful validation output
 
