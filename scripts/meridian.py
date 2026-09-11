@@ -580,6 +580,32 @@ def reflowed_marker_normalization(local_text: str, template_text: str) -> str | 
     return result if changed else None
 
 
+def deduplicate_identical_template_markers(merged_text: str, template_text: str) -> str | None:
+    """Remove only duplicate copies that are byte-identical to the template.
+
+    A line merge can independently add the same newly introduced marker on both
+    sides at different locations. That is structurally invalid even though the
+    textual merge has no conflict. Never choose between divergent copies here:
+    only an exact duplicate of the released block is safe to collapse.
+    """
+    result = merged_text
+    changed = False
+    for capability, version in marker_pairs(template_text):
+        block = extract_marked_block(template_text, capability, version)
+        if block is None:
+            continue
+        matches = list(re.finditer(re.escape(block), result))
+        if len(matches) < 2:
+            continue
+        for match in reversed(matches[1:]):
+            start, end = match.span()
+            result = result[:start] + result[end:]
+        changed = True
+    if not changed:
+        return None
+    return re.sub(r"\n{3,}", "\n\n", result).rstrip() + "\n"
+
+
 def remove_retired_markers(
     local_text: str, base_text: str, removals: list[tuple[str, int]]
 ) -> str | None:
@@ -1276,15 +1302,39 @@ def plan_from_baseline(
             plan.append(PlanItem(item, "conflict", "local managed file is missing"))
             continue
         if sha256(item.source) == sha256(base):
-            plan.append(PlanItem(item, "keep", "template unchanged"))
+            normalized = deduplicate_identical_template_markers(
+                local.read_text(encoding="utf-8"), item.source.read_text(encoding="utf-8")
+            )
+            if normalized is not None:
+                plan.append(
+                    PlanItem(
+                        item,
+                        "deduplicate-markers",
+                        "template unchanged, but local file contains duplicate identical protected marker(s)",
+                    )
+                )
+            else:
+                plan.append(PlanItem(item, "keep", "template unchanged"))
         elif sha256(local) == sha256(base):
             plan.append(PlanItem(item, "replace", "local file matches installed baseline"))
         elif sha256(local) == sha256(item.source):
             plan.append(PlanItem(item, "keep", "local file already matches target"))
         else:
-            clean, _ = merge_clean(local, base, item.source)
+            clean, merged = merge_clean(local, base, item.source)
             if clean:
-                plan.append(PlanItem(item, "merge", "three-way merge"))
+                merged_text = merged.decode("utf-8")
+                if deduplicate_identical_template_markers(
+                    merged_text, item.source.read_text(encoding="utf-8")
+                ) is not None:
+                    plan.append(
+                        PlanItem(
+                            item,
+                            "merge-deduplicate-markers",
+                            "three-way merge duplicated an identical new protected marker; retain one canonical copy",
+                        )
+                    )
+                else:
+                    plan.append(PlanItem(item, "merge", "three-way merge"))
                 continue
             local_text = local.read_text(encoding="utf-8")
             base_text = base.read_text(encoding="utf-8")
@@ -1463,6 +1513,25 @@ def apply_plan(
             elif item.action == "merge":
                 _, merged = merge_clean(local, baseline_root / item.file.target, item.file.source)
                 local.write_bytes(merged)
+            elif item.action == "merge-deduplicate-markers":
+                _, merged = merge_clean(local, baseline_root / item.file.target, item.file.source)
+                normalized = deduplicate_identical_template_markers(
+                    merged.decode("utf-8"), item.file.source.read_text(encoding="utf-8")
+                )
+                if normalized is None:
+                    raise MeridianError(
+                        f"marker deduplication is no longer safe for {item.file.target}; rerun upgrade --check"
+                    )
+                local.write_text(normalized, encoding="utf-8")
+            elif item.action == "deduplicate-markers":
+                normalized = deduplicate_identical_template_markers(
+                    local.read_text(encoding="utf-8"), item.file.source.read_text(encoding="utf-8")
+                )
+                if normalized is None:
+                    raise MeridianError(
+                        f"marker deduplication is no longer safe for {item.file.target}; rerun upgrade --check"
+                    )
+                local.write_text(normalized, encoding="utf-8")
             elif item.action == "append-markers":
                 base = baseline_root / item.file.target
                 appended = append_only_new_markers(
