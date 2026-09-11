@@ -66,12 +66,13 @@ states (for example, the queue-briefing hook) does not recognize
 design, since it never merges production code for them to track.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=execution-assets v1 -->
+<!-- MERIDIAN:BEGIN capability=execution-assets v2 -->
 ## Execution assets
 
 - `docs/CONTEXT_BUDGET_POLICY.md` defines task-first context loading, reasoning profiles, and concise communication.
 - `tasks/TASK_BLUEPRINT.md` defines the canonical atomic-task shape.
 - `docs/COMPLETION_REPORT_TEMPLATE.md` defines the implementation and review handoff.
+- Completion handoffs live at `tasks/handoffs/<TASK-ID>.md`.
 - `docs/REVIEW_RECORD_TEMPLATE.md` defines the durable reviewer-to-implementer handoff for requested changes.
 - `docs/LIFECYCLE_ORCHESTRATION.md` defines the autonomous orchestration of one task through implementation, review, remediation, and integration.
 - `docs/CODE_ORGANIZATION.md` defines module ownership, dependency direction, and visibility rules for production code.

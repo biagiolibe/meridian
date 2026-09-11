@@ -1535,6 +1535,34 @@ def profile_cap(project_root: Path, kind: str) -> int:
     return int(match.group(1)) if match else BUDGET_DEFAULT_CAPS[kind]
 
 
+def profile_digest(project_root: Path) -> str:
+    profile = project_root / "docs" / "EXECUTION_EVIDENCE_PROFILE.md"
+    if not profile.is_file():
+        raise MeridianError("execution contract BLOCKED: missing docs/EXECUTION_EVIDENCE_PROFILE.md")
+    return hashlib.sha256(profile.read_bytes()).hexdigest()
+
+
+def execution_contract(project_root: Path, task_id: str) -> str:
+    """Render the profile-derived execution block placed in a task at design time."""
+    task = find_task_file(project_root, task_id)
+    text = task.read_text(encoding="utf-8")
+    commands = ", ".join(validation_commands(text)) or "none"
+    caps = ", ".join(f"{BUDGET_FIELD_NAMES[kind]}: {task_cap(project_root, text, kind)}" for kind in BUDGET_KINDS)
+    return "\n".join((
+        "## Execution contract — resolved",
+        "",
+        "- Profile source: `docs/EXECUTION_EVIDENCE_PROFILE.md`",
+        f"- Profile revision: `sha256:{profile_digest(project_root)}`",
+        f"- Budgets: {caps}",
+        f"- Validation IDs: {commands}",
+    ))
+
+
+def contract_digest(text: str) -> str | None:
+    match = re.search(r"^- Profile revision: `sha256:([0-9a-f]{64})`$", text, re.MULTILINE)
+    return match.group(1) if match else None
+
+
 def resolve_project_locations(project_root: Path) -> ProjectLocations:
     """Resolve project customizations declared after execution-assets.
 
@@ -1611,16 +1639,23 @@ def budget_show(project_root: Path, task_id: str) -> str:
     counters = state.get(key, {})
     parts = []
     for kind, label in (("diagnostic", "Diagnostics"), ("captures", "Captures"), ("expansions", "Expansions")):
-        parts.append(f"{label} {int(counters.get(kind, 0))}/{task_cap(project_root, text, kind)}")
+        cap = task_cap(project_root, text, kind)
+        if kind == "captures":
+            scoped = sorted((key.removeprefix("captures:"), value) for key, value in counters.items() if key.startswith("captures:"))
+            if scoped:
+                parts.append(f"{label} " + ", ".join(f"{criterion} {int(count)}/{cap}" for criterion, count in scoped))
+                continue
+        parts.append(f"{label} {int(counters.get(kind, 0))}/{cap}")
     return " · ".join(parts)
 
 
-def budget_spend(project_root: Path, task_id: str, kind: str) -> tuple[int, int]:
+def budget_spend(project_root: Path, task_id: str, kind: str, scope: str | None = None) -> tuple[int, int]:
     state = load_budget_state(project_root)
     key, text = resolve_budget_key(project_root, state, task_id)
     counters = dict(state.get(key, {}))
-    count = int(counters.get(kind, 0)) + 1
-    counters[kind] = count
+    counter_key = f"{kind}:{scope}" if kind == "captures" and scope else kind
+    count = int(counters.get(counter_key, 0)) + 1
+    counters[counter_key] = count
     state[key] = counters
     write_budget_state(project_root, state)
     cap = task_cap(project_root, text, kind)
@@ -1650,11 +1685,14 @@ def execution_preflight(project_root: Path, task_id: str) -> str:
     This intentionally does not inspect a chat's reasoning setting: that is a
     host concern and is outside this command's authority.
     """
-    profile = project_root / "docs" / "EXECUTION_EVIDENCE_PROFILE.md"
-    if not profile.is_file():
-        raise MeridianError("execution preflight BLOCKED: missing docs/EXECUTION_EVIDENCE_PROFILE.md")
     task_file = find_task_file(project_root, task_id)
     text = task_file.read_text(encoding="utf-8")
+    expected_digest = profile_digest(project_root)
+    recorded_digest = contract_digest(text)
+    if recorded_digest is None:
+        raise MeridianError("execution preflight BLOCKED: task is missing a resolved execution contract")
+    if recorded_digest != expected_digest:
+        raise MeridianError("execution preflight BLOCKED: resolved execution contract is stale; re-resolve the task")
     missing = [heading for heading in PREFLIGHT_HEADINGS if not re.search(rf"^## {re.escape(heading)}\s*$", text, re.MULTILINE)]
     if missing:
         raise MeridianError(
@@ -1696,6 +1734,25 @@ def check_handoff(task_id: str, report: Path) -> str:
     if f"Completion Report — {task_id}" not in text:
         raise MeridianError(f"handoff check BLOCKED: report does not identify {task_id}")
     return f"Handoff evidence complete for {task_id}: {report}"
+
+
+def default_handoff_path(project_root: Path, task_id: str) -> Path:
+    workflow = project_root / "PROJECT_WORKFLOW.md"
+    if workflow.is_file():
+        match = re.search(
+            r"[Cc]ompletion handoffs live at `([^`]+)/<TASK-ID>\.md`",
+            workflow.read_text(encoding="utf-8"),
+        )
+        if match:
+            return project_root / match.group(1) / f"{task_id}.md"
+    return project_root / "tasks" / "handoffs" / f"{task_id}.md"
+
+
+def readiness_check(project_root: Path, task_id: str, report: Path) -> str:
+    """Combine execution and handoff gates before a task enters review."""
+    execution_preflight(project_root, task_id)
+    check_handoff(task_id, report)
+    return f"READY_FOR_REVIEW gate passed for {task_id}"
 
 
 def validation_commands(text: str) -> dict[str, str]:
@@ -1755,7 +1812,7 @@ def record_execution_event(
         raise MeridianError("execution evidence BLOCKED: --gap is required")
     if kind == "captures" and (not criterion or not artifact):
         raise MeridianError("execution evidence BLOCKED: captures require --criterion and --artifact")
-    count, cap = budget_spend(project_root, task_id, kind)
+    count, cap = budget_spend(project_root, task_id, kind, criterion if kind == "captures" else None)
     path = project_root / EXECUTION_EVIDENCE_PATH
     state: dict[str, object] = {}
     if path.is_file():
@@ -1926,10 +1983,17 @@ def main() -> int:
     preflight = execution_sub.add_parser("preflight", help="check the task contract before implementation")
     preflight.add_argument("task_id")
     preflight.add_argument("--project", type=Path, default=Path.cwd())
+    contract = execution_sub.add_parser("contract", help="print the profile-resolved execution contract for a task")
+    contract.add_argument("task_id")
+    contract.add_argument("--project", type=Path, default=Path.cwd())
     handoff = execution_sub.add_parser("handoff-check", help="check a structured completion handoff")
     handoff.add_argument("task_id")
-    handoff.add_argument("report", type=Path)
+    handoff.add_argument("report", type=Path, nargs="?")
     handoff.add_argument("--project", type=Path, default=Path.cwd())
+    ready = execution_sub.add_parser("ready-check", help="require preflight and complete handoff before review")
+    ready.add_argument("task_id")
+    ready.add_argument("report", type=Path, nargs="?")
+    ready.add_argument("--project", type=Path, default=Path.cwd())
     validate = execution_sub.add_parser("validate", help="run one task-declared literal validation command")
     validate.add_argument("task_id")
     validate.add_argument("validation_id")
@@ -2000,7 +2064,9 @@ def main() -> int:
                 count, cap = budget_spend(project_root, arguments.task_id, arguments.kind)
                 print(f"{arguments.task_id}: {arguments.kind} {count}/{cap}")
         elif arguments.command == "execution":
-            if arguments.execution_command == "preflight":
+            if arguments.execution_command == "contract":
+                print(execution_contract(project_root, arguments.task_id))
+            elif arguments.execution_command == "preflight":
                 print(execution_preflight(project_root, arguments.task_id))
             elif arguments.execution_command == "validate":
                 return run_validation(project_root, arguments.task_id, arguments.validation_id)
@@ -2009,8 +2075,10 @@ def main() -> int:
                     project_root, arguments.task_id, arguments.kind, arguments.gap,
                     arguments.criterion, arguments.artifact,
                 ))
+            elif arguments.execution_command == "ready-check":
+                print(readiness_check(project_root, arguments.task_id, arguments.report or default_handoff_path(project_root, arguments.task_id)))
             else:
-                print(check_handoff(arguments.task_id, arguments.report))
+                print(check_handoff(arguments.task_id, arguments.report or default_handoff_path(project_root, arguments.task_id)))
         elif arguments.command == "generate-claude-md":
             workflow = framework_root / "templates" / "workflows" / arguments.mode
             agents_path = workflow / "AGENTS.md"

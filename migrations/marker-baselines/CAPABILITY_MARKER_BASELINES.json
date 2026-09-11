@@ -95,8 +95,8 @@
       "version": 1
     },
     "execution-assets": {
-      "sha256": "0adb7ed15d33dbaf505c2ded78b15eec8f6e0ea76a491894676282df8d21250f",
-      "version": 1
+      "sha256": "84bc04e3bc892c5f70406d40b00c4ff00aa58199a2440f74f2078fdf9800a2c4",
+      "version": 2
     },
     "execution-discipline": {
       "sha256": "c37e3c5244a73a9e8546c4cfb0b887dea1c6c8990eb1e9f8603b4dc4c105c608",
@@ -205,8 +205,8 @@
   },
   "templates/workflows/governed-sdd/tasks/TASK_BLUEPRINT.md": {
     "task-blueprint": {
-      "sha256": "1b74a530bef31a80c8769831d7521fce298d1dde6cfb950389bf406b0dc923c6",
-      "version": 7
+      "sha256": "e7b87a9fe265b002431eb0127c9532958fb726d76ae3a3b6f58ff2b07c1afc43",
+      "version": 9
     }
   }
 }
