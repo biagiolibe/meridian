@@ -64,6 +64,19 @@ retry limit or any listed blocker.
 4. Create and switch to a dedicated branch named after the normalized task ID, without a provider prefix (for example, `TASK-012` uses `task-012`). Only one task may write in this checkout at a time. If the branch already exists, inspect it and stop for direction rather than overwriting or rebasing it. Do not create or switch branches in a dirty checkout. For a `Class: SPIKE` task, this branch is throwaway and is never merged; only its `Deliverable` is committed directly to `main` at close-out.
 5. State a short plan, then implement only the assigned task and its explicit dependencies. Preserve architectural boundaries and all SDD scope limits.
 6. Run the task's validation commands and the project baseline checks, <!-- MERIDIAN:BEGIN capability=validation-scoping v1 -->scoped to the diff's actual surface per `docs/CONTEXT_BUDGET_POLICY.md`'s validation-scope rule — skip a full build/test/lint suite for a documentation/policy-only change and state so explicitly.<!-- MERIDIAN:END --> Also skip a command that is inapplicable because the task has not yet established its required project artifact. Report every skipped command and why.
+
+<!-- MERIDIAN:BEGIN capability=execution-command-gate v1 -->
+For a normal task, execute every named `Validation` entry only through
+`meridian execution validate <TASK-ID> <validation-id> --project .`; running
+the literal command directly is not completion evidence. Before a budgeted
+diagnostic, capture, or context expansion, use `meridian execution evidence`.
+Before broad or uncertain-yield research outside the initial task authority,
+use `meridian execution investigate`. For `Review: REQUIRED`, write the
+completion handoff and run `meridian execution ready-check <TASK-ID> --project
+.` before setting the task or queue row to `READY_FOR_REVIEW`. If a nonterminal
+legacy task lacks the current generated execution contract, run `meridian
+execution reconcile <TASK-ID> --apply --project .` before substantive work.
+<!-- MERIDIAN:END -->
 7. When every required validation passes, record completion according to the task's review policy: `READY_FOR_REVIEW` for `Review: REQUIRED`, `ACCEPTED` for `Review: NOT_REQUIRED`, `ANSWERED`/`INCONCLUSIVE` for `Class: SPIKE` per `PROJECT_WORKFLOW.md`'s spike close-out gate. Make no status change if any validation failed, a required manual check is incomplete, or acceptance criteria are not met.
 8. Review the diff to confirm it contains only the assigned task and its required status updates. Create one atomic commit using Conventional Commit style and the task ID. Follow `docs/PULL_REQUEST_POLICY.md` for the branch push and hand-off.
 9. Report the branch name, commit hash, changed files, acceptance-criteria evidence, validation results, and assumptions. If validation fails or scope is ambiguous, do not commit a partial implementation; report the blocker.

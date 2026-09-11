@@ -1487,12 +1487,14 @@ def finalize_adoption(
 
 
 BUDGET_PATH = Path(".meridian/budget.json")
-BUDGET_KINDS = ("diagnostic", "captures", "expansions")
-BUDGET_DEFAULT_CAPS = {"diagnostic": 3, "captures": 2, "expansions": 2}
+BUDGET_KINDS = ("diagnostic", "captures", "expansions", "investigations")
+EVIDENCE_EVENT_KINDS = ("diagnostic", "captures", "expansions")
+BUDGET_DEFAULT_CAPS = {"diagnostic": 3, "captures": 2, "expansions": 2, "investigations": 2}
 BUDGET_FIELD_NAMES = {
     "diagnostic": "Diagnostic attempts",
     "captures": "Evidence captures",
     "expansions": "Context expansions",
+    "investigations": "Investigation scope",
 }
 
 
@@ -1555,12 +1557,17 @@ def execution_contract(project_root: Path, task_id: str) -> str:
         f"- Profile revision: `sha256:{profile_digest(project_root)}`",
         f"- Budgets: {caps}",
         f"- Validation IDs: {commands}",
+        "- Execution commands: `required via meridian execution`",
     ))
 
 
 def contract_digest(text: str) -> str | None:
     match = re.search(r"^- Profile revision: `sha256:([0-9a-f]{64})`$", text, re.MULTILINE)
     return match.group(1) if match else None
+
+
+def contract_requires_execution_commands(text: str) -> bool:
+    return "- Execution commands: `required via meridian execution`" in text
 
 
 def resolve_project_locations(project_root: Path) -> ProjectLocations:
@@ -1638,7 +1645,12 @@ def budget_show(project_root: Path, task_id: str) -> str:
     write_budget_state(project_root, state)
     counters = state.get(key, {})
     parts = []
-    for kind, label in (("diagnostic", "Diagnostics"), ("captures", "Captures"), ("expansions", "Expansions")):
+    for kind, label in (
+        ("diagnostic", "Diagnostics"),
+        ("captures", "Captures"),
+        ("expansions", "Expansions"),
+        ("investigations", "Investigations"),
+    ):
         cap = task_cap(project_root, text, kind)
         if kind == "captures":
             scoped = sorted((key.removeprefix("captures:"), value) for key, value in counters.items() if key.startswith("captures:"))
@@ -1649,12 +1661,16 @@ def budget_show(project_root: Path, task_id: str) -> str:
     return " · ".join(parts)
 
 
-def budget_spend(project_root: Path, task_id: str, kind: str, scope: str | None = None) -> tuple[int, int]:
+def budget_spend(
+    project_root: Path, task_id: str, kind: str, scope: str | None = None, amount: int = 1
+) -> tuple[int, int]:
+    if amount < 1:
+        raise MeridianError("budget spend BLOCKED: amount must be at least 1")
     state = load_budget_state(project_root)
     key, text = resolve_budget_key(project_root, state, task_id)
     counters = dict(state.get(key, {}))
     counter_key = f"{kind}:{scope}" if kind == "captures" and scope else kind
-    count = int(counters.get(counter_key, 0)) + 1
+    count = int(counters.get(counter_key, 0)) + amount
     counters[counter_key] = count
     state[key] = counters
     write_budget_state(project_root, state)
@@ -1674,6 +1690,7 @@ HANDOFF_FIELDS = (
     "Manual verification",
     "Acceptance criteria",
     "Budget usage",
+    "Isolated exploration",
     "Blockers/deviations",
 )
 EXECUTION_EVIDENCE_PATH = Path(".meridian/execution-evidence.json")
@@ -1693,6 +1710,11 @@ def execution_preflight(project_root: Path, task_id: str) -> str:
         raise MeridianError("execution preflight BLOCKED: task is missing a resolved execution contract")
     if recorded_digest != expected_digest:
         raise MeridianError("execution preflight BLOCKED: resolved execution contract is stale; re-resolve the task")
+    if not contract_requires_execution_commands(text):
+        raise MeridianError(
+            "execution preflight BLOCKED: task execution contract predates the execution-command gate; "
+            "run meridian execution reconcile <TASK-ID> --apply --project ."
+        )
     missing = [heading for heading in PREFLIGHT_HEADINGS if not re.search(rf"^## {re.escape(heading)}\s*$", text, re.MULTILINE)]
     if missing:
         raise MeridianError(
@@ -1723,7 +1745,97 @@ def execution_preflight(project_root: Path, task_id: str) -> str:
     return f"Execution contract: {task_file.relative_to(project_root)} · {caps}"
 
 
-def check_handoff(task_id: str, report: Path) -> str:
+def reconcile_execution_contract(project_root: Path, task_id: str, apply: bool) -> str:
+    """Refresh only a nonterminal task's generated execution-contract block."""
+    task_file = find_task_file(project_root, task_id)
+    text = task_file.read_text(encoding="utf-8")
+    status = read_task_field(text, "Status") or "missing"
+    if status in ("ACCEPTED", "ANSWERED", "INCONCLUSIVE"):
+        return f"Execution reconciliation skipped for terminal task {task_id} ({status})"
+    if status not in ("QUEUED", "IN_PROGRESS"):
+        raise MeridianError(f"execution reconcile BLOCKED: {task_id} status is {status}")
+    generated = execution_contract(project_root, task_id)
+    section = re.compile(
+        r"^## Execution contract — resolved\s*$\n.*?(?=^## |\Z)",
+        re.MULTILINE | re.DOTALL,
+    )
+    replacement = generated + "\n\n"
+    if section.search(text):
+        reconciled = section.sub(replacement, text, count=1)
+    elif re.search(r"^## Completion\s*$", text, re.MULTILINE):
+        reconciled = re.sub(r"^## Completion\s*$", replacement + "## Completion", text, count=1, flags=re.MULTILINE)
+    else:
+        reconciled = text.rstrip() + "\n\n" + generated + "\n"
+    if reconciled == text:
+        return f"Execution reconciliation already current for {task_id}: {task_file.relative_to(project_root)}"
+    if not apply:
+        return f"Execution reconciliation required for {task_id}: {task_file.relative_to(project_root)} (rerun with --apply)"
+    task_file.write_text(reconciled, encoding="utf-8")
+    return f"Execution reconciliation applied for {task_id}: {task_file.relative_to(project_root)}"
+
+
+def execution_entries(project_root: Path, task_id: str) -> list[dict[str, object]]:
+    path = project_root / EXECUTION_EVIDENCE_PATH
+    if not path.is_file():
+        return []
+    try:
+        state = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        raise MeridianError(f"invalid execution evidence state: {path}") from error
+    entries = state.get(task_id, [])
+    if not isinstance(entries, list) or not all(isinstance(entry, dict) for entry in entries):
+        raise MeridianError(f"invalid execution evidence entries for {task_id}: {path}")
+    return entries
+
+
+def verify_execution_evidence(project_root: Path, task_id: str, report_text: str) -> None:
+    """Require report claims to be backed by durable, task-declared evidence."""
+    task_text = find_task_file(project_root, task_id).read_text(encoding="utf-8")
+    entries = execution_entries(project_root, task_id)
+    commands = validation_commands(task_text)
+    missing_validations = [
+        command_id for command_id, command in commands.items()
+        if not any(
+            entry.get("id") == command_id
+            and entry.get("command") == command
+            and entry.get("exitStatus") == 0
+            for entry in entries
+        )
+    ]
+    if missing_validations:
+        raise MeridianError(
+            "handoff check BLOCKED: successful durable validation is missing for: "
+            + ", ".join(missing_validations)
+        )
+
+    investigations = [entry for entry in entries if entry.get("kind") == "investigation"]
+    reported = re.search(r"^- Isolated exploration:\s*(.+)$", report_text, re.MULTILINE)
+    assert reported is not None  # HANDOFF_FIELDS has already checked its presence.
+    value = reported.group(1).strip()
+    if not investigations:
+        if value.lower() != "none":
+            raise MeridianError(
+                "handoff check BLOCKED: report declares isolated exploration without a durable record"
+            )
+        return
+    if value.lower() == "none":
+        raise MeridianError(
+            "handoff check BLOCKED: report says no isolated exploration but durable records exist"
+        )
+    missing_summaries = [
+        str(entry.get("question", ""))
+        for entry in investigations
+        if str(entry.get("question", "")) not in report_text
+        or str(entry.get("finding", "")) not in report_text
+    ]
+    if missing_summaries:
+        raise MeridianError(
+            "handoff check BLOCKED: report omits a recorded exploration question or finding: "
+            + "; ".join(missing_summaries)
+        )
+
+
+def check_handoff(project_root: Path, task_id: str, report: Path) -> str:
     """Reject incomplete completion evidence before it can be used as a handoff."""
     if not report.is_file():
         raise MeridianError(f"handoff check BLOCKED: report is missing: {report}")
@@ -1733,6 +1845,7 @@ def check_handoff(task_id: str, report: Path) -> str:
         raise MeridianError("handoff check BLOCKED: missing required fields: " + ", ".join(missing))
     if f"Completion Report — {task_id}" not in text:
         raise MeridianError(f"handoff check BLOCKED: report does not identify {task_id}")
+    verify_execution_evidence(project_root, task_id, text)
     return f"Handoff evidence complete for {task_id}: {report}"
 
 
@@ -1751,7 +1864,7 @@ def default_handoff_path(project_root: Path, task_id: str) -> Path:
 def readiness_check(project_root: Path, task_id: str, report: Path) -> str:
     """Combine execution and handoff gates before a task enters review."""
     execution_preflight(project_root, task_id)
-    check_handoff(task_id, report)
+    check_handoff(project_root, task_id, report)
     return f"READY_FOR_REVIEW gate passed for {task_id}"
 
 
@@ -1831,6 +1944,42 @@ def record_execution_event(
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return f"Evidence {task_id}: {kind} {count}/{cap} recorded"
+
+
+def record_investigation(
+    project_root: Path,
+    task_id: str,
+    question: str,
+    scope: int,
+    sources: list[str],
+    finding: str,
+) -> str:
+    """Record a bounded exploration without making a host or worker normative."""
+    if not question.strip() or not finding.strip() or not sources:
+        raise MeridianError("investigation BLOCKED: --question, --source, and --finding are required")
+    execution_preflight(project_root, task_id)
+    count, cap = budget_spend(project_root, task_id, "investigations", amount=scope)
+    path = project_root / EXECUTION_EVIDENCE_PATH
+    state: dict[str, object] = {}
+    if path.is_file():
+        try:
+            state = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as error:
+            raise MeridianError(f"invalid execution evidence state: {path}") from error
+    events = list(state.get(task_id, []))
+    events.append({
+        "kind": "investigation",
+        "question": question,
+        "scope": scope,
+        "sources": sources,
+        "finding": finding,
+        "count": count,
+        "cap": cap,
+    })
+    state[task_id] = events
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return f"Investigation {task_id}: {count}/{cap} recorded"
 
 
 # `CLAUDE.md` is Claude Code's own instructions file; it cannot be reduced to a
@@ -1963,7 +2112,7 @@ def main() -> int:
 
     budget = subparsers.add_parser(
         "budget",
-        help="track a governed-SDD task's diagnostic/evidence/context-expansion caps",
+        help="track a governed-SDD task's diagnostic/evidence/context-expansion/investigation caps",
     )
     budget_sub = budget.add_subparsers(dest="budget_command", required=True)
 
@@ -1986,6 +2135,12 @@ def main() -> int:
     contract = execution_sub.add_parser("contract", help="print the profile-resolved execution contract for a task")
     contract.add_argument("task_id")
     contract.add_argument("--project", type=Path, default=Path.cwd())
+    reconcile = execution_sub.add_parser(
+        "reconcile", help="refresh a nonterminal task's generated execution contract"
+    )
+    reconcile.add_argument("task_id")
+    reconcile.add_argument("--apply", action="store_true")
+    reconcile.add_argument("--project", type=Path, default=Path.cwd())
     handoff = execution_sub.add_parser("handoff-check", help="check a structured completion handoff")
     handoff.add_argument("task_id")
     handoff.add_argument("report", type=Path, nargs="?")
@@ -2000,11 +2155,20 @@ def main() -> int:
     validate.add_argument("--project", type=Path, default=Path.cwd())
     evidence = execution_sub.add_parser("evidence", help="record the gap and one budgeted diagnostic, capture, or expansion")
     evidence.add_argument("task_id")
-    evidence.add_argument("kind", choices=BUDGET_KINDS)
+    evidence.add_argument("kind", choices=EVIDENCE_EVENT_KINDS)
     evidence.add_argument("--gap", required=True)
     evidence.add_argument("--criterion")
     evidence.add_argument("--artifact")
     evidence.add_argument("--project", type=Path, default=Path.cwd())
+    investigate = execution_sub.add_parser(
+        "investigate", help="record a bounded, isolated exploration and its distilled finding"
+    )
+    investigate.add_argument("task_id")
+    investigate.add_argument("--question", required=True)
+    investigate.add_argument("--scope", required=True, type=int)
+    investigate.add_argument("--source", action="append", required=True)
+    investigate.add_argument("--finding", required=True)
+    investigate.add_argument("--project", type=Path, default=Path.cwd())
 
     generate_claude = subparsers.add_parser(
         "generate-claude-md",
@@ -2066,6 +2230,8 @@ def main() -> int:
         elif arguments.command == "execution":
             if arguments.execution_command == "contract":
                 print(execution_contract(project_root, arguments.task_id))
+            elif arguments.execution_command == "reconcile":
+                print(reconcile_execution_contract(project_root, arguments.task_id, arguments.apply))
             elif arguments.execution_command == "preflight":
                 print(execution_preflight(project_root, arguments.task_id))
             elif arguments.execution_command == "validate":
@@ -2075,10 +2241,15 @@ def main() -> int:
                     project_root, arguments.task_id, arguments.kind, arguments.gap,
                     arguments.criterion, arguments.artifact,
                 ))
+            elif arguments.execution_command == "investigate":
+                print(record_investigation(
+                    project_root, arguments.task_id, arguments.question, arguments.scope,
+                    arguments.source, arguments.finding,
+                ))
             elif arguments.execution_command == "ready-check":
                 print(readiness_check(project_root, arguments.task_id, arguments.report or default_handoff_path(project_root, arguments.task_id)))
             else:
-                print(check_handoff(arguments.task_id, arguments.report or default_handoff_path(project_root, arguments.task_id)))
+                print(check_handoff(project_root, arguments.task_id, arguments.report or default_handoff_path(project_root, arguments.task_id)))
         elif arguments.command == "generate-claude-md":
             workflow = framework_root / "templates" / "workflows" / arguments.mode
             agents_path = workflow / "AGENTS.md"

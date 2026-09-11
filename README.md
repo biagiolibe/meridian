@@ -174,6 +174,35 @@ tasks/TASK-NNN.md               # One bounded unit of work
 tasks/reviews/TASK-NNN.md       # Reviewer evidence and requested-change handoff
 ```
 
+### Bounded exploration and durable evidence
+
+For a focused source already named by a task, the worker reads it directly.
+For broad or uncertain-yield research, the task instead records a bounded
+question and the distilled answer. This preserves a small implementation
+context without concealing the investigation from review:
+
+```text
+Declared task authority
+        │
+        ├─ targeted, named source ───────────────→ direct read
+        │
+        └─ broad or uncertain question
+                    │
+                    ▼
+          bounded isolated exploration
+          (question, scope, sources, finding)
+                    │
+                    ▼
+          .meridian/execution-evidence.json
+                    │
+                    ▼
+      completion handoff + ready-check cross-check
+```
+
+The worker or host used for the exploration is not normative. Delegating work
+does not erase its declared investigation budget, and a completion report is
+not accepted as a substitute for durable validation or exploration evidence.
+
 ### Task contract
 
 A governed task declares:
