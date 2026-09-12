@@ -11,6 +11,11 @@ Replace every `<PLACEHOLDER>` before sending a prompt. Use one workflow per chat
 
 The agent must communicate in the language persisted in `LANGUAGE_POLICY.md`, even if a prompt uses another language. Any repository artifact produced by a prompt must remain in English.
 
+Resolve the canonical queue, task, and review-record locations from
+`PROJECT_WORKFLOW.md` before using a prompt. `meridian locations --project .`
+may report them when available. Do not substitute a template path for a
+project-declared location.
+
 ## Choose the reasoning level before sending
 
 The chat's configured reasoning effort is the effective runtime setting. A task's
@@ -48,67 +53,42 @@ evidence gap before every expanded read. Do not select a task, implement code,
 review code, change files, create commits, or reconstruct prior chat context.
 ```
 
-## 2. Design a change or decompose a milestone
+## 2. Design a change, decompose a milestone, or select the next phase
 
 Use this for planning and governance only; it does not authorize implementation.
 
 ```text
-Act as the project tech designer. Design <MILESTONE OR CHANGE>.
+Act as the project tech designer. Design <NAMED MILESTONE OR CHANGE>, or, if
+none is named, determine the next appropriate phase from accepted evidence.
 
 Read LANGUAGE_POLICY.md, AGENTS.md or CLAUDE.md, PROJECT_WORKFLOW.md,
-docs/CONTEXT_BUDGET_POLICY.md, tasks/QUEUE.md,
+docs/CONTEXT_BUDGET_POLICY.md, the canonical queue,
 docs/PULL_REQUEST_POLICY.md, and docs/CODE_ORGANIZATION.md. Load only the
 ADRs, specifications, accepted verification evidence, and tasks needed for
 this design. Use repository files as the source of truth.
 
+For a named change, do not assume a solution beyond its stated scope. When no
+phase is named, identify the highest-value next governed step permitted by
+accepted dependencies, documented goals, unresolved risks, and architectural
+boundaries. If no next phase is justified, report that explicitly.
+
 Do not implement code, perform a code review, or choose an unassigned task.
 Record durable decisions in an ADR and a normative specification only when
-needed. Create or materially revise only atomic tasks that follow
-tasks/TASK_BLUEPRINT.md: declare dependencies, reasoning and justification,
+needed. Create or materially revise only atomic tasks that follow the
+canonical task blueprint: declare dependencies, reasoning and justification,
 review policy, authority, expected code surface, measurable acceptance
-criteria, validation, and out-of-scope boundaries. Do not anticipate later
-milestones.
+criteria, validation, and out-of-scope boundaries. When an unresolved question
+must be answered before a task can be scoped or verified, create a `Class:
+SPIKE` task with a bounded `Question`, `Budget`, and non-production
+`Deliverable`; do not investigate it inside a normal task.
 
 Verify the documentation diff. Create a commit only if the governing workflow
 and current authorization permit it. Report changed files, assumptions, and
-the next permitted governance action.
+the proposed phase or change, its rationale, dependencies, and the next
+permitted governance action.
 ```
 
-## 3. Design the next milestone or phase
-
-Use this when the next milestone is not already named. The tech designer derives it from accepted project evidence rather than assuming a roadmap item or solution.
-
-```text
-Act as the project tech designer. Design the next appropriate milestone or
-phase.
-
-Determine what comes next from the current accepted project state; do not
-assume a milestone name, roadmap item, or solution in advance.
-
-Read LANGUAGE_POLICY.md, AGENTS.md or CLAUDE.md, PROJECT_WORKFLOW.md,
-docs/CONTEXT_BUDGET_POLICY.md, tasks/QUEUE.md, relevant accepted ADRs,
-specifications, completion reports, verification evidence, and only the Git
-history needed to establish the current state.
-
-Identify the highest-value next governed step permitted by accepted
-dependencies, documented goals, unresolved risks, and architectural boundaries.
-If no next milestone can be justified from repository evidence, report that
-explicitly rather than inventing one.
-
-Do not implement code, review code, select an implementation task, or modify
-unrelated project records. When a next milestone is justified, create or update
-only the necessary ADRs, normative specifications, and atomic tasks following
-tasks/TASK_BLUEPRINT.md. Each task must declare authority, dependencies,
-reasoning and justification, review policy, expected code surface, measurable
-acceptance criteria, validation, and out-of-scope boundaries.
-
-Verify the documentation diff. Create a commit only if the governing workflow
-and current authorization permit it. Report the proposed milestone, its
-rationale, changed files, assumptions, dependencies, and the next permitted
-governance action.
-```
-
-## 4. Analyze an accepted result
+## 3. Analyze an accepted result
 
 Use this to interpret evidence without turning the chat into a review or implementation task.
 
@@ -126,7 +106,7 @@ perform a formal code review, change files, create future work, select a task,
 or implement a remedy. End with the next permitted governance state.
 ```
 
-## 5. Implement exactly one task
+## 4. Implement exactly one task
 
 Use this in a dedicated implementation chat only after the task is dependency-ready. Configure the chat at the task's exact declared reasoning cap first when supported; if its effective level cannot be confirmed, do not proceed.
 
@@ -136,7 +116,7 @@ Proceed with <TASK-ID>.
 
 The trigger delegates the detailed implementation procedure to `AGENTS.md` or `CLAUDE.md`. Do not append unrelated work to this prompt.
 
-## 5a. Run one autonomous required-review lifecycle
+## 4a. Run one autonomous required-review lifecycle
 
 Use this when the task is dependency-ready and you authorize implementation,
 all remediation cycles, acceptance, and the final `main` push. The coordinator
@@ -149,11 +129,11 @@ Run lifecycle <TASK-ID>.
 
 The trigger delegates the full procedure to
 `docs/LIFECYCLE_ORCHESTRATION.md`. It continues from durable repository state,
-uses `tasks/reviews/<TASK-ID>.md` instead of copied chat findings, and stops
+uses the declared review record instead of copied chat findings, and stops
 only at its retry limit or a real repository, validation, authority, or forge
 blocker.
 
-## 6. Independently review a required-review task
+## 5. Independently review a required-review task
 
 Use this in a fresh chat that did not implement the task.
 
@@ -163,7 +143,7 @@ Review <TASK-ID>.
 
 The trigger delegates the detailed review and integration procedure to `AGENTS.md` or `CLAUDE.md` and `docs/CODE_REVIEW_PROMPT.md`.
 
-## 7. Record owner acceptance after personal review
+## 6. Record owner acceptance after personal review
 
 Use this only after personally reviewing a `Review: REQUIRED` task marked `READY_FOR_REVIEW` in both canonical status records.
 
@@ -173,11 +153,11 @@ Accept <TASK-ID>.
 
 The trigger performs only the status-only owner-acceptance workflow defined in `AGENTS.md` or `CLAUDE.md`; it does not authorize a review, source change, validation rerun, or merge.
 
-## 7a. Address requested review changes
+## 6a. Address requested review changes
 
 Use this after an independent reviewer returns `CHANGES_REQUESTED`. The
 reviewer has already recorded the scope, evidence, and state transition in
-`tasks/reviews/<TASK-ID>.md`; do not copy the findings into this prompt.
+the declared review record; do not copy the findings into this prompt.
 
 ```text
 Address review <TASK-ID>.
@@ -188,13 +168,26 @@ review record, validates them, returns the task to `READY_FOR_REVIEW`, and
 pushes the next review attempt. It does not authorize unrelated work or a
 reinterpretation of a finding.
 
-## 8. Run the established read-only audit
+## 7. Run the established read-only audit
 
 ```text
 Perform the repository's read-only governed-SDD audit using
 docs/AUDIT_PROMPT_READ_ONLY.md. Do not modify files, run write-mode formatters,
 create commits, or implement code. Report PASS/FAIL findings with file and line
 evidence only.
+```
+
+## 8. Inspect a Meridian framework upgrade (read-only)
+
+Use this before deciding whether a managed workflow upgrade is needed.
+
+```text
+Check whether this project's Meridian baseline can be upgraded.
+
+Run `meridian upgrade --project . --check`. Report the detected version, the
+complete plan, conflicts, and the next permitted action. Do not run
+`meridian upgrade --apply`, `meridian adopt`, or `finalize-adoption`; do not
+edit files or create commits.
 ```
 
 ## 9. Correct a bounded documentation inconsistency

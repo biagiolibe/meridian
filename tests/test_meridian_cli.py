@@ -1921,6 +1921,16 @@ class CapabilityMarkerTest(unittest.TestCase):
         self.assertIn("Use the minimal read-only status profile", prompts)
         self.assertIn("Do not load completed milestones", prompts)
 
+    def test_operator_prompts_resolve_locations_and_bound_framework_maintenance(self) -> None:
+        prompts = (self.WORKFLOW / "docs/OPERATOR_PROMPTS.md").read_text(encoding="utf-8")
+        self.assertIn("Resolve the canonical queue, task, and review-record locations", prompts)
+        self.assertIn("meridian locations --project .", prompts)
+        self.assertIn("Do not substitute a template path", prompts)
+        self.assertIn("Class:\nSPIKE", prompts)
+        self.assertIn("meridian upgrade --project . --check", prompts)
+        self.assertIn("Do not run\n`meridian upgrade --apply`, `meridian adopt`, or `finalize-adoption`", prompts)
+        self.assertNotIn("## 3. Design the next milestone or phase", prompts)
+
     def test_ci_verified_validation_marker_in_each_of_its_three_docs(self) -> None:
         pull_request_policy = (self.WORKFLOW / "docs/PULL_REQUEST_POLICY.md").read_text(encoding="utf-8")
         self.assertEqual(self.marker_pairs(pull_request_policy), [("ci-verified-validation", "1")])
