@@ -12,6 +12,17 @@ numbers follow the `frameworkVersion` tracked in generated projects'
 
 ## [Unreleased]
 
+## [1.1.31]
+
+### Changed
+
+- Migration `034-operator-prompts-location-aware` makes the Governed-SDD
+  operator cookbook resolve project-declared queue, task, and review-record
+  locations instead of hardcoding template paths. It combines the overlapping
+  named-change and next-phase design prompts, makes the bounded `SPIKE` route
+  visible during design, and adds a read-only framework-upgrade inspection
+  prompt that cannot accidentally invoke adoption or an applying upgrade.
+
 ## [1.1.23]
 
 ### Added
