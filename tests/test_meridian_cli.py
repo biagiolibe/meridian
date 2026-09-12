@@ -1499,6 +1499,29 @@ class BudgetCliTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Diagnostics 0/3", result.stdout)
 
+    def test_show_ignores_nested_completion_handoff_with_the_same_task_id(self) -> None:
+        nested = self.project / "docs/tasks/M19"
+        handoffs = self.project / "tasks/handoffs"
+        nested.mkdir(parents=True)
+        handoffs.mkdir(parents=True)
+        (nested / "M19-HUD-010.md").write_text(
+            "Status: IN_PROGRESS\n", encoding="utf-8"
+        )
+        (handoffs / "M19-HUD-010.md").write_text(
+            "## Completion Report — M19-HUD-010\n", encoding="utf-8"
+        )
+        (self.project / "PROJECT_WORKFLOW.md").write_text(
+            "<!-- MERIDIAN:BEGIN capability=execution-assets v1 -->\n"
+            "<!-- MERIDIAN:END -->\n"
+            "Task files live under `docs/tasks/<milestone>/`; queue is `docs/TASK_QUEUE.md`.\n\n## Roles\n",
+            encoding="utf-8",
+        )
+
+        result = self.run_cli("budget", "show", "M19-HUD-010")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Diagnostics 0/3", result.stdout)
+
     def test_locations_and_preflight_use_the_declared_queue(self) -> None:
         (self.project / "docs/tasks/M19").mkdir(parents=True)
         (self.project / "docs/tasks/M19/TASK-007.md").write_text(
@@ -1642,6 +1665,9 @@ class BudgetCliTest(unittest.TestCase):
             "- Blockers/deviations: none\n",
             encoding="utf-8",
         )
+        handoff = self.project / "tasks/handoffs/TASK-012.md"
+        handoff.parent.mkdir(parents=True, exist_ok=True)
+        handoff.write_text("## Completion Report — TASK-012\n", encoding="utf-8")
         result = self.run_cli("execution", "ready-check", "TASK-012", str(report))
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("READY_FOR_REVIEW gate passed", result.stdout)
