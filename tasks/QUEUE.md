@@ -30,8 +30,23 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 ## 🏃 Active Queue
 
 Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, and 4 are fully
-closed — see `tasks/QUEUE_ARCHIVE.md`. No open phases remain; new work
-starts a new phase here when it exists.
+closed — see `tasks/QUEUE_ARCHIVE.md`. Phase 5 (SemVer version split) is
+new: separates `frameworkVersion` (public CLI release), `workflowBaselineVersion`
+(governed template baseline, derived from migrations), and `protocolVersion`
+(manifest/CLI compatibility) so a CLI-only release no longer requires a fake
+migration.
+
+### Phase 5 — SemVer version split
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 015 | Split `workflowBaselineVersion` from `frameworkVersion` in manifest and upgrade planner | 🔴 P1 | — | [015](015-split-workflow-baseline-version.md) |
+| `[ ]` | 016 | Propagate `workflowBaselineVersion` to `adopt`/`finalize-adoption` | 🔴 P1 | 015 | [016](016-adopt-workflow-baseline-version.md) |
+| `[ ]` | 017 | Relax `check_migrations()`'s VERSION equality to `<=` | 🔴 P1 | 015 | [017](017-relax-check-migrations-version-gate.md) |
+| `[ ]` | 018 | Persist-time SemVer guard for prerelease `frameworkVersion` | 🟡 P2 | 015 | [018](018-prerelease-version-guard.md) |
+| `[ ]` | 019 | `releases/<version>.json` immutable release ledger + `check_releases()` | 🟡 P2 | 017 | [019](019-releases-ledger.md) |
+| `[ ]` | 020 | Update docs for the version split | 🟢 P3 | 015, 017, 019 | [020](020-docs-version-split.md) |
+| `[ ]` | 021 | Ship the first CLI-only release as end-to-end proof | 🟢 P3 | 016, 018, 019, 020 | [021](021-first-cli-only-release.md) |
 
 ## 🧪 Quick Tasks (No File)
 
@@ -65,4 +80,4 @@ Phases 1, 2, 2b, 3, 3b, and 4 (001, 002, 006, 003, 004, 005, 012, 010, 014,
 this table keeps a flat completed-task index across both files. No open
 phases remain in the Active Queue.
 
-*Last updated: 2026-09-10*
+*Last updated: 2026-09-13*
