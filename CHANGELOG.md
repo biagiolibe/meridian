@@ -12,6 +12,15 @@ numbers follow the `frameworkVersion` tracked in generated projects'
 
 ## [Unreleased]
 
+## [1.1.32]
+
+### Added
+
+- Migration `035-tech-design-alignment-prompt` adds a read-only operator
+  prompt that aligns a tech-design chat to current constraints, active work,
+  dependencies, risks, and evidence gaps before it answers project questions
+  or scopes an explicitly requested change.
+
 ## [1.1.31]
 
 ### Changed

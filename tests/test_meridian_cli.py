@@ -1930,6 +1930,9 @@ class CapabilityMarkerTest(unittest.TestCase):
         self.assertIn("meridian upgrade --project . --check", prompts)
         self.assertIn("Do not run\n`meridian upgrade --apply`, `meridian adopt`, or `finalize-adoption`", prompts)
         self.assertNotIn("## 3. Design the next milestone or phase", prompts)
+        self.assertIn("## 1a. Align tech design for questions and future work (read-only)", prompts)
+        self.assertIn("Return a concise readiness brief", prompts)
+        self.assertIn("Do not modify files, create ADRs or tasks", prompts)
 
     def test_ci_verified_validation_marker_in_each_of_its_three_docs(self) -> None:
         pull_request_policy = (self.WORKFLOW / "docs/PULL_REQUEST_POLICY.md").read_text(encoding="utf-8")

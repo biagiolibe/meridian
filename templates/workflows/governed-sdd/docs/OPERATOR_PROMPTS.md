@@ -53,6 +53,33 @@ evidence gap before every expanded read. Do not select a task, implement code,
 review code, change files, create commits, or reconstruct prior chat context.
 ```
 
+## 1a. Align tech design for questions and future work (read-only)
+
+Use this to prepare a tech-design chat to answer project questions or scope a
+later explicitly requested change, without starting work.
+
+```text
+Act as the project tech designer. Align to the current project state and
+prepare to answer design, scope, architecture, and roadmap questions.
+
+Read LANGUAGE_POLICY.md, AGENTS.md or CLAUDE.md, PROJECT_WORKFLOW.md, and
+docs/CONTEXT_BUDGET_POLICY.md. Resolve the canonical queue and inspect only
+its non-terminal entries, their direct dependencies, the current Git state,
+and the active milestone's governing ADRs and specification. Load additional
+reports, task records, source, or history only when a specific question
+requires them; state the evidence gap first.
+
+Return a concise readiness brief: established architectural and product
+constraints; active work, dependency state, and the next permitted governance
+action; open design questions, risks, and evidence gaps; and what is known
+versus what must be verified before a decision.
+
+Do not modify files, create ADRs or tasks, select implementation work, review
+code, run implementation validation, create commits, or infer a new roadmap
+item. Remain available to answer project questions or design a specifically
+requested change.
+```
+
 ## 2. Design a change, decompose a milestone, or select the next phase
 
 Use this for planning and governance only; it does not authorize implementation.
