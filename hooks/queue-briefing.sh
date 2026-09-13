@@ -17,6 +17,46 @@ if [ ! -x "$MERIDIAN_BIN" ]; then
   MERIDIAN_BIN="$(command -v meridian 2>/dev/null || true)"
 fi
 
+# The conversation language is project-owned state. Echo it at the start of
+# every Claude prompt when a Meridian project declares it, so the rule stays
+# salient without duplicating its value in a host configuration. This is a
+# reminder, not enforcement: repository text is validated by the project's
+# own review and verification process.
+emit_language_policy_briefing() {
+  local policy="LANGUAGE_POLICY.md"
+  [ -f "$policy" ] || return
+
+  local values count language
+  values=$(awk '
+    /^\*\*Conversation language:\*\*/ {
+      value = $0
+      sub(/^\*\*Conversation language:\*\*[[:space:]]*/, "", value)
+      gsub(/^[`[:space:]]+|[`[:space:]]+$/, "", value)
+      if (value != "") print value
+    }
+  ' "$policy")
+  count=$(printf '%s\n' "$values" | grep -c .)
+
+  echo "[Meridian Language Policy]"
+  if [ "$count" != "1" ]; then
+    echo "  ⚠ Conversation language unavailable: policy is missing or ambiguous."
+    echo "  📝 Repository artifacts: English only"
+    return
+  fi
+
+  language="$values"
+  if [ "$language" = "[Conversation language]" ]; then
+    echo "  ⚠ Conversation language is not configured."
+    echo "  📝 Repository artifacts: English only"
+    return
+  fi
+
+  printf '  🗣 Conversation language: %s\n' "$language"
+  echo "  📝 Repository artifacts: English only"
+}
+
+emit_language_policy_briefing
+
 # governed-SDD's `execution-assets` capability defaults the queue to
 # `tasks/QUEUE.md` "unless this section declares different locations for
 # this project" (see templates/workflows/governed-sdd/PROJECT_WORKFLOW.md).

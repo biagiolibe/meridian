@@ -68,13 +68,20 @@ During initialization, choose the language used for agent-developer conversation
 
 To change the conversation language later, explicitly request the change and update `LANGUAGE_POLICY.md` in the same edit. Prompt language alone never changes the preference.
 
+In Claude Code, the Meridian `UserPromptSubmit` hook reprints a valid configured
+conversation language and the repository-English invariant at every prompt. It
+is a salience aid, not a policy-enforcement mechanism. In Codex, the generated
+project `AGENTS.md` and the Meridian skill load the same project-owned policy;
+the language value is never duplicated in host configuration.
+
 When you are ready to scope work, run:
 
 ```text
 /meridian-task
 ```
 
-The queue briefing hook stays silent outside a project containing `tasks/QUEUE.md`.
+The hook stays silent outside a project containing either `LANGUAGE_POLICY.md`
+or `tasks/QUEUE.md`.
 
 ## Framework upgrades
 
