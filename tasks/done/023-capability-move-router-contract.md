@@ -13,15 +13,15 @@ contract for compact agent entry points and safe capability relocation.
 
 ## Acceptance Criteria
 
-- [ ] An ADR defines the bootstrap byte budget, mandatory always-loaded
+- [x] An ADR defines the bootstrap byte budget, mandatory always-loaded
       invariants, request-to-role routing map, and the managed role-document
       paths.
-- [ ] The ADR defines a machine-readable migration declaration for moving a
+- [x] The ADR defines a machine-readable migration declaration for moving a
       capability marker between managed files, including exact-source and
       exact-target checks.
-- [ ] It specifies that a locally modified source marker blocks the move;
+- [x] It specifies that a locally modified source marker blocks the move;
       no upgrade may discard or silently duplicate it.
-- [ ] It records the additive release, retirement release, rollback boundary,
+- [x] It records the additive release, retirement release, rollback boundary,
       and required upgrade/audit fixture scenarios.
 
 ## Relevant Files

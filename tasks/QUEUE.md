@@ -52,10 +52,20 @@ migration.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[ ]` | 023 | Define capability-move and bootstrap-router contract | 🔴 P1 | — | [023](023-capability-move-router-contract.md) |
-| `[ ]` | 024 | Add managed role procedures and move-aware upgrade support | 🔴 P1 | 023 | [024](024-additive-role-procedures.md) |
-| `[ ]` | 025 | Compact entry points and retire duplicate role procedures | 🔴 P1 | 024 | [025](025-compact-entry-points.md) |
-| `[ ]` | 026 | Roll out routing to Palimpsest and measure initial context | 🟡 P2 | 025 | [026](026-palimpsest-routing-rollout.md) |
+| `[x]` | 023 | Define capability-move and bootstrap-router contract | 🔴 P1 | — | [023](done/023-capability-move-router-contract.md) |
+| `[x]` | 024 | Add managed role procedures and move-aware upgrade support | 🔴 P1 | 023 | [024](done/024-additive-role-procedures.md) |
+| `[x]` | 025 | Compact entry points and retire duplicate role procedures | 🔴 P1 | 024 | [025](done/025-compact-entry-points.md) |
+| `[/]` | 026 | Roll out routing to Palimpsest and measure initial context | 🟡 P2 | 025 | [026](026-palimpsest-routing-rollout.md) |
+
+### Phase 7 — Shared consumer entry routers
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 027 | Add generated shared entry-router support | 🔴 P1 | 025 | [027](done/027-generated-entry-router-support.md) |
+| `[x]` | 028 | Add routed-read fixtures and adoption audit | 🟡 P2 | 027 | [028](done/028-router-route-fixtures-and-audit.md) |
+| `[ ]` | 029 | Map and additively extract Palimpsest router procedures | 🟡 P2 | 026, 028 | [029](029-palimpsest-router-additive-extraction.md) |
+| `[ ]` | 030 | Generate compact Palimpsest entry routers and retire copies | 🟡 P2 | 029 | [030](030-palimpsest-generated-router-retirement.md) |
+| `[ ]` | 031 | Publish the consumer router-adoption playbook | 🟢 P3 | 030 | [031](031-consumer-router-adoption-playbook.md) |
 
 ## 🧪 Quick Tasks (No File)
 

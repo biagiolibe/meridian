@@ -161,6 +161,8 @@ def check_migrations() -> None:
     current_version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
     if previous_to != current_version:
         fail("latest migration does not match VERSION")
+    for error in meridian.validate_capability_moves(ROOT, "governed-sdd"):
+        fail(f"invalid capability move: {error}")
 
 
 def check_bash() -> None:

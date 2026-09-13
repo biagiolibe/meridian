@@ -37,3 +37,25 @@ loading a universal monolith.
 
 - **Depends on**: 025
 - **Blocks**: none
+
+## Execution record
+
+2026-09-13 — `meridian upgrade --project /Users/biagioliberto/dev/src/palimpsest --check`
+reported `CONFLICT AGENTS.md — capability move
+038-compact-entry-point-routers source file differs from the installed
+baseline`. The plan also identified a safe `APPEND-MARKERS` action for the
+explicit-pointer `CLAUDE.md`, but no changes were applied because the
+retirement conflict blocks the whole upgrade. Per the task constraint, the
+Palimpsest checkout was left unchanged pending an explicit resolution of its
+customized `AGENTS.md`.
+
+2026-09-13 — Meridian was corrected before retrying the consumer plan. A
+retirement now proves and removes only exact protected source markers, while
+preserving unrelated project-owned text; a combined marker-update/retirement
+action prevents a router version bump from retaining duplicate procedures;
+and legacy Claude pointers receive the explicit pointer marker once AGENTS is
+verified or safely planned current. The read-only retry is conflict-free and
+plans `APPEND-RETIRE-MARKERS AGENTS.md`, `POINTER-UPGRADE CLAUDE.md`, and the
+four new role procedures. It was deliberately not applied to Palimpsest per
+developer instruction. Remaining work: explicitly authorize `upgrade --apply`
+in the Palimpsest checkout, then collect the required audit and measurements.

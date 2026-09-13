@@ -108,29 +108,29 @@ class MeridianCliTest(unittest.TestCase):
         satisfied capability marker is cosmetic and should be left untouched,
         not treated the same as a real, unverifiable conflict."""
         self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
-        agents = self.framework / "templates/workflows/governed-sdd/AGENTS.md"
+        agents = self.framework / "templates/workflows/governed-sdd/docs/workflows/REMEDIATION.md"
         agents.write_text(
-            agents.read_text(encoding="utf-8").replace("## Code organization", "## Code Organization Rules"),
+            agents.read_text(encoding="utf-8").replace("# Remediation Procedure", "# Remediation Procedure Rules"),
             encoding="utf-8",
         )
-        local = self.project / "AGENTS.md"
+        local = self.project / "docs/workflows/REMEDIATION.md"
         local_text = local.read_text(encoding="utf-8")
         self.assertIn("MERIDIAN:BEGIN capability=review-remediation-record", local_text)
         local.write_text(
-            local_text.replace("## Code organization", "## Our Code Organization"), encoding="utf-8"
+            local_text.replace("# Remediation Procedure", "# Our Remediation Procedure"), encoding="utf-8"
         )
         (self.framework / "VERSION").write_text("1.1.1\n", encoding="utf-8")
 
         checked = self.run_cli("upgrade", "--check")
         self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
-        self.assertIn("VERIFIED AGENTS.md", checked.stdout)
+        self.assertIn("VERIFIED docs/workflows/REMEDIATION.md", checked.stdout)
         self.assertIn("capability marker(s)", checked.stdout)
 
         applied = self.run_cli("upgrade", "--apply")
         self.assertEqual(applied.returncode, 0, applied.stderr)
         self.assertIn(
-            "## Our Code Organization",
-            (self.project / "AGENTS.md").read_text(encoding="utf-8"),
+            "# Our Remediation Procedure",
+            (self.project / "docs/workflows/REMEDIATION.md").read_text(encoding="utf-8"),
             "a verified (cosmetic-only) conflict must leave the local file untouched",
         )
 
@@ -252,6 +252,27 @@ class MeridianCliTest(unittest.TestCase):
             "<!-- MERIDIAN:CLAUDE-AGENTS-POINTER v1 -->\n\n"
             "# Project instructions\n\nRead AGENTS.md before task work.\n",
         )
+
+    def test_upgrade_converts_a_legacy_pointer_when_pointer_migration_is_pending(self) -> None:
+        (self.framework / "VERSION").write_text("1.1.32\n", encoding="utf-8")
+        self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
+        pointer = self.project / "CLAUDE.md"
+        pointer.write_text(
+            "# Project instructions\n\nThis repository is governed by `AGENTS.md`, which is authoritative.\n\n"
+            "Every Meridian capability marker lives in `AGENTS.md`, once.\n\nKeep this file a pointer.\n",
+            encoding="utf-8",
+        )
+        (self.framework / "VERSION").write_text("1.1.33\n", encoding="utf-8")
+
+        checked = self.run_cli("upgrade", "--check")
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+        self.assertIn("POINTER-UPGRADE CLAUDE.md", checked.stdout)
+
+        applied = self.run_cli("upgrade", "--apply")
+        self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+        upgraded = pointer.read_text(encoding="utf-8")
+        self.assertEqual(upgraded.count("<!-- MERIDIAN:CLAUDE-AGENTS-POINTER v1 -->"), 1)
+        self.assertEqual(meridian.marker_pairs(upgraded), [])
 
     def test_explicit_agents_pointer_rejects_duplicate_or_capability_markers(self) -> None:
         self.assertFalse(
@@ -453,6 +474,93 @@ class MeridianCliTest(unittest.TestCase):
         self.assertIn("CONFLICT docs/CONTEXT_BUDGET_POLICY.md", checked.stdout)
         self.assertIn("BLOCKED", checked.stdout)
 
+    def test_retirement_move_preserves_project_text_outside_exact_source_marker(self) -> None:
+        """A retirement move proves only its protected source marker.
+
+        Project-owned material outside that marker must survive both the move
+        and its follow-up audit; otherwise a consumer with a customized agent
+        guide can never adopt compact routing safely.
+        """
+        self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
+
+        source = self.framework / "templates/workflows/governed-sdd/docs/CONTEXT_BUDGET_POLICY.md"
+        source_text = source.read_text(encoding="utf-8")
+        marker = re.search(
+            r"<!-- MERIDIAN:BEGIN capability=minimal-read-only-status v1 -->\n?.*?"
+            r"<!-- MERIDIAN:END -->",
+            source_text,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(marker)
+        marker_text = marker.group(0)
+        digest = meridian.marker_block_sha256(marker_text)
+        incoming_source = source_text[: marker.start()] + source_text[marker.end() :]
+        source.write_text(
+            incoming_source.replace(
+                "This policy reduces context and reasoning overhead while preserving governed-SDD authority and review quality.",
+                "This framework policy reduces context and reasoning overhead while preserving governed-SDD authority and review quality.",
+            ),
+            encoding="utf-8",
+        )
+
+        target = self.framework / "templates/workflows/governed-sdd/docs/ROUTED_STATUS_RULE.md"
+        target.write_text(marker_text + "\n", encoding="utf-8")
+        (self.framework / "migrations/999-move-minimal-read-only-status.json").write_text(
+            json.dumps(
+                {
+                    "id": "999-move-minimal-read-only-status",
+                    "from": "1.1.0",
+                    "to": "1.1.1",
+                    "description": "test-only retirement move",
+                    "capabilityMoves": [
+                        {
+                            "stage": "retirement",
+                            "source": {
+                                "path": "docs/CONTEXT_BUDGET_POLICY.md",
+                                "capability": "minimal-read-only-status",
+                                "capabilityVersion": 1,
+                                "markerSha256": digest,
+                            },
+                            "target": {
+                                "path": "docs/ROUTED_STATUS_RULE.md",
+                                "capability": "minimal-read-only-status",
+                                "capabilityVersion": 1,
+                                "markerSha256": digest,
+                            },
+                        }
+                    ],
+                    "managedPaths": ["docs/CONTEXT_BUDGET_POLICY.md", "docs/ROUTED_STATUS_RULE.md"],
+                    "verification": ["test-only"],
+                }
+            ),
+            encoding="utf-8",
+        )
+        (self.framework / "VERSION").write_text("1.1.1\n", encoding="utf-8")
+
+        local_source = self.project / "docs/CONTEXT_BUDGET_POLICY.md"
+        local_source.write_text(
+            local_source.read_text(encoding="utf-8").replace(
+                "This policy reduces context and reasoning overhead while preserving governed-SDD authority and review quality.",
+                "This project policy reduces context and reasoning overhead while preserving governed-SDD authority and review quality.",
+            ),
+            encoding="utf-8",
+        )
+
+        checked = self.run_cli("upgrade", "--check")
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+        self.assertIn("RETIRE-MARKERS docs/CONTEXT_BUDGET_POLICY.md", checked.stdout)
+        self.assertIn("ADD      docs/ROUTED_STATUS_RULE.md", checked.stdout)
+
+        applied = self.run_cli("upgrade", "--apply")
+        self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+        upgraded_source = local_source.read_text(encoding="utf-8")
+        self.assertIn("This project policy reduces context and reasoning overhead", upgraded_source)
+        self.assertNotIn("capability=minimal-read-only-status", upgraded_source)
+        self.assertEqual((self.project / "docs/ROUTED_STATUS_RULE.md").read_text(encoding="utf-8"), marker_text + "\n")
+
+        audited = self.run_cli("audit", "--mode", "governed-sdd")
+        self.assertEqual(audited.returncode, 0, audited.stdout + audited.stderr)
+
     def _reinsert_role_scoped_agent_rules_block(self, text: str) -> str:
         block = (
             "<!-- MERIDIAN:BEGIN capability=role-scoped-agent-rules v1 -->\n"
@@ -561,7 +669,7 @@ class MeridianCliTest(unittest.TestCase):
 
     def test_audit_fails_on_edited_protected_region(self) -> None:
         self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
-        agents = self.project / "AGENTS.md"
+        agents = self.project / "docs/workflows/LIFECYCLE.md"
         text = agents.read_text(encoding="utf-8")
         self.assertIn("MERIDIAN:BEGIN capability=lifecycle-orchestration v3", text)
         edited = text.replace(
@@ -572,7 +680,7 @@ class MeridianCliTest(unittest.TestCase):
 
         audited = self.run_cli("audit", "--mode", "governed-sdd")
         self.assertEqual(audited.returncode, 2)
-        self.assertIn("FAIL AGENTS.md: capability=lifecycle-orchestration v3", audited.stdout)
+        self.assertIn("FAIL docs/workflows/LIFECYCLE.md: capability=lifecycle-orchestration v3", audited.stdout)
         self.assertIn("BLOCKED: 1 protected-region integrity failure", audited.stdout)
 
     def test_audit_fails_when_a_file_carries_two_versions_of_one_capability(self) -> None:
@@ -582,14 +690,14 @@ class MeridianCliTest(unittest.TestCase):
         self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
         agents = self.project / "AGENTS.md"
         text = agents.read_text(encoding="utf-8")
-        self.assertIn("MERIDIAN:BEGIN capability=command-triggers v1", text)
+        self.assertIn("MERIDIAN:BEGIN capability=command-triggers v2", text)
         relabeled = text.replace(
-            "MERIDIAN:BEGIN capability=command-triggers v1",
             "MERIDIAN:BEGIN capability=command-triggers v2",
+            "MERIDIAN:BEGIN capability=command-triggers v3",
             1,
         )
         duplicate_block = re.search(
-            r"<!-- MERIDIAN:BEGIN capability=command-triggers v2 -->.*?<!-- MERIDIAN:END -->",
+            r"<!-- MERIDIAN:BEGIN capability=command-triggers v3 -->.*?<!-- MERIDIAN:END -->",
             relabeled,
             re.DOTALL,
         )
@@ -599,12 +707,12 @@ class MeridianCliTest(unittest.TestCase):
         audited = self.run_cli("audit", "--mode", "governed-sdd")
         self.assertEqual(audited.returncode, 2)
         self.assertIn(
-            "FAIL AGENTS.md: capability=command-triggers carries 2 versions (v1, v2)", audited.stdout
+            "FAIL AGENTS.md: capability=command-triggers carries 2 versions (v2, v3)", audited.stdout
         )
 
     def test_audit_skips_a_version_the_current_template_no_longer_carries(self) -> None:
         self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
-        for name in ("AGENTS.md", "CLAUDE.md"):
+        for name in ("docs/workflows/LIFECYCLE.md",):
             local = self.project / name
             local.write_text(
                 local.read_text(encoding="utf-8").replace(
@@ -792,6 +900,7 @@ class MeridianCliTest(unittest.TestCase):
             "docs/CODE_REVIEW_PROMPT.md",
             "docs/COMPLETION_REPORT_TEMPLATE.md",
         ):
+            (self.project / name).parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(current / name, self.project / name)
 
         planned = self.run_cli(
@@ -872,6 +981,14 @@ class MeridianCliTest(unittest.TestCase):
         self.assertFalse((self.project / ".meridian").exists())
 
         shutil.copyfile(current / "docs/LIFECYCLE_ORCHESTRATION.md", self.project / "docs/LIFECYCLE_ORCHESTRATION.md")
+        for name in (
+            "docs/workflows/IMPLEMENTATION.md",
+            "docs/workflows/REVIEW.md",
+            "docs/workflows/REMEDIATION.md",
+            "docs/workflows/LIFECYCLE.md",
+        ):
+            (self.project / name).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(current / name, self.project / name)
         # Replace AGENTS.md/CLAUDE.md wholesale with the current, fully marked
         # templates rather than appending one more bare phrase: this test's
         # legacy-fallback evidence was already captured above, and the five
@@ -1008,7 +1125,12 @@ class MeridianCliTest(unittest.TestCase):
             "docs/PULL_REQUEST_POLICY.md",
             "docs/CODE_REVIEW_PROMPT.md",
             "docs/COMPLETION_REPORT_TEMPLATE.md",
+            "docs/workflows/IMPLEMENTATION.md",
+            "docs/workflows/REVIEW.md",
+            "docs/workflows/REMEDIATION.md",
+            "docs/workflows/LIFECYCLE.md",
         ):
+            (self.project / name).parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(current / name, self.project / name)
 
         refused = self.run_cli("finalize-adoption", "--mode", "governed-sdd")
@@ -1410,7 +1532,7 @@ class GenerateClaudeMdTest(unittest.TestCase):
         agents_text = (source / "AGENTS.md").read_text(encoding="utf-8")
         claude_text = (source / "CLAUDE.md").read_text(encoding="utf-8")
         (workflow / "AGENTS.md").write_text(
-            agents_text.replace("## Code organization", "## Code organization\n\nstale.", 1),
+            agents_text.replace("## Command triggers", "## Command triggers\n\nstale.", 1),
             encoding="utf-8",
         )
         (workflow / "CLAUDE.md").write_text(claude_text, encoding="utf-8")
@@ -1444,6 +1566,82 @@ class GenerateClaudeMdTest(unittest.TestCase):
         self.assertIn(
             "stale.", (workflow / "CLAUDE.md").read_text(encoding="utf-8")
         )
+
+
+class GeneratedEntryRouterTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.project = Path(self.temporary.name)
+        workflows = self.project / "docs/workflows"
+        workflows.mkdir(parents=True)
+        self.router = workflows / "ENTRY_ROUTER.md"
+        self.router.write_text(
+            "# Project Router\n\n"
+            "- Status: `docs/workflows/STATUS_DESIGN.md`\n"
+            "- Proceed: `docs/workflows/IMPLEMENTATION.md`\n"
+            "- Review: `docs/workflows/REVIEW.md`\n"
+            "- Address review: `docs/workflows/REMEDIATION.md`\n"
+            "- Lifecycle or Accept: `docs/workflows/LIFECYCLE.md`\n"
+            "- Audit: `docs/AUDIT_PROMPT_READ_ONLY.md`\n",
+            encoding="utf-8",
+        )
+        (workflows / "ENTRY_ROUTER_MAP.json").write_text(
+            json.dumps(meridian.ENTRY_ROUTER_ROUTES, indent=2) + "\n", encoding="utf-8"
+        )
+        for route, path in meridian.ENTRY_ROUTER_ROUTES.items():
+            target = self.project / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(
+                "# Routed procedure\n\n" + " ".join(meridian.ENTRY_ROUTER_SAFEGUARDS[route]) + "\n",
+                encoding="utf-8",
+            )
+
+    def test_renders_identical_entry_points_and_audits_routes(self) -> None:
+        outputs = meridian.entry_router_outputs(self.project)
+        self.assertEqual(outputs[Path("AGENTS.md")], outputs[Path("CLAUDE.md")])
+        for target, content in outputs.items():
+            (self.project / target).write_text(content, encoding="utf-8")
+        self.assertEqual(meridian.audit_entry_router(self.project), [])
+
+    def test_allows_a_comment_only_host_overlay_but_rejects_instruction_text(self) -> None:
+        overlay = self.project / "docs/workflows/ENTRY_ROUTER.CLAUDE.overlay.md"
+        overlay.write_text("<!-- Claude host metadata -->\n", encoding="utf-8")
+        outputs = meridian.entry_router_outputs(self.project)
+        self.assertIn("<!-- Claude host metadata -->", outputs[Path("CLAUDE.md")])
+        self.assertNotIn("<!-- Claude host metadata -->", outputs[Path("AGENTS.md")])
+        overlay.write_text("Read this extra instruction.\n", encoding="utf-8")
+        with self.assertRaises(meridian.MeridianError):
+            meridian.entry_router_outputs(self.project)
+
+    def test_audit_reports_generated_drift_missing_route_and_budget_failure(self) -> None:
+        outputs = meridian.entry_router_outputs(self.project)
+        for target, content in outputs.items():
+            (self.project / target).write_text(content, encoding="utf-8")
+        (self.project / "AGENTS.md").write_text("stale\n", encoding="utf-8")
+        self.assertTrue(any("generated entry router drift" in detail for _status, detail in meridian.audit_entry_router(self.project)))
+        (self.project / "AGENTS.md").write_text(outputs[Path("AGENTS.md")], encoding="utf-8")
+        (self.project / "docs/workflows/ENTRY_ROUTER_MAP.json").write_text("{}\n", encoding="utf-8")
+        self.assertTrue(any("route map must declare exactly" in detail for _status, detail in meridian.audit_entry_router(self.project)))
+        self.router.write_text("x" * (meridian.ENTRY_ROUTER_BUDGET_BYTES + 1), encoding="utf-8")
+        with self.assertRaises(meridian.MeridianError):
+            meridian.entry_router_outputs(self.project)
+
+    def test_generator_refuses_to_emit_a_pointer(self) -> None:
+        self.router.write_text(
+            "<!-- MERIDIAN:CLAUDE-AGENTS-POINTER v1 -->\n\nRead `AGENTS.md`.\n", encoding="utf-8"
+        )
+        with self.assertRaisesRegex(meridian.MeridianError, "must not emit a Claude-to-AGENTS pointer"):
+            meridian.entry_router_outputs(self.project)
+
+    def test_cli_checks_and_writes_both_entry_points(self) -> None:
+        command = [sys.executable, str(CLI), "--framework-root", str(ROOT), "generate-entry-routers", "--project", str(self.project)]
+        stale = subprocess.run(command + ["--check"], text=True, capture_output=True, check=False)
+        self.assertEqual(stale.returncode, 2, stale.stdout + stale.stderr)
+        written = subprocess.run(command + ["--write"], text=True, capture_output=True, check=False)
+        self.assertEqual(written.returncode, 0, written.stdout + written.stderr)
+        checked = subprocess.run(command + ["--check"], text=True, capture_output=True, check=False)
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
 
 
 class BudgetCliTest(unittest.TestCase):
@@ -1872,13 +2070,12 @@ class CapabilityMarkerTest(unittest.TestCase):
 
     def test_agents_and_claude_carry_expected_marker_versions(self) -> None:
         for name in ("AGENTS.md", "CLAUDE.md"):
-            text = (self.WORKFLOW / name).read_text(encoding="utf-8")
-            pairs = self.marker_pairs(text)
-            self.assertIn(("review-remediation-record", "2"), pairs, name)
-            self.assertIn(("lifecycle-orchestration", "3"), pairs, name)
-            self.assertIn(("execution-command-gate", "1"), pairs, name)
-            self.assertIn(("validation-scoping", "1"), pairs, name)
-            self.assertIn(("spike-routing", "1"), pairs, name)
+            self.assertEqual(self.marker_pairs((self.WORKFLOW / name).read_text(encoding="utf-8")), [("command-triggers", "2")])
+        self.assertIn(("review-remediation-record", "2"), self.marker_pairs((self.WORKFLOW / "docs/workflows/REMEDIATION.md").read_text(encoding="utf-8")))
+        self.assertIn(("lifecycle-orchestration", "3"), self.marker_pairs((self.WORKFLOW / "docs/workflows/LIFECYCLE.md").read_text(encoding="utf-8")))
+        implementation = self.marker_pairs((self.WORKFLOW / "docs/workflows/IMPLEMENTATION.md").read_text(encoding="utf-8"))
+        for pair in (("execution-command-gate", "1"), ("validation-scoping", "1"), ("spike-routing", "1")):
+            self.assertIn(pair, implementation)
 
     def test_review_record_template_carries_its_own_marker(self) -> None:
         text = (self.WORKFLOW / "docs/REVIEW_RECORD_TEMPLATE.md").read_text(encoding="utf-8")
@@ -1992,11 +2189,8 @@ class CapabilityMarkerTest(unittest.TestCase):
         )
 
     def test_manual_verification_precondition_gates_implementation_start(self) -> None:
-        for name in ("AGENTS.md", "CLAUDE.md"):
-            text = (self.WORKFLOW / name).read_text(encoding="utf-8")
-            pairs = self.marker_pairs(text)
-            self.assertIn(("manual-verification-precondition", "3"), pairs, name)
-        agents = (self.WORKFLOW / "AGENTS.md").read_text(encoding="utf-8")
+        agents = (self.WORKFLOW / "docs/workflows/IMPLEMENTATION.md").read_text(encoding="utf-8")
+        self.assertIn(("manual-verification-precondition", "3"), self.marker_pairs(agents))
         self.assertIn("Manual verification: required", agents)
         self.assertIn("return `BLOCKED` immediately", agents)
         self.assertIn("deterministic test", agents)
@@ -2067,21 +2261,13 @@ class CapabilityMarkerTest(unittest.TestCase):
         self.assertNotIn("[Conversation language]", match.group(1))
 
     def test_agents_and_claude_carry_the_five_residual_capabilities(self) -> None:
-        residual = (
-            "command-triggers",
-            "review-mode-boundary",
-            "owner-acceptance-workflow",
-            "implementer-reviewer-handoff",
-            "reviewer-integrator-identity",
-        )
-        for name in ("AGENTS.md", "CLAUDE.md"):
-            text = (self.WORKFLOW / name).read_text(encoding="utf-8")
-            pairs = self.marker_pairs(text)
-            for capability in residual:
-                self.assertIn((capability, "1"), pairs, f"{name}: {capability}")
+        self.assertIn(("command-triggers", "2"), self.marker_pairs((self.WORKFLOW / "AGENTS.md").read_text(encoding="utf-8")))
+        review = self.marker_pairs((self.WORKFLOW / "docs/workflows/REVIEW.md").read_text(encoding="utf-8"))
+        for capability in ("review-mode-boundary", "implementer-reviewer-handoff", "reviewer-integrator-identity"):
+            self.assertIn((capability, "1"), review)
 
     def test_review_mode_boundary_has_no_hardcoded_review_record_path(self) -> None:
-        text = (self.WORKFLOW / "AGENTS.md").read_text(encoding="utf-8")
+        text = (self.WORKFLOW / "docs/workflows/REVIEW.md").read_text(encoding="utf-8")
         match = re.search(
             r"<!-- MERIDIAN:BEGIN capability=review-mode-boundary v1 -->\n?(.*?)"
             r"<!-- MERIDIAN:END -->",

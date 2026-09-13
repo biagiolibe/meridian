@@ -13,13 +13,13 @@ compact routers and remove only the now-proven duplicate role procedures.
 
 ## Acceptance Criteria
 
-- [ ] Governed-SDD entry points retain only the accepted bootstrap invariants,
+- [x] Governed-SDD entry points retain only the accepted bootstrap invariants,
       routing instructions, and host-specific requirements within the ADR byte budget.
-- [ ] Retired marker blocks are declared through the capability-move metadata;
+- [x] Retired marker blocks are declared through the capability-move metadata;
       their role-procedure copies remain the sole canonical source.
-- [ ] `meridian audit` rejects an old locally customized duplicate rather than
+- [x] `meridian audit` rejects an old locally customized duplicate rather than
       deleting it, and passes upgraded vanilla and explicit-pointer projects.
-- [ ] Regression tests prove a request loads only its routed procedure and
+- [x] Regression tests prove a request loads only its routed procedure and
       that all lifecycle safeguards remain reachable.
 
 ## Constraints
