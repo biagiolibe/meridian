@@ -500,21 +500,25 @@ def append_only_new_markers(local_text: str, base_text: str, template_text: str)
     return result
 
 
+CLAUDE_AGENTS_POINTER_MARKER = "<!-- MERIDIAN:CLAUDE-AGENTS-POINTER v1 -->"
+
+
 def is_agents_pointer(text: str) -> bool:
     """Recognize a project-owned CLAUDE.md that deliberately delegates to AGENTS.
 
-    This narrow signature keeps the exception explicit: a short Claude file is
-    not enough. It must name AGENTS as authoritative and explicitly say that
-    Meridian markers live there once, which makes the duplicate-context tradeoff
-    durable and reviewable.
+    New pointers declare a compact, versioned marker rather than depending on
+    explanatory prose. The former prose signature remains a compatibility path
+    for pointers created before the marker existed; neither form is safe when
+    CLAUDE.md contains capability markers of its own.
     """
-    return (
+    legacy_pointer = (
         "`AGENTS.md`, which is authoritative" in text
         and "Every Meridian capability marker" in text
         and "lives in `AGENTS.md`, once" in text
         and "Keep this file a pointer" in text
-        and not marker_pairs(text)
     )
+    explicit_pointer = text.count(CLAUDE_AGENTS_POINTER_MARKER) == 1
+    return (explicit_pointer or legacy_pointer) and not marker_pairs(text)
 
 
 def agents_pointer_satisfies_claude(

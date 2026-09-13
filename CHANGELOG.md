@@ -12,6 +12,16 @@ numbers follow the `frameworkVersion` tracked in generated projects'
 
 ## [Unreleased]
 
+## [1.1.33]
+
+### Changed
+
+- Migration `036-explicit-claude-agents-pointer` replaces the fragile prose
+  signature used to recognize project-owned `CLAUDE.md` pointers with the
+  explicit `MERIDIAN:CLAUDE-AGENTS-POINTER v1` marker. Existing prose-based
+  pointers remain compatible; the upgrader still verifies that `AGENTS.md`
+  carries every shared capability and that the pointer has none of its own.
+
 ## [1.1.32]
 
 ### Added
