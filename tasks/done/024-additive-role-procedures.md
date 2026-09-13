@@ -14,16 +14,16 @@ losing customized project rules.
 
 ## Acceptance Criteria
 
-- [ ] Managed implementation, review, remediation, and lifecycle procedure
+- [x] Managed implementation, review, remediation, and lifecycle procedure
       documents exist and contain the exact canonical rule blocks assigned by
       the ADR.
-- [ ] Entry points link to the relevant procedure but retain their existing
+- [x] Entry points link to the relevant procedure but retain their existing
       duplicate procedures for this compatibility release.
-- [ ] Migration records can declare a capability move and `meridian upgrade`
+- [x] Migration records can declare a capability move and `meridian upgrade`
       accepts it only when both protected source/target evidence is exact.
-- [ ] Locally modified source text produces a blocking conflict; an unmodified
+- [x] Locally modified source text produces a blocking conflict; an unmodified
       project upgrades and audits successfully.
-- [ ] Fixture tests cover vanilla, customized, and explicit Claude-pointer projects.
+- [x] Fixture tests cover vanilla, customized, and explicit Claude-pointer projects.
 
 ## Relevant Files
 

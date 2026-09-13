@@ -27,6 +27,29 @@ MARKED_BLOCK = re.compile(
     r"<!-- MERIDIAN:BEGIN capability=([a-z0-9-]+) v(\d+) -->\n?.*?<!-- MERIDIAN:END -->",
     re.DOTALL,
 )
+ENTRY_ROUTER_PATH = Path("docs/workflows/ENTRY_ROUTER.md")
+ENTRY_ROUTER_MAP_PATH = Path("docs/workflows/ENTRY_ROUTER_MAP.json")
+ENTRY_ROUTER_OVERLAYS = {
+    "AGENTS.md": Path("docs/workflows/ENTRY_ROUTER.AGENTS.overlay.md"),
+    "CLAUDE.md": Path("docs/workflows/ENTRY_ROUTER.CLAUDE.overlay.md"),
+}
+ENTRY_ROUTER_BUDGET_BYTES = 2048
+ENTRY_ROUTER_ROUTES = {
+    "status-design": "docs/workflows/STATUS_DESIGN.md",
+    "proceed": "docs/workflows/IMPLEMENTATION.md",
+    "review": "docs/workflows/REVIEW.md",
+    "address-review": "docs/workflows/REMEDIATION.md",
+    "lifecycle-accept": "docs/workflows/LIFECYCLE.md",
+    "audit": "docs/AUDIT_PROMPT_READ_ONLY.md",
+}
+ENTRY_ROUTER_SAFEGUARDS = {
+    "status-design": ("status",),
+    "proceed": ("git status --short", "validation"),
+    "review": ("approve", "changes_requested"),
+    "address-review": ("changes_requested", "in_progress"),
+    "lifecycle-accept": ("lifecycle", "accept"),
+    "audit": ("audit",),
+}
 
 
 class MeridianError(RuntimeError):
@@ -51,6 +74,22 @@ class Capability:
     migration: str
     present: bool
     evidence: str
+
+
+@dataclass(frozen=True)
+class CapabilityMove:
+    """One declared relocation of an exact protected marker block."""
+
+    stage: str
+    source_path: Path
+    source_capability: str
+    source_version: int
+    source_sha256: str
+    target_path: Path
+    target_capability: str
+    target_version: int
+    target_sha256: str
+    migration: str
 
 
 @dataclass(frozen=True)
@@ -103,8 +142,8 @@ def managed_files_for_workflow(workflow: Path, mode: str) -> list[ManagedFile]:
                 Path("LANGUAGE_POLICY.md"),
                 Path("tasks/TASK_BLUEPRINT.md"),
                 *[
-                    Path("docs") / item.name
-                    for item in sorted((workflow / "docs").glob("*.md"))
+                    item.relative_to(workflow)
+                    for item in sorted((workflow / "docs").rglob("*.md"))
                 ],
             ]
         )
@@ -198,6 +237,125 @@ def migration_capability_removals(data: dict[str, object]) -> list[tuple[str, in
     ]
 
 
+def migration_capability_moves(data: dict[str, object]) -> list[CapabilityMove]:
+    """Parse the exact-source/exact-target moves declared by one migration."""
+    result = []
+    for entry in data.get("capabilityMoves", []):
+        source = entry["source"]
+        target = entry["target"]
+        result.append(
+            CapabilityMove(
+                stage=str(entry["stage"]),
+                source_path=Path(str(source["path"])),
+                source_capability=str(source["capability"]),
+                source_version=int(source["capabilityVersion"]),
+                source_sha256=str(source["markerSha256"]),
+                target_path=Path(str(target["path"])),
+                target_capability=str(target["capability"]),
+                target_version=int(target["capabilityVersion"]),
+                target_sha256=str(target["markerSha256"]),
+                migration=str(data["id"]),
+            )
+        )
+    return result
+
+
+def marker_blocks(text: str, capability: str, version: int) -> list[str]:
+    """Every complete exact marker block for one capability/version pair."""
+    pattern = re.compile(
+        rf"<!-- MERIDIAN:BEGIN capability={re.escape(capability)} v{version} -->\n?.*?"
+        r"<!-- MERIDIAN:END -->",
+        re.DOTALL,
+    )
+    return [match.group(0) for match in pattern.finditer(text)]
+
+
+def marker_block_sha256(block: str) -> str:
+    return hashlib.sha256(block.encode("utf-8")).hexdigest()
+
+
+def exact_marker_matches(text: str, capability: str, version: int, expected_sha256: str) -> bool:
+    blocks = marker_blocks(text, capability, version)
+    return len(blocks) == 1 and marker_block_sha256(blocks[0]) == expected_sha256
+
+
+def declared_capability_moves(
+    framework_root: Path, migration_ids_to_find: list[str] | None = None
+) -> list[CapabilityMove]:
+    """All, or only pending, declared capability moves in migration order."""
+    wanted = set(migration_ids_to_find) if migration_ids_to_find is not None else None
+    result = []
+    for path in sorted((framework_root / "migrations").glob("*.json")):
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if wanted is None or str(data["id"]) in wanted:
+            result.extend(migration_capability_moves(data))
+    return result
+
+
+def validate_capability_moves(framework_root: Path, mode: str) -> list[str]:
+    """Validate move declarations against the exact current release templates."""
+    managed = {item.target: item.source for item in managed_files(framework_root, mode)}
+    errors = []
+    seen_sources: set[tuple[Path, str, int]] = set()
+    for path in sorted((framework_root / "migrations").glob("*.json")):
+        data = json.loads(path.read_text(encoding="utf-8"))
+        moves = data.get("capabilityMoves", [])
+        if not moves:
+            continue
+        if not isinstance(moves, list):
+            errors.append(f"{path.name}: capabilityMoves must be an array")
+            continue
+        for index, raw in enumerate(moves):
+            label = f"{path.name}: capabilityMoves[{index}]"
+            if not isinstance(raw, dict) or set(raw) != {"stage", "source", "target"}:
+                errors.append(f"{label} must contain exactly stage, source, and target")
+                continue
+            if raw["stage"] not in ("additive", "retirement"):
+                errors.append(f"{label} has an unsupported stage")
+                continue
+            locations = []
+            for side in ("source", "target"):
+                value = raw[side]
+                required = {"path", "capability", "capabilityVersion", "markerSha256"}
+                if not isinstance(value, dict) or set(value) != required:
+                    errors.append(f"{label}.{side} has an invalid shape")
+                    break
+                try:
+                    location = (
+                        Path(str(value["path"])),
+                        str(value["capability"]),
+                        int(value["capabilityVersion"]),
+                        str(value["markerSha256"]),
+                    )
+                except (TypeError, ValueError):
+                    errors.append(f"{label}.{side} has invalid scalar values")
+                    break
+                if not re.fullmatch(r"[0-9a-f]{64}", location[3]):
+                    errors.append(f"{label}.{side}.markerSha256 is not a SHA-256 digest")
+                    break
+                if location[0] not in managed:
+                    errors.append(f"{label}.{side}.path is not a managed path")
+                    break
+                template_text = managed[location[0]].read_text(encoding="utf-8")
+                if not (side == "source" and not marker_blocks(template_text, location[1], location[2])) and not (raw["stage"] == "retirement" and side == "source") and not exact_marker_matches(template_text, location[1], location[2], location[3]):
+                    errors.append(f"{label}.{side} does not name one exact marker in the release template")
+                    break
+                locations.append(location)
+            if len(locations) != 2:
+                continue
+            source, target = locations
+            if source[:3] == target[:3]:
+                errors.append(f"{label} has an identical source and target location")
+            if source[:3] in seen_sources and raw["stage"] != "retirement":
+                errors.append(f"{label} duplicates a declared source marker")
+            seen_sources.add(source[:3])
+            if source[0] not in {Path(item) for item in data.get("managedPaths", [])} or target[0] not in {
+                Path(item) for item in data.get("managedPaths", [])
+            }:
+                errors.append(f"{label} source and target must both be listed in managedPaths")
+    return errors
+
+
 def capability_requirements(framework_root: Path) -> dict[str, tuple[int, str]]:
     """Map capability id -> (required version, the migration id that requires it).
 
@@ -270,13 +428,17 @@ def removals_for_managed_file(
     retire from this one managed file — `pending_capability_removals`
     filtered to the entries whose migration declares this file among its
     `managedPaths`."""
-    return [
+    result = [
         (capability, version, superseded_by)
         for capability, version, superseded_by, managed_paths in pending_capability_removals(
             framework_root, migration_ids_to_find
         )
         if str(target) in managed_paths
     ]
+    for move in declared_capability_moves(framework_root, migration_ids_to_find):
+        if move.stage == "retirement" and move.source_path == target:
+            result.append((move.source_capability, move.source_version, None))
+    return result
 
 
 def find_capability_marker_version(text: str, capability: str) -> int | None:
@@ -538,6 +700,44 @@ def agents_pointer_satisfies_claude(
         extract_marker_block(local_text, capability, version)
         == extract_marker_block(template_text, capability, version)
         for capability, version in pairs
+    )
+
+
+def agents_pointer_can_follow_upgrade(
+    project_root: Path,
+    framework_root: Path,
+    mode: str,
+    baseline_root: Path,
+    claude_template_text: str,
+    claude_local_text: str,
+) -> bool:
+    """Allow a valid pointer when this same upgrade makes AGENTS current.
+
+    The check remains marker-exact: it predicts only the narrow marker-aware
+    AGENTS update, never a broad merge or replacement of project-owned text.
+    """
+    if not is_agents_pointer(claude_local_text):
+        return False
+    if agents_pointer_satisfies_claude(
+        project_root, framework_root, mode, claude_template_text, claude_local_text
+    ):
+        return True
+    agent_local = project_root / "AGENTS.md"
+    agent_base = baseline_root / "AGENTS.md"
+    agent_template = framework_root / "templates" / "workflows" / mode / "AGENTS.md"
+    if not agent_local.is_file() or not agent_base.is_file() or not agent_template.is_file():
+        return False
+    reconciled = append_only_new_markers(
+        agent_local.read_text(encoding="utf-8"),
+        agent_base.read_text(encoding="utf-8"),
+        agent_template.read_text(encoding="utf-8"),
+    )
+    if reconciled is None:
+        return False
+    return all(
+        extract_marker_block(reconciled, capability, version)
+        == extract_marker_block(claude_template_text, capability, version)
+        for capability, version in marker_pairs(claude_template_text)
     )
 
 
@@ -828,9 +1028,150 @@ def audit_duplicate_headings(project_root: Path, framework_root: Path, mode: str
     return results
 
 
+def audit_capability_moves(project_root: Path, framework_root: Path, mode: str) -> list[tuple[str, str]]:
+    """Verify that declared additive relocations retain both exact copies."""
+    if mode != "governed-sdd":
+        return []
+    try:
+        applied = {str(item) for item in load_manifest(project_root).get("appliedMigrations", [])}
+    except MeridianError:
+        return []
+    results = []
+    moves = [move for move in declared_capability_moves(framework_root) if move.migration in applied]
+    retired_sources = {
+        (move.source_path, move.source_capability, move.source_version)
+        for move in moves
+        if move.stage == "retirement"
+    }
+    for move in moves:
+        if move.stage == "additive" and (move.source_path, move.source_capability, move.source_version) in retired_sources:
+            continue
+        source = project_root / move.source_path
+        target = project_root / move.target_path
+        if move.stage == "additive":
+            for path, capability, version, digest, side in (
+                (source, move.source_capability, move.source_version, move.source_sha256, "source"),
+                (target, move.target_capability, move.target_version, move.target_sha256, "target"),
+            ):
+                text = path.read_text(encoding="utf-8") if path.is_file() else ""
+                if side == "source" and path == project_root / "CLAUDE.md" and is_agents_pointer(text):
+                    continue
+                if not exact_marker_matches(text, capability, version, digest):
+                    results.append(
+                        (
+                            "FAIL",
+                            f"capability move {move.migration}: {side} {path.relative_to(project_root)} "
+                            f"for capability={capability} v{version} is missing, modified, or duplicated",
+                        )
+                    )
+        else:
+            source_text = source.read_text(encoding="utf-8") if source.is_file() else ""
+            target_text = target.read_text(encoding="utf-8") if target.is_file() else ""
+            if marker_blocks(source_text, move.source_capability, move.source_version):
+                results.append(
+                    (
+                        "FAIL",
+                        f"capability move {move.migration}: retired source {move.source_path} is still present",
+                    )
+                )
+            if not exact_marker_matches(
+                target_text, move.target_capability, move.target_version, move.target_sha256
+            ):
+                results.append(
+                    (
+                        "FAIL",
+                        f"capability move {move.migration}: target {move.target_path} is missing, modified, or duplicated",
+                    )
+                )
+    return results
+
+
+def entry_router_overlay(text: str, path: Path) -> str:
+    """Validate the deliberately tiny, non-instructional host overlay."""
+    if not text:
+        return ""
+    if len(text.encode("utf-8")) > 256 or not re.fullmatch(r"<!--[^\n]*-->\n?", text):
+        raise MeridianError(
+            f"{path}: an entry-router host overlay must be one HTML comment of at most 256 UTF-8 bytes"
+        )
+    return text.rstrip() + "\n"
+
+
+def render_entry_router(router_text: str, overlay_text: str = "") -> str:
+    """Render one generated entry point from the consumer-owned router."""
+    return router_text.rstrip() + "\n" + ("\n" + overlay_text if overlay_text else "")
+
+
+def entry_router_outputs(project_root: Path) -> dict[Path, str]:
+    """Return the expected generated entry points, or fail without writing."""
+    router = project_root / ENTRY_ROUTER_PATH
+    if not router.is_file():
+        raise MeridianError(f"entry-router source is missing: {router}")
+    router_text = router.read_text(encoding="utf-8")
+    if len(router_text.encode("utf-8")) > ENTRY_ROUTER_BUDGET_BYTES:
+        raise MeridianError(
+            f"{router}: exceeds the {ENTRY_ROUTER_BUDGET_BYTES}-byte entry-router budget"
+        )
+    if CLAUDE_AGENTS_POINTER_MARKER in router_text or is_agents_pointer(router_text):
+        raise MeridianError(f"{router}: a generated entry router must not emit a Claude-to-AGENTS pointer")
+    result = {}
+    for target, relative_overlay in ENTRY_ROUTER_OVERLAYS.items():
+        overlay = project_root / relative_overlay
+        overlay_text = entry_router_overlay(overlay.read_text(encoding="utf-8"), overlay) if overlay.is_file() else ""
+        output = render_entry_router(router_text, overlay_text)
+        if len(output.encode("utf-8")) > ENTRY_ROUTER_BUDGET_BYTES:
+            raise MeridianError(f"{target}: exceeds the {ENTRY_ROUTER_BUDGET_BYTES}-byte entry-router budget")
+        result[Path(target)] = output
+    return result
+
+
+def audit_entry_router(project_root: Path) -> list[tuple[str, str]]:
+    """Audit an opting-in consumer's generated files and explicit route map."""
+    if not (project_root / ENTRY_ROUTER_PATH).is_file():
+        return []
+    results = []
+    try:
+        outputs = entry_router_outputs(project_root)
+    except MeridianError as error:
+        return [("FAIL", str(error))]
+    for target, expected in outputs.items():
+        actual = project_root / target
+        if not actual.is_file() or actual.read_text(encoding="utf-8") != expected:
+            results.append(("FAIL", f"generated entry router drift: {target}; rerun `meridian generate-entry-routers --write`"))
+    mapping_path = project_root / ENTRY_ROUTER_MAP_PATH
+    try:
+        mapping = json.loads(mapping_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        return results + [("FAIL", f"entry-router route map is missing or invalid: {mapping_path} ({error})")]
+    if not isinstance(mapping, dict) or set(mapping) != set(ENTRY_ROUTER_ROUTES):
+        results.append(("FAIL", f"entry-router route map must declare exactly: {', '.join(ENTRY_ROUTER_ROUTES)}"))
+        return results
+    router_text = (project_root / ENTRY_ROUTER_PATH).read_text(encoding="utf-8")
+    for route, expected_path in ENTRY_ROUTER_ROUTES.items():
+        actual_path = mapping.get(route)
+        if actual_path != expected_path:
+            results.append(("FAIL", f"entry-router route {route} must target {expected_path}"))
+            continue
+        if router_text.count(expected_path) != 1:
+            results.append(("FAIL", f"entry-router must name {expected_path} exactly once for route {route}"))
+        target = project_root / expected_path
+        if not target.is_file():
+            results.append(("FAIL", f"entry-router route {route} target is missing: {expected_path}"))
+            continue
+        target_text = target.read_text(encoding="utf-8").lower()
+        missing = [token for token in ENTRY_ROUTER_SAFEGUARDS[route] if token not in target_text]
+        if missing:
+            results.append(
+                ("FAIL", f"entry-router route {route} target lacks required safeguard token(s): {', '.join(missing)}")
+            )
+    return results
+
+
 def run_audit(project_root: Path, framework_root: Path, mode: str) -> int:
     results = audit_capability_markers(project_root, framework_root, mode)
     results += audit_duplicate_headings(project_root, framework_root, mode)
+    results += audit_capability_moves(project_root, framework_root, mode)
+    results += audit_entry_router(project_root)
     results = sorted(results, key=lambda pair: pair[1])
     if not results:
         print("No capability markers found to audit.")
@@ -1264,6 +1605,82 @@ def merge_clean(local: Path, base: Path, incoming: Path) -> tuple[bool, bytes]:
         return process.returncode == 0, output.read_bytes()
 
 
+def apply_additive_move_checks(
+    plan: list[PlanItem],
+    project_root: Path,
+    framework_root: Path,
+    mode: str,
+    baseline_root: Path,
+    pending_migrations: list[str],
+) -> list[PlanItem]:
+    """Turn unsafe pending additive moves into deterministic upgrade conflicts.
+
+    A normal three-way merge only reasons about whole files. A capability move
+    instead proves the protected block itself: the old marker must be identical
+    to the installed baseline, while unrelated project-owned text in that file
+    remains eligible for preservation. A pre-created destination may be
+    retained only if it is the exact released marker block.
+    """
+    by_target = {item.file.target: index for index, item in enumerate(plan)}
+
+    def conflict(target: Path, detail: str) -> None:
+        index = by_target[target]
+        plan[index] = PlanItem(plan[index].file, "conflict", detail)
+
+    for move in declared_capability_moves(framework_root, pending_migrations):
+        if move.stage not in ("additive", "retirement"):
+            continue
+        source_base = baseline_root / move.source_path
+        source_local = project_root / move.source_path
+        if not source_base.is_file() or not source_local.is_file():
+            conflict(move.source_path, f"capability move {move.migration} source baseline or local file is missing")
+            continue
+        base_text = source_base.read_text(encoding="utf-8")
+        local_text = source_local.read_text(encoding="utf-8")
+        if move.source_path == Path("CLAUDE.md") and is_agents_pointer(local_text):
+            # A declared pointer deliberately owns no duplicated Claude marker;
+            # the matching AGENTS move supplies the source proof instead.
+            continue
+        if not exact_marker_matches(base_text, move.source_capability, move.source_version, move.source_sha256):
+            conflict(move.source_path, f"capability move {move.migration} source does not match the installed baseline")
+            continue
+        if not exact_marker_matches(local_text, move.source_capability, move.source_version, move.source_sha256):
+            conflict(move.source_path, f"capability move {move.migration} source marker was locally modified or duplicated")
+            continue
+        target_local = project_root / move.target_path
+        if target_local.is_file():
+            target_text = target_local.read_text(encoding="utf-8")
+            if not exact_marker_matches(
+                target_text, move.target_capability, move.target_version, move.target_sha256
+            ):
+                conflict(move.target_path, f"capability move {move.migration} target marker is not exact")
+                continue
+            current = plan[by_target[move.target_path]]
+            if move.stage == "additive" and current.action == "conflict" and not (baseline_root / move.target_path).is_file():
+                plan[by_target[move.target_path]] = PlanItem(
+                    current.file,
+                    "keep",
+                    f"pre-created target marker for capability move {move.migration} is exact",
+                )
+        elif move.stage == "retirement":
+            planned_target = plan[by_target[move.target_path]]
+            incoming_target = planned_target.file.source.read_text(encoding="utf-8")
+            if planned_target.action != "add" or not exact_marker_matches(
+                incoming_target, move.target_capability, move.target_version, move.target_sha256
+            ):
+                conflict(move.target_path, f"capability move {move.migration} target file is missing")
+        if move.stage == "retirement":
+            current = plan[by_target[move.source_path]]
+            if current.action == "append-markers":
+                plan[by_target[move.source_path]] = PlanItem(
+                    current.file,
+                    "append-retire-markers",
+                    "update required marker versions, then retire declared duplicate marker blocks "
+                    "without touching other local text",
+                )
+    return plan
+
+
 def plan_from_baseline(
     project_root: Path,
     framework_root: Path,
@@ -1306,8 +1723,25 @@ def plan_from_baseline(
             plan.append(PlanItem(item, "conflict", "local managed file is missing"))
             continue
         if sha256(item.source) == sha256(base):
+            local_text = local.read_text(encoding="utf-8")
+            if (
+                item.target == Path("CLAUDE.md")
+                and CLAUDE_AGENTS_POINTER_MARKER not in local_text
+                and "036-explicit-claude-agents-pointer" in pending_migrations
+                and agents_pointer_satisfies_claude(
+                    project_root, framework_root, mode, item.source.read_text(encoding="utf-8"), local_text
+                )
+            ):
+                plan.append(
+                    PlanItem(
+                        item,
+                        "pointer-upgrade",
+                        "add the explicit Claude-to-AGENTS pointer marker without changing project-owned pointer text",
+                    )
+                )
+                continue
             normalized = deduplicate_identical_template_markers(
-                local.read_text(encoding="utf-8"), item.source.read_text(encoding="utf-8")
+                local_text, item.source.read_text(encoding="utf-8")
             )
             if normalized is not None:
                 plan.append(
@@ -1343,14 +1777,21 @@ def plan_from_baseline(
             local_text = local.read_text(encoding="utf-8")
             base_text = base.read_text(encoding="utf-8")
             template_text = item.source.read_text(encoding="utf-8")
-            if item.target == Path("CLAUDE.md") and agents_pointer_satisfies_claude(
-                project_root, framework_root, mode, template_text, local_text
+            if item.target == Path("CLAUDE.md") and agents_pointer_can_follow_upgrade(
+                project_root, framework_root, mode, baseline_root, template_text, local_text
             ):
+                legacy_pointer = CLAUDE_AGENTS_POINTER_MARKER not in local_text
+                action = (
+                    "pointer-upgrade"
+                    if legacy_pointer and "036-explicit-claude-agents-pointer" in pending_migrations
+                    else "pointer-verified"
+                )
                 plan.append(
                     PlanItem(
                         item,
-                        "pointer-verified",
-                        "project declares CLAUDE.md as an AGENTS.md pointer; all shared markers are current in AGENTS.md",
+                        action,
+                        "project declares CLAUDE.md as an AGENTS.md pointer; shared markers are current or "
+                        "will be updated safely in AGENTS.md",
                     )
                 )
                 continue
@@ -1442,6 +1883,15 @@ def plan_from_baseline(
                 )
             else:
                 plan.append(PlanItem(item, "conflict", "three-way merge"))
+    if mode == "governed-sdd":
+        plan = apply_additive_move_checks(
+            plan,
+            project_root,
+            framework_root,
+            mode,
+            baseline_root,
+            pending_migrations,
+        )
     return manifest, plan
 
 
@@ -1536,6 +1986,23 @@ def apply_plan(
                         f"marker deduplication is no longer safe for {item.file.target}; rerun upgrade --check"
                     )
                 local.write_text(normalized, encoding="utf-8")
+            elif item.action == "pointer-upgrade":
+                local_text = local.read_text(encoding="utf-8")
+                if not agents_pointer_satisfies_claude(
+                    project_root, framework_root, str(manifest["mode"]), item.file.source.read_text(encoding="utf-8"), local_text
+                ):
+                    raise MeridianError(
+                        f"AGENTS.md no longer satisfies the Claude pointer for {item.file.target}; rerun upgrade --check"
+                    )
+                if CLAUDE_AGENTS_POINTER_MARKER not in local_text:
+                    first_newline = local_text.find("\n")
+                    insertion = CLAUDE_AGENTS_POINTER_MARKER + "\n"
+                    updated = (
+                        insertion + "\n" + local_text
+                        if first_newline < 0
+                        else local_text[: first_newline + 1] + "\n" + insertion + local_text[first_newline + 1 :]
+                    )
+                    local.write_text(updated, encoding="utf-8")
             elif item.action == "append-markers":
                 base = baseline_root / item.file.target
                 appended = append_only_new_markers(
@@ -1548,6 +2015,21 @@ def apply_plan(
                         f"marker-aware insertion is no longer safe for {item.file.target}; rerun upgrade --check"
                     )
                 local.write_text(appended, encoding="utf-8")
+            elif item.action == "append-retire-markers":
+                base = baseline_root / item.file.target
+                appended = append_only_new_markers(
+                    local.read_text(encoding="utf-8"),
+                    base.read_text(encoding="utf-8"),
+                    item.file.source.read_text(encoding="utf-8"),
+                )
+                removals = removals_for_managed_file(framework_root, pending_migrations, item.file.target)
+                removal_pairs = [(capability, version) for capability, version, _superseded_by in removals]
+                retired = remove_retired_markers(appended or "", base.read_text(encoding="utf-8"), removal_pairs)
+                if appended is None or retired is None:
+                    raise MeridianError(
+                        f"marker-aware relocation is no longer safe for {item.file.target}; rerun upgrade --check"
+                    )
+                local.write_text(retired, encoding="utf-8")
             elif item.action == "normalize-markers":
                 normalized = reflowed_marker_normalization(
                     local.read_text(encoding="utf-8"), item.file.source.read_text(encoding="utf-8")
@@ -2208,20 +2690,21 @@ def record_investigation(
 # not position, per this repo's own role-scoped-agent-rules precedent: it must
 # be a heading that both files currently carry.
 CLAUDE_MD_SHARED_ANCHOR = {
-    "governed-sdd": "## Code organization",
+    "governed-sdd": "## Command triggers",
     "lean-delivery": "## Command triggers",
 }
 
 
 def generate_claude_md(mode: str, agents_text: str, existing_claude_text: str) -> str:
-    anchor = CLAUDE_MD_SHARED_ANCHOR[mode]
-    pattern = re.compile(rf"^{re.escape(anchor)}$", re.MULTILINE)
-    agents_match = pattern.search(agents_text)
-    if agents_match is None:
-        raise MeridianError(f"AGENTS.md ({mode}) is missing the expected anchor heading {anchor!r}")
-    claude_match = pattern.search(existing_claude_text)
-    if claude_match is None:
-        raise MeridianError(f"CLAUDE.md ({mode}) is missing the expected anchor heading {anchor!r}")
+    anchors = (CLAUDE_MD_SHARED_ANCHOR[mode], "## Code organization") if mode == "governed-sdd" else (CLAUDE_MD_SHARED_ANCHOR[mode],)
+    for anchor in anchors:
+        pattern = re.compile(rf"^{re.escape(anchor)}$", re.MULTILINE)
+        agents_match = pattern.search(agents_text)
+        claude_match = pattern.search(existing_claude_text)
+        if agents_match is not None and claude_match is not None:
+            break
+    else:
+        raise MeridianError(f"AGENTS.md and CLAUDE.md ({mode}) do not share a supported anchor heading")
     preamble = existing_claude_text[: claude_match.start()]
     shared_body = agents_text[agents_match.start() :]
 
@@ -2395,6 +2878,15 @@ def main() -> int:
     generate_group.add_argument("--check", action="store_true", help="exit non-zero if CLAUDE.md is stale")
     generate_group.add_argument("--write", action="store_true", help="regenerate CLAUDE.md in place")
 
+    generate_router = subparsers.add_parser(
+        "generate-entry-routers",
+        help="generate a consumer's AGENTS.md and CLAUDE.md from docs/workflows/ENTRY_ROUTER.md",
+    )
+    generate_router.add_argument("--project", type=Path, default=Path.cwd())
+    generate_router_group = generate_router.add_mutually_exclusive_group(required=True)
+    generate_router_group.add_argument("--check", action="store_true", help="exit non-zero if either generated entry point drifts")
+    generate_router_group.add_argument("--write", action="store_true", help="write both generated entry points")
+
     arguments = parser.parse_args()
     framework_root = arguments.framework_root.resolve()
     project_root = arguments.project.resolve() if hasattr(arguments, "project") else None
@@ -2482,6 +2974,18 @@ def main() -> int:
             else:
                 claude_path.write_text(generated, encoding="utf-8")
                 print(f"Regenerated {claude_path}.")
+        elif arguments.command == "generate-entry-routers":
+            outputs = entry_router_outputs(project_root)
+            drifted = [target for target, expected in outputs.items() if not (project_root / target).is_file() or (project_root / target).read_text(encoding="utf-8") != expected]
+            if arguments.check:
+                if drifted:
+                    print("STALE generated entry router(s): " + ", ".join(str(path) for path in drifted), file=sys.stderr)
+                    return 2
+                print("Generated entry routers match their canonical source.")
+            else:
+                for target, output in outputs.items():
+                    (project_root / target).write_text(output, encoding="utf-8")
+                print("Generated AGENTS.md and CLAUDE.md from ENTRY_ROUTER.md.")
         elif arguments.check:
             if arguments.owner_reconciled:
                 raise MeridianError("--owner-reconciled only applies to --apply")
