@@ -74,6 +74,7 @@ then folded it into the regenerated `CLAUDE.md`.
 | `[x]` | 007 | A retirement path for capabilities | [007](done/007-capability-retirement-path.md) |
 | `[x]` | 008 | Retire `role-scoped-agent-rules` | [008](done/008-retire-role-scoped-rules.md) |
 | `[x]` | 009 | Bound the queue read | [009](done/009-bound-the-queue-read.md) |
+| `[x]` | 022 | Design a bounded agent-instruction router | [022](done/022-agent-instruction-routing-spike.md) |
 
 Phases 1, 2, 2b, 3, 3b, and 4 (001, 002, 006, 003, 004, 005, 012, 010, 014,
 013, 011, 007, 008, 009) are fully closed and moved to `tasks/QUEUE_ARCHIVE.md`;
