@@ -226,6 +226,47 @@ class MeridianCliTest(unittest.TestCase):
         self.assertEqual(pointer.read_text(encoding="utf-8"),
                          "# Project instructions\n\nThis repository is governed by `AGENTS.md`, which is authoritative.\n\nEvery Meridian capability marker lives in `AGENTS.md`, once.\n\nKeep this file a pointer.\n")
 
+    def test_upgrade_preserves_an_explicit_agents_pointer_claude_file(self) -> None:
+        self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
+        agent_template = self.framework / "templates/workflows/governed-sdd/AGENTS.md"
+        claude_template = self.framework / "templates/workflows/governed-sdd/CLAUDE.md"
+        marker = "<!-- MERIDIAN:BEGIN capability=pointer-test v1 -->\nShared gate.\n<!-- MERIDIAN:END -->\n"
+        agent_template.write_text(agent_template.read_text(encoding="utf-8") + "\n" + marker, encoding="utf-8")
+        claude_template.write_text(claude_template.read_text(encoding="utf-8") + "\n" + marker, encoding="utf-8")
+        agent = self.project / "AGENTS.md"
+        agent.write_text(agent.read_text(encoding="utf-8") + "\n" + marker, encoding="utf-8")
+        pointer = self.project / "CLAUDE.md"
+        pointer.write_text(
+            "<!-- MERIDIAN:CLAUDE-AGENTS-POINTER v1 -->\n\n"
+            "# Project instructions\n\nRead AGENTS.md before task work.\n",
+            encoding="utf-8",
+        )
+        (self.framework / "VERSION").write_text("1.1.1\n", encoding="utf-8")
+        checked = self.run_cli("upgrade", "--check")
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+        self.assertIn("POINTER-VERIFIED CLAUDE.md", checked.stdout)
+        applied = self.run_cli("upgrade", "--apply")
+        self.assertEqual(applied.returncode, 0, applied.stderr)
+        self.assertEqual(
+            pointer.read_text(encoding="utf-8"),
+            "<!-- MERIDIAN:CLAUDE-AGENTS-POINTER v1 -->\n\n"
+            "# Project instructions\n\nRead AGENTS.md before task work.\n",
+        )
+
+    def test_explicit_agents_pointer_rejects_duplicate_or_capability_markers(self) -> None:
+        self.assertFalse(
+            meridian.is_agents_pointer(
+                "<!-- MERIDIAN:CLAUDE-AGENTS-POINTER v1 -->\n"
+                "<!-- MERIDIAN:CLAUDE-AGENTS-POINTER v1 -->\n"
+            )
+        )
+        self.assertFalse(
+            meridian.is_agents_pointer(
+                "<!-- MERIDIAN:CLAUDE-AGENTS-POINTER v1 -->\n"
+                "<!-- MERIDIAN:BEGIN capability=test v1 -->\nRule.\n<!-- MERIDIAN:END -->\n"
+            )
+        )
+
     def test_marker_insertion_promotes_an_identical_unmarked_local_rule(self) -> None:
         template = (
             "# Profile\n\n<!-- MERIDIAN:BEGIN capability=investigation-scope v1 -->\n"
