@@ -48,6 +48,15 @@ migration.
 | `[ ]` | 020 | Update docs for the version split | 🟢 P3 | 015, 017, 019 | [020](020-docs-version-split.md) |
 | `[ ]` | 021 | Ship the first CLI-only release as end-to-end proof | 🟢 P3 | 016, 018, 019, 020 | [021](021-first-cli-only-release.md) |
 
+### Phase 6 — Agent instruction routing
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 023 | Define capability-move and bootstrap-router contract | 🔴 P1 | — | [023](023-capability-move-router-contract.md) |
+| `[ ]` | 024 | Add managed role procedures and move-aware upgrade support | 🔴 P1 | 023 | [024](024-additive-role-procedures.md) |
+| `[ ]` | 025 | Compact entry points and retire duplicate role procedures | 🔴 P1 | 024 | [025](025-compact-entry-points.md) |
+| `[ ]` | 026 | Roll out routing to Palimpsest and measure initial context | 🟡 P2 | 025 | [026](026-palimpsest-routing-rollout.md) |
+
 ## 🧪 Quick Tasks (No File)
 
 None currently. The three pre-queue uncommitted working-tree edits flagged at
