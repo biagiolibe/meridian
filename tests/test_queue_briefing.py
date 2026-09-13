@@ -45,12 +45,57 @@ class QueueBriefingTest(unittest.TestCase):
         target.write_text(GOVERNED_HEADER + rows, encoding="utf-8")
         return target
 
+    def write_language_policy(self, value: str, extra: str = "") -> Path:
+        target = self.project / "LANGUAGE_POLICY.md"
+        target.write_text(
+            "# Language Policy\n\n"
+            f"**Conversation language:** `{value}`\n"
+            f"{extra}",
+            encoding="utf-8",
+        )
+        return target
+
     def test_silent_exit_outside_a_meridian_project(self) -> None:
         result = run_hook(self.project)
         self.assertEqual(result.returncode, 0)
         self.assertEqual(result.stdout, "")
 
+    def test_emits_language_policy_without_a_queue(self) -> None:
+        self.write_language_policy("Italian")
+
+        result = run_hook(self.project)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("[Meridian Language Policy]", result.stdout)
+        self.assertIn("Conversation language: Italian", result.stdout)
+        self.assertIn("Repository artifacts: English only", result.stdout)
+        self.assertNotIn("Meridian Governed Queue", result.stdout)
+        self.assertNotIn("Meridian Lean Delivery Queue", result.stdout)
+
+    def test_does_not_present_a_placeholder_as_a_configured_language(self) -> None:
+        self.write_language_policy("[Conversation language]")
+
+        result = run_hook(self.project)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Conversation language is not configured.", result.stdout)
+        self.assertNotIn("Conversation language: [Conversation language]", result.stdout)
+
+    def test_warns_when_the_language_policy_is_ambiguous(self) -> None:
+        self.write_language_policy(
+            "Italian",
+            extra="\n**Conversation language:** `English`\n",
+        )
+
+        result = run_hook(self.project)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Conversation language unavailable: policy is missing or ambiguous.", result.stdout)
+        self.assertNotIn("Conversation language: Italian", result.stdout)
+        self.assertNotIn("Conversation language: English", result.stdout)
+
     def test_resolves_active_review_ready_and_blocked_rows(self) -> None:
+        self.write_language_policy("Italian")
         self.write_queue(
             "| 1 | TASK-001 | P0 | ACCEPTED | REQUIRED | — | [TASK-001](TASK-001.md) |\n"
             "| 2 | TASK-002 | P0 | IN_PROGRESS | REQUIRED | TASK-001 | [TASK-002](TASK-002.md) |\n"
@@ -61,6 +106,7 @@ class QueueBriefingTest(unittest.TestCase):
         )
         result = run_hook(self.project)
         self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Conversation language: Italian", result.stdout)
         self.assertIn("[Meridian Governed Queue]", result.stdout)
         self.assertIn("In progress: TASK-002", result.stdout)
         self.assertIn("In review: TASK-005", result.stdout)

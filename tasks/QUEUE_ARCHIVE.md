@@ -80,4 +80,10 @@ few upgrades.
 `011` shipped bundled with `013` (Phase 3b), per its own bundling constraint —
 listed here too since it is formally a Phase 4 item.
 
-*Archived: 2026-09-10*
+### Phase 8 — Language-policy salience
+
+| Status | ID | Title | Priority | Depends on | Task File |
+|--------|----|-------|----------|-----------|-----------|
+| `[x]` | 032 | Add Claude language-policy briefing adapter | 🟡 P2 | — | [032](done/032-language-policy-briefing-adapter.md) |
+
+*Last updated: 2026-09-13*

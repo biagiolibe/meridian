@@ -97,7 +97,6 @@ then folded it into the regenerated `CLAUDE.md`.
 
 Phases 1, 2, 2b, 3, 3b, and 4 (001, 002, 006, 003, 004, 005, 012, 010, 014,
 013, 011, 007, 008, 009) are fully closed and moved to `tasks/QUEUE_ARCHIVE.md`;
-this table keeps a flat completed-task index across both files. No open
-phases remain in the Active Queue.
+this table keeps a flat completed-task index across both files.
 
 *Last updated: 2026-09-13*
