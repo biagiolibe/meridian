@@ -14,12 +14,12 @@ loading a universal monolith.
 
 ## Acceptance Criteria
 
-- [ ] Palimpsest upgrades from a clean checkout with no lost customized rule
+- [x] Palimpsest upgrades from a clean checkout with no lost customized rule
       and a passing `meridian audit`.
-- [ ] Its `CLAUDE.md` uses the explicit pointer marker and routes silently,
+- [x] Its `CLAUDE.md` uses the explicit pointer marker and routes silently,
       mentioning precedence only for a real conflict or blocker.
-- [ ] Before/after byte measurements for both entry points are recorded.
-- [ ] One status/question, `Proceed`, and `Review` session demonstrate the
+- [x] Before/after byte measurements for both entry points are recorded.
+- [x] One status/question, `Proceed`, and `Review` session demonstrate the
       expected routed reads and preserve all required safeguards.
 
 ## Constraints
@@ -59,3 +59,35 @@ plans `APPEND-RETIRE-MARKERS AGENTS.md`, `POINTER-UPGRADE CLAUDE.md`, and the
 four new role procedures. It was deliberately not applied to Palimpsest per
 developer instruction. Remaining work: explicitly authorize `upgrade --apply`
 in the Palimpsest checkout, then collect the required audit and measurements.
+
+2026-09-14 — Palimpsest commit `a76b200` applied the corrected Meridian
+1.1.35 upgrade from a clean checkout. The compatibility checkpoint preserved
+all customized rules, installed the four role procedures, retained the
+explicit `MERIDIAN:CLAUDE-AGENTS-POINTER v1` marker, and changed entry-point
+sizes from 31,619 to 21,777 bytes for `AGENTS.md` and from 1,665 to 1,709
+bytes for `CLAUDE.md`.
+
+Palimpsest then completed the consumer-specific evolution through accepted
+tasks WFLOW-004 (ADR-0054 route map), WFLOW-005 (additive extraction), and
+WFLOW-006 (generated-router retirement). The final `AGENTS.md`, `CLAUDE.md`,
+and `docs/workflows/ENTRY_ROUTER.md` are byte-identical at 1,448 bytes and
+declare the six required routes. Fresh status/design, Proceed, and Review
+sessions each loaded the mandatory bootstrap files and exactly one matching
+role procedure without preloading the other role procedures. An earlier
+review candidate that omitted the bootstrap reads was rejected and replaced.
+
+The consolidated evidence, session details, measurements, and evolution
+mapping are recorded in
+[`docs/PALIMPSEST_ROUTING_EVOLUTION_EVIDENCE.md`](../../docs/PALIMPSEST_ROUTING_EVOLUTION_EVIDENCE.md).
+
+Final validation on 2026-09-14:
+
+- `bin/meridian upgrade --project /Users/biagioliberto/dev/src/palimpsest --check`
+  — exit 0; version 1.1.35 to 1.1.35, all managed files `KEEP`.
+- `bin/meridian audit --project /Users/biagioliberto/dev/src/palimpsest --mode governed-sdd`
+  — exit 0; all reported checks pass.
+- `bin/meridian generate-entry-routers --project /Users/biagioliberto/dev/src/palimpsest --check`
+  — exit 0; generated routers match the canonical source.
+- `git -C /Users/biagioliberto/dev/src/palimpsest diff --check` — exit 0.
+- `python3 scripts/check_repository.py` — exit 0.
+- `git diff --check` — exit 0.
