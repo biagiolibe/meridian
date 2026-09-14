@@ -100,4 +100,10 @@ evidence for status/design, implementation, and review.
 |--------|----|-------|----------|-----------|-----------|
 | `[x]` | 032 | Add Claude language-policy briefing adapter | 🟡 P2 | — | [032](done/032-language-policy-briefing-adapter.md) |
 
-*Last updated: 2026-09-14*
+### Phase 9 — Budget-state integrity
+
+| Status | ID | Title | Priority | Depends on | Task File |
+|--------|----|-------|----------|-----------|-----------|
+| `[x]` | 033 | `budget_spend()` durably consumes budget before the cap check can reject it | 🔴 P1 | — | [033](done/033-budget-spend-write-before-check.md) |
+
+*Last updated: 2026-09-15*

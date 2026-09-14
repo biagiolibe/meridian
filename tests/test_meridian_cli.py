@@ -2040,6 +2040,27 @@ class BudgetCliTest(unittest.TestCase):
         self.assertNotEqual(first.returncode, 0)
         self.assertIn("(1/1)", first.stderr)
 
+    def test_spend_rejected_by_cap_leaves_state_unchanged(self) -> None:
+        self.write_task("TASK-010", "IN_PROGRESS")
+        accepted = self.run_cli("budget", "spend", "TASK-010", "captures")
+        self.assertEqual(accepted.returncode, 0, accepted.stderr)
+        self.assertEqual(accepted.stdout.strip(), "TASK-010: captures 1/2")
+
+        # A spend that would meet or exceed the cap must be rejected without
+        # durably consuming the unit it could not deliver: the persisted
+        # counter stays at the last accepted value, not the rejected one.
+        first_rejection = self.run_cli("budget", "spend", "TASK-010", "captures")
+        self.assertNotEqual(first_rejection.returncode, 0)
+        self.assertIn("(2/2)", first_rejection.stderr)
+        self.assertEqual(self.budget_state()["TASK-010:1"]["captures"], 1)
+
+        # Retrying after a rejection must see the same unchanged state, not
+        # a counter that keeps climbing past the cap with every attempt.
+        second_rejection = self.run_cli("budget", "spend", "TASK-010", "captures")
+        self.assertNotEqual(second_rejection.returncode, 0)
+        self.assertIn("(2/2)", second_rejection.stderr)
+        self.assertEqual(self.budget_state()["TASK-010:1"]["captures"], 1)
+
     def test_unknown_task_is_blocked_without_writing_state(self) -> None:
         result = self.run_cli("budget", "show", "TASK-NOPE")
         self.assertNotEqual(result.returncode, 0)
