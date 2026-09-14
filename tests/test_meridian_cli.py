@@ -1805,6 +1805,31 @@ class BudgetCliTest(unittest.TestCase):
         self.assertEqual(passed.returncode, 0, passed.stderr)
         self.assertIn("Execution contract:", passed.stdout)
 
+    def test_execution_preflight_uses_spike_shape(self) -> None:
+        (self.project / "docs").mkdir(exist_ok=True)
+        (self.project / "docs/EXECUTION_EVIDENCE_PROFILE.md").write_text("profile\n", encoding="utf-8")
+        task = self.project / "tasks/TASK-018.md"
+        task.write_text(
+            "Status: QUEUED\nClass: SPIKE\nQuestion: What behavior is correct?\n"
+            "Budget: 2 iterations\nDeliverable: An ADR\n\n## Authority\n\n## Validation\n",
+            encoding="utf-8",
+        )
+        self.append_contract("TASK-018")
+
+        passed = self.run_cli("execution", "preflight", "TASK-018")
+        self.assertEqual(passed.returncode, 0, passed.stderr)
+
+        for field in ("Question", "Budget", "Deliverable"):
+            with self.subTest(field=field):
+                text = task.read_text(encoding="utf-8")
+                task.write_text(
+                    re.sub(rf"^{field}:.*\n", "", text, flags=re.MULTILINE), encoding="utf-8"
+                )
+                blocked = self.run_cli("execution", "preflight", "TASK-018")
+                self.assertNotEqual(blocked.returncode, 0)
+                self.assertIn(f"missing {field}", blocked.stderr)
+                task.write_text(text, encoding="utf-8")
+
     def test_reconcile_upgrades_a_nonterminal_legacy_contract_before_preflight(self) -> None:
         (self.project / "docs").mkdir()
         (self.project / "docs/EXECUTION_EVIDENCE_PROFILE.md").write_text("profile\n", encoding="utf-8")
