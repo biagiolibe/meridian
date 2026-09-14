@@ -2353,15 +2353,15 @@ def budget_spend(
     counters = dict(state.get(key, {}))
     counter_key = f"{kind}:{scope}" if kind == "captures" and scope else kind
     count = int(counters.get(counter_key, 0)) + amount
-    counters[counter_key] = count
-    state[key] = counters
-    write_budget_state(project_root, state)
     cap = task_cap(project_root, text, kind)
     if count >= cap:
         raise MeridianError(
             f"{BUDGET_FIELD_NAMES[kind]} exhausted for {task_id} ({count}/{cap}); "
             "return BLOCKED, do not raise the cap"
         )
+    counters[counter_key] = count
+    state[key] = counters
+    write_budget_state(project_root, state)
     return count, cap
 
 

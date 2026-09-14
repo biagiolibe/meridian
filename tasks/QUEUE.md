@@ -86,10 +86,11 @@ then folded it into the regenerated `CLAUDE.md`.
 | `[x]` | 009 | Bound the queue read | [009](done/009-bound-the-queue-read.md) |
 | `[x]` | 022 | Design a bounded agent-instruction router | [022](done/022-agent-instruction-routing-spike.md) |
 | `[x]` | 026 | Roll out routing to Palimpsest and measure initial context | [026](done/026-palimpsest-routing-rollout.md) |
+| `[x]` | 033 | `budget_spend()` durably consumes budget before the cap check can reject it | [033](done/033-budget-spend-write-before-check.md) |
 
-Phases 1, 2, 2b, 3, 3b, 4, and 6 (001, 002, 006, 003, 004, 005, 012, 010,
-014, 013, 011, 007, 008, 009, 023, 024, 025, 026) are fully closed and moved
-to `tasks/QUEUE_ARCHIVE.md`;
+Phases 1, 2, 2b, 3, 3b, 4, 6, 8, and 9 (001, 002, 006, 003, 004, 005, 012, 010,
+014, 013, 011, 007, 008, 009, 023, 024, 025, 026, 032, 033) are fully closed
+and moved to `tasks/QUEUE_ARCHIVE.md`;
 this table keeps a flat completed-task index across both files.
 
-*Last updated: 2026-09-14*
+*Last updated: 2026-09-15*
