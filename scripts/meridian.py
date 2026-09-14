@@ -2365,7 +2365,9 @@ def budget_spend(
     return count, cap
 
 
-PREFLIGHT_HEADINGS = ("Authority", "Expected code surface", "Validation")
+PREFLIGHT_HEADINGS = ("Authority", "Validation")
+NORMAL_PREFLIGHT_HEADINGS = ("Expected code surface",)
+SPIKE_PREFLIGHT_FIELDS = ("Question", "Budget", "Deliverable")
 HANDOFF_FIELDS = (
     "Files changed",
     "Validation",
@@ -2398,10 +2400,23 @@ def execution_preflight(project_root: Path, task_id: str) -> str:
             "execution preflight BLOCKED: task execution contract predates the execution-command gate; "
             "run meridian execution reconcile <TASK-ID> --apply --project ."
         )
-    missing = [heading for heading in PREFLIGHT_HEADINGS if not re.search(rf"^## {re.escape(heading)}\s*$", text, re.MULTILINE)]
+    required_headings = PREFLIGHT_HEADINGS
+    missing = [
+        f"## {heading}"
+        for heading in required_headings
+        if not re.search(rf"^## {re.escape(heading)}\s*$", text, re.MULTILINE)
+    ]
+    if read_task_field(text, "Class") == "SPIKE":
+        missing.extend(field for field in SPIKE_PREFLIGHT_FIELDS if not read_task_field(text, field))
+    else:
+        missing.extend(
+            f"## {heading}"
+            for heading in NORMAL_PREFLIGHT_HEADINGS
+            if not re.search(rf"^## {re.escape(heading)}\s*$", text, re.MULTILINE)
+        )
     if missing:
         raise MeridianError(
-            "execution preflight BLOCKED: task is missing " + ", ".join(f"## {heading}" for heading in missing)
+            "execution preflight BLOCKED: task is missing " + ", ".join(missing)
         )
     status = read_task_field(text, "Status")
     if status not in ("QUEUED", "IN_PROGRESS"):
