@@ -29,7 +29,7 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 
 ## 🏃 Active Queue
 
-Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, and 4 are fully
+Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, and 6 are fully
 closed — see `tasks/QUEUE_ARCHIVE.md`. Phase 5 (SemVer version split) is
 new: separates `frameworkVersion` (public CLI release), `workflowBaselineVersion`
 (governed template baseline, derived from migrations), and `protocolVersion`
@@ -47,15 +47,6 @@ migration.
 | `[ ]` | 019 | `releases/<version>.json` immutable release ledger + `check_releases()` | 🟡 P2 | 017 | [019](019-releases-ledger.md) |
 | `[ ]` | 020 | Update docs for the version split | 🟢 P3 | 015, 017, 019 | [020](020-docs-version-split.md) |
 | `[ ]` | 021 | Ship the first CLI-only release as end-to-end proof | 🟢 P3 | 016, 018, 019, 020 | [021](021-first-cli-only-release.md) |
-
-### Phase 6 — Agent instruction routing
-
-| Status | ID | Title | Priority | Depends on | File |
-|--------|----|-------|----------|------------|------|
-| `[x]` | 023 | Define capability-move and bootstrap-router contract | 🔴 P1 | — | [023](done/023-capability-move-router-contract.md) |
-| `[x]` | 024 | Add managed role procedures and move-aware upgrade support | 🔴 P1 | 023 | [024](done/024-additive-role-procedures.md) |
-| `[x]` | 025 | Compact entry points and retire duplicate role procedures | 🔴 P1 | 024 | [025](done/025-compact-entry-points.md) |
-| `[/]` | 026 | Roll out routing to Palimpsest and measure initial context | 🟡 P2 | 025 | [026](026-palimpsest-routing-rollout.md) |
 
 ### Phase 7 — Shared consumer entry routers
 
@@ -94,9 +85,11 @@ then folded it into the regenerated `CLAUDE.md`.
 | `[x]` | 008 | Retire `role-scoped-agent-rules` | [008](done/008-retire-role-scoped-rules.md) |
 | `[x]` | 009 | Bound the queue read | [009](done/009-bound-the-queue-read.md) |
 | `[x]` | 022 | Design a bounded agent-instruction router | [022](done/022-agent-instruction-routing-spike.md) |
+| `[x]` | 026 | Roll out routing to Palimpsest and measure initial context | [026](done/026-palimpsest-routing-rollout.md) |
 
-Phases 1, 2, 2b, 3, 3b, and 4 (001, 002, 006, 003, 004, 005, 012, 010, 014,
-013, 011, 007, 008, 009) are fully closed and moved to `tasks/QUEUE_ARCHIVE.md`;
+Phases 1, 2, 2b, 3, 3b, 4, and 6 (001, 002, 006, 003, 004, 005, 012, 010,
+014, 013, 011, 007, 008, 009, 023, 024, 025, 026) are fully closed and moved
+to `tasks/QUEUE_ARCHIVE.md`;
 this table keeps a flat completed-task index across both files.
 
-*Last updated: 2026-09-13*
+*Last updated: 2026-09-14*

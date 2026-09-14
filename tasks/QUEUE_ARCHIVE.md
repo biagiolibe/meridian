@@ -80,10 +80,24 @@ few upgrades.
 `011` shipped bundled with `013` (Phase 3b), per its own bundling constraint —
 listed here too since it is formally a Phase 4 item.
 
+### Phase 6 — Agent instruction routing
+
+The framework first made protected capability moves conflict-safe and compacted
+its generic entry points. The phase closed only after Palimpsest applied the
+release, preserved its customized rules, and supplied measured routed-session
+evidence for status/design, implementation, and review.
+
+| Status | ID | Title | Priority | Depends on | Task File |
+|--------|----|-------|----------|-----------|-----------|
+| `[x]` | 023 | Define capability-move and bootstrap-router contract | 🔴 P1 | — | [023](done/023-capability-move-router-contract.md) |
+| `[x]` | 024 | Add managed role procedures and move-aware upgrade support | 🔴 P1 | 023 | [024](done/024-additive-role-procedures.md) |
+| `[x]` | 025 | Compact entry points and retire duplicate role procedures | 🔴 P1 | 024 | [025](done/025-compact-entry-points.md) |
+| `[x]` | 026 | Roll out routing to Palimpsest and measure initial context | 🟡 P2 | 025 | [026](done/026-palimpsest-routing-rollout.md) |
+
 ### Phase 8 — Language-policy salience
 
 | Status | ID | Title | Priority | Depends on | Task File |
 |--------|----|-------|----------|-----------|-----------|
 | `[x]` | 032 | Add Claude language-policy briefing adapter | 🟡 P2 | — | [032](done/032-language-policy-briefing-adapter.md) |
 
-*Last updated: 2026-09-13*
+*Last updated: 2026-09-14*
