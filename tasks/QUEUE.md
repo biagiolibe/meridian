@@ -58,6 +58,16 @@ migration.
 | `[ ]` | 030 | Generate compact Palimpsest entry routers and retire copies | 🟡 P2 | 029 | [030](030-palimpsest-generated-router-retirement.md) |
 | `[ ]` | 031 | Publish the consumer router-adoption playbook | 🟢 P3 | 030 | [031](031-consumer-router-adoption-playbook.md) |
 
+### Phase 10 — Context-enforcement second pass
+
+Authority: [docs/PROPOSAL_CONTEXT_ENFORCEMENT.md](../docs/PROPOSAL_CONTEXT_ENFORCEMENT.md)
+(§3, M1/M2 — highest-yield items of the proposal; independent of each other).
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 034 | Add `meridian adr show` and `meridian context authority` | 🟡 P2 | — | [034](034-authority-excerpt-command.md) |
+| `[ ]` | 035 | `PreToolUse` guard against unranged large-file reads | 🟡 P2 | — | [035](035-pretooluse-read-guard.md) |
+
 ## 🧪 Quick Tasks (No File)
 
 None currently. The three pre-queue uncommitted working-tree edits flagged at

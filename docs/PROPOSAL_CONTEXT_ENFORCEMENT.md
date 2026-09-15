@@ -81,7 +81,7 @@ Ordered by expected yield. Each ships as a numbered migration where it
 changes a managed path; hook/CLI changes run from `$CLAUDE_PLUGIN_ROOT` and
 reach every project immediately (as in migration 026).
 
-### M1 — Authority excerpt command (highest yield)
+### M1 — Authority excerpt command (highest yield) — `tasks/034`
 
 - `meridian adr show <ADR-ID> [--project .]`: print exactly one ADR section
   from the project's ADR log, split by heading.
@@ -97,7 +97,7 @@ Acceptance: on Palimpsest, `meridian context authority M25-SPIKE-001` emits
 only ADR-0060 and ADR-0063 sections; unit tests cover heading splitting,
 missing IDs (non-zero exit, clear message), and spec-section anchors.
 
-### M2 — `PreToolUse` read guard
+### M2 — `PreToolUse` read guard — `tasks/035`
 
 A plugin hook on `Read`: if the target exceeds a threshold (default 400
 lines, overridable in `EXECUTION_EVIDENCE_PROFILE.md`) and neither `offset`
@@ -216,7 +216,8 @@ the fixed preamble is worth low single-digit thousands of tokens.
 
 1. Adopt the CLI-for-workers recommendation immediately (no code change);
    consider stating it in `OPERATOR_PROMPTS.md`.
-2. Open Meridian Lean tasks for M1 and M2 first (they are independent), then
-   M3 (migration), M5, M6, and M4 as a low-priority clarity fix.
+2. M1 and M2 are queued as `tasks/034` and `tasks/035` (Phase 10 of
+   `tasks/QUEUE.md`), independent of each other. M3 (migration), M5, M6, and
+   M4 (low-priority clarity fix) remain to be turned into task files.
 3. Palimpsest P1 as a governed task once M1 lands; P2 only if still justified
    afterwards; P3 dropped unless a future host loads MCP schemas eagerly.
