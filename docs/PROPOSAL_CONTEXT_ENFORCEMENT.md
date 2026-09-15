@@ -1,8 +1,10 @@
 # Proposal — Context Enforcement, Second Pass
 
-Status: proposal (not scheduled). Author context: post-mortem of a Palimpsest
-`M25-SPIKE-001` session, generalized so the interventions apply to every
-Meridian project rather than to that one session.
+Status: **M1/M2 shipped** (`tasks/done/034`, `tasks/done/035`, commit
+`4ab174d`); M3/M4/M5/M6 not scheduled. See §8 for the closure report — read
+that first if resuming this work. Author context: post-mortem of a
+Palimpsest `M25-SPIKE-001` session, generalized so the interventions apply
+to every Meridian project rather than to that one session.
 
 Prior work this builds on: `docs/AUDIT_TOKEN_EFFICIENCY.md` (findings F1–F11,
 proposals P1–P7) and `docs/PLAN_TOKEN_EFFICIENCY.md` (W0–W4). Read those only
@@ -81,7 +83,7 @@ Ordered by expected yield. Each ships as a numbered migration where it
 changes a managed path; hook/CLI changes run from `$CLAUDE_PLUGIN_ROOT` and
 reach every project immediately (as in migration 026).
 
-### M1 — Authority excerpt command (highest yield) — `tasks/034`
+### M1 — Authority excerpt command (highest yield) — `tasks/034` ✅ shipped
 
 - `meridian adr show <ADR-ID> [--project .]`: print exactly one ADR section
   from the project's ADR log, split by heading.
@@ -97,7 +99,7 @@ Acceptance: on Palimpsest, `meridian context authority M25-SPIKE-001` emits
 only ADR-0060 and ADR-0063 sections; unit tests cover heading splitting,
 missing IDs (non-zero exit, clear message), and spec-section anchors.
 
-### M2 — `PreToolUse` read guard — `tasks/035`
+### M2 — `PreToolUse` read guard — `tasks/035` ✅ shipped
 
 A plugin hook on `Read`: if the target exceeds a threshold (default 400
 lines, overridable in `EXECUTION_EVIDENCE_PROFILE.md`) and neither `offset`
@@ -216,8 +218,57 @@ the fixed preamble is worth low single-digit thousands of tokens.
 
 1. Adopt the CLI-for-workers recommendation immediately (no code change);
    consider stating it in `OPERATOR_PROMPTS.md`.
-2. M1 and M2 are queued as `tasks/034` and `tasks/035` (Phase 10 of
-   `tasks/QUEUE.md`), independent of each other. M3 (migration), M5, M6, and
-   M4 (low-priority clarity fix) remain to be turned into task files.
+2. ~~M1 and M2 are queued as `tasks/034` and `tasks/035`~~ — done, see §8.
+   M3 (migration), M5, M6, and M4 (low-priority clarity fix) remain to be
+   turned into task files, in that priority order (§8).
 3. Palimpsest P1 as a governed task once M1 lands; P2 only if still justified
    afterwards; P3 dropped unless a future host loads MCP schemas eagerly.
+
+## 8. Closure report — M1/M2 (2026-09-16)
+
+`tasks/034` and `tasks/035` are both `[x]`, implemented (not just marked
+done) in commit `4ab174d`: `meridian adr show`/`meridian context authority`
+plus the `queue-briefing.sh` extension, migration `039`; `hooks/read-guard.sh`
+registered on `PreToolUse`, migration `040`. Both `tests/test_authority_excerpt.py`
+and `tests/test_read_guard.py` were added. Verified after landing:
+`python3 -m unittest discover -s tests` → 146 tests, OK (the `FAIL:`-prefixed
+lines printed mid-run are captured stdout from tests that deliberately inject
+drift to check detection — expected, not suite failures); `python3
+scripts/check_repository.py` → passed standalone.
+
+**Does this close the evidenced problem?** Mostly yes, for the dominant
+cause. Weighed against the original session's four buckets:
+
+| Bucket | Share of ~1.0M weighted tokens | Addressed by M1+M2? |
+|---|---|---|
+| Files read out of scope | 38% (~396k) | Yes, almost all of it — this is exactly what M1 (targeted ADR/spec excerpts) and M2 (mechanical block on unranged large reads) attack. |
+| Fixed per-turn preamble | 38% (~394k) | No — §5 found the floor is mostly host/system-tool schemas (~28.7k of 42.7k on the CLI), not reducible by any Mx here. The applicable lever was "run workers from the CLI, not the desktop app," already independent of M1–M6. |
+| Reasoning and written output | 17% | Not addressed by any Mx. |
+| Command output | 7% | Partially — M6 (not yet built) would close the remainder. |
+
+D1's causal claim — that the file-read bucket was the largest and the
+easiest to prevent, since its rules already existed in prose and were simply
+unenforced — is what M1/M2 turn from prose into a mechanical default. That
+is the substantive part of the diagnosis, and it is now shipped.
+
+**What M3–M6 would still add, and why they were left out this round:**
+
+- **M3** (move compatibility baselines out of entry documents): small,
+  constant saving (~5k per read of `PROJECT_WORKFLOW.md`), better cost/yield
+  ratio than M4–M6 — the next one worth doing if this is resumed.
+- **M4** (global `CLAUDE.md` as a pointer): ~1.8k total across all memory
+  files: negligible in tokens, valuable only for removing the D4 workflow
+  contradiction.
+- **M5** (context checkpoint hook): does not reduce tokens already spent;
+  it is a preventive measure against a session growing past ~120k like the
+  evidence session did (213k peak), not a remediation of the measured spend.
+- **M6** (bounded probe output): closes the remaining slice of the smallest
+  bucket (7% command output).
+
+None of M3–M6 changes the answer to "was the evidenced problem addressed":
+the largest and most fixable cause (file reads) is closed; the second-largest
+(fixed preamble) turned out to be mostly non-addressable by documentation or
+task work at all, and its one actionable lever (CLI over desktop) was already
+adopted as a standing recommendation rather than a task. M3–M6 are
+diminishing-returns refinements, worth doing eventually, not required to
+consider this round resolved.
