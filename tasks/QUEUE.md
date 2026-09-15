@@ -58,6 +58,12 @@ migration.
 | `[ ]` | 030 | Generate compact Palimpsest entry routers and retire copies | 🟡 P2 | 029 | [030](030-palimpsest-generated-router-retirement.md) |
 | `[ ]` | 031 | Publish the consumer router-adoption playbook | 🟢 P3 | 030 | [031](031-consumer-router-adoption-playbook.md) |
 
+### Phase 11 — Long-lag consumer upgrade safety
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 036 | Plan capability moves correctly across long-lag consumer upgrades | 🔴 P1 | — | [036](036-long-lag-capability-move-upgrades.md) |
+
 ## 🧪 Quick Tasks (No File)
 
 None currently. The three pre-queue uncommitted working-tree edits flagged at
