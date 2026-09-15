@@ -111,6 +111,7 @@ class AdoptionState:
 class ProjectLocations:
     queue: Path
     task_roots: tuple[Path, ...]
+    adr_log: Path
 
 
 def sha256(path: Path) -> str:
@@ -2266,7 +2267,147 @@ def resolve_project_locations(project_root: Path) -> ProjectLocations:
         root = Path(raw.rstrip("/"))
         if root not in roots:
             roots.append(root)
-    return ProjectLocations(queue=queue, task_roots=tuple(roots))
+    adr_matches = re.findall(r"ADR log(?:\s+is|\s+at)?\s+`([^`]+)`", zone, re.IGNORECASE)
+    adr_log = Path(adr_matches[0]) if len(set(adr_matches)) == 1 else Path("docs/ARCHITECTURE_DECISIONS.md")
+    return ProjectLocations(queue=queue, task_roots=tuple(roots), adr_log=adr_log)
+
+
+HEADING_LINE = re.compile(r"^(#{1,6})[ \t]+(.*)$", re.MULTILINE)
+
+
+def extract_heading_block(text: str, matches_title) -> tuple[str, str] | None:
+    """Return `(excerpt, heading title)` for the first heading satisfying
+    `matches_title(title)`, bounded by the next heading at the same or a
+    shallower level, or EOF. Shared by ADR-log, spec, and task-Authority
+    lookups so heading-range extraction is written exactly once.
+    """
+    headings = [
+        (match.start(), len(match.group(1)), match.group(2).strip())
+        for match in HEADING_LINE.finditer(text)
+    ]
+    for index, (start, level, title) in enumerate(headings):
+        if not matches_title(title):
+            continue
+        end = len(text)
+        for later_start, later_level, _ in headings[index + 1:]:
+            if later_level <= level:
+                end = later_start
+                break
+        return text[start:end].rstrip("\n") + "\n", title
+    return None
+
+
+def find_adr_log(project_root: Path) -> Path:
+    return project_root / resolve_project_locations(project_root).adr_log
+
+
+def adr_show(project_root: Path, adr_id: str) -> str:
+    """Print exactly one ADR section, from its `## ADR-NNNN` heading up to the
+    next `## ADR-` heading or EOF, without depending on contiguous numbering.
+    """
+    adr_log = find_adr_log(project_root)
+    if not adr_log.is_file():
+        raise MeridianError(f"ADR log not found for {adr_id}: {adr_log}")
+    text = adr_log.read_text(encoding="utf-8")
+    result = extract_heading_block(text, lambda title: re.match(rf"{re.escape(adr_id)}\b", title) is not None)
+    if result is None:
+        raise MeridianError(f"unknown ADR {adr_id}: not found in {adr_log}")
+    excerpt, _ = result
+    return excerpt
+
+
+def extract_spec_heading(project_root: Path, spec_path: str, heading: str) -> str:
+    full = project_root / spec_path
+    if not full.is_file():
+        raise MeridianError(f"spec file not found: {spec_path}")
+    text = full.read_text(encoding="utf-8")
+    result = extract_heading_block(text, lambda title: title.strip() == heading.strip())
+    if result is None:
+        raise MeridianError(f"heading not found in {spec_path}: {heading}")
+    excerpt, _ = result
+    return excerpt
+
+
+def authority_entries(text: str) -> list[str]:
+    """Every `## Authority` bullet, with wrapped continuation lines merged
+    into the bullet they belong to."""
+    section = extract_heading_block(text, lambda title: title == "Authority")
+    if section is None:
+        return []
+    body = section[0].split("\n", 1)[1] if "\n" in section[0] else ""
+    entries: list[str] = []
+    for line in body.splitlines():
+        if line.startswith("- "):
+            entries.append(line[2:].strip())
+        elif line.strip() and entries:
+            entries[-1] += " " + line.strip()
+    return entries
+
+
+SPEC_HEADING_CITATION = re.compile(r"^`([^`]+)`#(.+)$")
+
+
+def resolve_authority_entry(
+    project_root: Path, entry: str
+) -> tuple[list[tuple[str, str, str]], list[str]]:
+    """Resolve one Authority bullet to `(source, heading, excerpt)` triples,
+    plus any part of the bullet that could not be resolved (named, not
+    silently dropped): every `ADR-NNNN` token cited anywhere in the bullet
+    resolves through `adr_show`; a `` `path`#Heading `` citation resolves
+    through the same heading-range logic against that path; anything else is
+    reported unresolved.
+    """
+    resolved: list[tuple[str, str, str]] = []
+    unresolved: list[str] = []
+    adr_ids = re.findall(r"\bADR-\d+\b", entry)
+    if adr_ids:
+        adr_log = find_adr_log(project_root)
+        for adr_id in adr_ids:
+            try:
+                excerpt = adr_show(project_root, adr_id)
+            except MeridianError:
+                unresolved.append(f"{adr_id} (not found in {adr_log})")
+                continue
+            resolved.append((str(adr_log), adr_id, excerpt))
+        return resolved, unresolved
+    match = SPEC_HEADING_CITATION.match(entry.strip())
+    if match:
+        spec_path, heading = match.group(1), match.group(2).strip()
+        try:
+            excerpt = extract_spec_heading(project_root, spec_path, heading)
+        except MeridianError as error:
+            unresolved.append(f"{entry} ({error})")
+            return resolved, unresolved
+        resolved.append((spec_path, heading, excerpt))
+        return resolved, unresolved
+    unresolved.append(entry)
+    return resolved, unresolved
+
+
+def context_authority(project_root: Path, task_id: str, labels_only: bool = False) -> str:
+    """Print the task's cited ADR sections and spec headings, labeled with
+    source path and heading, in place of opening the ADR log or spec file
+    directly. `labels_only` drops excerpt bodies, keeping only source and
+    heading, for the queue-briefing hook.
+    """
+    task = find_task_file(project_root, task_id)
+    text = task.read_text(encoding="utf-8")
+    entries = authority_entries(text)
+    if not entries:
+        return f"{task_id}: no Authority entries."
+    lines: list[str] = []
+    unresolved_all: list[str] = []
+    for entry in entries:
+        resolved, unresolved = resolve_authority_entry(project_root, entry)
+        for source, heading, excerpt in resolved:
+            lines.append(f"### {source} — {heading}")
+            if not labels_only:
+                lines.append(excerpt)
+        unresolved_all.extend(unresolved)
+    if unresolved_all:
+        lines.append("### Unresolved")
+        lines.extend(f"- {item}" for item in unresolved_all)
+    return "\n".join(lines).rstrip("\n")
 
 
 def task_cap(project_root: Path, text: str, kind: str) -> int:
@@ -2824,6 +2965,23 @@ def main() -> int:
     locations.add_argument("--project", type=Path, default=Path.cwd())
     locations.add_argument("--field", choices=("queue", "task-roots"))
 
+    adr = subparsers.add_parser("adr", help="read a project's ADR log")
+    adr_sub = adr.add_subparsers(dest="adr_command", required=True)
+    adr_show_parser = adr_sub.add_parser("show", help="print exactly one ADR section")
+    adr_show_parser.add_argument("adr_id")
+    adr_show_parser.add_argument("--project", type=Path, default=Path.cwd())
+
+    context = subparsers.add_parser("context", help="read exactly the ADR/spec sections a task cites")
+    context_sub = context.add_subparsers(dest="context_command", required=True)
+    context_authority_parser = context_sub.add_parser(
+        "authority", help="print a task's Authority entries resolved to ADR/spec excerpts"
+    )
+    context_authority_parser.add_argument("task_id")
+    context_authority_parser.add_argument("--project", type=Path, default=Path.cwd())
+    context_authority_parser.add_argument(
+        "--labels-only", action="store_true", help="print source + heading only, not excerpt bodies"
+    )
+
     budget = subparsers.add_parser(
         "budget",
         help="track a governed-SDD task's diagnostic/evidence/context-expansion/investigation caps",
@@ -2944,6 +3102,10 @@ def main() -> int:
                 print("\n".join(str(root) for root in locations.task_roots))
             else:
                 print(json.dumps({"queue": str(locations.queue), "taskRoots": [str(root) for root in locations.task_roots]}))
+        elif arguments.command == "adr":
+            print(adr_show(project_root, arguments.adr_id))
+        elif arguments.command == "context":
+            print(context_authority(project_root, arguments.task_id, arguments.labels_only))
         elif arguments.command == "budget":
             if arguments.budget_command == "show":
                 print(budget_show(project_root, arguments.task_id))

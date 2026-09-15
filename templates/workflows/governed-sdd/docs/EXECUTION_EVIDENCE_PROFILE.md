@@ -16,6 +16,12 @@ justification` field already uses.
 
 - Sources already supplied by the active agent environment: `[describe them]`.
 - When an exact reread is justified: `[describe the evidence-gap standard]`.
+- Read-guard threshold and the condition that requires a range instead of a
+  whole-file `Read`: `Read-guard threshold`: 400 lines. A `Read` of a file
+  past this line count with no `offset`/`limit` is mechanically denied
+  outside the task's Authority/exemptions; locate the needed lines with
+  `grep -n` first, then read that range. Override with a different numeric
+  value when this project's files are legitimately larger.
 - Context-expansion budget and the condition that requires `BLOCKED` rather
   than another expansion: `Context expansions`: 2 per task. One expansion is
   one read beyond the task's declared `Authority` and `Expected code

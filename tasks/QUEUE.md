@@ -29,8 +29,8 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 
 ## 🏃 Active Queue
 
-Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, and 6 are fully
-closed — see `tasks/QUEUE_ARCHIVE.md`. Phase 5 (SemVer version split) is
+Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 6, 8, 9, and 10
+are fully closed — see `tasks/QUEUE_ARCHIVE.md`. Phase 5 (SemVer version split) is
 new: separates `frameworkVersion` (public CLI release), `workflowBaselineVersion`
 (governed template baseline, derived from migrations), and `protocolVersion`
 (manifest/CLI compatibility) so a CLI-only release no longer requires a fake
@@ -57,16 +57,6 @@ migration.
 | `[ ]` | 029 | Map and additively extract Palimpsest router procedures | 🟡 P2 | 026, 028 | [029](029-palimpsest-router-additive-extraction.md) |
 | `[ ]` | 030 | Generate compact Palimpsest entry routers and retire copies | 🟡 P2 | 029 | [030](030-palimpsest-generated-router-retirement.md) |
 | `[ ]` | 031 | Publish the consumer router-adoption playbook | 🟢 P3 | 030 | [031](031-consumer-router-adoption-playbook.md) |
-
-### Phase 10 — Context-enforcement second pass
-
-Authority: [docs/PROPOSAL_CONTEXT_ENFORCEMENT.md](../docs/PROPOSAL_CONTEXT_ENFORCEMENT.md)
-(§3, M1/M2 — highest-yield items of the proposal; independent of each other).
-
-| Status | ID | Title | Priority | Depends on | File |
-|--------|----|-------|----------|------------|------|
-| `[ ]` | 034 | Add `meridian adr show` and `meridian context authority` | 🟡 P2 | — | [034](034-authority-excerpt-command.md) |
-| `[ ]` | 035 | `PreToolUse` guard against unranged large-file reads | 🟡 P2 | — | [035](035-pretooluse-read-guard.md) |
 
 ## 🧪 Quick Tasks (No File)
 
@@ -97,10 +87,12 @@ then folded it into the regenerated `CLAUDE.md`.
 | `[x]` | 022 | Design a bounded agent-instruction router | [022](done/022-agent-instruction-routing-spike.md) |
 | `[x]` | 026 | Roll out routing to Palimpsest and measure initial context | [026](done/026-palimpsest-routing-rollout.md) |
 | `[x]` | 033 | `budget_spend()` durably consumes budget before the cap check can reject it | [033](done/033-budget-spend-write-before-check.md) |
+| `[x]` | 034 | Add `meridian adr show` and `meridian context authority` | [034](done/034-authority-excerpt-command.md) |
+| `[x]` | 035 | `PreToolUse` guard against unranged large-file reads | [035](done/035-pretooluse-read-guard.md) |
 
-Phases 1, 2, 2b, 3, 3b, 4, 6, 8, and 9 (001, 002, 006, 003, 004, 005, 012, 010,
-014, 013, 011, 007, 008, 009, 023, 024, 025, 026, 032, 033) are fully closed
-and moved to `tasks/QUEUE_ARCHIVE.md`;
+Phases 1, 2, 2b, 3, 3b, 4, 6, 8, 9, and 10 (001, 002, 006, 003, 004, 005, 012,
+010, 014, 013, 011, 007, 008, 009, 023, 024, 025, 026, 032, 033, 034, 035) are
+fully closed and moved to `tasks/QUEUE_ARCHIVE.md`;
 this table keeps a flat completed-task index across both files.
 
-*Last updated: 2026-09-15*
+*Last updated: 2026-09-16*

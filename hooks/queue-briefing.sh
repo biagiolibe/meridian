@@ -209,6 +209,23 @@ if grep -Eq '^\| Order \| ID \|.*\| Status \|.*Dependencies \|' "$QUEUE"; then
   elif [ -n "$ACTIVE" ]; then
     echo "  ⚠ Meridian budget runner unavailable"
   fi
+  # Echo the active task's resolved Authority (source + heading only, not the
+  # excerpt body) so a session sees what it may cite without opening the ADR
+  # log or a spec file directly. Same missing-runner visibility as the
+  # budget echo above: a silent omission would look like a normal briefing.
+  if [ -n "$ACTIVE" ] && [ -n "$MERIDIAN_BIN" ] && [ -x "$MERIDIAN_BIN" ]; then
+    AUTHORITY=$("$MERIDIAN_BIN" context authority "$ACTIVE" --project . --labels-only 2>/dev/null)
+    if [ -n "$AUTHORITY" ]; then
+      echo "  📚 Authority:"
+      while IFS= read -r LINE; do
+        echo "     $LINE"
+      done <<< "$AUTHORITY"
+    else
+      echo "  ⚠ Authority excerpt unavailable for: $ACTIVE"
+    fi
+  elif [ -n "$ACTIVE" ]; then
+    echo "  ⚠ Meridian authority runner unavailable"
+  fi
   [ -n "$REVIEW" ] && echo "  🔎 In review: $REVIEW"
   if [ "${READY_N:-0}" -gt 0 ]; then
     SUFFIX=""

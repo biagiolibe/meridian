@@ -1,5 +1,5 @@
 {
-  "description": "Meridian — display language-policy and task-queue briefings at the start of each prompt in Meridian projects",
+  "description": "Meridian — display language-policy and task-queue briefings at the start of each prompt, and guard unranged large-file reads, in Meridian projects",
   "hooks": {
     "UserPromptSubmit": [
       {
@@ -7,6 +7,18 @@
           {
             "type": "command",
             "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/queue-briefing.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/read-guard.sh",
             "timeout": 5
           }
         ]
