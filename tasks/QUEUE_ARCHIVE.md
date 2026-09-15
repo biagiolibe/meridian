@@ -106,4 +106,14 @@ evidence for status/design, implementation, and review.
 |--------|----|-------|----------|-----------|-----------|
 | `[x]` | 033 | `budget_spend()` durably consumes budget before the cap check can reject it | 🔴 P1 | — | [033](done/033-budget-spend-write-before-check.md) |
 
-*Last updated: 2026-09-15*
+### Phase 10 — Context-enforcement second pass
+
+Authority: [docs/PROPOSAL_CONTEXT_ENFORCEMENT.md](../docs/PROPOSAL_CONTEXT_ENFORCEMENT.md)
+(§3, M1/M2 — highest-yield items of the proposal; independent of each other).
+
+| Status | ID | Title | Priority | Depends on | Task File |
+|--------|----|-------|----------|-----------|-----------|
+| `[x]` | 034 | Add `meridian adr show` and `meridian context authority` | 🟡 P2 | — | [034](done/034-authority-excerpt-command.md) |
+| `[x]` | 035 | `PreToolUse` guard against unranged large-file reads | 🟡 P2 | — | [035](done/035-pretooluse-read-guard.md) |
+
+*Last updated: 2026-09-16*

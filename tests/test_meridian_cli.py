@@ -2140,6 +2140,8 @@ class CapabilityMarkerTest(unittest.TestCase):
             self.marker_pairs(text),
             [
                 ("queue-briefing", "1"),
+                ("authority-excerpt", "1"),
+                ("read-guard", "1"),
                 ("isolated-exploration", "1"),
                 ("minimal-read-only-status", "1"),
                 ("validation-scoping", "1"),

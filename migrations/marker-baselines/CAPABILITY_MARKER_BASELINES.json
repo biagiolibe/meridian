@@ -84,6 +84,10 @@
     }
   },
   "templates/workflows/governed-sdd/docs/CONTEXT_BUDGET_POLICY.md": {
+    "authority-excerpt": {
+      "sha256": "454df50f26fbab6c7aa7c2c8bbec375254d8a4893bdee68c27b69e4e6d7251a8",
+      "version": 1
+    },
     "evidence-tiers": {
       "sha256": "17e3cf089faf004c49dadfcd2874a795a7679bb6af9e6166a39abee5049ae379",
       "version": 1
@@ -102,6 +106,10 @@
     },
     "queue-briefing": {
       "sha256": "8180d822aa58891fd6e5e312567ed2c6293d207de893c78e2cb34a110d19daa3",
+      "version": 1
+    },
+    "read-guard": {
+      "sha256": "3a8178017c24e9d8a1d33bceb09184d72ffe8ac5ceddf4ec4681594732d3e4e4",
       "version": 1
     },
     "reasoning-budget-contract": {

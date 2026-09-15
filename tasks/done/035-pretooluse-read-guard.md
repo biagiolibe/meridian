@@ -19,35 +19,35 @@ session (the queue-briefing hook). This task generalizes it to reads.
 
 ## Acceptance Criteria
 
-- [ ] A new hook script (e.g. `hooks/read-guard.sh` or `.py`, matching the
+- [x] A new hook script (e.g. `hooks/read-guard.sh` or `.py`, matching the
       existing hook's language choice) registered on `PreToolUse` for the
       `Read` tool in `hooks/hooks.json`.
-- [ ] The hook only activates when the current directory is a Meridian
+- [x] The hook only activates when the current directory is a Meridian
       project (`PROJECT_WORKFLOW.md` present) — mirrors the existing
       queue-briefing hook's silent-exit-elsewhere behavior.
-- [ ] Denies a `Read` when: no Meridian workflow file exists at all → does
+- [x] Denies a `Read` when: no Meridian workflow file exists at all → does
       not deny (inactive); the target file exceeds a line-count threshold
       (default 400, overridable via a documented `EXECUTION_EVIDENCE_PROFILE.md`
       setting) AND neither `offset` nor `limit` is present in the tool call.
       Allows the read otherwise.
-- [ ] Denial message names: the file's line count, the threshold, and the
+- [x] Denial message names: the file's line count, the threshold, and the
       two cheap alternatives (`grep -n` then a ranged `Read`, or
       `meridian context authority`/`meridian adr show` from task 034 when the
       target is the ADR log or a spec file).
-- [ ] Exemption list, checked before the threshold: the file the session's
+- [x] Exemption list, checked before the threshold: the file the session's
       active task assigns (from the resolved `Authority`/task path, reusing
       034's resolution when present), `LANGUAGE_POLICY.md`, and any file the
       project's entry router declares as always-loaded. Exemptions are
       project-declared, not hardcoded paths, so a non-Palimpsest project
       does not inherit Palimpsest-specific exemptions.
-- [ ] `docs/EXECUTION_EVIDENCE_PROFILE.md`'s template gains a documented,
+- [x] `docs/EXECUTION_EVIDENCE_PROFILE.md`'s template gains a documented,
       overridable `read-guard threshold` setting (numeric, default 400)
       alongside the existing profile settings.
-- [ ] Hook tests: file under threshold (allowed), over threshold without
+- [x] Hook tests: file under threshold (allowed), over threshold without
       range (denied with the expected message), over threshold with
       `offset`/`limit` (allowed), exempted file over threshold (allowed),
       run outside a Meridian project (inactive/allowed).
-- [ ] False-positive check: a legitimately large file the task must read in
+- [x] False-positive check: a legitimately large file the task must read in
       full (e.g. a generated fixture) is not silently unreadable — the
       denial message must state the override path (declare it in the task's
       `Authority`/exemption, or the developer sets a higher threshold),

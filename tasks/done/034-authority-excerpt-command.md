@@ -16,30 +16,30 @@ were cited).
 
 ## Acceptance Criteria
 
-- [ ] `meridian adr show <ADR-ID> --project <path>` prints exactly one ADR
+- [x] `meridian adr show <ADR-ID> --project <path>` prints exactly one ADR
       section (from `## ADR-NNNN` up to the next `## ADR-` heading or EOF)
       from the project's ADR log, resolved the same way `execution contract`
       resolves canonical paths (respecting a project's declared location,
       default `docs/ARCHITECTURE_DECISIONS.md`).
-- [ ] Unknown ADR ID: non-zero exit, message names the ID and the file
+- [x] Unknown ADR ID: non-zero exit, message names the ID and the file
       searched, no partial output.
-- [ ] `meridian context authority <TASK-ID> --project <path>` parses the
+- [x] `meridian context authority <TASK-ID> --project <path>` parses the
       task file's `Authority` field, resolves each cited ADR ID through
       `adr show` and each cited spec section through the same heading-range
       logic against the project's declared spec file, and prints each
       excerpt labeled with its source path and heading (line numbers not
       required — headings are the addressable unit).
-- [ ] A task `Authority` entry that is not an ADR ID or a resolvable spec
+- [x] A task `Authority` entry that is not an ADR ID or a resolvable spec
       heading is reported as unresolved (name it, do not silently skip it)
       rather than causing a non-zero exit for the whole command.
-- [ ] `docs/CONTEXT_BUDGET_POLICY.md` gains one line in the "Task-first
+- [x] `docs/CONTEXT_BUDGET_POLICY.md` gains one line in the "Task-first
       loading" list (mirroring the existing `queue-briefing v1` marker
       pattern) pointing sessions at `meridian context authority` as the
       normal path before opening an ADR log or spec file directly.
-- [ ] `hooks/queue-briefing.sh`: when a task is `IN_PROGRESS`, append its
+- [x] `hooks/queue-briefing.sh`: when a task is `IN_PROGRESS`, append its
       resolved `Authority` list (source + heading, not the full excerpt) to
       the existing briefing output.
-- [ ] Unit tests cover: heading splitting with adjacent ADRs, an ADR ID at
+- [x] Unit tests cover: heading splitting with adjacent ADRs, an ADR ID at
       EOF, a missing ADR ID, a task with no `Authority` field, and at least
       one project using a non-default ADR log path.
 
