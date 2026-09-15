@@ -56,7 +56,7 @@ remaining ~55k of the ~57k per-turn floor is most plausibly tool schemas,
 MCP server definitions, and skill descriptions injected by the host (the
 session ran in the Claude desktop app, which adds Browser, iOS Simulator,
 visualize, Artifact, and session-management tools). No documentation change
-reaches that 38%. **Unverified** — see §5.
+reaches that 38%. **Measured** — see §5.
 
 ### D3 — Entry documents carry non-operative verbatim text
 
@@ -155,38 +155,68 @@ audit P2 / plan W1.1, which bound validation commands but not probes.
 - **P2** — Optional, only after M1: split `docs/ARCHITECTURE_DECISIONS.md`
   (4032 lines, 65 ADRs) into one file per ADR plus an index. It breaks
   existing citations; M1 captures most of the gain without it.
-- **P3** — After §5 confirms it, add a project `.claude/settings.json` that
-  disables MCP servers/plugins the repository never uses. Palimpsest has no
-  `.claude/` directory today.
+- **P3** — ~~Add a project `.claude/settings.json` disabling unused MCP
+  servers.~~ Downgraded to negligible by §5: MCP tools already cost 0 tokens
+  in the CLI. Pruning unused skill plugins remains a ≤2k option.
 
 Rejected: a separate "spike excerpt" document (~40 lines) of operational
 rules. Adding a document to a system whose problem is document proliferation
 raises the floor; M3 delivers the same saving by shrinking the existing file.
 
-## 5. Open verification before acting on the fixed preamble
+## 5. Fixed-preamble measurement (resolved)
 
-1. In an interactive `claude` terminal inside the Palimpsest checkout, run
-   `/context` and record the breakdown (system prompt, tools, MCP, skills,
-   memory files).
-2. Decide which tools/servers are removable per project and which settings
-   keys actually gate them; do not assume key names.
-3. Compare the same `/context` from the CLI versus the desktop app: running
-   governed worker sessions from the CLI may drop desktop-only tool schemas.
-   Hypothesis until measured.
+Measured with `/context` in a fresh interactive `claude` CLI session inside
+the Palimpsest checkout, before any prompt (model `claude-sonnet-5`, 1M
+window). The preamble is session-independent, so a fresh session is a valid
+measurement of the evidence session's floor.
+
+| Category | Tokens | Notes |
+|---|---|---|
+| System prompt | 9.3k | |
+| System tools | 28.7k | largest item; effectively irreducible |
+| Memory files | 1.8k | 3 files: global `CLAUDE.md`, project `CLAUDE.md`, `MEMORY.md` |
+| Skills | 2.9k | 19 skills |
+| MCP tools | 0 | 2 tools, loaded on demand |
+| Messages | 8 | |
+| **Total** | **42.7k** | |
+
+Findings:
+
+1. **Host choice is the main fixed-preamble lever.** CLI floor 42.7k versus
+   ~57k per response inferred for the desktop-app evidence session: ~14k per
+   response (~25% of the floor) is desktop-specific tool schemas. This
+   confirms D2 in order of magnitude. Caveat: the evidence session's model
+   may differ from Sonnet 5; tool schemas are broadly model-independent.
+   Mostly served from cache (weight 0.1), so the weighted saving is smaller
+   than the raw ~350k over 25 responses, but it applies to every turn.
+2. **P3 is downgraded to negligible.** MCP tools already cost 0 tokens in the
+   CLI (on-demand loading); disabling servers in `.claude/settings.json`
+   saves nothing there.
+3. **M4 is downgraded to a clarity fix.** All memory files together are 1.8k;
+   its value is removing the D4 contradiction, not tokens.
+4. **Skills are a minor lever.** Disabling plugins a project never uses
+   (e.g. docx/pptx/xlsx/pdf) would save an estimated 1–2k per response.
+5. System prompt plus system tools (~38k) is the irreducible floor.
+
+Operational recommendation: run governed worker sessions (implementation,
+review, spikes) from the CLI rather than the desktop app. Everything else on
+the fixed preamble is worth low single-digit thousands of tokens.
 
 ## 6. Expected impact (estimates)
 
 - M1 + M2: target the 38% file bucket; plausibly remove most of the
   ~120–160k avoidable weighted tokens per comparable session, with compounding
-  savings because context stays smaller on every later turn.
-- M3 + M4: small but constant per session; removes a standing contradiction.
-- Fixed-preamble reduction: the only lever that applies to every turn; size
-  unknown until §5.
+  savings because context stays smaller on every later turn. Still the
+  largest lever overall.
+- Running workers from the CLI: ~14k raw tokens off every response.
+- M3: ~5k per read of `PROJECT_WORKFLOW.md`, constant per session.
+- M4, P3, skill pruning: ≤2k per response combined; M4 kept for clarity.
 
 ## 7. Suggested next steps
 
-1. Run §5 and append its measurements to this document.
+1. Adopt the CLI-for-workers recommendation immediately (no code change);
+   consider stating it in `OPERATOR_PROMPTS.md`.
 2. Open Meridian Lean tasks for M1 and M2 first (they are independent), then
-   M3 (migration), M4, M5, M6.
-3. Palimpsest P1/P3 as governed tasks once M1/§5 land; P2 only if still
-   justified afterwards.
+   M3 (migration), M5, M6, and M4 as a low-priority clarity fix.
+3. Palimpsest P1 as a governed task once M1 lands; P2 only if still justified
+   afterwards; P3 dropped unless a future host loads MCP schemas eagerly.
