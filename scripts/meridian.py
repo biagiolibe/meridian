@@ -293,6 +293,32 @@ def declared_capability_moves(
     return result
 
 
+def pending_migration_establishes_move_source(
+    framework_root: Path, pending_migrations: list[str], move: CapabilityMove
+) -> bool:
+    """Whether an earlier pending migration declares this move's source marker.
+
+    A long-lag consumer can legitimately predate a marker that an intermediate
+    migration adds and a later migration immediately relocates.  The final
+    template no longer contains that transient source marker, so its presence
+    cannot be inferred from the three-way merge inputs alone.  Trust this
+    narrow transition only when the migration ledger explicitly establishes
+    the exact capability/version on the same managed source path before the
+    move that consumes it.
+    """
+    try:
+        move_index = pending_migrations.index(move.migration)
+    except ValueError:
+        return False
+    for path in migration_record_paths(framework_root, pending_migrations[:move_index]):
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if str(move.source_path) not in {str(item) for item in data.get("managedPaths", [])}:
+            continue
+        if (move.source_capability, move.source_version) in migration_capability_entries(data):
+            return True
+    return False
+
+
 def validate_capability_moves(framework_root: Path, mode: str) -> list[str]:
     """Validate move declarations against the exact current release templates."""
     managed = {item.target: item.source for item in managed_files(framework_root, mode)}
@@ -1642,10 +1668,21 @@ def apply_additive_move_checks(
             # A declared pointer deliberately owns no duplicated Claude marker;
             # the matching AGENTS move supplies the source proof instead.
             continue
+        source_in_intermediate_state = False
         if not exact_marker_matches(base_text, move.source_capability, move.source_version, move.source_sha256):
-            conflict(move.source_path, f"capability move {move.migration} source does not match the installed baseline")
-            continue
-        if not exact_marker_matches(local_text, move.source_capability, move.source_version, move.source_sha256):
+            source_in_intermediate_state = (
+                not marker_blocks(base_text, move.source_capability, move.source_version)
+                and not marker_blocks(local_text, move.source_capability, move.source_version)
+                and pending_migration_establishes_move_source(
+                    framework_root, pending_migrations, move
+                )
+            )
+            if not source_in_intermediate_state:
+                conflict(move.source_path, f"capability move {move.migration} source does not match the installed baseline")
+                continue
+        if not source_in_intermediate_state and not exact_marker_matches(
+            local_text, move.source_capability, move.source_version, move.source_sha256
+        ):
             conflict(move.source_path, f"capability move {move.migration} source marker was locally modified or duplicated")
             continue
         target_local = project_root / move.target_path
