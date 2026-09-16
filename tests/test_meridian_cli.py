@@ -61,6 +61,44 @@ class MeridianCliTest(unittest.TestCase):
             check=False,
         )
 
+    def reset_project_to_installed_baseline(self) -> None:
+        """Overwrite every managed project file with the exact content
+        `.meridian/baselines/<installed version>` recorded at `lock` time,
+        simulating a vanilla consumer that never diverged from its installed
+        release — the premise `--stop-before-retirement`'s content-cap tests
+        need, since `setUp()` otherwise leaves the real repository's own
+        current AGENTS.md/CLAUDE.md in the project directory."""
+        manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
+        baseline_root = self.project / ".meridian/baselines" / str(manifest["frameworkVersion"])
+        for path in baseline_root.rglob("*"):
+            if path.is_file():
+                destination = self.project / path.relative_to(baseline_root)
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(path, destination)
+
+    def make_route_rule_physically_present(self, moved: str) -> None:
+        """Insert the `route-rule` source marker literally into both
+        AGENTS.md/CLAUDE.md and their recorded 1.1.0 baseline copies.
+
+        `configure_long_lag_move_fixture` declares `route-rule` as a purely
+        transient capability (task 036's own edge case: never physically
+        written to any template, only proven via the migration ledger) so
+        that its *first* test can exercise that narrow path. A real
+        long-lag consumer like Fusa instead has the marker literally present
+        in its locked content the whole time. Tests that resume a capped
+        upgrade to completion need that realistic shape: task 036's
+        transient-source proof only consults the *currently pending*
+        migration list, so it cannot see an establishing migration that a
+        prior, already-applied capped run already consumed — a composition
+        gap in task 036 itself, out of scope here, and irrelevant to Fusa's
+        real content."""
+        manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
+        baseline_root = self.project / ".meridian/baselines" / str(manifest["frameworkVersion"])
+        for relative in (Path("AGENTS.md"), Path("CLAUDE.md")):
+            for root in (self.project, baseline_root):
+                path = root / relative
+                path.write_text(path.read_text(encoding="utf-8") + "\n" + moved + "\n", encoding="utf-8")
+
     def configure_long_lag_move_fixture(self) -> tuple[str, Path]:
         """Create a compact three-release add/move/retire transition.
 
@@ -95,7 +133,7 @@ class MeridianCliTest(unittest.TestCase):
         (self.framework / "VERSION").write_text("1.1.0\n", encoding="utf-8")
         self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
 
-        agents.write_text("# Compact agent router\n\n" + router_v2, encoding="utf-8")
+        agents.write_text("# Agent entry point\n\n" + router_v2, encoding="utf-8")
         claude.write_text("# Compact Claude router\n", encoding="utf-8")
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text("# Implementation\n\n" + moved + "\n", encoding="utf-8")
@@ -137,18 +175,24 @@ class MeridianCliTest(unittest.TestCase):
             ("002-add-route-rule", "1.1.2", "additive"),
             ("003-retire-route-rule", "1.1.3", "retirement"),
         ):
+            record = {
+                "id": identifier,
+                "from": "1.1.1" if stage == "additive" else "1.1.2",
+                "to": version,
+                "description": "test-only capability move",
+                "capabilityMoves": [move for move in moves if move["stage"] == stage],
+                "managedPaths": ["AGENTS.md", "CLAUDE.md", "docs/workflows/IMPLEMENTATION.md"],
+                "verification": ["test-only"],
+            }
+            if stage == "retirement":
+                # Mirrors the real repository's command-triggers v1->v2 gap
+                # (task 037): an ordinary marker version bump riding along
+                # with the retirement migration, declared here so a capped
+                # upgrade can gate it to this migration instead of pulling it
+                # in unconditionally from the live template.
+                record["capabilities"] = [{"capability": "entry-router", "capabilityVersion": 2}]
             (self.framework / "migrations" / f"{identifier}.json").write_text(
-                json.dumps(
-                    {
-                        "id": identifier,
-                        "from": "1.1.1" if stage == "additive" else "1.1.2",
-                        "to": version,
-                        "description": "test-only capability move",
-                        "capabilityMoves": [move for move in moves if move["stage"] == stage],
-                        "managedPaths": ["AGENTS.md", "CLAUDE.md", "docs/workflows/IMPLEMENTATION.md"],
-                        "verification": ["test-only"],
-                    }
-                ),
+                json.dumps(record),
                 encoding="utf-8",
             )
         (self.framework / "VERSION").write_text("1.1.3\n", encoding="utf-8")
@@ -196,6 +240,102 @@ class MeridianCliTest(unittest.TestCase):
         applied_modified = self.run_cli("upgrade", "--apply")
         self.assertEqual(applied_modified.returncode, 2, applied_modified.stdout + applied_modified.stderr)
         self.assertEqual(agents.read_text(encoding="utf-8"), original + "\n" + modified + "\n")
+
+    def test_stop_before_retirement_caps_the_plan_before_the_retirement_migration(self) -> None:
+        self.configure_long_lag_move_fixture()
+        self.reset_project_to_installed_baseline()
+        agents = self.project / "AGENTS.md"
+        original_agents = agents.read_text(encoding="utf-8")
+        pointer = self.project / "CLAUDE.md"
+        pointer.write_text(
+            "<!-- MERIDIAN:CLAUDE-AGENTS-POINTER v1 -->\n\n# Project Claude entry point\n",
+            encoding="utf-8",
+        )
+
+        checked = self.run_cli("upgrade", "--check", "--stop-before-retirement")
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+        self.assertIn("Meridian 1.1.0 -> 1.1.2", checked.stdout)
+        self.assertIn("MIGRATION 001-establish-route-rule", checked.stdout)
+        self.assertIn("MIGRATION 002-add-route-rule", checked.stdout)
+        self.assertNotIn("MIGRATION 003-retire-route-rule", checked.stdout)
+        self.assertNotIn("APPEND-RETIRE-MARKERS", checked.stdout)
+        self.assertNotIn("RETIRE-MARKERS", checked.stdout)
+
+        applied = self.run_cli("upgrade", "--apply", "--stop-before-retirement")
+        self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+
+        # AGENTS.md must survive byte-for-byte: route-rule is a purely
+        # declared, transient capability (never physically present in any
+        # template — task 036's exact scenario) that only migration 002
+        # additively moves into docs/workflows/IMPLEMENTATION.md, and the
+        # undeclared-in-this-migration entry-router bump the live template
+        # already carries must not leak in either — it is declared against
+        # the excluded, capped-out 003, exactly like the real
+        # command-triggers gap this task fixes.
+        self.assertEqual(agents.read_text(encoding="utf-8"), original_agents)
+        self.assertNotIn("entry-router v2", agents.read_text(encoding="utf-8"))
+        self.assertEqual(
+            pointer.read_text(encoding="utf-8"),
+            "<!-- MERIDIAN:CLAUDE-AGENTS-POINTER v1 -->\n\n# Project Claude entry point\n",
+        )
+
+        implementation = self.project / "docs/workflows/IMPLEMENTATION.md"
+        self.assertIn("capability=route-rule v1", implementation.read_text(encoding="utf-8"))
+
+        manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual(manifest["frameworkVersion"], "1.1.2")
+        self.assertEqual(
+            manifest["appliedMigrations"],
+            ["001-establish-route-rule", "002-add-route-rule"],
+        )
+
+    def test_stop_before_retirement_upgrade_can_later_complete_in_full(self) -> None:
+        moved, target = self.configure_long_lag_move_fixture()
+        self.reset_project_to_installed_baseline()
+        self.make_route_rule_physically_present(moved)
+        (self.project / "CLAUDE.md").write_text(
+            "<!-- MERIDIAN:CLAUDE-AGENTS-POINTER v1 -->\n\n# Project Claude entry point\n",
+            encoding="utf-8",
+        )
+        self.assertEqual(self.run_cli("upgrade", "--apply", "--stop-before-retirement").returncode, 0)
+
+        # A plain check (no flag) now sees the remaining migration as pending,
+        # with no false conflict from the intermediate stopping point.
+        resumed_check = self.run_cli("upgrade", "--check")
+        self.assertEqual(resumed_check.returncode, 0, resumed_check.stdout + resumed_check.stderr)
+        self.assertIn("Meridian 1.1.2 -> 1.1.3", resumed_check.stdout)
+        self.assertIn("MIGRATION 003-retire-route-rule", resumed_check.stdout)
+
+        resumed_apply = self.run_cli("upgrade", "--apply")
+        self.assertEqual(resumed_apply.returncode, 0, resumed_apply.stdout + resumed_apply.stderr)
+        agents = self.project / "AGENTS.md"
+        self.assertNotIn("capability=route-rule", agents.read_text(encoding="utf-8"))
+        self.assertEqual(target.read_text(encoding="utf-8"), "# Implementation\n\n" + moved + "\n")
+        manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual(manifest["frameworkVersion"], "1.1.3")
+        self.assertEqual(
+            manifest["appliedMigrations"],
+            ["001-establish-route-rule", "002-add-route-rule", "003-retire-route-rule"],
+        )
+
+    def test_stop_before_retirement_is_a_noop_with_no_pending_retirement(self) -> None:
+        moved, _target = self.configure_long_lag_move_fixture()
+        self.reset_project_to_installed_baseline()
+        self.make_route_rule_physically_present(moved)
+        (self.project / "CLAUDE.md").write_text(
+            "<!-- MERIDIAN:CLAUDE-AGENTS-POINTER v1 -->\n\n# Project Claude entry point\n",
+            encoding="utf-8",
+        )
+        self.assertEqual(self.run_cli("upgrade", "--apply", "--stop-before-retirement").returncode, 0)
+        self.assertEqual(self.run_cli("upgrade", "--apply").returncode, 0)
+
+        # Every migration, including the retirement one, is now applied; a
+        # further capped run has nothing left to cap and must behave exactly
+        # like a plain, already-current check.
+        plain = self.run_cli("upgrade", "--check")
+        capped = self.run_cli("upgrade", "--check", "--stop-before-retirement")
+        self.assertEqual(plain.returncode, 0, plain.stdout + plain.stderr)
+        self.assertEqual(plain.stdout, capped.stdout)
 
     def test_lock_and_apply_clean_template_upgrade(self) -> None:
         locked = self.run_cli("lock", "--mode", "governed-sdd")

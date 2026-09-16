@@ -63,6 +63,7 @@ migration.
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
 | `[x]` | 036 | Plan capability moves correctly across long-lag consumer upgrades | 🔴 P1 | — | [036](done/036-long-lag-capability-move-upgrades.md) |
+| `[x]` | 037 | Let a long-lag consumer stop an upgrade before retirement | 🔴 P1 | 036 | [037](done/037-stop-before-retirement-upgrade.md) |
 
 ## 🧪 Quick Tasks (No File)
 

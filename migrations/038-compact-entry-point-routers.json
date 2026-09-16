@@ -1,6 +1,9 @@
 {
   "id": "038-compact-entry-point-routers", "from": "1.1.34", "to": "1.1.35",
-  "description": "Retires declared duplicate role procedures after the additive compatibility release; compact entry points route requests to their managed canonical homes.",
+  "description": "Retires declared duplicate role procedures after the additive compatibility release; compact entry points route requests to their managed canonical homes. Also declares the command-triggers v1->v2 bump (previously untracked by any migration record), so upgrade planning can gate its router-style pointer content to this migration rather than pulling it in unconditionally from the live template.",
+  "capabilities": [
+    {"capability": "command-triggers", "capabilityVersion": 2}
+  ],
   "capabilityMoves": [
     {"stage":"retirement","source":{"path":"AGENTS.md","capability":"manual-verification-precondition","capabilityVersion":3,"markerSha256":"506fdbdecfa2c0d905f7f95bade62bbe886131ec94cbdb2f283d11ddaa2b1a85"},"target":{"path":"docs/workflows/IMPLEMENTATION.md","capability":"manual-verification-precondition","capabilityVersion":3,"markerSha256":"506fdbdecfa2c0d905f7f95bade62bbe886131ec94cbdb2f283d11ddaa2b1a85"}},
     {"stage":"retirement","source":{"path":"CLAUDE.md","capability":"manual-verification-precondition","capabilityVersion":3,"markerSha256":"506fdbdecfa2c0d905f7f95bade62bbe886131ec94cbdb2f283d11ddaa2b1a85"},"target":{"path":"docs/workflows/IMPLEMENTATION.md","capability":"manual-verification-precondition","capabilityVersion":3,"markerSha256":"506fdbdecfa2c0d905f7f95bade62bbe886131ec94cbdb2f283d11ddaa2b1a85"}},
