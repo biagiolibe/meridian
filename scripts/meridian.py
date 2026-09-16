@@ -164,6 +164,91 @@ def managed_files(framework_root: Path, mode: str) -> list[ManagedFile]:
     )
 
 
+def marker_declaring_migrations(framework_root: Path) -> dict[tuple[str, int], str]:
+    """Map every declared (capability, version) pair to the migration id that
+    introduces it — via `capability`/`capabilityVersion`, a `capabilities`
+    list entry, or a `capabilityMoves` source/target — so a capped upgrade can
+    tell whether a marker version present in the live template belongs to an
+    excluded migration. A pair declared more than once keeps its first
+    (earliest) declaring migration, in file order."""
+    result: dict[tuple[str, int], str] = {}
+
+    def record(pair: tuple[str, int], migration_id: str) -> None:
+        result.setdefault(pair, migration_id)
+
+    for path in sorted((framework_root / "migrations").glob("*.json")):
+        data = json.loads(path.read_text(encoding="utf-8"))
+        migration_id = str(data["id"])
+        for capability, version in migration_capability_entries(data):
+            record((capability, version), migration_id)
+        for move in migration_capability_moves(data):
+            record((move.source_capability, move.source_version), migration_id)
+            record((move.target_capability, move.target_version), migration_id)
+    return result
+
+
+def strip_marker_block(text: str, capability: str, version: int) -> str:
+    """Remove one complete exact marker block, leaving surrounding text
+    untouched. Mirrors `marker_blocks()`'s pattern; used to synthesize a
+    template as it existed before an excluded migration introduced or bumped
+    one of its markers."""
+    pattern = re.compile(
+        rf"<!-- MERIDIAN:BEGIN capability={re.escape(capability)} v{version} -->\n?.*?"
+        r"<!-- MERIDIAN:END -->\n?",
+        re.DOTALL,
+    )
+    return pattern.sub("", text, count=1)
+
+
+def capped_managed_files(
+    framework_root: Path,
+    mode: str,
+    baseline_root: Path,
+    excluded_migration_ids: set[str],
+    scratch_dir: Path,
+) -> list[ManagedFile]:
+    """`managed_files()`, substituting a synthesized capped template for any
+    file that carries a marker block declared by an excluded migration, so
+    the live (always-latest) template cannot leak a change gated to a
+    migration a capped upgrade must stop before.
+
+    Stripping the excluded marker straight out of the live template would
+    leave a fragment missing whatever unrelated content the file already had
+    at the installed baseline (the `--replace` fast path would then apply
+    that fragment wholesale). Instead, build the capped content up from the
+    installed baseline, splicing in only the marker adds/supersessions the
+    live template declares via a *non*-excluded migration, reusing
+    `append_only_new_markers`'s own add/supersede rules by treating the
+    baseline as if it were both the local file and the base of a normal
+    upgrade. A file with no baseline snapshot yet (a new managed file, e.g.
+    one migration 037 alone introduces) is returned unchanged — its content
+    already reflects only the migrations that created it."""
+    declaring = marker_declaring_migrations(framework_root)
+    result = []
+    for item in managed_files(framework_root, mode):
+        base_path = baseline_root / item.target
+        if not base_path.is_file():
+            result.append(item)
+            continue
+        target_text = item.source.read_text(encoding="utf-8")
+        base_text = base_path.read_text(encoding="utf-8")
+        filtered_target = target_text
+        for capability, version in marker_pairs(target_text):
+            if declaring.get((capability, version)) in excluded_migration_ids:
+                filtered_target = strip_marker_block(filtered_target, capability, version)
+        spliced = append_only_new_markers(base_text, base_text, filtered_target)
+        capped_text = base_text if spliced is None else spliced
+        if capped_text == target_text:
+            result.append(item)
+            continue
+        scratch_dir.mkdir(parents=True, exist_ok=True)
+        capped_path = scratch_dir / item.target
+        capped_path.parent.mkdir(parents=True, exist_ok=True)
+        capped_path.write_text(capped_text, encoding="utf-8")
+        result.append(ManagedFile(source=capped_path, target=item.target))
+    return result
+
+
 def load_manifest(project_root: Path) -> dict[str, object]:
     manifest_path = project_root / MANIFEST_PATH
     if not manifest_path.is_file():
@@ -191,6 +276,32 @@ def migration_ids(framework_root: Path, installed_version: str, target_version: 
         ) <= version_key(target_version):
             result.append(str(data["id"]))
     return result
+
+
+def first_retirement_migration(framework_root: Path, migration_ids_to_check: list[str]) -> str | None:
+    """The first migration, in order, among `migration_ids_to_check` whose
+    record declares any `stage: "retirement"` capability move, or `None` if
+    none of them do."""
+    for path in migration_record_paths(framework_root, migration_ids_to_check):
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if any(str(move.get("stage")) == "retirement" for move in data.get("capabilityMoves", [])):
+            return str(data["id"])
+    return None
+
+
+def capped_target_version(framework_root: Path, installed_version: str, target_version: str) -> str:
+    """The effective target version for a `--stop-before-retirement` upgrade:
+    the `from` version of the first pending migration that declares a
+    retirement-stage capability move, or `target_version` unchanged if none
+    of the pending migrations retire anything."""
+    pending = migration_ids(framework_root, installed_version, target_version)
+    retirement_id = first_retirement_migration(framework_root, pending)
+    if retirement_id is None:
+        return target_version
+    for path in migration_record_paths(framework_root, [retirement_id]):
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return str(data["from"])
+    raise MeridianError(f"migration record is missing: {retirement_id}")
 
 
 def migration_record_paths(framework_root: Path, migration_ids_to_find: list[str]) -> list[Path]:
@@ -1572,9 +1683,15 @@ def print_assisted_adoption_plan(
     return 0
 
 
-def copy_baseline(project_root: Path, framework_root: Path, mode: str, version: str) -> None:
+def copy_baseline(
+    project_root: Path,
+    framework_root: Path,
+    mode: str,
+    version: str,
+    managed_files_override: list[ManagedFile] | None = None,
+) -> None:
     destination_root = project_root / BASELINES_PATH / version
-    for item in managed_files(framework_root, mode):
+    for item in managed_files_override or managed_files(framework_root, mode):
         destination = destination_root / item.target
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(item.source, destination)
@@ -1726,8 +1843,10 @@ def plan_from_baseline(
     installed_version: str,
     baseline_root: Path,
     applied_migrations: list[object],
+    target_version_override: str | None = None,
+    managed_files_override: list[ManagedFile] | None = None,
 ) -> tuple[dict[str, object], list[PlanItem]]:
-    target_version = read_version(framework_root)
+    target_version = target_version_override or read_version(framework_root)
     if version_key(target_version) < version_key(installed_version):
         raise MeridianError("framework source is older than the project lockfile")
     if not baseline_root.is_dir():
@@ -1748,7 +1867,7 @@ def plan_from_baseline(
     ]
 
     plan = []
-    for item in managed_files(framework_root, mode):
+    for item in managed_files_override or managed_files(framework_root, mode):
         local = project_root / item.target
         base = baseline_root / item.target
         if not base.is_file():
@@ -1933,8 +2052,40 @@ def plan_from_baseline(
     return manifest, plan
 
 
-def plan_upgrade(project_root: Path, framework_root: Path) -> tuple[dict[str, object], list[PlanItem]]:
+def prepare_upgrade_targets(
+    project_root: Path, framework_root: Path, stop_before_retirement: bool
+) -> tuple[dict[str, object], str | None, list[ManagedFile] | None]:
+    """The manifest, plus an effective target-version cap and matching
+    managed-files substitution when `--stop-before-retirement` is set and it
+    actually narrows the upgrade. Both are `None` when the flag is unset, or
+    the pending migrations contain no retirement-stage move (a full,
+    unmodified upgrade)."""
     manifest = load_manifest(project_root)
+    if not stop_before_retirement:
+        return manifest, None, None
+    installed_version = str(manifest.get("frameworkVersion", ""))
+    full_target = read_version(framework_root)
+    capped_target = capped_target_version(framework_root, installed_version, full_target)
+    if capped_target == full_target:
+        return manifest, None, None
+    applied = {str(migration) for migration in manifest.get("appliedMigrations", [])}
+    full_pending = set(migration_ids(framework_root, installed_version, full_target)) - applied
+    capped_pending = set(migration_ids(framework_root, installed_version, capped_target)) - applied
+    excluded = full_pending - capped_pending
+    scratch_dir = Path(tempfile.mkdtemp(prefix="meridian-capped-"))
+    baseline_root = project_root / BASELINES_PATH / installed_version
+    managed_override = capped_managed_files(
+        framework_root, str(manifest.get("mode", "")), baseline_root, excluded, scratch_dir
+    )
+    return manifest, capped_target, managed_override
+
+
+def plan_upgrade(
+    project_root: Path, framework_root: Path, stop_before_retirement: bool = False
+) -> tuple[dict[str, object], list[PlanItem]]:
+    manifest, target_override, managed_override = prepare_upgrade_targets(
+        project_root, framework_root, stop_before_retirement
+    )
     installed_version = str(manifest.get("frameworkVersion", ""))
     return plan_from_baseline(
         project_root,
@@ -1943,11 +2094,18 @@ def plan_upgrade(project_root: Path, framework_root: Path) -> tuple[dict[str, ob
         installed_version,
         project_root / BASELINES_PATH / installed_version,
         list(manifest.get("appliedMigrations", [])),
+        target_version_override=target_override,
+        managed_files_override=managed_override,
     )
 
 
-def print_plan(manifest: dict[str, object], framework_root: Path, plan: list[PlanItem]) -> None:
-    target_version = read_version(framework_root)
+def print_plan(
+    manifest: dict[str, object],
+    framework_root: Path,
+    plan: list[PlanItem],
+    target_version_override: str | None = None,
+) -> None:
+    target_version = target_version_override or read_version(framework_root)
     print(
         f"Meridian {manifest['frameworkVersion']} -> {target_version} "
         f"({manifest['mode']})"
@@ -1976,14 +2134,16 @@ def apply_plan(
     plan: list[PlanItem],
     baseline_root: Path,
     owner_reconciled: bool = False,
+    target_version_override: str | None = None,
+    managed_files_override: list[ManagedFile] | None = None,
 ) -> None:
-    print_plan(manifest, framework_root, plan)
+    print_plan(manifest, framework_root, plan, target_version_override=target_version_override)
     conflicts = any(item.action == "conflict" for item in plan)
     if conflicts and not owner_reconciled:
         raise MeridianError("upgrade has conflicts")
 
     installed_version = str(manifest["frameworkVersion"])
-    target_version = read_version(framework_root)
+    target_version = target_version_override or read_version(framework_root)
     if owner_reconciled:
         print(
             "Owner-reconciled upgrade: skipped automatic file changes for every managed "
@@ -2089,13 +2249,19 @@ def apply_plan(
                     )
                 local.write_text(retired, encoding="utf-8")
 
-    copy_baseline(project_root, framework_root, str(manifest["mode"]), target_version)
+    copy_baseline(
+        project_root,
+        framework_root,
+        str(manifest["mode"]),
+        target_version,
+        managed_files_override=managed_files_override,
+    )
     prune_stale_baselines(project_root, target_version)
     manifest["frameworkVersion"] = target_version
     manifest["protocolVersion"] = PROTOCOL_VERSION
     manifest["managedFiles"] = {
         str(item.target): sha256(item.source)
-        for item in managed_files(framework_root, str(manifest["mode"]))
+        for item in managed_files_override or managed_files(framework_root, str(manifest["mode"]))
     }
     prior = {str(item) for item in manifest.get("appliedMigrations", [])}
     prior.update(migration_ids(framework_root, installed_version, target_version))
@@ -2104,8 +2270,26 @@ def apply_plan(
     print("Upgrade applied. Review the diff, run project checks, then commit it.")
 
 
-def apply_upgrade(project_root: Path, framework_root: Path, owner_reconciled: bool = False) -> None:
-    manifest, plan = plan_upgrade(project_root, framework_root)
+def apply_upgrade(
+    project_root: Path,
+    framework_root: Path,
+    owner_reconciled: bool = False,
+    stop_before_retirement: bool = False,
+) -> None:
+    manifest, target_override, managed_override = prepare_upgrade_targets(
+        project_root, framework_root, stop_before_retirement
+    )
+    installed_version = str(manifest.get("frameworkVersion", ""))
+    manifest, plan = plan_from_baseline(
+        project_root,
+        framework_root,
+        str(manifest.get("mode", "")),
+        installed_version,
+        project_root / BASELINES_PATH / installed_version,
+        list(manifest.get("appliedMigrations", [])),
+        target_version_override=target_override,
+        managed_files_override=managed_override,
+    )
     apply_plan(
         project_root,
         framework_root,
@@ -2113,6 +2297,8 @@ def apply_upgrade(project_root: Path, framework_root: Path, owner_reconciled: bo
         plan,
         project_root / BASELINES_PATH / str(manifest["frameworkVersion"]),
         owner_reconciled=owner_reconciled,
+        target_version_override=target_override,
+        managed_files_override=managed_override,
     )
 
 
@@ -2943,6 +3129,13 @@ def main() -> int:
         "for a project too customized for the automatic three-way merge whose developer has "
         "already reconciled every managed file by hand outside this command; --apply only",
     )
+    upgrade.add_argument(
+        "--stop-before-retirement",
+        action="store_true",
+        help="cap this upgrade to the last migration before the first one that retires a "
+        "duplicated entry-point marker, so a long-lag consumer can complete an additive-only "
+        "release; a no-op if no pending migration retires anything",
+    )
 
     adopt = subparsers.add_parser("adopt", help="migrate an untracked project from a packaged baseline")
     adopt.add_argument("--project", type=Path, default=Path.cwd())
@@ -3203,12 +3396,30 @@ def main() -> int:
         elif arguments.check:
             if arguments.owner_reconciled:
                 raise MeridianError("--owner-reconciled only applies to --apply")
-            manifest, plan = plan_upgrade(project_root, framework_root)
-            print_plan(manifest, framework_root, plan)
+            base_manifest, target_override, managed_override = prepare_upgrade_targets(
+                project_root, framework_root, arguments.stop_before_retirement
+            )
+            installed_version = str(base_manifest.get("frameworkVersion", ""))
+            manifest, plan = plan_from_baseline(
+                project_root,
+                framework_root,
+                str(base_manifest.get("mode", "")),
+                installed_version,
+                project_root / BASELINES_PATH / installed_version,
+                list(base_manifest.get("appliedMigrations", [])),
+                target_version_override=target_override,
+                managed_files_override=managed_override,
+            )
+            print_plan(manifest, framework_root, plan, target_version_override=target_override)
             if any(item.action == "conflict" for item in plan):
                 return 2
         else:
-            apply_upgrade(project_root, framework_root, arguments.owner_reconciled)
+            apply_upgrade(
+                project_root,
+                framework_root,
+                arguments.owner_reconciled,
+                arguments.stop_before_retirement,
+            )
     except MeridianError as error:
         print(f"BLOCKED: {error}", file=sys.stderr)
         return 2
