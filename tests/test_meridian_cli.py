@@ -61,6 +61,142 @@ class MeridianCliTest(unittest.TestCase):
             check=False,
         )
 
+    def configure_long_lag_move_fixture(self) -> tuple[str, Path]:
+        """Create a compact three-release add/move/retire transition.
+
+        The installed v1.1.0 snapshot predates ``route-rule``.  Migration 001
+        declares that marker for both entry points, migration 002 duplicates it
+        into its managed home, and migration 003 retires the transient entry
+        point copy.  The target templates intentionally contain only the
+        compact router marker and the managed destination.
+        """
+        workflow = self.framework / "templates/workflows/governed-sdd"
+        agents = workflow / "AGENTS.md"
+        claude = workflow / "CLAUDE.md"
+        router_v1 = (
+            "<!-- MERIDIAN:BEGIN capability=entry-router v1 -->\n"
+            "Read the entry-point procedures.\n<!-- MERIDIAN:END -->\n"
+        )
+        router_v2 = (
+            "<!-- MERIDIAN:BEGIN capability=entry-router v2 -->\n"
+            "Read the managed procedures.\n<!-- MERIDIAN:END -->\n"
+        )
+        moved = (
+            "<!-- MERIDIAN:BEGIN capability=route-rule v1 -->\n"
+            "Run the managed route rule.\n<!-- MERIDIAN:END -->"
+        )
+        agents.write_text("# Agent entry point\n\n" + router_v1, encoding="utf-8")
+        claude.write_text("# Claude entry point\n\n" + router_v1, encoding="utf-8")
+        target = workflow / "docs/workflows/IMPLEMENTATION.md"
+        target.unlink()
+        (self.project / "docs/workflows/IMPLEMENTATION.md").unlink()
+        for path in (self.framework / "migrations").glob("*.json"):
+            path.unlink()
+        (self.framework / "VERSION").write_text("1.1.0\n", encoding="utf-8")
+        self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
+
+        agents.write_text("# Compact agent router\n\n" + router_v2, encoding="utf-8")
+        claude.write_text("# Compact Claude router\n", encoding="utf-8")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("# Implementation\n\n" + moved + "\n", encoding="utf-8")
+        digest = meridian.marker_block_sha256(moved)
+
+        establish = {
+            "id": "001-establish-route-rule",
+            "from": "1.1.0",
+            "to": "1.1.1",
+            "description": "test-only source marker introduction",
+            "capability": "route-rule",
+            "capabilityVersion": 1,
+            "managedPaths": ["AGENTS.md", "CLAUDE.md"],
+            "verification": ["test-only"],
+        }
+        (self.framework / "migrations/001-establish-route-rule.json").write_text(
+            json.dumps(establish), encoding="utf-8"
+        )
+        moves = [
+            {
+                "stage": stage,
+                "source": {
+                    "path": source,
+                    "capability": "route-rule",
+                    "capabilityVersion": 1,
+                    "markerSha256": digest,
+                },
+                "target": {
+                    "path": "docs/workflows/IMPLEMENTATION.md",
+                    "capability": "route-rule",
+                    "capabilityVersion": 1,
+                    "markerSha256": digest,
+                },
+            }
+            for stage in ("additive", "retirement")
+            for source in ("AGENTS.md", "CLAUDE.md")
+        ]
+        for identifier, version, stage in (
+            ("002-add-route-rule", "1.1.2", "additive"),
+            ("003-retire-route-rule", "1.1.3", "retirement"),
+        ):
+            (self.framework / "migrations" / f"{identifier}.json").write_text(
+                json.dumps(
+                    {
+                        "id": identifier,
+                        "from": "1.1.1" if stage == "additive" else "1.1.2",
+                        "to": version,
+                        "description": "test-only capability move",
+                        "capabilityMoves": [move for move in moves if move["stage"] == stage],
+                        "managedPaths": ["AGENTS.md", "CLAUDE.md", "docs/workflows/IMPLEMENTATION.md"],
+                        "verification": ["test-only"],
+                    }
+                ),
+                encoding="utf-8",
+            )
+        (self.framework / "VERSION").write_text("1.1.3\n", encoding="utf-8")
+        return moved, target
+
+    def test_upgrade_crosses_a_long_lag_capability_move_and_preserves_entry_points(self) -> None:
+        moved, target = self.configure_long_lag_move_fixture()
+        agents = self.project / "AGENTS.md"
+        agents.write_text(agents.read_text(encoding="utf-8") + "\nProject-owned agent text.\n", encoding="utf-8")
+        pointer = self.project / "CLAUDE.md"
+        pointer.write_text(
+            "<!-- MERIDIAN:CLAUDE-AGENTS-POINTER v1 -->\n\n# Project Claude entry point\n",
+            encoding="utf-8",
+        )
+
+        checked = self.run_cli("upgrade", "--check")
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+        self.assertIn("APPEND-RETIRE-MARKERS AGENTS.md", checked.stdout)
+        self.assertIn("POINTER-VERIFIED CLAUDE.md", checked.stdout)
+
+        applied = self.run_cli("upgrade", "--apply")
+        self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+        self.assertIn("Project-owned agent text.", agents.read_text(encoding="utf-8"))
+        self.assertNotIn("capability=route-rule", agents.read_text(encoding="utf-8"))
+        self.assertEqual(pointer.read_text(encoding="utf-8"), "<!-- MERIDIAN:CLAUDE-AGENTS-POINTER v1 -->\n\n# Project Claude entry point\n")
+        self.assertEqual(target.read_text(encoding="utf-8"), "# Implementation\n\n" + moved + "\n")
+
+    def test_upgrade_blocks_a_long_lag_move_with_a_modified_or_duplicated_source_marker(self) -> None:
+        moved, _target = self.configure_long_lag_move_fixture()
+        agents = self.project / "AGENTS.md"
+        original = agents.read_text(encoding="utf-8")
+        agents.write_text(original + "\n" + moved + "\n" + moved + "\n", encoding="utf-8")
+
+        checked = self.run_cli("upgrade", "--check")
+        self.assertEqual(checked.returncode, 2, checked.stdout + checked.stderr)
+        self.assertIn("CONFLICT AGENTS.md", checked.stdout)
+        applied = self.run_cli("upgrade", "--apply")
+        self.assertEqual(applied.returncode, 2, applied.stdout + applied.stderr)
+        self.assertEqual(agents.read_text(encoding="utf-8"), original + "\n" + moved + "\n" + moved + "\n")
+
+        modified = moved.replace("Run the managed route rule.", "Run the locally modified route rule.")
+        agents.write_text(original + "\n" + modified + "\n", encoding="utf-8")
+        checked_modified = self.run_cli("upgrade", "--check")
+        self.assertEqual(checked_modified.returncode, 2, checked_modified.stdout + checked_modified.stderr)
+        applied_modified = self.run_cli("upgrade", "--apply")
+        self.assertEqual(applied_modified.returncode, 2, applied_modified.stdout + applied_modified.stderr)
+        self.assertEqual(agents.read_text(encoding="utf-8"), original + "\n" + modified + "\n")
+
     def test_lock_and_apply_clean_template_upgrade(self) -> None:
         locked = self.run_cli("lock", "--mode", "governed-sdd")
         self.assertEqual(locked.returncode, 0, locked.stderr)

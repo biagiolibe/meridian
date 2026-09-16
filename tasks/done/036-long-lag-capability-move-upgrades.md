@@ -78,3 +78,9 @@ when planning to the current framework release.
 
 After validation, update the matching queue and project-plan records if
 applicable, then archive this task according to Lean Delivery.
+
+## Delivery Evidence
+
+- `python3 -m unittest discover -s tests -v` — passed (148 tests).
+- `python3 scripts/check_repository.py` — passed.
+- `git diff --check` — passed.

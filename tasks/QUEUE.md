@@ -62,7 +62,7 @@ migration.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[ ]` | 036 | Plan capability moves correctly across long-lag consumer upgrades | 🔴 P1 | — | [036](036-long-lag-capability-move-upgrades.md) |
+| `[x]` | 036 | Plan capability moves correctly across long-lag consumer upgrades | 🔴 P1 | — | [036](done/036-long-lag-capability-move-upgrades.md) |
 
 ## 🧪 Quick Tasks (No File)
 
