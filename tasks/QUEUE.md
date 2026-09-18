@@ -65,6 +65,12 @@ migration.
 | `[x]` | 036 | Plan capability moves correctly across long-lag consumer upgrades | 🔴 P1 | — | [036](done/036-long-lag-capability-move-upgrades.md) |
 | `[x]` | 037 | Let a long-lag consumer stop an upgrade before retirement | 🔴 P1 | 036 | [037](done/037-stop-before-retirement-upgrade.md) |
 
+### Phase 12 — Budget cap semantics
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 038 | Make a budget cap admit exactly `cap` uses | 🟡 P2 | — | [038](038-budget-cap-boundary-allows-cap-uses.md) |
+
 ## 🧪 Quick Tasks (No File)
 
 None currently. The three pre-queue uncommitted working-tree edits flagged at
@@ -102,4 +108,4 @@ Phases 1, 2, 2b, 3, 3b, 4, 6, 8, 9, and 10 (001, 002, 006, 003, 004, 005, 012,
 fully closed and moved to `tasks/QUEUE_ARCHIVE.md`;
 this table keeps a flat completed-task index across both files.
 
-*Last updated: 2026-09-16*
+*Last updated: 2026-09-18*
