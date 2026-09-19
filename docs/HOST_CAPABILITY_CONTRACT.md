@@ -54,6 +54,23 @@ and relevant configuration layer.
 | Review isolation | Task-tool or a fresh independent session may provide isolation. | A separate thread/subagent may provide isolation when available; otherwise use a fresh chat. | The skill must state the current adapter and fallback without assuming a host limitation that has not been verified for the current version. |
 | Upgrade and adoption entry point | Claude commands use `CLAUDE_PLUGIN_ROOT`. | Codex guidance uses `MERIDIAN_ROOT`/CLI discovery. | One clean project upgrade/adoption check from each host profile that the release claims to support. |
 
+## Verified Claude Code read-guard probe
+
+On 2026-09-20, a temporary Meridian-shaped repository with a 401-line target
+file was used with Claude Code `2.1.278`, model `claude-sonnet-5`, and the
+Meridian plugin loaded directly through `--plugin-dir`.
+
+| Question | Result |
+|---|---|
+| Does the Meridian plugin load? | Yes. Claude reported the Meridian plugin and its hooks in the session metadata. |
+| Does `PreToolUse:Read` fire for a native Read? | Yes. |
+| Is an unranged over-threshold Read prevented? | Yes. The hook exited `2`, returned its structured deny output, and the tool result was classified as a non-execution permission rule. |
+| Does the model receive an actionable reason? | Yes. It reported that the 401-line read was blocked by the 400-line threshold. |
+
+This verifies the existing Claude read guard for this direct-plugin CLI profile.
+It does not by itself prove that a marketplace-installed plugin, another Claude
+runtime, or a different tool path loads the same hook definition.
+
 ## Verified Codex hook probe
 
 On 2026-09-20, a scratch Git repository was used with Codex CLI 0.155.1 and a
@@ -122,7 +139,7 @@ by itself promote a host integration to `enforced`.
 
 | Item | Current state | Needed evidence |
 |---|---|---|
-| Claude plugin read-guard activation | `unverified` in the current environment; Claude CLI 2.1.278 is installed but not authenticated. | A trusted Claude Code plugin session reading an over-threshold file without a range, showing hook denial and the user-visible reason. |
+| Claude plugin read-guard activation | `enforced` for the tested direct-plugin Claude Code 2.1.278 profile. | Marketplace-installed plugin activation and any other Claude runtime remain unverified. |
 | Codex command approval policy | `unsupported` until task 040 ships. | Offline decision table and trusted project chain behavior, including forbidden, prompt, and unmatched commands. |
 | Codex read guard | Probe gate passed; adapter remains `unverified`. | Parser, effective-line, exemption, malformed-input, distribution, and activation fixtures from task 041. |
 | Router auto-load parity | `unverified` as a release-wide claim. | Fresh-session evidence for the actual entry point and route-specific initial reads on both profiles. |
