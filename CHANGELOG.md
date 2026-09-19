@@ -12,6 +12,21 @@ numbers follow the `frameworkVersion` tracked in generated projects'
 
 ## [Unreleased]
 
+### Fixed
+
+- `meridian budget spend` (and `execution evidence` / `execution investigate`,
+  which spend through it) now admits exactly `cap` recorded uses; the
+  (`cap`+1)th is rejected with `BLOCKED`. Previously a cap of N admitted only
+  N-1 uses, so `Diagnostic attempts: 3` allowed two attempts and a task
+  override of `1` allowed none. `cap/cap` is now a valid persisted state, and
+  the rejection message states how many of the allowed uses are already
+  recorded. A rejected spend still leaves `.meridian/budget.json` unchanged.
+  This is a CLI-only change: no template text changed, so there is no
+  migration. The CLI change reaches every project immediately through
+  `MERIDIAN_ROOT`, while an un-upgraded project's template docs may still say
+  "reaching one requires `BLOCKED`"; that wording is ambiguous rather than
+  wrong under the new boundary.
+
 ## [1.1.33]
 
 ### Changed

@@ -2236,9 +2236,11 @@ class BudgetCliTest(unittest.TestCase):
         self.assertEqual(self.run_cli("execution", "validate", "TASK-013", "probe").returncode, 0)
         investigated = self.run_cli(
             "execution", "investigate", "TASK-013", "--question", "Which API owns the value?",
-            "--scope", "1", "--source", "vendor/api.rs", "--finding", "Window owns the value.",
+            "--scope", "2", "--source", "vendor/api.rs", "--finding", "Window owns the value.",
         )
+        # The default `Investigation scope: 2` admits exactly one scope-2 use.
         self.assertEqual(investigated.returncode, 0, investigated.stderr)
+        self.assertIn("2/2 recorded", investigated.stdout)
         missing_question = self.run_cli("execution", "handoff-check", "TASK-013", str(report))
         self.assertNotEqual(missing_question.returncode, 0)
         self.assertIn("says no isolated exploration", missing_question.stderr)
@@ -2297,45 +2299,75 @@ class BudgetCliTest(unittest.TestCase):
         self.assertEqual(first.stdout.strip(), "TASK-002: diagnostic 1/3")
         second = self.run_cli("budget", "spend", "TASK-002", "diagnostic")
         self.assertEqual(second.stdout.strip(), "TASK-002: diagnostic 2/3")
+        third = self.run_cli("budget", "spend", "TASK-002", "diagnostic")
+        self.assertEqual(third.returncode, 0, third.stderr)
+        self.assertEqual(third.stdout.strip(), "TASK-002: diagnostic 3/3")
+        self.assertIn("Diagnostics 3/3", self.run_cli("budget", "show", "TASK-002").stdout)
 
-    def test_spend_returns_non_zero_and_names_blocked_once_cap_reached(self) -> None:
+    def test_spend_returns_non_zero_and_names_blocked_once_cap_is_used(self) -> None:
         self.write_task("TASK-003", "IN_PROGRESS")
-        # Default cap is 2 captures; the first spend stays under it.
-        self.assertEqual(
-            self.run_cli("budget", "spend", "TASK-003", "captures").returncode, 0
-        )
+        # Default cap is 2 captures; both uses are admitted.
+        for used in (1, 2):
+            accepted = self.run_cli("budget", "spend", "TASK-003", "captures")
+            self.assertEqual(accepted.returncode, 0, accepted.stderr)
+            self.assertEqual(accepted.stdout.strip(), f"TASK-003: captures {used}/2")
         exhausted = self.run_cli("budget", "spend", "TASK-003", "captures")
         self.assertNotEqual(exhausted.returncode, 0)
         self.assertIn("BLOCKED", exhausted.stderr)
+        self.assertIn("do not raise the cap", exhausted.stderr)
         self.assertIn("Evidence captures exhausted", exhausted.stderr)
-        self.assertIn("(2/2)", exhausted.stderr)
+        self.assertIn("2 of 2 allowed uses already recorded", exhausted.stderr)
 
     def test_spend_respects_task_override_cap(self) -> None:
         self.write_task("TASK-004", "IN_PROGRESS", **{"Diagnostic attempts": "1"})
         first = self.run_cli("budget", "spend", "TASK-004", "diagnostic")
-        self.assertNotEqual(first.returncode, 0)
-        self.assertIn("(1/1)", first.stderr)
+        self.assertEqual(first.returncode, 0, first.stderr)
+        self.assertEqual(first.stdout.strip(), "TASK-004: diagnostic 1/1")
+        second = self.run_cli("budget", "spend", "TASK-004", "diagnostic")
+        self.assertNotEqual(second.returncode, 0)
+        self.assertIn("1 of 1 allowed uses already recorded", second.stderr)
 
     def test_spend_rejected_by_cap_leaves_state_unchanged(self) -> None:
         self.write_task("TASK-010", "IN_PROGRESS")
-        accepted = self.run_cli("budget", "spend", "TASK-010", "captures")
-        self.assertEqual(accepted.returncode, 0, accepted.stderr)
-        self.assertEqual(accepted.stdout.strip(), "TASK-010: captures 1/2")
+        for used in (1, 2):
+            accepted = self.run_cli("budget", "spend", "TASK-010", "captures")
+            self.assertEqual(accepted.returncode, 0, accepted.stderr)
+            self.assertEqual(accepted.stdout.strip(), f"TASK-010: captures {used}/2")
 
-        # A spend that would meet or exceed the cap must be rejected without
-        # durably consuming the unit it could not deliver: the persisted
-        # counter stays at the last accepted value, not the rejected one.
+        # A spend beyond the cap must be rejected without durably consuming
+        # the unit it could not deliver: the persisted counter stays at the
+        # last accepted value, not the rejected one.
         first_rejection = self.run_cli("budget", "spend", "TASK-010", "captures")
         self.assertNotEqual(first_rejection.returncode, 0)
-        self.assertIn("(2/2)", first_rejection.stderr)
-        self.assertEqual(self.budget_state()["TASK-010:1"]["captures"], 1)
+        self.assertIn("2 of 2 allowed uses already recorded", first_rejection.stderr)
+        self.assertEqual(self.budget_state()["TASK-010:1"]["captures"], 2)
 
         # Retrying after a rejection must see the same unchanged state, not
         # a counter that keeps climbing past the cap with every attempt.
         second_rejection = self.run_cli("budget", "spend", "TASK-010", "captures")
         self.assertNotEqual(second_rejection.returncode, 0)
-        self.assertIn("(2/2)", second_rejection.stderr)
-        self.assertEqual(self.budget_state()["TASK-010:1"]["captures"], 1)
+        self.assertIn("2 of 2 allowed uses already recorded", second_rejection.stderr)
+        self.assertEqual(self.budget_state()["TASK-010:1"]["captures"], 2)
+
+    def test_multi_unit_spend_crossing_the_cap_is_rejected_without_writing(self) -> None:
+        self.write_task("TASK-014", "IN_PROGRESS")
+        # Default investigation scope is 2, so a single scope-2 use is admitted.
+        count, cap = meridian.budget_spend(self.project, "TASK-014", "investigations", amount=2)
+        self.assertEqual((count, cap), (2, 2))
+        self.assertEqual(self.budget_state()["TASK-014:1"]["investigations"], 2)
+
+        self.write_task("TASK-015", "IN_PROGRESS", **{"Investigation scope": "3"})
+        meridian.budget_spend(self.project, "TASK-015", "investigations", amount=2)
+        with self.assertRaises(meridian.MeridianError) as raised:
+            meridian.budget_spend(self.project, "TASK-015", "investigations", amount=2)
+        message = str(raised.exception)
+        self.assertIn("BLOCKED", message)
+        self.assertIn("2 of 3 allowed uses already recorded, 2 more requested", message)
+        self.assertEqual(self.budget_state()["TASK-015:1"]["investigations"], 2)
+        # The one remaining unit is still spendable after the rejection.
+        self.assertEqual(
+            meridian.budget_spend(self.project, "TASK-015", "investigations", amount=1), (3, 3)
+        )
 
     def test_unknown_task_is_blocked_without_writing_state(self) -> None:
         result = self.run_cli("budget", "show", "TASK-NOPE")

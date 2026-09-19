@@ -27,20 +27,20 @@ them.
 
 ## 📋 Acceptance Criteria
 
-- [ ] `budget_spend()` rejects only when `count > cap`. For cap N, spends
+- [x] `budget_spend()` rejects only when `count > cap`. For cap N, spends
       1..N succeed and print `<task>: <kind> N/N` on the Nth; the (N+1)th
       exits non-zero.
-- [ ] The rejection message still names `BLOCKED` and still says not to
+- [x] The rejection message still names `BLOCKED` and still says not to
       raise the cap, and it states the rejected count against the cap
       unambiguously (for example that N of N allowed uses are already
       recorded), so it no longer reads as if the cap-th use were the
       forbidden one.
-- [ ] A rejected spend still leaves `.meridian/budget.json` unchanged (the
+- [x] A rejected spend still leaves `.meridian/budget.json` unchanged (the
       task 033 guarantee), including for a multi-unit `amount` such as an
       investigation scope of 2 against a remaining allowance of 1.
-- [ ] A task override cap of `1` admits exactly one use; the default
+- [x] A task override cap of `1` admits exactly one use; the default
       `Investigation scope: 2` admits a single scope-2 investigation.
-- [ ] Every test that pins the old boundary is updated to the new one, in
+- [x] Every test that pins the old boundary is updated to the new one, in
       `tests/test_meridian_cli.py`:
       `test_spend_increments_and_reports`,
       `test_spend_returns_non_zero_and_names_blocked_once_cap_reached`,
@@ -49,10 +49,10 @@ them.
       `execution evidence` / `investigate` test whose expected `count/cap`
       or exhaustion behavior changes. Add a case for a multi-unit spend
       that would cross the cap.
-- [ ] The design text that states the old boundary is corrected:
+- [x] The design text that states the old boundary is corrected:
       `docs/PLAN_TOKEN_EFFICIENCY.md` ("returns non-zero once the declared
       cap is reached").
-- [ ] Template wording is checked against the new behavior. The candidates
+- [x] Template wording is checked against the new behavior. The candidates
       are `templates/workflows/governed-sdd/docs/EXECUTION_EVIDENCE_PROFILE.md`
       ("reaching one requires `BLOCKED`", and the `Diagnostic attempts`
       bullet) and `templates/workflows/governed-sdd/tasks/TASK_BLUEPRINT.md`
@@ -61,7 +61,7 @@ them.
       contradicts N-uses-allowed, and state the count explicitly where it
       helps (for example "three attempts are allowed; a fourth requires
       `BLOCKED`").
-- [ ] If any managed template text changes, the change ships with a real
+- [x] If any managed template text changes, the change ships with a real
       migration record under `migrations/` (next free number, `from` the
       latest migration's `to`, `to` the new `VERSION`) plus a
       `CHANGELOG.md` entry, following `CONTRIBUTING.md`. If the edited text
@@ -72,8 +72,8 @@ them.
       be run deliberately. If no template text needs to change, no
       migration is added and the `CHANGELOG.md` entry says the behavior
       change is CLI-only.
-- [ ] `python3 scripts/check_repository.py` passes.
-- [ ] `python3 -m unittest discover -s tests -v` passes.
+- [x] `python3 scripts/check_repository.py` passes.
+- [x] `python3 -m unittest discover -s tests -v` passes.
 
 ## 📁 Relevant Files
 
@@ -142,3 +142,43 @@ them.
 ```bash
 claude "$(cat tasks/038-budget-cap-boundary-allows-cap-uses.md)"$'\n\nExecute this task in the current project.'
 ```
+
+## ✅ Completion Notes
+
+- **Code**: `budget_spend()` now rejects only when `stored + amount > cap`.
+  The rejection reads `<Field> exhausted for <task>: <stored> of <cap> allowed
+  uses already recorded, <amount> more requested; return BLOCKED, do not raise
+  the cap`. The persisted counter is written only after the check, so a
+  rejected spend (including a multi-unit one) leaves `.meridian/budget.json`
+  unchanged.
+- **Tests** (`tests/test_meridian_cli.py`): updated
+  `test_spend_increments_and_reports` (adds the 3/3 use and `budget show`),
+  `test_spend_returns_non_zero_and_names_blocked_once_cap_is_used` (renamed),
+  `test_spend_respects_task_override_cap` (cap 1 admits one use),
+  `test_spend_rejected_by_cap_leaves_state_unchanged` (persisted counter stays
+  at `cap`); added
+  `test_multi_unit_spend_crossing_the_cap_is_rejected_without_writing`
+  (default scope-2 investigation admitted; scope 2 against a remaining
+  allowance of 1 rejected without writing; the remaining unit still
+  spendable). `test_handoff_rejects_fabricated_validation_and_requires_recorded_investigation`
+  now investigates at scope 2 under the default cap through the CLI.
+- **Design doc**: `docs/PLAN_TOKEN_EFFICIENCY.md` W2.1 CLI paragraph corrected.
+- **Template audit — no template text changed, so no migration**:
+  - `EXECUTION_EVIDENCE_PROFILE.md` top paragraph ("reaching one requires
+    `BLOCKED`"): ambiguous, not contradictory; it reads correctly as "having
+    used the cap, needing more requires `BLOCKED`". Unmarked prose, left as is.
+  - `EXECUTION_EVIDENCE_PROFILE.md` `Diagnostic attempts: 3 per failure`
+    bullet: reads as a count of allowed attempts; correct under the new
+    boundary. Unchanged.
+  - `TASK_BLUEPRINT.md` (`task-blueprint` marker, "exhausting it requires
+    `BLOCKED`"): "exhausting" matches the CLI's own "exhausted" message once
+    all N uses are recorded. Unchanged; rewording would have forced a
+    `task-blueprint` capability bump, migration, and baseline rewrite for an
+    ambiguity the task's constraints accept.
+  - `COMPLETION_REPORT_TEMPLATE.md` (`used/cap`) reads correctly with
+    `used == cap`; `hooks/queue-briefing.sh` ("On exhaustion: return BLOCKED")
+    reads correctly. Both unchanged.
+- **Changelog**: `[Unreleased]` entry states the change is CLI-only and notes
+  the un-upgraded-docs window.
+- **Validation**: `python3 -m unittest discover -s tests` — 152 tests OK;
+  `python3 scripts/check_repository.py` — passed.

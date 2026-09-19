@@ -29,7 +29,7 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 
 ## 🏃 Active Queue
 
-Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 6, 8, 9, and 10
+Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 6, 8, 9, 10, and 12
 are fully closed — see `tasks/QUEUE_ARCHIVE.md`. Phase 5 (SemVer version split) is
 new: separates `frameworkVersion` (public CLI release), `workflowBaselineVersion`
 (governed template baseline, derived from migrations), and `protocolVersion`
@@ -65,12 +65,6 @@ migration.
 | `[x]` | 036 | Plan capability moves correctly across long-lag consumer upgrades | 🔴 P1 | — | [036](done/036-long-lag-capability-move-upgrades.md) |
 | `[x]` | 037 | Let a long-lag consumer stop an upgrade before retirement | 🔴 P1 | 036 | [037](done/037-stop-before-retirement-upgrade.md) |
 
-### Phase 12 — Budget cap semantics
-
-| Status | ID | Title | Priority | Depends on | File |
-|--------|----|-------|----------|------------|------|
-| `[ ]` | 038 | Make a budget cap admit exactly `cap` uses | 🟡 P2 | — | [038](038-budget-cap-boundary-allows-cap-uses.md) |
-
 ## 🧪 Quick Tasks (No File)
 
 None currently. The three pre-queue uncommitted working-tree edits flagged at
@@ -102,10 +96,12 @@ then folded it into the regenerated `CLAUDE.md`.
 | `[x]` | 033 | `budget_spend()` durably consumes budget before the cap check can reject it | [033](done/033-budget-spend-write-before-check.md) |
 | `[x]` | 034 | Add `meridian adr show` and `meridian context authority` | [034](done/034-authority-excerpt-command.md) |
 | `[x]` | 035 | `PreToolUse` guard against unranged large-file reads | [035](done/035-pretooluse-read-guard.md) |
+| `[x]` | 038 | Make a budget cap admit exactly `cap` uses | [038](done/038-budget-cap-boundary-allows-cap-uses.md) |
 
-Phases 1, 2, 2b, 3, 3b, 4, 6, 8, 9, and 10 (001, 002, 006, 003, 004, 005, 012,
-010, 014, 013, 011, 007, 008, 009, 023, 024, 025, 026, 032, 033, 034, 035) are
+Phases 1, 2, 2b, 3, 3b, 4, 6, 8, 9, 10, and 12 (001, 002, 006, 003, 004, 005,
+012, 010, 014, 013, 011, 007, 008, 009, 023, 024, 025, 026, 032, 033, 034, 035,
+038) are
 fully closed and moved to `tasks/QUEUE_ARCHIVE.md`;
 this table keeps a flat completed-task index across both files.
 
-*Last updated: 2026-09-18*
+*Last updated: 2026-09-19*
