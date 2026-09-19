@@ -2716,11 +2716,13 @@ def budget_spend(
     key, text = resolve_budget_key(project_root, state, task_id)
     counters = dict(state.get(key, {}))
     counter_key = f"{kind}:{scope}" if kind == "captures" and scope else kind
-    count = int(counters.get(counter_key, 0)) + amount
+    stored = int(counters.get(counter_key, 0))
+    count = stored + amount
     cap = task_cap(project_root, text, kind)
-    if count >= cap:
+    if count > cap:
         raise MeridianError(
-            f"{BUDGET_FIELD_NAMES[kind]} exhausted for {task_id} ({count}/{cap}); "
+            f"{BUDGET_FIELD_NAMES[kind]} exhausted for {task_id}: "
+            f"{stored} of {cap} allowed uses already recorded, {amount} more requested; "
             "return BLOCKED, do not raise the cap"
         )
     counters[counter_key] = count

@@ -10,4 +10,4 @@
 
 - `[x]` 032 — Add the Claude language-policy briefing adapter.
 - `[x]` 033 — `budget_spend()` durably consumes budget before the cap check can reject it.
-- `[ ]` 038 — Make a budget cap admit exactly `cap` uses.
+- `[x]` 038 — Make a budget cap admit exactly `cap` uses.

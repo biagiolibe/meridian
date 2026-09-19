@@ -217,8 +217,8 @@ transition as part of the review-handoff commit, so there is a natural place to
 hook it and no new bookkeeping.
 
 **CLI.** `meridian budget show <TASK-ID>` and `meridian budget spend <TASK-ID>
-<kind>`. `spend` returns non-zero once the declared cap is reached, and its
-message names `BLOCKED` as the required next move. Recording a spend is itself
+<kind>`. A cap of N admits exactly N recorded uses: `spend` returns non-zero
+on the (N+1)th, and its message names `BLOCKED` as the required next move. Recording a spend is itself
 durable, auditable evidence — it belongs in the completion report.
 
 **Echo.** Extend `hooks/queue-briefing.sh`, which already fires on every
