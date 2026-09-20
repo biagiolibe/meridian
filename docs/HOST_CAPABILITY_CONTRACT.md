@@ -46,7 +46,7 @@ and relevant configuration layer.
 | Managed entry-point integrity | Template/generator tests preserve expected `CLAUDE.md` content. | Template/generator tests preserve expected `AGENTS.md` content. | Static generator and audit tests plus one host-session route fixture per release that changes routing. |
 | Queue and language briefing | `UserPromptSubmit` hook is an advisory salience aid. | No equivalent adapter is distributed. | Claude: plugin-hook invocation fixture. Codex: retain `unsupported` unless a trusted adapter and probe are shipped. |
 | Authority excerpts and execution budgets | Available through the Meridian CLI when the plugin root resolves it. | Available through the Meridian CLI when `MERIDIAN_ROOT`/PATH and cwd resolve it. | Per-profile bootstrap/doctor check proving the exact command can be found and executed from a project subdirectory. |
-| Large-file read guard | Existing plugin hook targets the native `Read` tool; unit tests cover its policy semantics. | No released adapter yet. Task 041 is the Codex shell adapter. | Native payload fixture and real hook invocation for Claude; recorded Codex payload, parser table, denial fixture, trust proof, and no false-deny regression for Codex. |
+| Large-file read guard | Existing plugin hook targets the native `Read` tool; unit tests cover its policy semantics. | The governed-SDD `.codex/hooks.json` adapter intercepts recognised Bash reads after project-hook trust. | Native payload fixture and real hook invocation for Claude; recorded Codex payload, parser table, denial fixture, trust proof, and no false-deny regression for Codex. |
 | Command approval policy | No Meridian-managed, project-scoped equivalent is currently shipped. | `templates/workflows/governed-sdd/.codex/rules/meridian.rules` is distributed on upgrade, but it is effective only after project-layer trust. | A decision table evaluated by the host plus a real trusted-project chain test. Approval evidence does not prove sandbox access. |
 | Trust activation | Must be observed for the installed plugin/hook definition. | Local rules/hooks are inactive until the project layer and current hook definition are trusted. | An activation check that distinguishes missing, untrusted, trusted, and effective states. |
 | Shell and chained commands | Host-specific behavior must not be inferred from rule text. | Codex CLI 0.155.1 trusted-project probe: an all-allowed `&&` chain ran without a prompt; a force-push chain was refused; an unmatched later `git rebase` segment still ran. Governed sessions must issue one command per call. | A fixture for simple command, chain, pipe, redirection, and unsupported syntax, with the expected allow/deny behavior recorded per host. |
@@ -86,11 +86,9 @@ trusted project-local `.codex/hooks.json` logging hook.
 | Is JSON alone sufficient with exit `2`? | No in this probe: Codex reported that no blocking reason had been written to stderr and the chain ran. |
 | Does trust matter after a hook change? | Yes. Changing the hook definition required a new manual trust review before it ran. |
 
-This establishes task 041's probe classification A for this profile. It does
-not validate the future command parser, exemptions, managed distribution, or
-other Codex runtimes. The raw probe artifacts remain in the temporary scratch
-repository and are not repository evidence until redacted fixtures are added
-by an authorized task.
+This established task 041's probe classification A for this profile. The
+subsequent implementation added the parser, exemptions, managed distribution,
+and redacted fixtures; other Codex runtimes remain unverified.
 
 Task 041 subsequently recorded redacted individual `sed`, chain, `cat`, and
 `rg` payload fixtures. The trusted definition is stored in
@@ -101,11 +99,12 @@ and a PATH containing `MERIDIAN_ROOT/bin` (but no `PLUGIN_ROOT`). Its deny
 probe confirmed that stderr plus exit `2` blocks the whole chain and conveys
 the reason; structured JSON is supplementary.
 
-The classification is narrower than Step 0 completion: the implementation
-record still needs the exact trust-state location, hook-process environment,
-and separate captured calls for the required command shapes. It must not mark
-the task complete or begin the dependent implementation merely because the
-payload shape is now known.
+On 2026-09-20, a trusted Palimpsest project session denied both a 2,520-line
+project file and `cat /private/tmp/meridian-read-guard-probe.txt > /dev/null`
+for an external 401-line file before execution. Together with task 042's
+external-path regression fixture, this is enforcement evidence for the named
+trusted Codex project-session profile, not for a Codex plugin session or every
+future Codex runtime.
 
 ## Required host-impact gate
 
@@ -149,8 +148,8 @@ by itself promote a host integration to `enforced`.
 | Item | Current state | Needed evidence |
 |---|---|---|
 | Claude plugin read-guard activation | `enforced` for the tested direct-plugin Claude Code 2.1.278 profile. | Marketplace-installed plugin activation and any other Claude runtime remain unverified. |
-| Codex command approval policy | `configured`; offline decisions are covered by the template test. | Trusted-project activation and real chain behavior, including forbidden, prompt, and unmatched commands. |
-| Codex read guard | Probe gate passed; adapter remains `unverified`. | Parser, effective-line, exemption, malformed-input, distribution, and activation fixtures from task 041. |
+| Codex command approval policy | `enforced` for the Codex CLI 0.155.1 trusted project profile. | Other Codex versions and plugin sessions remain unverified; governed sessions issue one command per invocation. |
+| Codex read guard | `enforced` for the trusted Palimpsest Codex project-session profile, including the recorded external absolute-path read. | Other Codex versions and plugin sessions remain unverified. |
 | Router auto-load parity | `unverified` as a release-wide claim. | Fresh-session evidence for the actual entry point and route-specific initial reads on both profiles. |
 | Codex review-isolation adapter | `unverified`; existing skill language may be stale. | Versioned check of available subagent/thread capability and a documented fresh-chat fallback. |
 | Host-neutral CLI bootstrap | `unverified` across profiles. | Subdirectory PATH/cwd checks for authority, upgrade, adoption, and hook entry points. |

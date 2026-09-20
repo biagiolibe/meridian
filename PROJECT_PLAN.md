@@ -15,3 +15,4 @@
 - `[x]` 040 — Ship Codex command-approval rules as a managed governed-SDD template file.
 - `[x]` 041 — Codex `PreToolUse` read guard, gated by an empirical probe.
 - `[x]` 042 — Deny over-budget absolute reads outside the project root.
+- `[x]` 043 — Design the host-impact task contract and completion gate.

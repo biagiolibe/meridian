@@ -130,4 +130,10 @@ Authority: [docs/PROPOSAL_CONTEXT_ENFORCEMENT.md](../docs/PROPOSAL_CONTEXT_ENFOR
 | `[x]` | 041 | Codex `PreToolUse` read guard, gated by an empirical probe | 🟡 P2 | 040 | [041](done/041-codex-read-guard-hook.md) |
 | `[x]` | 042 | Deny over-budget absolute reads outside the project root | 🟡 P2 | 041 | [042](done/042-codex-external-read-guard-paths.md) |
 
+### Phase 15 — Host-impact governance
+
+| Status | ID | Title | Priority | Depends on | Task File |
+|--------|----|-------|----------|-----------|-----------|
+| `[x]` | 043 | Design the host-impact task contract and completion gate | 🔴 P1 | — | [043](done/043-design-host-impact-gate.md) |
+
 *Last updated: 2026-09-20*
