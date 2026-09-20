@@ -154,6 +154,10 @@
       "sha256": "54f5d4e02b92dff773e99e88e964cc25a51112ca84132751f455d040bfd5e12e",
       "version": 1
     },
+    "host-impact-routing": {
+      "sha256": "f5f19f2505c23165cf5ed7239159972729358cf3218297e0061b99af412db7f9",
+      "version": 1
+    },
     "manual-verification-precondition": {
       "sha256": "db52e2880255e12678b2e0d41c2cefcefcba247606da05054623a34207b60bf1",
       "version": 3
@@ -199,8 +203,8 @@
   },
   "templates/workflows/governed-sdd/tasks/TASK_BLUEPRINT.md": {
     "task-blueprint": {
-      "sha256": "6644a45d5beb98c28a8f6ef46c8d6c6d11020f71a361b86899c44eca15224ab2",
-      "version": 11
+      "sha256": "a1251410c8a8d1f0d4fef8fbb20fe697f9868b2282b381cdee0728f538be169f",
+      "version": 12
     }
   }
 }

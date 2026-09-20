@@ -75,7 +75,7 @@ migration.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[ ]` | 044 | Distribute the governed-SDD host-impact task declaration | 🔴 P1 | 043 | [044](044-distribute-host-impact-declaration.md) |
+| `[x]` | 044 | Distribute the governed-SDD host-impact task declaration | 🔴 P1 | 043 | [044](done/044-distribute-host-impact-declaration.md) |
 | `[ ]` | 045 | Enforce host-impact declarations at lifecycle gates | 🔴 P1 | 044 | [045](045-enforce-host-impact-lifecycle-gates.md) |
 
 ## 🧪 Quick Tasks (No File)
@@ -117,4 +117,4 @@ Phases 1, 2, 2b, 3, 3b, 4, 6, 8, 9, 10, and 12 (001, 002, 006, 003, 004, 005,
 fully closed and moved to `tasks/QUEUE_ARCHIVE.md`;
 this table keeps a flat completed-task index across both files.
 
-*Last updated: 2026-09-19*
+*Last updated: 2026-09-20*
