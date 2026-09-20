@@ -379,6 +379,59 @@ class MeridianCliTest(unittest.TestCase):
             "only the current frameworkVersion's baseline should remain after a second upgrade",
         )
 
+    def test_clean_upgrade_installs_host_impact_declarations_and_preserves_consumer_text(self) -> None:
+        """Migration 043 upgrades the two managed host-impact files without
+        replacing consumer-owned text outside their protected regions."""
+        (self.framework / "VERSION").write_text("1.1.39\n", encoding="utf-8")
+        self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
+
+        blueprint = self.framework / "templates/workflows/governed-sdd/tasks/TASK_BLUEPRINT.md"
+        current = blueprint.read_text(encoding="utf-8")
+        declaration = current.split("\n## Host impact\n", 1)[1].split("\n## Goal\n", 1)[0]
+        previous = current.replace("capability=task-blueprint v12", "capability=task-blueprint v11", 1)
+        previous = previous.replace("\n## Host impact\n" + declaration, "", 1)
+
+        installed_baseline = self.project / ".meridian/baselines/1.1.39"
+        for root in (self.project, installed_baseline):
+            path = root / "tasks/TASK_BLUEPRINT.md"
+            path.write_text(previous, encoding="utf-8")
+        (self.project / "tasks/TASK_BLUEPRINT.md").write_text(
+            previous + "\nProject-owned task note.\n", encoding="utf-8"
+        )
+
+        implementation = self.framework / "templates/workflows/governed-sdd/docs/workflows/IMPLEMENTATION.md"
+        routed = implementation.read_text(encoding="utf-8")
+        routing = routed.split(
+            "<!-- MERIDIAN:BEGIN capability=host-impact-routing v1 -->", 1
+        )[1].split("<!-- MERIDIAN:END -->", 1)[0]
+        previous_routed = routed.replace(
+            "<!-- MERIDIAN:BEGIN capability=host-impact-routing v1 -->" + routing + "<!-- MERIDIAN:END -->\n\n",
+            "",
+            1,
+        )
+        for root in (self.project, installed_baseline):
+            path = root / "docs/workflows/IMPLEMENTATION.md"
+            path.write_text(previous_routed, encoding="utf-8")
+
+        (self.framework / "VERSION").write_text("1.1.40\n", encoding="utf-8")
+        checked = self.run_cli("upgrade", "--check")
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+        self.assertIn("MIGRATION 043-host-impact-task-declaration", checked.stdout)
+
+        applied = self.run_cli("upgrade", "--apply")
+        self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+        upgraded_blueprint = (self.project / "tasks/TASK_BLUEPRINT.md").read_text(encoding="utf-8")
+        self.assertIn("capability=task-blueprint v12", upgraded_blueprint)
+        self.assertIn("Classification: NOT_APPLICABLE", upgraded_blueprint)
+        self.assertIn("Classification: REQUIRED", upgraded_blueprint)
+        self.assertIn("Project-owned task note.", upgraded_blueprint)
+        upgraded_routing = (self.project / "docs/workflows/IMPLEMENTATION.md").read_text(encoding="utf-8")
+        self.assertIn("capability=host-impact-routing v1", upgraded_routing)
+        self.assertIn("return `BLOCKED`", upgraded_routing)
+        manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual(manifest["frameworkVersion"], "1.1.40")
+        self.assertEqual(manifest["appliedMigrations"][-1], "043-host-impact-task-declaration")
+
     def test_upgrade_downgrades_cosmetic_conflict_to_verified(self) -> None:
         """Phase 3 of migrations/CAPABILITY_MARKERS.md: a conflict outside a
         satisfied capability marker is cosmetic and should be left untouched,
@@ -2432,8 +2485,24 @@ class CapabilityMarkerTest(unittest.TestCase):
         self.assertIn(("review-remediation-record", "2"), self.marker_pairs((self.WORKFLOW / "docs/workflows/REMEDIATION.md").read_text(encoding="utf-8")))
         self.assertIn(("lifecycle-orchestration", "3"), self.marker_pairs((self.WORKFLOW / "docs/workflows/LIFECYCLE.md").read_text(encoding="utf-8")))
         implementation = self.marker_pairs((self.WORKFLOW / "docs/workflows/IMPLEMENTATION.md").read_text(encoding="utf-8"))
-        for pair in (("execution-command-gate", "1"), ("validation-scoping", "1"), ("spike-routing", "1")):
+        for pair in (("execution-command-gate", "1"), ("validation-scoping", "1"), ("spike-routing", "1"), ("host-impact-routing", "1")):
             self.assertIn(pair, implementation)
+
+    def test_host_impact_declaration_has_both_governed_shapes_and_evidence_routing(self) -> None:
+        blueprint = (self.WORKFLOW / "tasks/TASK_BLUEPRINT.md").read_text(encoding="utf-8")
+        implementation = (self.WORKFLOW / "docs/workflows/IMPLEMENTATION.md").read_text(encoding="utf-8")
+        self.assertIn(("task-blueprint", "12"), self.marker_pairs(blueprint))
+        self.assertIn("Classification: NOT_APPLICABLE", blueprint)
+        self.assertIn("Rationale:", blueprint)
+        self.assertIn("Classification: REQUIRED", blueprint)
+        self.assertIn("| Profile | Before | Intended after | Activation preconditions | Fallback |", blueprint)
+        self.assertIn("- Static:", blueprint)
+        self.assertIn("- Host execution:", blueprint)
+        self.assertIn("- Manual activation:", blueprint)
+        self.assertIn("Completion evidence:", blueprint)
+        self.assertIn(("host-impact-routing", "1"), self.marker_pairs(implementation))
+        self.assertIn("return `BLOCKED`", implementation)
+        self.assertIn("not host enforcement", implementation)
 
     def test_review_record_template_carries_its_own_marker(self) -> None:
         text = (self.WORKFLOW / "docs/REVIEW_RECORD_TEMPLATE.md").read_text(encoding="utf-8")
@@ -2486,7 +2555,7 @@ class CapabilityMarkerTest(unittest.TestCase):
             encoding="utf-8"
         )
 
-        self.assertIn(("task-blueprint", "11"), self.marker_pairs(blueprint))
+        self.assertIn(("task-blueprint", "12"), self.marker_pairs(blueprint))
         self.assertIn(("reasoning-budget-contract", "1"), self.marker_pairs(policy))
         self.assertIn(("lifecycle-orchestration", "3"), self.marker_pairs(lifecycle))
         self.assertIn("[low / medium / high / xhigh]", blueprint)
@@ -2597,7 +2666,7 @@ class CapabilityMarkerTest(unittest.TestCase):
     def test_whole_file_baseline_capabilities_each_carry_one_marker(self) -> None:
         expectations = {
             "LANGUAGE_POLICY.md": ("language-policy", "2"),
-            "tasks/TASK_BLUEPRINT.md": ("task-blueprint", "11"),
+            "tasks/TASK_BLUEPRINT.md": ("task-blueprint", "12"),
             "docs/CODE_ORGANIZATION.md": ("code-organization", "1"),
             "docs/AUDIT_PROMPT_READ_ONLY.md": ("audit-prompt", "1"),
         }

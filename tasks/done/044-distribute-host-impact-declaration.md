@@ -29,17 +29,17 @@ Evidence plan:
 
 ## Acceptance Criteria
 
-- [ ] The governed-SDD task blueprint contains the `NOT_APPLICABLE` and
+- [x] The governed-SDD task blueprint contains the `NOT_APPLICABLE` and
       `REQUIRED` shapes defined by `docs/HOST_IMPACT_GATE_DESIGN.md`.
-- [ ] Routed implementation guidance explains the classification and directs a
+- [x] Routed implementation guidance explains the classification and directs a
       host-sensitive task to stop when required evidence cannot be obtained.
-- [ ] A next-contiguous migration distributes every changed managed file,
+- [x] A next-contiguous migration distributes every changed managed file,
       preserves unmodified consumer customizations, and is listed by managed
       file enumeration.
-- [ ] Capability-marker baselines and generated artifacts remain consistent.
-- [ ] Template and migration tests prove both shapes are present after a clean
+- [x] Capability-marker baselines and generated artifacts remain consistent.
+- [x] Template and migration tests prove both shapes are present after a clean
       governed-SDD upgrade.
-- [ ] Applicable repository validation and `git diff --check` pass.
+- [x] Applicable repository validation and `git diff --check` pass.
 
 ## Relevant Files
 
@@ -63,3 +63,11 @@ Evidence plan:
 
 - **Depends on**: Task 043.
 - **Blocks**: Task 045.
+
+## Completion evidence
+
+- `python3 -m unittest discover -s tests -v` passed (167 tests).
+- `python3 scripts/check_repository.py` passed.
+- `git diff --check` passed.
+- The migration test covers a clean 1.1.39-to-1.1.40 governed-SDD upgrade
+  and preserves consumer-owned text outside protected regions.

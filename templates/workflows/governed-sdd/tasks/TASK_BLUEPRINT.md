@@ -1,6 +1,6 @@
 # Task [ID] — [Title]
 
-<!-- MERIDIAN:BEGIN capability=task-blueprint v11 -->
+<!-- MERIDIAN:BEGIN capability=task-blueprint v12 -->
 Priority: [P0 / P1 / P2]
 Status: QUEUED
 Review: REQUIRED
@@ -56,6 +56,45 @@ what the investigation is allowed to execute.
 ## Authority
 
 - [Path to ADR/specification that governs this task.]
+
+## Host impact
+
+Choose exactly one shape. Use `REQUIRED` when this task changes workflow
+instructions, a generated entry point, hook, command, skill, permission
+policy, CLI bootstrap path, host adapter, or managed distribution of one of
+those surfaces. Otherwise use `NOT_APPLICABLE`. Do not rewrite historical
+task records solely to add this declaration.
+
+### Not applicable
+
+```text
+Classification: NOT_APPLICABLE
+Rationale: [why this change cannot alter workflow instructions, a hook,
+permission policy, generated entry point, skill, CLI bootstrap, or host adapter]
+```
+
+### Required
+
+```text
+Classification: REQUIRED
+Policy outcome: [host-independent behavior protected]
+
+| Profile | Before | Intended after | Activation preconditions | Fallback |
+|---|---|---|---|---|
+| [host/version/invocation/config layer] | [state] | [state] | [facts] | [safe behavior] |
+
+Evidence plan:
+- Static: [fixture or deterministic check]
+- Host execution: [command/tool fixture and expected outcome]
+- Manual activation: [trust, install, or UI observation when needed]
+
+Completion evidence:
+- [profile]: [source, observed result, or explicitly retained `unverified` state]
+```
+
+`Before` and `Intended after` use only `enforced`, `advisory`, `unsupported`,
+or `unverified`. A profile identity names the host product and version,
+invocation mode, and configuration layer that supplies the adapter.
 
 ## Goal
 
