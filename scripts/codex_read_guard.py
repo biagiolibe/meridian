@@ -126,6 +126,14 @@ def is_exempt(path: Path, project: Path) -> bool:
     return False
 
 
+def display_path(path: Path, project: Path) -> str:
+    """Prefer a project-relative denial path without rejecting external files."""
+    try:
+        return path.relative_to(project).as_posix()
+    except ValueError:
+        return str(path)
+
+
 def decision(payload: object) -> tuple[bool, str | None]:
     """Return (allowed, reason); malformed and irrelevant payloads allow."""
     if not isinstance(payload, dict) or payload.get("tool_name") != "Bash":
@@ -156,7 +164,7 @@ def decision(payload: object) -> tuple[bool, str | None]:
             else:
                 effective = max(0, min(lines, target.last) - min(lines + 1, target.first) + 1)
             total += effective
-            files.append(f"{path.relative_to(project)} ({effective} lines)")
+            files.append(f"{display_path(path, project)} ({effective} lines)")
     except (OSError, ValueError):
         return True, None
     if total <= budget:

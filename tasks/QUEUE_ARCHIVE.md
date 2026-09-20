@@ -128,5 +128,6 @@ Authority: [docs/PROPOSAL_CONTEXT_ENFORCEMENT.md](../docs/PROPOSAL_CONTEXT_ENFOR
 |--------|----|-------|----------|-----------|-----------|
 | `[x]` | 040 | Ship Codex command-approval rules as a managed governed-SDD template file | 🟡 P2 | — | [040](done/040-codex-command-approval-rules-template.md) |
 | `[x]` | 041 | Codex `PreToolUse` read guard, gated by an empirical probe | 🟡 P2 | 040 | [041](done/041-codex-read-guard-hook.md) |
+| `[x]` | 042 | Deny over-budget absolute reads outside the project root | 🟡 P2 | 041 | [042](done/042-codex-external-read-guard-paths.md) |
 
 *Last updated: 2026-09-20*

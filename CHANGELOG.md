@@ -28,6 +28,11 @@ numbers follow the `frameworkVersion` tracked in generated projects'
 
 ### Fixed
 
+- Codex's read guard now denies recognised over-budget absolute file reads
+  outside the project root. Previously it attempted to render every denied
+  path relative to the project, and an external path such as `/tmp/file`
+  triggered the advisory-safe allow path instead.
+
 - `meridian budget spend` (and `execution evidence` / `execution investigate`,
   which spend through it) now admits exactly `cap` recorded uses; the
   (`cap`+1)th is rejected with `BLOCKED`. Previously a cap of N admitted only
