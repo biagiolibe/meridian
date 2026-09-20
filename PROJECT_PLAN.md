@@ -16,3 +16,5 @@
 - `[x]` 041 — Codex `PreToolUse` read guard, gated by an empirical probe.
 - `[x]` 042 — Deny over-budget absolute reads outside the project root.
 - `[x]` 043 — Design the host-impact task contract and completion gate.
+- `[ ]` 044 — Distribute the governed-SDD host-impact task declaration.
+- `[ ]` 045 — Enforce host-impact declarations at lifecycle gates.
