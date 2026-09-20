@@ -71,13 +71,6 @@ migration.
 |--------|----|-------|----------|------------|------|
 | `[ ]` | 039 | Design an opt-in structured task-identity policy | 🟡 P2 | — | [039](039-design-opt-in-task-identity-policy.md) |
 
-### Phase 14 — Codex execution-policy support
-
-| Status | ID | Title | Priority | Depends on | File |
-|--------|----|-------|----------|------------|------|
-| `[ ]` | 040 | Ship Codex command-approval rules as a managed governed-SDD template file | 🟡 P2 | — | [040](040-codex-command-approval-rules-template.md) |
-| `[ ]` | 041 | Codex `PreToolUse` read guard, gated by an empirical probe | 🟡 P2 | 040 | [041](041-codex-read-guard-hook.md) |
-
 ## 🧪 Quick Tasks (No File)
 
 None currently. The three pre-queue uncommitted working-tree edits flagged at

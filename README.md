@@ -161,6 +161,50 @@ $meridian-governed-sdd
 
 The selected skill supports its workflow without replacing project-specific rules. Lean Delivery keeps a lightweight explicit task-and-verification contract; Governed SDD adds architectural authority, dependency gates, formal review, and controlled integration.
 
+### Codex command approvals in Governed SDD
+
+After upgrading a Governed-SDD project, Meridian manages
+`.codex/rules/meridian.rules`. It allows the workflow's routine Git commands
+and narrow Meridian read-only or validation commands, forbids force-push
+forms, and leaves all other commands to Codex's normal approval flow. Lean
+Delivery projects do not receive this file.
+
+Codex reads the project-local rules only after its `.codex` layer is trusted
+in the user-level `~/.codex/config.toml`; Meridian cannot grant that trust, and
+an untrusted project silently ignores the file. Inspect the file itself with:
+
+```bash
+codex execpolicy check --rules .codex/rules/meridian.rules -- git status
+```
+
+Then prove activation manually in a trusted Governed-SDD session: an allowed
+command that previously prompted must run without an approval prompt. Project
+rules combine with `~/.codex/rules/default.rules`, with the most restrictive
+matching decision winning. `git -C <path> ...` cannot be covered by a prefix
+rule, so use the execution tool's working-directory parameter instead.
+
+Issue one command per execution call. In a trusted-project probe with Codex CLI
+0.155.1, `git status && git diff --check` ran without a prompt and a chain
+containing `git push --force` was refused, but `git status && git rebase main`
+also ran without a prompt. Do not rely on later chain segments being evaluated.
+The offline checker evaluates argument vectors rather than shell syntax.
+
+### Codex large-file read guard in Governed SDD
+
+Governed-SDD upgrades also manage `.codex/hooks.json`. After reviewing the
+hook with `/hooks`, Codex invokes `meridian hook read-guard --host codex`
+before Bash commands. It blocks recognised `cat`, `sed -n`, bounded
+`head`/`tail`, and `nl | sed` reads when their combined effective output from
+large files exceeds `Read-guard threshold` (400 lines by default). It does not
+parse arbitrary shell, scripts, substitutions, heredocs, `awk`, or `python
+-c`; those forms are allowed rather than falsely blocked.
+
+Confirm activation in a trusted project by attempting `cat` on a file over the
+threshold: Codex must deny it before execution. Use `rg -n` then ranged
+`sed -n`, or `meridian context authority <TASK-ID>` / `meridian adr show
+<ADR-ID>` for bounded source material. Declare a necessary file in task
+Authority or raise `Read-guard threshold` only when the larger read is needed.
+
 ## How the governed workflow works
 
 ```text

@@ -122,4 +122,11 @@ Authority: [docs/PROPOSAL_CONTEXT_ENFORCEMENT.md](../docs/PROPOSAL_CONTEXT_ENFOR
 |--------|----|-------|----------|-----------|-----------|
 | `[x]` | 038 | Make a budget cap admit exactly `cap` uses | 🟡 P2 | — | [038](done/038-budget-cap-boundary-allows-cap-uses.md) |
 
-*Last updated: 2026-09-19*
+### Phase 14 — Codex execution-policy support
+
+| Status | ID | Title | Priority | Depends on | Task File |
+|--------|----|-------|----------|-----------|-----------|
+| `[x]` | 040 | Ship Codex command-approval rules as a managed governed-SDD template file | 🟡 P2 | — | [040](done/040-codex-command-approval-rules-template.md) |
+| `[x]` | 041 | Codex `PreToolUse` read guard, gated by an empirical probe | 🟡 P2 | 040 | [041](done/041-codex-read-guard-hook.md) |
+
+*Last updated: 2026-09-20*

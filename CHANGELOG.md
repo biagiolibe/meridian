@@ -12,6 +12,20 @@ numbers follow the `frameworkVersion` tracked in generated projects'
 
 ## [Unreleased]
 
+### Added
+
+- Governed-SDD upgrades now distribute `.codex/hooks.json`, registering a
+  trusted-project Codex `PreToolUse` guard for Bash reads. The adapter blocks
+  only recognised over-budget static reads; unknown syntax and internal errors
+  allow safely. It reports denial through stderr and structured hook output.
+
+- Governed-SDD upgrades now distribute `.codex/rules/meridian.rules`, a
+  project-scoped Codex command-approval policy. Once the project's `.codex`
+  layer is trusted, it allows the governed workflow's routine Git and narrow
+  Meridian validation commands, forbids force-push forms, and leaves risky or
+  state-changing commands to normal approval. Local appended rules survive the
+  normal managed-file merge; Lean Delivery does not receive this file.
+
 ### Fixed
 
 - `meridian budget spend` (and `execution evidence` / `execution investigate`,

@@ -263,3 +263,27 @@ the completion notes.
 ```bash
 claude "$(cat tasks/040-codex-command-approval-rules-template.md)"$'\n\nExecute this task in the current project.'
 ```
+
+## Completion notes
+
+- Completed on 2026-09-20 with migration `041-codex-command-approval-rules`
+  and framework version `1.1.38`.
+- D1: accepted the default narrow `meridian` allow-list: `context`,
+  `locations`, `adr`, `budget`, `audit`, and the named `execution` validation
+  subcommands. `upgrade`, adoption/locking commands, generators, and
+  `execution reconcile` remain unmatched.
+- D2: accepted the default commented reviewer-integrator author-override
+  example. A project must append its resolved literal-token rule locally.
+- D3: accepted the default of no marker protection and no audit rule. This
+  `#`-comment rules file uses ordinary three-way merge so projects can append
+  local rules.
+- D4: accepted the default broad `git push` allow with explicit `forbidden`
+  rules for `--force`, `-f`, `--force-with-lease`, `--delete`, and `--mirror`.
+- Trusted-project chain probe, Codex CLI 0.155.1: `git status && git diff
+  --check` ran without approval; `git status && git push --force origin main`
+  was refused before either segment ran; `git status && git rebase main` ran
+  without approval and failed only because the scratch repository had no
+  `main` upstream. The template and README therefore require one command per
+  execution call.
+- Verification passed: `python3 -m unittest discover -s tests -v` (156
+  tests), `python3 scripts/check_repository.py`, and `git diff --check`.

@@ -16,6 +16,13 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
+# `bin/meridian` dispatches this file through runpy, which retains bin/ rather
+# than scripts/ on sys.path. Host hook adapters live beside this entry point.
+SCRIPTS_ROOT = Path(__file__).resolve().parent
+if str(SCRIPTS_ROOT) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_ROOT))
+
+
 MANIFEST_PATH = Path(".meridian/manifest.json")
 BASELINES_PATH = Path(".meridian/baselines")
 ADOPTION_REVIEW_PATH = Path(".meridian/adoption-review.md")
@@ -148,6 +155,12 @@ def managed_files_for_workflow(workflow: Path, mode: str) -> list[ManagedFile]:
                 ],
             ]
         )
+        # Packaged legacy baselines predate task 040. Include the rules file
+        # when the particular workflow snapshot supplies it, without making a
+        # historical adoption baseline claim a file it never shipped.
+        for codex_path in (Path(".codex/rules/meridian.rules"), Path(".codex/hooks.json")):
+            if (workflow / codex_path).is_file():
+                paths.append(codex_path)
 
     result = []
     for target in paths:
@@ -3292,6 +3305,11 @@ def main() -> int:
     generate_router_group.add_argument("--check", action="store_true", help="exit non-zero if either generated entry point drifts")
     generate_router_group.add_argument("--write", action="store_true", help="write both generated entry points")
 
+    hook = subparsers.add_parser("hook", help="run a Meridian host hook entry point")
+    hook_sub = hook.add_subparsers(dest="hook_command", required=True)
+    read_guard = hook_sub.add_parser("read-guard", help="apply the advisory-safe read guard")
+    read_guard.add_argument("--host", choices=("codex",), required=True)
+
     arguments = parser.parse_args()
     framework_root = arguments.framework_root.resolve()
     project_root = arguments.project.resolve() if hasattr(arguments, "project") else None
@@ -3395,6 +3413,11 @@ def main() -> int:
                 for target, output in outputs.items():
                     (project_root / target).write_text(output, encoding="utf-8")
                 print("Generated AGENTS.md and CLAUDE.md from ENTRY_ROUTER.md.")
+        elif arguments.command == "hook":
+            if arguments.hook_command == "read-guard" and arguments.host == "codex":
+                from codex_read_guard import main as codex_read_guard_main
+
+                return codex_read_guard_main()
         elif arguments.check:
             if arguments.owner_reconciled:
                 raise MeridianError("--owner-reconciled only applies to --apply")
