@@ -30,19 +30,19 @@ Evidence plan:
 
 ## Acceptance Criteria
 
-- [ ] `execution preflight` requires a non-empty `NOT_APPLICABLE` rationale,
+- [x] `execution preflight` requires a non-empty `NOT_APPLICABLE` rationale,
       or a complete `REQUIRED` declaration with profile states, activation
       preconditions, fallback, and all three evidence-plan categories.
-- [ ] `ready-check` rejects every `enforced` completion claim that lacks a
+- [x] `ready-check` rejects every `enforced` completion claim that lacks a
       named completion-evidence entry for the same profile.
-- [ ] A task may retain `unverified`, `advisory`, or `unsupported` profiles
+- [x] A task may retain `unverified`, `advisory`, or `unsupported` profiles
       without falsely blocking completion when it does not claim enforcement.
-- [ ] Failures identify the missing declaration field or profile evidence and
+- [x] Failures identify the missing declaration field or profile evidence and
       preserve the existing execution-evidence and handoff semantics.
-- [ ] Tests cover valid not-applicable, malformed required, missing enforced
+- [x] Tests cover valid not-applicable, malformed required, missing enforced
       evidence, retained unverified state, and backwards-compatible handling
       for pre-migration task records as selected by the implementation.
-- [ ] Applicable repository validation and `git diff --check` pass.
+- [x] Applicable repository validation and `git diff --check` pass.
 
 ## Relevant Files
 

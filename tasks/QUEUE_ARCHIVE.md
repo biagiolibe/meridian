@@ -135,5 +135,7 @@ Authority: [docs/PROPOSAL_CONTEXT_ENFORCEMENT.md](../docs/PROPOSAL_CONTEXT_ENFOR
 | Status | ID | Title | Priority | Depends on | Task File |
 |--------|----|-------|----------|-----------|-----------|
 | `[x]` | 043 | Design the host-impact task contract and completion gate | 🔴 P1 | — | [043](done/043-design-host-impact-gate.md) |
+| `[x]` | 044 | Distribute the governed-SDD host-impact task declaration | 🔴 P1 | 043 | [044](done/044-distribute-host-impact-declaration.md) |
+| `[x]` | 045 | Enforce host-impact declarations at lifecycle gates | 🔴 P1 | 044 | [045](done/045-enforce-host-impact-lifecycle-gates.md) |
 
 *Last updated: 2026-09-20*
