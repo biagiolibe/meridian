@@ -2757,6 +2757,106 @@ HANDOFF_FIELDS = (
     "Blockers/deviations",
 )
 EXECUTION_EVIDENCE_PATH = Path(".meridian/execution-evidence.json")
+HOST_IMPACT_STATES = ("enforced", "advisory", "unsupported", "unverified")
+HOST_IMPACT_EVIDENCE_CATEGORIES = ("Static", "Host execution", "Manual activation")
+
+
+def host_impact_section(text: str) -> str | None:
+    """Return the optional host-impact declaration from a task record.
+
+    Records created before the Task 044 blueprint deliberately have no such
+    section.  They remain valid historical inputs rather than being rewritten
+    solely to satisfy a newly introduced lifecycle gate.
+    """
+    section = re.search(r"^## Host impact\s*$\n(.*?)(?=^## |\Z)", text, re.MULTILINE | re.DOTALL)
+    return section.group(1) if section else None
+
+
+def host_impact_field(section: str, field: str) -> str | None:
+    match = re.search(rf"^{re.escape(field)}:\s*(\S.*)$", section, re.MULTILINE)
+    return match.group(1).strip() if match else None
+
+
+def host_impact_required_profiles(section: str) -> list[tuple[str, str]]:
+    """Validate a REQUIRED declaration and return its claimed profile states."""
+    if not host_impact_field(section, "Policy outcome"):
+        raise MeridianError("host-impact declaration BLOCKED: REQUIRED declaration is missing Policy outcome")
+
+    table = re.search(
+        r"^\|\s*Profile\s*\|\s*Before\s*\|\s*Intended after\s*\|\s*Activation preconditions\s*\|\s*Fallback\s*\|\s*$\n"
+        r"^\|(?:\s*:?-+\s*\|){4}\s*:?-+\s*\|\s*$\n"
+        r"((?:^\|.*\|\s*$\n?)+)",
+        section,
+        re.MULTILINE,
+    )
+    if table is None:
+        raise MeridianError("host-impact declaration BLOCKED: REQUIRED declaration is missing the profile table")
+
+    profiles: list[tuple[str, str]] = []
+    for line in table.group(1).splitlines():
+        if not line.strip():
+            continue
+        values = [value.strip() for value in line.strip().strip("|").split("|")]
+        if len(values) != 5:
+            raise MeridianError("host-impact declaration BLOCKED: profile table row must contain five fields")
+        profile, before, intended_after, activation, fallback = values
+        for name, value in (
+            ("Profile", profile),
+            ("Before", before),
+            ("Intended after", intended_after),
+            ("Activation preconditions", activation),
+            ("Fallback", fallback),
+        ):
+            if not value:
+                raise MeridianError(f"host-impact declaration BLOCKED: profile table is missing {name}")
+        for name, value in (("Before", before), ("Intended after", intended_after)):
+            if value not in HOST_IMPACT_STATES:
+                raise MeridianError(
+                    f"host-impact declaration BLOCKED: profile {profile!r} has invalid {name} state {value!r}"
+                )
+        profiles.append((profile, intended_after))
+
+    for category in HOST_IMPACT_EVIDENCE_CATEGORIES:
+        if not re.search(rf"^- {re.escape(category)}:\s*\S+", section, re.MULTILINE):
+            raise MeridianError(f"host-impact declaration BLOCKED: REQUIRED declaration is missing {category} evidence plan")
+    return profiles
+
+
+def validate_host_impact_declaration(text: str) -> list[tuple[str, str]]:
+    """Validate a Task 044 declaration, retaining pre-migration task records."""
+    section = host_impact_section(text)
+    if section is None:
+        return []
+    classification = host_impact_field(section, "Classification")
+    if classification == "NOT_APPLICABLE":
+        if not host_impact_field(section, "Rationale"):
+            raise MeridianError("host-impact declaration BLOCKED: NOT_APPLICABLE declaration is missing Rationale")
+        return []
+    if classification == "REQUIRED":
+        return host_impact_required_profiles(section)
+    raise MeridianError(
+        "host-impact declaration BLOCKED: Classification must be NOT_APPLICABLE or REQUIRED"
+    )
+
+
+def verify_host_impact_completion_evidence(text: str) -> None:
+    """Require profile-specific durable evidence for each enforced claim."""
+    section = host_impact_section(text)
+    if section is None:
+        return
+    enforced_profiles = [profile for profile, state in validate_host_impact_declaration(text) if state == "enforced"]
+    if not enforced_profiles:
+        return
+    evidence = {
+        match.group(1).strip()
+        for match in re.finditer(r"^- \[([^\]]+)\]:\s*\S+", section, re.MULTILINE)
+    }
+    missing = [profile for profile in enforced_profiles if profile not in evidence]
+    if missing:
+        raise MeridianError(
+            "host-impact completion BLOCKED: enforced profile is missing Completion evidence: "
+            + ", ".join(missing)
+        )
 
 
 def execution_preflight(project_root: Path, task_id: str) -> str:
@@ -2768,6 +2868,7 @@ def execution_preflight(project_root: Path, task_id: str) -> str:
     task_file = find_task_file(project_root, task_id)
     text = task_file.read_text(encoding="utf-8")
     require_named_validation_commands(text)
+    validate_host_impact_declaration(text)
     expected_digest = profile_digest(project_root)
     recorded_digest = contract_digest(text)
     if recorded_digest is None:
@@ -2943,6 +3044,7 @@ def default_handoff_path(project_root: Path, task_id: str) -> Path:
 def readiness_check(project_root: Path, task_id: str, report: Path) -> str:
     """Combine execution and handoff gates before a task enters review."""
     execution_preflight(project_root, task_id)
+    verify_host_impact_completion_evidence(find_task_file(project_root, task_id).read_text(encoding="utf-8"))
     check_handoff(project_root, task_id, report)
     return f"READY_FOR_REVIEW gate passed for {task_id}"
 

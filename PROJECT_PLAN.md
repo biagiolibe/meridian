@@ -17,4 +17,4 @@
 - `[x]` 042 — Deny over-budget absolute reads outside the project root.
 - `[x]` 043 — Design the host-impact task contract and completion gate.
 - `[x]` 044 — Distribute the governed-SDD host-impact task declaration.
-- `[ ]` 045 — Enforce host-impact declarations at lifecycle gates.
+- `[x]` 045 — Enforce host-impact declarations at lifecycle gates.

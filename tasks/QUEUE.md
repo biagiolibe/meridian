@@ -71,13 +71,6 @@ migration.
 |--------|----|-------|----------|------------|------|
 | `[ ]` | 039 | Design an opt-in structured task-identity policy | 🟡 P2 | — | [039](039-design-opt-in-task-identity-policy.md) |
 
-### Phase 15 — Host-impact governance
-
-| Status | ID | Title | Priority | Depends on | File |
-|--------|----|-------|----------|------------|------|
-| `[x]` | 044 | Distribute the governed-SDD host-impact task declaration | 🔴 P1 | 043 | [044](done/044-distribute-host-impact-declaration.md) |
-| `[ ]` | 045 | Enforce host-impact declarations at lifecycle gates | 🔴 P1 | 044 | [045](045-enforce-host-impact-lifecycle-gates.md) |
-
 ## 🧪 Quick Tasks (No File)
 
 None currently. The three pre-queue uncommitted working-tree edits flagged at

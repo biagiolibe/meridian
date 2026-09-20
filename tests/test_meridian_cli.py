@@ -2163,6 +2163,79 @@ class BudgetCliTest(unittest.TestCase):
                 self.assertIn(f"missing {field}", blocked.stderr)
                 task.write_text(text, encoding="utf-8")
 
+    def test_execution_preflight_validates_host_impact_declarations(self) -> None:
+        (self.project / "docs").mkdir(exist_ok=True)
+        (self.project / "docs/EXECUTION_EVIDENCE_PROFILE.md").write_text("profile\n", encoding="utf-8")
+        task = self.project / "tasks/TASK-019.md"
+        base = "Status: QUEUED\n\n## Authority\n\n## Expected code surface\n\n## Validation\n"
+        not_applicable = "\n## Host impact\n\nClassification: NOT_APPLICABLE\nRationale: This task changes only application behavior.\n"
+        task.write_text(base + not_applicable, encoding="utf-8")
+        self.append_contract("TASK-019")
+        self.assertEqual(self.run_cli("execution", "preflight", "TASK-019").returncode, 0)
+
+        task.write_text(task.read_text(encoding="utf-8").replace("Rationale: This task changes only application behavior.\n", ""), encoding="utf-8")
+        missing_rationale = self.run_cli("execution", "preflight", "TASK-019")
+        self.assertNotEqual(missing_rationale.returncode, 0)
+        self.assertIn("NOT_APPLICABLE declaration is missing Rationale", missing_rationale.stderr)
+
+        required = """Classification: REQUIRED
+Policy outcome: The lifecycle gate validates host-impact evidence.
+
+| Profile | Before | Intended after | Activation preconditions | Fallback |
+|---|---|---|---|---|
+| Meridian CLI / direct invocation / project | advisory | enforced | Run through execution. | Block missing evidence. |
+
+Evidence plan:
+- Static: parser test
+- Host execution: fixture command
+- Manual activation: run from a project subdirectory
+"""
+        task.write_text(base + "\n## Host impact\n\n" + required, encoding="utf-8")
+        self.append_contract("TASK-019")
+        self.assertEqual(self.run_cli("execution", "preflight", "TASK-019").returncode, 0)
+
+        task.write_text(task.read_text(encoding="utf-8").replace("- Host execution: fixture command\n", ""), encoding="utf-8")
+        missing_evidence = self.run_cli("execution", "preflight", "TASK-019")
+        self.assertNotEqual(missing_evidence.returncode, 0)
+        self.assertIn("missing Host execution evidence plan", missing_evidence.stderr)
+
+    def test_ready_check_requires_evidence_only_for_enforced_host_profiles(self) -> None:
+        (self.project / "docs").mkdir(exist_ok=True)
+        (self.project / "docs/EXECUTION_EVIDENCE_PROFILE.md").write_text("profile\n", encoding="utf-8")
+        task = self.project / "tasks/TASK-020.md"
+        task.write_text(
+            "Status: IN_PROGRESS\n\n## Authority\n\n## Expected code surface\n\n## Validation\n\n"
+            "## Host impact\n\nClassification: REQUIRED\nPolicy outcome: Accurate host claims.\n\n"
+            "| Profile | Before | Intended after | Activation preconditions | Fallback |\n"
+            "|---|---|---|---|---|\n"
+            "| Meridian CLI / direct / project | advisory | enforced | Run execution. | Block claim. |\n"
+            "| Codex / project / trusted rules | advisory | unverified | Probe unavailable. | Retain unverified. |\n\n"
+            "Evidence plan:\n- Static: parser test\n- Host execution: fixture command\n- Manual activation: project subdirectory\n",
+            encoding="utf-8",
+        )
+        self.append_contract("TASK-020")
+        report = self.project / "ready.md"
+        report.write_text(
+            "## Completion Report — TASK-020\n\n- Files changed: none\n- Validation: exit 0\n"
+            "- Manual verification: none\n- Acceptance criteria: all met\n- Budget usage: 0/3\n"
+            "- Isolated exploration: none\n- Blockers/deviations: none\n",
+            encoding="utf-8",
+        )
+        missing = self.run_cli("execution", "ready-check", "TASK-020", str(report))
+        self.assertNotEqual(missing.returncode, 0)
+        self.assertIn("enforced profile is missing Completion evidence", missing.stderr)
+
+        task.write_text(
+            task.read_text(encoding="utf-8").replace(
+                "\n## Execution contract — resolved",
+                "\nCompletion evidence:\n- [Meridian CLI / direct / project]: fixture observed the gate.\n"
+                "\n## Execution contract — resolved",
+            ),
+            encoding="utf-8",
+        )
+        passed = self.run_cli("execution", "ready-check", "TASK-020", str(report))
+        self.assertEqual(passed.returncode, 0, passed.stderr)
+
     def test_reconcile_upgrades_a_nonterminal_legacy_contract_before_preflight(self) -> None:
         (self.project / "docs").mkdir()
         (self.project / "docs/EXECUTION_EVIDENCE_PROFILE.md").write_text("profile\n", encoding="utf-8")
