@@ -108,6 +108,26 @@ The implementation task must still record the trust-state location, PATH and
 environment evidence, redacted fixture payloads, and individually captured
 plain-read, chain, `cat`, and `rg` calls under the governed session profile.
 
+### Step 0 completion record (2026-09-20)
+
+Classification: **A**. In scratch repository `<redacted>`, Codex CLI `0.155.1`
+with model `gpt-5.6-terra` invoked a trusted project-local `PreToolUse` hook
+as `tool_name: "Bash"`. The four individual captures are redacted in
+`tests/fixtures/codex_hook_payloads/`: plain `sed -n '1,5p'`, an `&&` chain,
+`cat`, and `rg`. Each has `hook_event_name: "PreToolUse"`, `cwd`, and the full
+shell string in `tool_input.command`.
+
+The developer reviewed the logging hook in `/hooks`. Codex persisted its trust
+record in `~/.codex/config.toml`, under
+`[hooks.state."<project>/.codex/hooks.json:pre_tool_use:0:0"]`, keyed by a
+definition hash. The hook process had project `cwd`, `MERIDIAN_ROOT`, and a
+`PATH` including `<MERIDIAN_ROOT>/bin`; no `PLUGIN_ROOT` was present. A changed
+definition required another `/hooks` review. The denial variant emitted the
+same reason on stderr and as structured `permissionDecision: deny` output,
+exited `2`, and prevented both sides of `git status && sed -n '1,5p'` before
+execution. The model received: `Task 041 probe denial: chained command blocked
+before execution.`
+
 ### Steps 1–5 — only if the probe outcome is A or B
 
 - [ ] **Command parser.** A host-adapter that extracts, from the Codex tool
@@ -275,3 +295,18 @@ the completion notes.
 ```bash
 claude "$(cat tasks/041-codex-read-guard-hook.md)"$'\n\nExecute this task in the current project.'
 ```
+
+## Completion notes (2026-09-20)
+
+Implemented classification A's Codex Bash adapter as `meridian hook read-guard
+--host codex`, distributed it through governed-SDD `.codex/hooks.json`, and
+added migration 042. The adapter recognises only static `sed`, `cat`, bounded
+`head`/`tail`, and `nl | sed` reads, calculates clamped combined effective
+lines, shares the documented threshold and exemptions, and allows every unknown
+or failed parse. The Claude Read hook and registrations are unchanged.
+
+The developer completed the manual `/hooks` trust review and the final
+activation smoke test in the scratch project: `cat big.txt` was denied before
+execution at 401 effective lines against the 400-line budget. Verification:
+`python3 -m unittest discover -s tests` (164 tests),
+`python3 scripts/check_repository.py`, and `git diff --check` all passed.

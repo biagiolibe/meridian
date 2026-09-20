@@ -47,9 +47,9 @@ and relevant configuration layer.
 | Queue and language briefing | `UserPromptSubmit` hook is an advisory salience aid. | No equivalent adapter is distributed. | Claude: plugin-hook invocation fixture. Codex: retain `unsupported` unless a trusted adapter and probe are shipped. |
 | Authority excerpts and execution budgets | Available through the Meridian CLI when the plugin root resolves it. | Available through the Meridian CLI when `MERIDIAN_ROOT`/PATH and cwd resolve it. | Per-profile bootstrap/doctor check proving the exact command can be found and executed from a project subdirectory. |
 | Large-file read guard | Existing plugin hook targets the native `Read` tool; unit tests cover its policy semantics. | No released adapter yet. Task 041 is the Codex shell adapter. | Native payload fixture and real hook invocation for Claude; recorded Codex payload, parser table, denial fixture, trust proof, and no false-deny regression for Codex. |
-| Command approval policy | No Meridian-managed, project-scoped equivalent is currently shipped. | No released policy file yet. Task 040 proposes managed `.codex/rules/meridian.rules`. | A decision table evaluated by the host plus a real trusted-project chain test. Approval evidence does not prove sandbox access. |
+| Command approval policy | No Meridian-managed, project-scoped equivalent is currently shipped. | `templates/workflows/governed-sdd/.codex/rules/meridian.rules` is distributed on upgrade, but it is effective only after project-layer trust. | A decision table evaluated by the host plus a real trusted-project chain test. Approval evidence does not prove sandbox access. |
 | Trust activation | Must be observed for the installed plugin/hook definition. | Local rules/hooks are inactive until the project layer and current hook definition are trusted. | An activation check that distinguishes missing, untrusted, trusted, and effective states. |
-| Shell and chained commands | Host-specific behavior must not be inferred from rule text. | A single Bash invocation can carry multiple lines and `&&` chains. | A fixture for simple command, chain, pipe, redirection, and unsupported syntax, with the expected allow/deny behavior recorded per host. |
+| Shell and chained commands | Host-specific behavior must not be inferred from rule text. | Codex CLI 0.155.1 trusted-project probe: an all-allowed `&&` chain ran without a prompt; a force-push chain was refused; an unmatched later `git rebase` segment still ran. Governed sessions must issue one command per call. | A fixture for simple command, chain, pipe, redirection, and unsupported syntax, with the expected allow/deny behavior recorded per host. |
 | Sandbox and Git operations | Permission and filesystem outcomes depend on the runtime environment. | Approval rules cannot override filesystem sandboxing, network restrictions, or Git worktree restrictions. | A host-specific preflight that reports whether the intended Git/filesystem operation is executable, needs approval, or is unavailable. |
 | Review isolation | Task-tool or a fresh independent session may provide isolation. | A separate thread/subagent may provide isolation when available; otherwise use a fresh chat. | The skill must state the current adapter and fallback without assuming a host limitation that has not been verified for the current version. |
 | Upgrade and adoption entry point | Claude commands use `CLAUDE_PLUGIN_ROOT`. | Codex guidance uses `MERIDIAN_ROOT`/CLI discovery. | One clean project upgrade/adoption check from each host profile that the release claims to support. |
@@ -91,6 +91,15 @@ not validate the future command parser, exemptions, managed distribution, or
 other Codex runtimes. The raw probe artifacts remain in the temporary scratch
 repository and are not repository evidence until redacted fixtures are added
 by an authorized task.
+
+Task 041 subsequently recorded redacted individual `sed`, chain, `cat`, and
+`rg` payload fixtures. The trusted definition is stored in
+`~/.codex/config.toml` under `hooks.state`, keyed as
+`<project>/.codex/hooks.json:pre_tool_use:0:0`; changing it requires another
+manual `/hooks` review. The hook process had the project cwd, `MERIDIAN_ROOT`,
+and a PATH containing `MERIDIAN_ROOT/bin` (but no `PLUGIN_ROOT`). Its deny
+probe confirmed that stderr plus exit `2` blocks the whole chain and conveys
+the reason; structured JSON is supplementary.
 
 The classification is narrower than Step 0 completion: the implementation
 record still needs the exact trust-state location, hook-process environment,
@@ -140,7 +149,7 @@ by itself promote a host integration to `enforced`.
 | Item | Current state | Needed evidence |
 |---|---|---|
 | Claude plugin read-guard activation | `enforced` for the tested direct-plugin Claude Code 2.1.278 profile. | Marketplace-installed plugin activation and any other Claude runtime remain unverified. |
-| Codex command approval policy | `unsupported` until task 040 ships. | Offline decision table and trusted project chain behavior, including forbidden, prompt, and unmatched commands. |
+| Codex command approval policy | `configured`; offline decisions are covered by the template test. | Trusted-project activation and real chain behavior, including forbidden, prompt, and unmatched commands. |
 | Codex read guard | Probe gate passed; adapter remains `unverified`. | Parser, effective-line, exemption, malformed-input, distribution, and activation fixtures from task 041. |
 | Router auto-load parity | `unverified` as a release-wide claim. | Fresh-session evidence for the actual entry point and route-specific initial reads on both profiles. |
 | Codex review-isolation adapter | `unverified`; existing skill language may be stale. | Versioned check of available subagent/thread capability and a documented fresh-chat fallback. |

@@ -1262,6 +1262,8 @@ class MeridianCliTest(unittest.TestCase):
             "docs/workflows/REVIEW.md",
             "docs/workflows/REMEDIATION.md",
             "docs/workflows/LIFECYCLE.md",
+            ".codex/rules/meridian.rules",
+            ".codex/hooks.json",
         ):
             (self.project / name).parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(current / name, self.project / name)
@@ -1405,6 +1407,8 @@ class MeridianCliTest(unittest.TestCase):
             "docs/workflows/REVIEW.md",
             "docs/workflows/REMEDIATION.md",
             "docs/workflows/LIFECYCLE.md",
+            ".codex/rules/meridian.rules",
+            ".codex/hooks.json",
         ):
             (self.project / name).parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(current / name, self.project / name)
@@ -2714,6 +2718,85 @@ class DuplicateHeadingAuditTest(unittest.TestCase):
         finally:
             meridian.managed_files = original
         self.assertEqual(results, [])
+
+
+class CodexRulesUpgradeTest(unittest.TestCase):
+    """Regression coverage for task 040's newly managed Codex rules file."""
+
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory()
+        root = Path(self.temporary.name)
+        self.framework = root / "framework"
+        self.project = root / "project"
+        shutil.copytree(ROOT / "templates", self.framework / "templates")
+        shutil.copytree(ROOT / "migrations", self.framework / "migrations")
+        self.project.mkdir()
+        source = self.framework / "templates/workflows/governed-sdd"
+        for path in source.rglob("*"):
+            if path.is_file():
+                destination = self.project / path.relative_to(source)
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(path, destination)
+        self.rules = source / ".codex/rules/meridian.rules"
+        self.rules_text = self.rules.read_text(encoding="utf-8")
+        (self.framework / "VERSION").write_text("1.1.37\n", encoding="utf-8")
+        self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
+        # A 1.1.37 consumer predates task 040. Remove the new file from both
+        # its live tree and recorded baseline while keeping the current
+        # framework template intact as the incoming 1.1.38 source.
+        (self.project / ".codex/rules/meridian.rules").unlink()
+        (
+            self.project
+            / ".meridian/baselines/1.1.37/.codex/rules/meridian.rules"
+        ).unlink()
+        (self.project / ".codex/rules").rmdir()
+        (self.project / ".codex/hooks.json").unlink()
+        (self.project / ".codex").rmdir()
+        (self.framework / "VERSION").write_text("1.1.38\n", encoding="utf-8")
+        # This fixture models 1.1.38 immediately after task 040, before task 041.
+        (self.framework / "templates/workflows/governed-sdd/.codex/hooks.json").unlink()
+
+    def tearDown(self) -> None:
+        self.temporary.cleanup()
+
+    def run_cli(self, *arguments: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [
+                sys.executable,
+                str(CLI),
+                "--framework-root",
+                str(self.framework),
+                *arguments,
+                "--project",
+                str(self.project),
+            ],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+    def test_upgrade_adds_rules_when_consumer_has_no_codex_directory(self) -> None:
+        self.assertFalse((self.project / ".codex").exists())
+        checked = self.run_cli("upgrade", "--check")
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+        self.assertIn("ADD      .codex/rules/meridian.rules — new managed file", checked.stdout)
+
+        applied = self.run_cli("upgrade", "--apply")
+        self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+        self.assertEqual(
+            (self.project / ".codex/rules/meridian.rules").read_text(encoding="utf-8"),
+            self.rules_text,
+        )
+
+    def test_upgrade_conflicts_without_overwriting_locally_precreated_rules(self) -> None:
+        local = self.project / ".codex/rules/meridian.rules"
+        local.parent.mkdir(parents=True, exist_ok=True)
+        local.write_text("prefix_rule(pattern=[\"echo\"], decision=\"allow\")\n", encoding="utf-8")
+
+        checked = self.run_cli("upgrade", "--check")
+        self.assertNotEqual(checked.returncode, 0)
+        self.assertIn("CONFLICT .codex/rules/meridian.rules — managed baseline is missing", checked.stdout)
+        self.assertEqual(local.read_text(encoding="utf-8"), "prefix_rule(pattern=[\"echo\"], decision=\"allow\")\n")
 
 
 class CapabilityVersionDetectionTest(unittest.TestCase):
