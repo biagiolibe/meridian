@@ -19,11 +19,13 @@ class CodexReadGuardTest(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
         self.project = Path(self.temporary.name)
+        self.external = tempfile.TemporaryDirectory()
         (self.project / "tasks").mkdir()
         (self.project / "PROJECT_WORKFLOW.md").write_text("workflow\n", encoding="utf-8")
 
     def tearDown(self) -> None:
         self.temporary.cleanup()
+        self.external.cleanup()
 
     def write(self, name: str, lines: int) -> None:
         target = self.project / name
@@ -55,6 +57,13 @@ class CodexReadGuardTest(unittest.TestCase):
         self.write("small.txt", 50)
         self.assertFalse(decision(self.payload("sed -n '1,999p' big.txt"))[0])
         self.assertTrue(decision(self.payload("cat small.txt"))[0])
+
+    def test_external_absolute_large_file_denies(self) -> None:
+        target = Path(self.external.name) / "external-big.txt"
+        target.write_text("x\n" * 500, encoding="utf-8")
+        allowed, reason = decision(self.payload(f"cat {target}"))
+        self.assertFalse(allowed)
+        self.assertIn(f"{target} (500 lines)", reason or "")
 
     def test_exempt_and_non_meridian_cwds_allow(self) -> None:
         self.write("LANGUAGE_POLICY.md", 500)
