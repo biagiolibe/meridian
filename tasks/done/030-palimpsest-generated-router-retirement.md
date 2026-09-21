@@ -13,13 +13,13 @@ entry routers and retire only the old copies proven by the route map.
 
 ## Acceptance Criteria
 
-- [ ] `AGENTS.md` and `CLAUDE.md` are generated from Palimpsest's canonical
+- [x] `AGENTS.md` and `CLAUDE.md` are generated from Palimpsest's canonical
       router, are within 2,048 bytes, and contain no role procedure.
-- [ ] Every retired copy has accepted additive evidence; no unmarked
+- [x] Every retired copy has accepted additive evidence; no unmarked
       project-owned text is removed without its mapped destination.
-- [ ] Status/design, `Proceed`, and `Review` fixtures read only their routed
+- [x] Status/design, `Proceed`, and `Review` fixtures read only their routed
       primary documents and preserve all required safeguards.
-- [ ] Before/after byte counts and a passing audit are recorded.
+- [x] Before/after byte counts and a passing audit are recorded.
 
 ## Constraints
 
@@ -36,3 +36,13 @@ entry routers and retire only the old copies proven by the route map.
 
 - **Depends on**: 029
 - **Blocks**: 031
+
+## Execution record
+
+2026-09-21 — Palimpsest's accepted `WFLOW-006` completed the retirement
+release after `WFLOW-005`'s accepted additive evidence. Its independent review
+records byte-identical generated `AGENTS.md`, `CLAUDE.md`, and
+`docs/workflows/ENTRY_ROUTER.md` at 1,448 bytes; the six-route map; before/after
+measurements; and a passing governed-SDD audit. The current clean checkout
+again passed `meridian generate-entry-routers --project . --check` and
+`meridian audit --project . --mode governed-sdd`.

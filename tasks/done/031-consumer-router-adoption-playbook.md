@@ -13,11 +13,11 @@ playbook for other Meridian consumer projects.
 
 ## Acceptance Criteria
 
-- [ ] The playbook specifies inventory, ADR mapping, additive extraction,
+- [x] The playbook specifies inventory, ADR mapping, additive extraction,
       route evidence, retirement, audit, and rollback boundaries.
-- [ ] It distinguishes Meridian-managed markers from unmarked consumer rules
+- [x] It distinguishes Meridian-managed markers from unmarked consumer rules
       and prohibits heuristic deletion of the latter.
-- [ ] It gives measurable byte and route-fixture exit criteria.
+- [x] It gives measurable byte and route-fixture exit criteria.
 
 ## Constraints
 
@@ -33,3 +33,12 @@ playbook for other Meridian consumer projects.
 
 - **Depends on**: 030
 - **Blocks**: none
+
+## Execution record
+
+2026-09-21 — Published `docs/CONSUMER_ROUTER_ADOPTION_PLAYBOOK.md`, derived
+from the shared-router ADR and Palimpsest's accepted pilot evidence. The
+playbook is indexed from `README.md` and defines the additive/retirement
+boundary, protection for unmarked consumer rules, route fixtures, byte budget,
+audit commands, and forward-only recovery. `git diff --check` and
+`python3 scripts/check_repository.py` passed.

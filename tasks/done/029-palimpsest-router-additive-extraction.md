@@ -13,13 +13,13 @@ entry-point rules into the role documents required by the shared-router ADR.
 
 ## Acceptance Criteria
 
-- [ ] A Palimpsest ADR maps every current `AGENTS.md` section to its final
+- [x] A Palimpsest ADR maps every current `AGENTS.md` section to its final
       canonical route or document, with a rationale for each always-loaded rule.
-- [ ] `STATUS_DESIGN.md`, implementation, review, remediation, and lifecycle
+- [x] `STATUS_DESIGN.md`, implementation, review, remediation, and lifecycle
       documents contain verbatim mapped rules without removing old copies.
-- [ ] Framework marker moves use exact capability evidence; unmarked local
+- [x] Framework marker moves use exact capability evidence; unmarked local
       text is copied only through the approved map.
-- [ ] A clean upgraded checkout passes the additive audit and route fixtures.
+- [x] A clean upgraded checkout passes the additive audit and route fixtures.
 
 ## Constraints
 
@@ -38,3 +38,13 @@ entry-point rules into the role documents required by the shared-router ADR.
 
 - **Depends on**: 026, 028
 - **Blocks**: 030
+
+## Execution record
+
+2026-09-21 — Palimpsest's accepted `WFLOW-004` supplied the complete
+ADR-0054 rule-to-route map; accepted `WFLOW-005` supplied the additive,
+verbatim route-document copies while retaining the old entry points. Their
+independent review records document a passing governed-SDD audit and exact
+protected-marker evidence. On the current clean Palimpsest checkout,
+`meridian upgrade --project . --check` reported only `KEEP` actions and
+`meridian audit --project . --mode governed-sdd` passed.
