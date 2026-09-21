@@ -94,6 +94,16 @@ evidence for status/design, implementation, and review.
 | `[x]` | 025 | Compact entry points and retire duplicate role procedures | 🔴 P1 | 024 | [025](done/025-compact-entry-points.md) |
 | `[x]` | 026 | Roll out routing to Palimpsest and measure initial context | 🟡 P2 | 025 | [026](done/026-palimpsest-routing-rollout.md) |
 
+### Phase 7 — Shared consumer entry routers
+
+| Status | ID | Title | Priority | Depends on | Task File |
+|--------|----|-------|----------|-----------|-----------|
+| `[x]` | 027 | Add generated shared entry-router support | 🔴 P1 | 025 | [027](done/027-generated-entry-router-support.md) |
+| `[x]` | 028 | Add routed-read fixtures and adoption audit | 🟡 P2 | 027 | [028](done/028-router-route-fixtures-and-audit.md) |
+| `[x]` | 029 | Map and additively extract Palimpsest router procedures | 🟡 P2 | 026, 028 | [029](done/029-palimpsest-router-additive-extraction.md) |
+| `[x]` | 030 | Generate compact Palimpsest entry routers and retire copies | 🟡 P2 | 029 | [030](done/030-palimpsest-generated-router-retirement.md) |
+| `[x]` | 031 | Publish the consumer router-adoption playbook | 🟢 P3 | 030 | [031](done/031-consumer-router-adoption-playbook.md) |
+
 ### Phase 8 — Language-policy salience
 
 | Status | ID | Title | Priority | Depends on | Task File |
@@ -115,6 +125,13 @@ Authority: [docs/PROPOSAL_CONTEXT_ENFORCEMENT.md](../docs/PROPOSAL_CONTEXT_ENFOR
 |--------|----|-------|----------|-----------|-----------|
 | `[x]` | 034 | Add `meridian adr show` and `meridian context authority` | 🟡 P2 | — | [034](done/034-authority-excerpt-command.md) |
 | `[x]` | 035 | `PreToolUse` guard against unranged large-file reads | 🟡 P2 | — | [035](done/035-pretooluse-read-guard.md) |
+
+### Phase 11 — Long-lag consumer upgrade safety
+
+| Status | ID | Title | Priority | Depends on | Task File |
+|--------|----|-------|----------|-----------|-----------|
+| `[x]` | 036 | Plan capability moves correctly across long-lag consumer upgrades | 🔴 P1 | — | [036](done/036-long-lag-capability-move-upgrades.md) |
+| `[x]` | 037 | Let a long-lag consumer stop an upgrade before retirement | 🔴 P1 | 036 | [037](done/037-stop-before-retirement-upgrade.md) |
 
 ### Phase 12 — Budget cap semantics
 
@@ -138,4 +155,4 @@ Authority: [docs/PROPOSAL_CONTEXT_ENFORCEMENT.md](../docs/PROPOSAL_CONTEXT_ENFOR
 | `[x]` | 044 | Distribute the governed-SDD host-impact task declaration | 🔴 P1 | 043 | [044](done/044-distribute-host-impact-declaration.md) |
 | `[x]` | 045 | Enforce host-impact declarations at lifecycle gates | 🔴 P1 | 044 | [045](done/045-enforce-host-impact-lifecycle-gates.md) |
 
-*Last updated: 2026-09-20*
+*Last updated: 2026-09-21*

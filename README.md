@@ -358,6 +358,7 @@ CONTRIBUTING.md                   Contribution guidance and validation
 - [Review and integration prompt](templates/workflows/governed-sdd/docs/CODE_REVIEW_PROMPT.md)
 - [Read-only workflow audit prompt](templates/workflows/governed-sdd/docs/AUDIT_PROMPT_READ_ONLY.md)
 - [Governed-SDD operator prompts](templates/workflows/governed-sdd/docs/OPERATOR_PROMPTS.md)
+- [Consumer router-adoption playbook](docs/CONSUMER_ROUTER_ADOPTION_PLAYBOOK.md)
 - [Framework upgrade CLI](commands/meridian-upgrade.md)
 - [Capability-marker integrity audit](commands/meridian-audit.md)
 

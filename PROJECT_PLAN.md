@@ -8,13 +8,15 @@
 
 ## Active Delivery
 
-- `[x]` 032 — Add the Claude language-policy briefing adapter.
-- `[x]` 033 — `budget_spend()` durably consumes budget before the cap check can reject it.
-- `[x]` 038 — Make a budget cap admit exactly `cap` uses.
+- `[ ]` 015 — Split `workflowBaselineVersion` from `frameworkVersion` in manifest and upgrade planner.
+- `[ ]` 016 — Propagate `workflowBaselineVersion` to `adopt`/`finalize-adoption`.
+- `[ ]` 017 — Relax `check_migrations()`'s VERSION equality to `<=`.
+- `[ ]` 018 — Persist-time SemVer guard for prerelease `frameworkVersion`.
+- `[ ]` 019 — `releases/<version>.json` immutable release ledger + `check_releases()`.
+- `[ ]` 020 — Update docs for the version split.
+- `[ ]` 021 — Ship the first CLI-only release as end-to-end proof.
 - `[ ]` 039 — Design an opt-in structured task-identity policy.
-- `[x]` 040 — Ship Codex command-approval rules as a managed governed-SDD template file.
-- `[x]` 041 — Codex `PreToolUse` read guard, gated by an empirical probe.
-- `[x]` 042 — Deny over-budget absolute reads outside the project root.
-- `[x]` 043 — Design the host-impact task contract and completion gate.
-- `[x]` 044 — Distribute the governed-SDD host-impact task declaration.
-- `[x]` 045 — Enforce host-impact declarations at lifecycle gates.
+
+`tasks/QUEUE.md` is the operational source for ordering, dependencies, and
+phase status. Completed delivery records are archived in
+`tasks/QUEUE_ARCHIVE.md`.
