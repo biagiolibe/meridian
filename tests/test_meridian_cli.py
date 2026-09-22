@@ -1019,14 +1019,14 @@ class MeridianCliTest(unittest.TestCase):
         self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
         agents = self.project / "AGENTS.md"
         text = agents.read_text(encoding="utf-8")
-        self.assertIn("MERIDIAN:BEGIN capability=command-triggers v2", text)
+        self.assertIn("MERIDIAN:BEGIN capability=command-triggers v3", text)
         relabeled = text.replace(
-            "MERIDIAN:BEGIN capability=command-triggers v2",
             "MERIDIAN:BEGIN capability=command-triggers v3",
+            "MERIDIAN:BEGIN capability=command-triggers v4",
             1,
         )
         duplicate_block = re.search(
-            r"<!-- MERIDIAN:BEGIN capability=command-triggers v3 -->.*?<!-- MERIDIAN:END -->",
+            r"<!-- MERIDIAN:BEGIN capability=command-triggers v4 -->.*?<!-- MERIDIAN:END -->",
             relabeled,
             re.DOTALL,
         )
@@ -1036,7 +1036,7 @@ class MeridianCliTest(unittest.TestCase):
         audited = self.run_cli("audit", "--mode", "governed-sdd")
         self.assertEqual(audited.returncode, 2)
         self.assertIn(
-            "FAIL AGENTS.md: capability=command-triggers carries 2 versions (v2, v3)", audited.stdout
+            "FAIL AGENTS.md: capability=command-triggers carries 2 versions (v3, v4)", audited.stdout
         )
 
     def test_audit_skips_a_version_the_current_template_no_longer_carries(self) -> None:
@@ -2554,7 +2554,7 @@ class CapabilityMarkerTest(unittest.TestCase):
 
     def test_agents_and_claude_carry_expected_marker_versions(self) -> None:
         for name in ("AGENTS.md", "CLAUDE.md"):
-            self.assertEqual(self.marker_pairs((self.WORKFLOW / name).read_text(encoding="utf-8")), [("command-triggers", "2")])
+            self.assertEqual(self.marker_pairs((self.WORKFLOW / name).read_text(encoding="utf-8")), [("command-triggers", "3")])
         self.assertIn(("review-remediation-record", "2"), self.marker_pairs((self.WORKFLOW / "docs/workflows/REMEDIATION.md").read_text(encoding="utf-8")))
         self.assertIn(("lifecycle-orchestration", "3"), self.marker_pairs((self.WORKFLOW / "docs/workflows/LIFECYCLE.md").read_text(encoding="utf-8")))
         implementation = self.marker_pairs((self.WORKFLOW / "docs/workflows/IMPLEMENTATION.md").read_text(encoding="utf-8"))
@@ -2586,7 +2586,10 @@ class CapabilityMarkerTest(unittest.TestCase):
 
     def test_lifecycle_orchestration_carries_its_own_marker(self) -> None:
         text = (self.WORKFLOW / "docs/LIFECYCLE_ORCHESTRATION.md").read_text(encoding="utf-8")
-        self.assertEqual(self.marker_pairs(text), [("lifecycle-orchestration", "3")])
+        self.assertEqual(
+            self.marker_pairs(text),
+            [("lifecycle-orchestration", "3"), ("rejected-attempt-restart", "3")],
+        )
 
     def test_context_budget_policy_carries_its_capability_markers(self) -> None:
         text = (self.WORKFLOW / "docs/CONTEXT_BUDGET_POLICY.md").read_text(encoding="utf-8")
@@ -2763,7 +2766,7 @@ class CapabilityMarkerTest(unittest.TestCase):
         self.assertNotIn("[Conversation language]", match.group(1))
 
     def test_agents_and_claude_carry_the_five_residual_capabilities(self) -> None:
-        self.assertIn(("command-triggers", "2"), self.marker_pairs((self.WORKFLOW / "AGENTS.md").read_text(encoding="utf-8")))
+        self.assertIn(("command-triggers", "3"), self.marker_pairs((self.WORKFLOW / "AGENTS.md").read_text(encoding="utf-8")))
         review = self.marker_pairs((self.WORKFLOW / "docs/workflows/REVIEW.md").read_text(encoding="utf-8"))
         for capability in ("review-mode-boundary", "implementer-reviewer-handoff", "reviewer-integrator-identity"):
             self.assertIn((capability, "1"), review)

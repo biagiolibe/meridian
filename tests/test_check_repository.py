@@ -84,8 +84,8 @@ class CapabilityMarkerBaselineTest(unittest.TestCase):
         target = self.root / "templates/workflows/governed-sdd/AGENTS.md"
         text = target.read_text(encoding="utf-8")
         text = text.replace(
-            "<!-- MERIDIAN:BEGIN capability=command-triggers v2 -->",
             "<!-- MERIDIAN:BEGIN capability=command-triggers v3 -->",
+            "<!-- MERIDIAN:BEGIN capability=command-triggers v4 -->",
             1,
         )
         target.write_text(text, encoding="utf-8")

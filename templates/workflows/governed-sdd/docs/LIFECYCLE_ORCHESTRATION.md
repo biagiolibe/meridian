@@ -66,3 +66,38 @@ review-record attempt. Workers use task-first context loading. Do not recreate
 prior chat context, repeat successful validation without a changed relevant
 surface, or add a summarization agent between workers.
 <!-- MERIDIAN:END -->
+
+<!-- MERIDIAN:BEGIN capability=rejected-attempt-restart v3 -->
+## Rejected-attempt restart after authority change
+
+Use this procedure only when a `CHANGES_REQUESTED` finding explicitly cannot be
+remediated without new or amended authority or task scope, and the developer
+explicitly authorizes restart. Before any ref or status mutation, verify the
+original branch, rejected exact tip, review record, handoff, validation evidence,
+clean checkout, and available target names; also verify a separate tech-design
+change amended authority and scope, received required independent review, is
+`ACCEPTED`, and is integrated into `main`. Otherwise return `BLOCKED` with no
+ref or status mutation.
+
+In one atomic ref transaction, retain `archive/rejected/<normalized-task-id>-<attempt>`
+at the rejected tip and create `retry/<normalized-task-id>-<attempt>` from accepted
+`main`. Retain the archive and original branch with the review record, handoff, and
+validation evidence. The retry's restart-handoff commit contains only that governance
+evidence, applicable task/queue `IN_PROGRESS` state, the archive ref/tip, accepted
+design commit, and an explicit statement that no rejected implementation artifact was
+copied. Implement and validate afresh: never reset, rebase, amend, force-push,
+cherry-pick, merge, or copy rejected implementation commits or artifacts. Independently
+review the retry against its main base; resolve the authority finding only with the
+accepted design commit and independently recreated implementation. Retain archive and
+original branch after integration; only the retry branch has ordinary cleanup.
+
+### Operator sequence
+
+The reviewer first completes its local review-handoff commit on the rejected
+task branch and leaves that branch intact. Once the checkout is clean, switch
+to the current `main` with `git switch main`. Create the separate tech-design
+branch from that current `main`, review and integrate its authority/scope
+amendment, then invoke `Restart rejected <TASK-ID>` from the updated `main`.
+The retry therefore starts from the accepted design base, not from the rejected
+task branch.
+<!-- MERIDIAN:END -->

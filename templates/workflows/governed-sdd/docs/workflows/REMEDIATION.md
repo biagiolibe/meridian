@@ -19,3 +19,11 @@ attempt. Report the review-record path, resolved findings, commit, and
 validation. If a finding needs an authority or scope change, leave it
 unchecked and return `BLOCKED`.
 <!-- MERIDIAN:END -->
+
+<!-- MERIDIAN:BEGIN capability=rejected-attempt-restart v3 -->
+If a `CHANGES_REQUESTED` finding explicitly cannot be remediated because it
+needs new or amended authority or scope, leave it unchecked and return
+`BLOCKED` without ref or status mutation. Do not use remediation to restart it;
+only explicit developer authorization may invoke the procedure in
+`docs/LIFECYCLE_ORCHESTRATION.md`.
+<!-- MERIDIAN:END -->
