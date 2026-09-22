@@ -1,14 +1,14 @@
 {
   "templates/workflows/governed-sdd/AGENTS.md": {
     "command-triggers": {
-      "sha256": "4990a914605aad9fc3e239bfa492b0f7ab91263e703ceb7e30237e7df1c2b18e",
-      "version": 2
+      "sha256": "0ef255f0dd5f1a377cd7e56aa2926f9cb67eaf190974c57acb7cd785c6263dd5",
+      "version": 3
     }
   },
   "templates/workflows/governed-sdd/CLAUDE.md": {
     "command-triggers": {
-      "sha256": "4990a914605aad9fc3e239bfa492b0f7ab91263e703ceb7e30237e7df1c2b18e",
-      "version": 2
+      "sha256": "0ef255f0dd5f1a377cd7e56aa2926f9cb67eaf190974c57acb7cd785c6263dd5",
+      "version": 3
     }
   },
   "templates/workflows/governed-sdd/LANGUAGE_POLICY.md": {
@@ -131,6 +131,10 @@
     "lifecycle-orchestration": {
       "sha256": "e787247609ac89be68e8cf327e387aadb2816db4f98bd3cdca50d9014b99c91d",
       "version": 3
+    },
+    "rejected-attempt-restart": {
+      "sha256": "ed9029375c608faafd84c29838281159d82436a3443566798e0b99856e8c2c6c",
+      "version": 3
     }
   },
   "templates/workflows/governed-sdd/docs/PULL_REQUEST_POLICY.md": {
@@ -179,9 +183,17 @@
     "owner-acceptance-workflow": {
       "sha256": "4bb6a3258ed7ffd5df92da2720833184e1f9150cbfe60116a0ed966cdbff433c",
       "version": 1
+    },
+    "rejected-attempt-restart": {
+      "sha256": "3f61871729e246df77c431f58bb5a04e8a1b87d9367b55cfbaf13db5d97a8092",
+      "version": 3
     }
   },
   "templates/workflows/governed-sdd/docs/workflows/REMEDIATION.md": {
+    "rejected-attempt-restart": {
+      "sha256": "be0a386b853a79dff3e622ba9387f27e163064abb7e75ff8cd6d35beb187e29d",
+      "version": 3
+    },
     "review-remediation-record": {
       "sha256": "7b358f7c13e75c16702a031b0fe80406720120f5f1e33829fe6d4d2b35c58095",
       "version": 2

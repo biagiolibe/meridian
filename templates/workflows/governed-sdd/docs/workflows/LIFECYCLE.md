@@ -15,6 +15,18 @@ roles. Continue only on durable state and evidence, and stop at the document's
 retry limit or any listed blocker.
 <!-- MERIDIAN:END -->
 
+<!-- MERIDIAN:BEGIN capability=rejected-attempt-restart v3 -->
+For a finding explicitly not remediable without new or amended authority or
+scope, return `BLOCKED`; do not restart through remediation. Only explicit
+developer authorization may use the rejected-attempt restart procedure in
+`docs/LIFECYCLE_ORCHESTRATION.md`, which requires accepted design authority,
+preserved rejected evidence, and fresh implementation and review.
+For `Restart rejected <TASK-ID>`, act only as a coordinator: complete the
+preflight and atomic ref transaction defined in `docs/LIFECYCLE_ORCHESTRATION.md`,
+write the governance-only restart handoff, then stop and direct a fresh
+`Proceed with <TASK-ID>`.
+<!-- MERIDIAN:END -->
+
 <!-- MERIDIAN:BEGIN capability=owner-acceptance-workflow v1 -->
 ## Owner-acceptance workflow
 

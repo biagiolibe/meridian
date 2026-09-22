@@ -14,6 +14,10 @@ numbers follow the `frameworkVersion` tracked in generated projects'
 
 ### Added
 
+- Governed-SDD now defines an authority-change restart procedure for rejected
+  implementation attempts: an accepted design amendment precedes a distinct
+  retry, while the rejected tip and its evidence remain retained.
+
 - Governed-SDD upgrades now distribute `.codex/hooks.json`, registering a
   trusted-project Codex `PreToolUse` guard for Bash reads. The adapter blocks
   only recognised over-budget static reads; unknown syntax and internal errors
