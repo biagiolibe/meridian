@@ -46,7 +46,21 @@ migration.
 | `[ ]` | 018 | Persist-time SemVer guard for prerelease `frameworkVersion` | 🟡 P2 | 015 | [018](018-prerelease-version-guard.md) |
 | `[ ]` | 019 | `releases/<version>.json` immutable release ledger + `check_releases()` | 🟡 P2 | 017 | [019](019-releases-ledger.md) |
 | `[ ]` | 020 | Update docs for the version split | 🟢 P3 | 015, 017, 019 | [020](020-docs-version-split.md) |
-| `[ ]` | 021 | Ship the first CLI-only release as end-to-end proof | 🟢 P3 | 016, 018, 019, 020 | [021](021-first-cli-only-release.md) |
+| `[ ]` | 021 | Ship the first CLI-only release as end-to-end proof | 🟢 P3 | 016, 018, 019, 020, 046 | [021](021-first-cli-only-release.md) |
+
+### Phase 16 — Release distribution and adopter updates
+
+Closes the gaps left by Phase 5: plugin version drift, behavior tests missing
+from CI, unenforced `protocolVersion`, no defined distribution/update channel
+for adopters, and a manual-only release procedure.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 046 | Keep `.claude-plugin/plugin.json` version in sync with `VERSION` | 🔴 P1 | — | [046](046-sync-plugin-manifest-version.md) |
+| `[ ]` | 047 | Run the unit test suite in CI | 🔴 P1 | — | [047](047-run-unit-tests-in-ci.md) |
+| `[ ]` | 048 | Enforce `protocolVersion` compatibility in the CLI | 🟡 P2 | 015 | [048](048-enforce-protocol-version-compatibility.md) |
+| `[ ]` | 049 | Design the distribution and update channel for adopters | 🟡 P2 | 019 | [049](049-design-distribution-and-update-channel.md) |
+| `[ ]` | 050 | Automate the GitHub Release from a version tag | 🟢 P3 | 021, 046, 047 | [050](050-automate-github-release-from-tag.md) |
 
 ### Phase 13 — Optional structured task identity
 
@@ -65,4 +79,4 @@ then folded it into the regenerated `CLAUDE.md`.
 All completed task and phase records are in `tasks/QUEUE_ARCHIVE.md`; this
 operational queue contains only non-terminal work.
 
-*Last updated: 2026-09-21*
+*Last updated: 2026-09-23*
