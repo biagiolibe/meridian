@@ -64,12 +64,13 @@ project sees a non-trivial framework delta with zero baseline changes.
 - This is a real public release — confirm with the user before tagging and
   pushing (destructive/visible action per the session's action-category
   rules).
-- Depends on 016, 018, 019, and 020 all landing first, so the release
-  reflects the complete, documented design.
+- Depends on 016, 018, 019, 020, and 046 all landing first, so the release
+  reflects the complete, documented design and ships a matching plugin
+  version.
 
 ## 🔗 Dependencies
 
-- **Depends on**: 016, 018, 019, 020
+- **Depends on**: 016, 018, 019, 020, 046
 - **Blocks**: none
 
 ## 🤖 How to delegate this task to Claude CLI
