@@ -4,7 +4,7 @@
 > **Category**: Infrastructure
 > **Priority**: 🔴 P1
 > **Estimate**: ~30min
-> **Assigned to**: unassigned
+> **Assigned to**: Codex
 > **Session**: 2026-09-23 release-management gap review
 
 ## 🎯 Objective
