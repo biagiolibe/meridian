@@ -36,17 +36,6 @@ new: separates `frameworkVersion` (public CLI release), `workflowBaselineVersion
 (manifest/CLI compatibility) so a CLI-only release no longer requires a fake
 migration.
 
-### Phase 17 — Per-task worktree isolation
-
-This phase is a global prerequisite for all other active work. It makes a
-dedicated linked worktree mandatory for each Lean Delivery and Governed SDD
-task and replaces the parallel-hostile integration assumptions in the current
-Governed SDD contract.
-
-| Status | ID | Title | Priority | Depends on | File |
-|--------|----|-------|----------|------------|------|
-| `[ ]` | 051 | Enforce isolated worktrees for every task | 🔴 P1 | — | [051](051-enforce-isolated-task-worktrees.md) |
-
 ### Phase 5 — SemVer version split
 
 | Status | ID | Title | Priority | Depends on | File |
