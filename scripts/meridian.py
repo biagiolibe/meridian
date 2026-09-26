@@ -236,8 +236,14 @@ def _replace_codex_managed_block(text: str, block: str) -> str:
     start = text.find(CODEX_MANAGED_BEGIN)
     if start >= 0:
         end = text.find(CODEX_MANAGED_END, start) + len(CODEX_MANAGED_END)
-        return text[:start] + block + text[end:]
-    return block + ("\n\n" + text if text else "\n")
+        text = text[:start] + text[end:]
+
+    table = re.search(r"(?m)^\s*\[", text)
+    insertion = table.start() if table is not None else len(text)
+    prefix = text[:insertion].rstrip("\n")
+    suffix = text[insertion:].strip("\n")
+    parts = [part for part in (prefix, block, suffix) if part]
+    return "\n\n".join(parts) + "\n"
 
 
 def _without_top_level_default_permissions(text: str) -> str:
