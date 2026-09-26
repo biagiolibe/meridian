@@ -3318,7 +3318,14 @@ class CodexWorktreeAccessTest(unittest.TestCase):
 
     def test_config_apply_preserves_text_backs_up_and_is_idempotent(self) -> None:
         config = self.root / "config.toml"
-        original = '# keep this comment\nmodel = "gpt-test"\n\n[features]\nnetwork_proxy = false\n'
+        original = (
+            '# keep this comment\n'
+            'notify = ["/usr/bin/example", "turn-ended"]\n'
+            'model = "gpt-test"\n'
+            'model_reasoning_effort = "medium"\n\n'
+            '[features]\n'
+            'network_proxy = false\n'
+        )
         config.write_text(original, encoding="utf-8")
         root = self.root / "worktrees"
         plan = meridian.plan_codex_configuration(config, root)
@@ -3327,11 +3334,45 @@ class CodexWorktreeAccessTest(unittest.TestCase):
         changed = config.read_text(encoding="utf-8")
         self.assertIn("# keep this comment", changed)
         self.assertIn(str(root.resolve()), changed)
-        self.assertEqual(tomllib.loads(changed)["default_permissions"], "meridian-worktrees")
+        parsed = tomllib.loads(changed)
+        self.assertEqual(parsed["default_permissions"], "meridian-worktrees")
+        self.assertEqual(parsed["notify"], ["/usr/bin/example", "turn-ended"])
+        self.assertEqual(parsed["model"], "gpt-test")
+        self.assertEqual(parsed["model_reasoning_effort"], "medium")
+        self.assertEqual(
+            parsed["permissions"]["meridian-worktrees"]["workspace_roots"],
+            {str(root.resolve()): True},
+        )
+        self.assertLess(changed.index('model = "gpt-test"'), changed.index(meridian.CODEX_MANAGED_BEGIN))
+        self.assertLess(changed.index(meridian.CODEX_MANAGED_END), changed.index("[features]"))
         self.assertEqual(config.with_name("config.toml.meridian.bak").read_text(encoding="utf-8"), original)
         second = meridian.plan_codex_configuration(config, root)
         self.assertEqual(second.status, "ready")
         self.assertFalse(meridian.apply_codex_configuration(second))
+
+    def test_config_plan_repairs_managed_block_inserted_before_root_keys(self) -> None:
+        config = self.root / "config.toml"
+        root = (self.root / "worktrees").resolve()
+        broken = (
+            meridian._codex_managed_block(root)
+            + '\n\nnotify = ["/usr/bin/example", "turn-ended"]\n'
+            + 'model = "gpt-test"\n\n'
+            + '[features]\nnetwork_proxy = false\n'
+        )
+        config.write_text(broken, encoding="utf-8")
+
+        plan = meridian.plan_codex_configuration(config, root)
+
+        self.assertEqual(plan.status, "approval-required")
+        repaired = plan.proposed_text or ""
+        parsed = tomllib.loads(repaired)
+        self.assertEqual(parsed["notify"], ["/usr/bin/example", "turn-ended"])
+        self.assertEqual(parsed["model"], "gpt-test")
+        self.assertEqual(
+            parsed["permissions"]["meridian-worktrees"]["workspace_roots"],
+            {str(root): True},
+        )
+        self.assertLess(repaired.index('model = "gpt-test"'), repaired.index(meridian.CODEX_MANAGED_BEGIN))
 
     def test_atomic_replace_failure_keeps_original(self) -> None:
         config = self.root / "config.toml"
