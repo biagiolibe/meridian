@@ -15,6 +15,13 @@ roles. Continue only on durable state and evidence, and stop at the document's
 retry limit or any listed blocker.
 <!-- MERIDIAN:END -->
 
+<!-- MERIDIAN:BEGIN capability=task-worktree-lifecycle v1 -->
+The implementer and reviewer sessions use the same dedicated task worktree
+sequentially; neither uses the primary checkout. Final integration uses the
+serialized, combined-tree-validated merge transaction defined in
+`docs/LIFECYCLE_ORCHESTRATION.md`.
+<!-- MERIDIAN:END -->
+
 <!-- MERIDIAN:BEGIN capability=rejected-attempt-restart v3 -->
 For a finding explicitly not remediable without new or amended authority or
 scope, return `BLOCKED`; do not restart through remediation. Only explicit
