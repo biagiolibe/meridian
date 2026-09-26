@@ -77,7 +77,7 @@ for adopters, and a manual-only release procedure.
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
 | `[ ]` | 046 | Keep `.claude-plugin/plugin.json` version in sync with `VERSION` | 🔴 P1 | 054 | [046](046-sync-plugin-manifest-version.md) |
-| `[ ]` | 047 | Run the unit test suite in CI | 🔴 P1 | 054 | [047](047-run-unit-tests-in-ci.md) |
+| `[x]` | 047 | Run the unit test suite in CI | 🔴 P1 | 054 | [047](done/047-run-unit-tests-in-ci.md) |
 | `[ ]` | 048 | Enforce `protocolVersion` compatibility in the CLI | 🟡 P2 | 015 | [048](048-enforce-protocol-version-compatibility.md) |
 | `[ ]` | 049 | Design the distribution and update channel for adopters | 🟡 P2 | 019 | [049](049-design-distribution-and-update-channel.md) |
 | `[ ]` | 050 | Automate the GitHub Release from a version tag | 🟢 P3 | 021, 046, 047 | [050](050-automate-github-release-from-tag.md) |
