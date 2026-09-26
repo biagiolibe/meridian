@@ -36,7 +36,8 @@ The Meridian template source is at: `${CLAUDE_PLUGIN_ROOT}`
    - For `lean-delivery`:
      - `templates/workflows/lean-delivery/PROJECT_WORKFLOW.md` → `PROJECT_WORKFLOW.md`
      - `templates/workflows/lean-delivery/AGENTS.md` → `AGENTS.md`
-   - `templates/workflows/lean-delivery/CLAUDE.md` → `CLAUDE.md`
+     - `templates/workflows/lean-delivery/CLAUDE.md` → `CLAUDE.md`
+     - `templates/workflows/lean-delivery/.codex/rules/meridian.rules` → `.codex/rules/meridian.rules`
    - For `governed-sdd`:
      - `templates/workflows/governed-sdd/PROJECT_WORKFLOW.md` → `PROJECT_WORKFLOW.md`
      - `templates/workflows/governed-sdd/AGENTS.md` → `AGENTS.md`
@@ -45,6 +46,7 @@ The Meridian template source is at: `${CLAUDE_PLUGIN_ROOT}`
      - `templates/workflows/governed-sdd/tasks/TASK_BLUEPRINT.md` → `tasks/TASK_BLUEPRINT.md`
      - `templates/workflows/governed-sdd/tasks/QUEUE.md` → `tasks/QUEUE.md`
      - `templates/workflows/governed-sdd/docs/` → `docs/`
+     - `templates/workflows/governed-sdd/.codex/` → `.codex/`
    Do not overwrite an existing workflow document without showing its diff and receiving explicit confirmation.
 
 6. Replace all occurrences of `[Project Name]` in the copied files with the actual project name provided in step 1.
@@ -66,7 +68,19 @@ The Meridian template source is at: `${CLAUDE_PLUGIN_ROOT}`
    This writes `.meridian/manifest.json` and an installed-template baseline.
    Do not edit the manifest or baseline snapshots manually.
 
-12. Confirm to the user: "Meridian initialized for **[Project Name]** with workflow `<workflow-mode>`. Next steps:
+12. If `codex` is available, ask whether the user wants to configure a
+    dedicated shared task-worktree root. Show the read-only plan first:
+
+    ```bash
+    ${CLAUDE_PLUGIN_ROOT}/bin/meridian codex configure --check --worktree-root <selected-root>
+    ```
+
+    Run the same command with `--apply` only after explicit confirmation. A
+    decline, unavailable user configuration layer, or missing permission does
+    not invalidate initialization. Report the exact command above so the user
+    can apply it later. Never edit `~/.codex/config.toml` implicitly.
+
+13. Confirm to the user: "Meridian initialized for **[Project Name]** with workflow `<workflow-mode>`. Next steps:
    - Fill in `TECH_DESIGN.md` with your actual stack details.
    - Add your first features to `PROJECT_PLAN.md`.
    - Run `/meridian-task` when you're ready to delegate the first task."

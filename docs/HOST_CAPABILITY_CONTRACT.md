@@ -128,6 +128,31 @@ The implementation and review report must repeat the profiles actually
 verified. A repository test may prove parser or template semantics, but cannot
 by itself promote a host integration to `enforced`.
 
+## Codex task-worktree permission profile
+
+Meridian supports one Codex permission model for shared task worktrees: the
+beta permission-profile model. `meridian codex configure --check
+--worktree-root <path>` parses the user configuration and prints the exact
+managed profile block without writing it. `--apply` is the only write path. It
+creates a restrictive backup before the first changed write and atomically
+replaces the configuration while retaining unrelated text and comments.
+
+The managed `meridian-worktrees` profile extends Codex's bounded `:workspace`
+profile and adds only the selected shared root. It never enables network
+access, grants the home directory, or grants unrestricted filesystem access.
+Legacy `sandbox_mode`/`sandbox_workspace_write`, malformed TOML, an existing
+foreign profile of the same name, and managed restrictions are conflicts, not
+inputs to merge. See the official Codex permission-profile and sandbox
+documentation: <https://learn.chatgpt.com/docs/permissions> and
+<https://learn.chatgpt.com/docs/agent-approvals-security>.
+
+`meridian codex doctor` reports project trust, the selected permission model,
+effective worktree-root write access, command-policy availability, and Git
+metadata separately. Static configuration is not host-execution evidence.
+`.git` and the resolved common Git directory remain protected independently;
+project execpolicy rules control approval decisions but cannot widen the
+filesystem sandbox.
+
 ## Decision rules
 
 - Prefer a common policy with narrow host adapters over a common parser that

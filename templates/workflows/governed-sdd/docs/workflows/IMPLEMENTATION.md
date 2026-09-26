@@ -2,10 +2,12 @@
 
 Use this procedure only for `Proceed with <TASK-ID>` after the entry-point router has applied its always-loaded invariants.
 
-<!-- MERIDIAN:BEGIN capability=task-worktree-boundary v1 -->
+<!-- MERIDIAN:BEGIN capability=task-worktree-boundary v2 -->
 Before changing task state or files, normalize the canonical ID to
-`task-<number>` and derive both the branch and sibling
-`<primary-checkout>-task-<number>` path as specified by `PROJECT_WORKFLOW.md`.
+`task-<number>` and derive the repository-qualified path below the selected
+shared root with `meridian codex worktree-path`, as specified by
+`PROJECT_WORKFLOW.md`. Run `meridian codex doctor` and require effective root
+access; a static declaration alone is insufficient.
 Inspect `git worktree list --porcelain` and local refs first. Create the branch
 and linked worktree from the recorded current `main` commit only when neither
 target exists. Select existing state only when branch, path, and worktree HEAD

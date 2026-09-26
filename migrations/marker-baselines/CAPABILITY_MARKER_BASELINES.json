@@ -18,6 +18,10 @@
     }
   },
   "templates/workflows/governed-sdd/PROJECT_WORKFLOW.md": {
+    "codex-worktree-access": {
+      "sha256": "136e0803c4370368f0e35980e8e69eafb3ecce9f64d252c6b25b6d23cedda40f",
+      "version": 1
+    },
     "document-precedence": {
       "sha256": "2a4f6b7a1a8afcf116aa94e193be6256804f621e451a22df368fba4ccda176c9",
       "version": 1
@@ -31,8 +35,8 @@
       "version": 1
     },
     "git-workflow": {
-      "sha256": "d1c8ab1468135ba38386de9af61a8382a72d47d1487c2822c6343b6344f6fe11",
-      "version": 3
+      "sha256": "650b5e35c3e4e2b4c17030b272b0acd66d4f2fa947ea72c6678eca44dd6da29a",
+      "version": 4
     },
     "review-policy": {
       "sha256": "129c502cf2a684ea1fedce822a7a4a39f507c2d66a1a9746f3055d0d71102a09",
@@ -183,8 +187,8 @@
       "version": 1
     },
     "task-worktree-boundary": {
-      "sha256": "113a03f9c16d2bd5f24bc336719ed9f6c0484bbc572f78a787426948d8f40d53",
-      "version": 1
+      "sha256": "6f2151c2325e0c423da1d6b5532e455740187e4abfa40e39b7e05aabe3e744e3",
+      "version": 2
     },
     "validation-scoping": {
       "sha256": "447faaddb875883d676be4c53abf218fc555325cbb591e411412249f7077012d",
@@ -245,6 +249,12 @@
     "task-blueprint": {
       "sha256": "a1251410c8a8d1f0d4fef8fbb20fe697f9868b2282b381cdee0728f538be169f",
       "version": 12
+    }
+  },
+  "templates/workflows/lean-delivery/PROJECT_WORKFLOW.md": {
+    "codex-worktree-access": {
+      "sha256": "e703132606e5ad9b34e8bedd2f2d3bd51aef62cb305e5caaa21383274daecd07",
+      "version": 1
     }
   }
 }

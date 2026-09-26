@@ -41,12 +41,23 @@ Neither form may bypass validation or hide scope changes.
 
 ## Task worktree boundary
 
+<!-- MERIDIAN:BEGIN capability=codex-worktree-access v1 -->
 Every task uses exactly one branch and one linked worktree, with one writer at
-a time. Normalize the canonical task ID to lowercase `task-<number>` (for
-example, `TASK-012` becomes `task-012`). Use that value as the branch name and
-as the suffix of a sibling worktree named `<primary-checkout>-task-<number>`.
-The first `worktree` entry from `git worktree list --porcelain` identifies the
-primary checkout even when the developer has switched its branch.
+a time. Normalize the canonical task ID to lowercase `task-<number>` and use
+it as the branch name. Derive the worktree path with `meridian codex
+worktree-path <task-id> --project <primary-checkout> --worktree-root
+<selected-root>`. The layout is
+`<root>/<remote-host>/<owner>/<repository>/<canonical-task-id>`; a repository
+without a usable remote uses a deterministic local name plus a canonical
+Git-common-directory hash. Unsafe, ambiguous, colliding, or mismatched paths
+are `BLOCKED`. Existing legacy worktrees remain discoverable and are never
+moved or deleted automatically. The first `git worktree list --porcelain`
+entry identifies the primary checkout.
+
+Before creating or editing a task worktree, run `meridian codex doctor` for
+the selected root. Static configuration is not proof of effective host access;
+resolve `approval-required` explicitly and treat `blocked` as `BLOCKED`.
+<!-- MERIDIAN:END -->
 
 `Proceed with <TASK-ID>` performs a read-only collision check, then creates the
 branch and linked worktree from the current `main` commit before changing task
