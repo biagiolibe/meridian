@@ -2,11 +2,12 @@
 
 Task context loading, reasoning selection, task shape, and completion handoffs are governed by `docs/CONTEXT_BUDGET_POLICY.md`, `tasks/TASK_BLUEPRINT.md`, and `docs/COMPLETION_REPORT_TEMPLATE.md`; this document defines review and forge integration only.
 
-<!-- MERIDIAN:BEGIN capability=task-worktree-integration v1 -->
+<!-- MERIDIAN:BEGIN capability=task-worktree-integration v2 -->
 For `Review: REQUIRED`, the implementer pushes the task branch once after
 validation for each review attempt and records its deterministic branch,
-absolute dedicated-worktree path, implementation commit, base `main` commit,
-and current task commit in the completion handoff. The reviewer-integrator
+absolute dedicated-worktree path, implementation commit, validated task and
+base `main` commits, exact successful validation evidence, declared integration
+surface, full-validation requirement, and current task commit in the completion handoff. The reviewer-integrator
 uses that same task worktree in a fresh session after the implementer stops. It
 verifies the registered mapping and cleanliness, never switches the primary
 checkout to the task branch, and never pushes the task branch.
@@ -20,14 +21,20 @@ record to resolve every unchecked finding, returns both statuses to
 preserves the evidence across chats without granting the reviewer authority to
 repair implementation artifacts.
 
-Before accepting, verify:
+Before accepting, verify that the validated base is an ancestor of the
+validated task commit, that the validated commit is an ancestor of current
+task HEAD, and that the intervening diff contains only permitted
+task/queue/review/handoff lifecycle records:
 
 ```bash
-git merge-base --is-ancestor <recorded-base-main> <current-task-commit>
+git merge-base --is-ancestor <validated-base-main> <validated-task-commit>
+git merge-base --is-ancestor <validated-task-commit> <current-task-commit>
+git diff --name-only <validated-task-commit>..<current-task-commit>
 ```
 
-Current `main` need not be an ancestor of the branch. If the recorded-base
-check fails, do not mark the task `ACCEPTED`; return `BLOCKED`. Do not fetch,
+Current `main` need not be an ancestor of the branch. Missing evidence, a
+failed ancestry check, or any task-relevant change after validation is
+`BLOCKED`; do not mark the task `ACCEPTED`. Do not fetch,
 rebase, amend, cherry-pick, or force-push as recovery. After `APPROVE`, append
 the verdict and evidence to the review record and create only the local
 review-and-status `ACCEPTED` commit.
@@ -37,12 +44,27 @@ integration lease, acquired by atomically creating
 `meridian-integration.lock` in the absolute common Git directory. An existing
 lease is `BLOCKED`; only its owner removes it, and stale-lease removal requires
 explicit developer authorization. If the primary checkout is missing, dirty,
-cannot switch to `main`, or another
-integration owns the lease, return `BLOCKED` and preserve task state. Run `git
-merge --no-ff --no-commit <task-branch>`. Reject a conflict with `git merge
---abort`; never resolve it by choosing one task's governance state. Run the
-applicable validation against the combined tree, abort on failure, and only
-then create the merge commit and push `main` exactly once. Remove the linked
+cannot switch to `main`, or another integration owns the lease, return
+`BLOCKED` and preserve task state. When current `main` equals the validated
+base, reuse the task evidence. When it advanced, compare
+`git diff --name-only <validated-base>..main` and the advanced dependency,
+generated-input, configuration, schema, shared-governance, and behavioral
+identities with the handoff's declared integration surface. Equal or nested
+paths or any shared identity are material interactions and select full
+combined-tree validation. An incomplete declaration or comparison is
+`BLOCKED`; neither a conflict-free merge nor disjoint filenames establishes
+independence. Record an independent comparison before selecting the bounded
+gate. An explicit task requirement also selects full validation.
+
+Run `git merge --no-ff --no-commit <task-branch>`. Reject a conflict with `git
+merge --abort`; never resolve it by choosing one task's governance state.
+Every candidate runs `git diff --check` plus the smoke command declared in
+`PROJECT_WORKFLOW.md` when it is not `none`. Explicitly configured `none`
+means no smoke command and never expands to the complete baseline. Run the
+complete baseline only for a selected full-validation case or broader
+diagnosis after bounded-gate failure. Abort on any gate failure, record the
+decision, comparison, commands, and results, and only then create the merge
+commit and push `main` exactly once. Remove the linked
 worktree and then the local branch only after success. Release the lease after
 success or a clean abort.
 

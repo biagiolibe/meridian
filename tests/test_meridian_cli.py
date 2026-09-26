@@ -612,20 +612,20 @@ class MeridianCliTest(unittest.TestCase):
             previous = text
             for capability in new_capabilities:
                 previous = re.sub(
-                    rf"<!-- MERIDIAN:BEGIN capability={capability} v1 -->.*?<!-- MERIDIAN:END -->\n?",
+                    rf"<!-- MERIDIAN:BEGIN capability={capability} v[12] -->.*?<!-- MERIDIAN:END -->\n?",
                     "",
                     previous,
                     flags=re.DOTALL,
                 )
             previous = previous.replace("capability=roles v2", "capability=roles v1")
-            previous = previous.replace("capability=git-workflow v2", "capability=git-workflow v1")
+            previous = previous.replace("capability=git-workflow v3", "capability=git-workflow v1")
             previous = previous.replace("capability=audit-prompt v2", "capability=audit-prompt v1")
             previous = previous.replace(
-                "capability=lifecycle-orchestration v4",
+                "capability=lifecycle-orchestration v5",
                 "capability=lifecycle-orchestration v3",
             )
             previous = re.sub(
-                r"<!-- MERIDIAN:BEGIN capability=task-worktree-handoff v1 -->.*?<!-- MERIDIAN:END -->",
+                r"<!-- MERIDIAN:BEGIN capability=task-worktree-handoff v2 -->.*?<!-- MERIDIAN:END -->",
                 "- Branch: `<task-branch>`\n"
                 "- Implementation commit: `<commit SHA>`\n"
                 "- Base `main` commit: `<commit SHA>`",
@@ -645,14 +645,15 @@ class MeridianCliTest(unittest.TestCase):
 
         for relative, text in current.items():
             (workflow / relative).write_text(text, encoding="utf-8")
-        (self.framework / "VERSION").write_text("1.1.42\n", encoding="utf-8")
+        (self.framework / "VERSION").write_text("1.1.43\n", encoding="utf-8")
 
         checked = self.run_cli("upgrade", "--check")
         self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
         self.assertIn("MIGRATION 045-isolated-task-worktrees", checked.stdout)
+        self.assertIn("MIGRATION 046-integration-validation-evidence-reuse", checked.stdout)
         applied = self.run_cli("upgrade", "--apply")
         self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
-        self.assertIn("capability=git-workflow v2", project_workflow.read_text(encoding="utf-8"))
+        self.assertIn("capability=git-workflow v3", project_workflow.read_text(encoding="utf-8"))
         self.assertIn("Consumer-owned note.", project_workflow.read_text(encoding="utf-8"))
         self.assertIn(
             "capability=task-worktree-boundary v1",
@@ -661,8 +662,68 @@ class MeridianCliTest(unittest.TestCase):
         report = (self.project / "docs/COMPLETION_REPORT_TEMPLATE.md").read_text(encoding="utf-8")
         self.assertIn("Worktree: `<absolute dedicated task-worktree path>`", report)
         manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
-        self.assertEqual(manifest["frameworkVersion"], "1.1.42")
-        self.assertEqual(manifest["appliedMigrations"][-1], "045-isolated-task-worktrees")
+        self.assertEqual(manifest["frameworkVersion"], "1.1.43")
+        self.assertEqual(manifest["appliedMigrations"][-1], "046-integration-validation-evidence-reuse")
+
+    def test_clean_upgrade_installs_integration_evidence_reuse_contract(self) -> None:
+        """Migration 046 upgrades every changed integration capability."""
+        workflow = self.framework / "templates/workflows/governed-sdd"
+        changed_paths = (
+            "PROJECT_WORKFLOW.md",
+            "docs/CODE_REVIEW_PROMPT.md",
+            "docs/COMPLETION_REPORT_TEMPLATE.md",
+            "docs/LIFECYCLE_ORCHESTRATION.md",
+            "docs/PULL_REQUEST_POLICY.md",
+            "docs/workflows/REVIEW.md",
+        )
+        current = {
+            relative: (workflow / relative).read_text(encoding="utf-8")
+            for relative in changed_paths
+        }
+        previous_versions = {
+            "git-workflow": (3, 2),
+            "lifecycle-orchestration": (5, 4),
+            "task-worktree-review": (2, 1),
+            "task-worktree-integration": (2, 1),
+            "task-worktree-review-procedure": (2, 1),
+            "task-worktree-handoff": (2, 1),
+        }
+        for relative, text in current.items():
+            previous = text
+            for capability, (new, old) in previous_versions.items():
+                previous = previous.replace(
+                    f"capability={capability} v{new}",
+                    f"capability={capability} v{old}",
+                )
+            for root in (workflow, self.project):
+                (root / relative).write_text(previous, encoding="utf-8")
+
+        (self.framework / "VERSION").write_text("1.1.42\n", encoding="utf-8")
+        self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
+        project_workflow = self.project / "PROJECT_WORKFLOW.md"
+        project_workflow.write_text(
+            project_workflow.read_text(encoding="utf-8") + "\nConsumer-owned note.\n",
+            encoding="utf-8",
+        )
+
+        for relative, text in current.items():
+            (workflow / relative).write_text(text, encoding="utf-8")
+        (self.framework / "VERSION").write_text("1.1.43\n", encoding="utf-8")
+
+        checked = self.run_cli("upgrade", "--check")
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+        self.assertIn("MIGRATION 046-integration-validation-evidence-reuse", checked.stdout)
+        applied = self.run_cli("upgrade", "--apply")
+        self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+        self.assertIn("capability=git-workflow v3", project_workflow.read_text(encoding="utf-8"))
+        self.assertIn("Consumer-owned note.", project_workflow.read_text(encoding="utf-8"))
+        self.assertIn(
+            "capability=task-worktree-handoff v2",
+            (self.project / "docs/COMPLETION_REPORT_TEMPLATE.md").read_text(encoding="utf-8"),
+        )
+        manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual(manifest["workflowBaselineVersion"], "1.1.43")
+        self.assertEqual(manifest["appliedMigrations"][-1], "046-integration-validation-evidence-reuse")
 
     def test_upgrade_downgrades_cosmetic_conflict_to_verified(self) -> None:
         """Phase 3 of migrations/CAPABILITY_MARKERS.md: a conflict outside a
@@ -1476,8 +1537,8 @@ class MeridianCliTest(unittest.TestCase):
             planned.stdout,
         )
         self.assertIn(
-            "CAPABILITY MISSING 045-isolated-task-worktrees — no marker found; "
-            "legacy pre-marker evidence only confirms v1, but v4 is required",
+            "CAPABILITY MISSING 046-integration-validation-evidence-reuse — no marker found; "
+            "legacy pre-marker evidence only confirms v1, but v5 is required",
             planned.stdout,
         )
         self.assertIn("\nNEXT_ACTION IMPLEMENT_MIGRATION\n", planned.stdout)
@@ -2820,7 +2881,7 @@ class CapabilityMarkerTest(unittest.TestCase):
         text = (self.WORKFLOW / "docs/LIFECYCLE_ORCHESTRATION.md").read_text(encoding="utf-8")
         self.assertEqual(
             self.marker_pairs(text),
-            [("lifecycle-orchestration", "4"), ("rejected-attempt-restart", "3")],
+            [("lifecycle-orchestration", "5"), ("rejected-attempt-restart", "3")],
         )
 
     def test_context_budget_policy_carries_its_capability_markers(self) -> None:
@@ -2865,7 +2926,7 @@ class CapabilityMarkerTest(unittest.TestCase):
 
         self.assertIn(("task-blueprint", "12"), self.marker_pairs(blueprint))
         self.assertIn(("reasoning-budget-contract", "1"), self.marker_pairs(policy))
-        self.assertIn(("lifecycle-orchestration", "4"), self.marker_pairs(lifecycle))
+        self.assertIn(("lifecycle-orchestration", "5"), self.marker_pairs(lifecycle))
         self.assertIn("[low / medium / high / xhigh]", blueprint)
         self.assertIn("exact permitted runtime cap", blueprint)
         self.assertIn("must never raise its effort", blueprint)
@@ -2913,14 +2974,14 @@ class CapabilityMarkerTest(unittest.TestCase):
         pull_request_policy = (self.WORKFLOW / "docs/PULL_REQUEST_POLICY.md").read_text(encoding="utf-8")
         self.assertEqual(
             self.marker_pairs(pull_request_policy),
-            [("task-worktree-integration", "1"), ("ci-verified-validation", "1")],
+            [("task-worktree-integration", "2"), ("ci-verified-validation", "1")],
         )
 
         code_review_prompt = (self.WORKFLOW / "docs/CODE_REVIEW_PROMPT.md").read_text(encoding="utf-8")
         self.assertEqual(
             self.marker_pairs(code_review_prompt),
             [
-                ("task-worktree-review", "1"),
+                ("task-worktree-review", "2"),
                 ("manual-verification-review-check", "1"),
                 ("ci-verified-validation", "1"),
             ],
@@ -2930,7 +2991,7 @@ class CapabilityMarkerTest(unittest.TestCase):
         self.assertEqual(
             self.marker_pairs(completion_report),
             [
-                ("task-worktree-handoff", "1"),
+                ("task-worktree-handoff", "2"),
                 ("manual-verification-record", "1"),
                 ("ci-verified-validation", "1"),
             ],
@@ -2979,7 +3040,7 @@ class CapabilityMarkerTest(unittest.TestCase):
         }
         expected["execution-assets"] = "2"
         expected["roles"] = "2"
-        expected["git-workflow"] = "2"
+        expected["git-workflow"] = "3"
         expected["task-lifecycle"] = "2"
         expected["review-policy"] = "2"
         self.assertEqual(sorted(pairs), sorted(expected.items()))
