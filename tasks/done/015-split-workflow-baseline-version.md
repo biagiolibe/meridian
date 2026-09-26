@@ -19,7 +19,7 @@ CLI-only release ship without a fake migration, and makes `meridian upgrade
 
 ## 📋 Acceptance Criteria
 
-- [ ] A fixture scenario where the framework `VERSION` advances with no new
+- [x] A fixture scenario where the framework `VERSION` advances with no new
       migration record: `upgrade --check` reports the baseline plan as
       all-`keep`/zero-conflict **and** shows a non-trivial framework-version
       delta line; `upgrade --apply` changes only `manifest.frameworkVersion`
@@ -27,16 +27,16 @@ CLI-only release ship without a fake migration, and makes `meridian upgrade
       baseline snapshot directory unchanged); a second `--check` run
       afterward is a true no-op. This is the regression guard for the
       "baseline snapshot is missing" failure mode.
-- [ ] A fixture scenario where a new migration is added: both
+- [x] A fixture scenario where a new migration is added: both
       `frameworkVersion` and `workflowBaselineVersion` advance together, the
       baseline snapshot directory is re-keyed to the new baseline version,
       and the old one is pruned.
-- [ ] A fixture scenario with a legacy manifest (only `frameworkVersion`, no
+- [x] A fixture scenario with a legacy manifest (only `frameworkVersion`, no
       `workflowBaselineVersion` key): `upgrade --check`/`--apply` still work
       correctly via the fallback, and the manifest written after apply has
       the explicit `workflowBaselineVersion` field.
-- [ ] `python3 scripts/check_repository.py` passes.
-- [ ] `python3 -m unittest discover -s tests -v` passes.
+- [x] `python3 scripts/check_repository.py` passes.
+- [x] `python3 -m unittest discover -s tests -v` passes.
 
 ## 📁 Relevant Files
 
@@ -108,3 +108,17 @@ CLI-only release ship without a fake migration, and makes `meridian upgrade
 ```bash
 claude "$(cat tasks/015-split-workflow-baseline-version.md)"$'\n\nExecute this task in the current project.'
 ```
+
+## Completion
+
+Completed on 2026-09-26. Upgrade manifests now track the public framework
+release independently from the migration-derived workflow baseline, retain a
+legacy-manifest fallback, and report both deltas. Regression coverage verifies
+CLI-only releases, migration releases, and legacy manifests. Adoption and
+finalize-adoption propagation remains scoped to task 016.
+
+Validation:
+
+- `python3 scripts/check_repository.py` (exit 0)
+- `python3 -m unittest discover -s tests -v` (exit 0, 175 tests)
+- `git diff --check` (exit 0)
