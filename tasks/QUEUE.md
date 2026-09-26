@@ -44,7 +44,7 @@ gate and escalates to full validation only for explicit or material risk.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[ ]` | 055 | Avoid duplicate full validation during worktree integration | 🔴 P1 | 051 | [055](055-avoid-duplicate-full-integration-validation.md) |
+| `[/]` | 055 | Avoid duplicate full validation during worktree integration | 🔴 P1 | 051 | [055](055-avoid-duplicate-full-integration-validation.md) |
 
 ### Phase 18 — Codex worktree access
 
