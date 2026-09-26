@@ -123,10 +123,19 @@ committed deliverable does not self-evidently answer `Question`, record
 `INCONCLUSIVE` rather than `ANSWERED` on the strength of author judgment.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=git-workflow v3 -->
+<!-- MERIDIAN:BEGIN capability=codex-worktree-access v1 -->
+Codex task worktrees live below a user-selected shared root, namespaced as
+`<root>/<remote-host>/<owner>/<repository>/<canonical-task-id>`. Use `meridian
+codex worktree-path` for derivation and collision checks and `meridian codex
+doctor` for separate trust, permission-model, root-write, command-policy, and
+Git-metadata status. Configuration requires explicit `meridian codex configure
+--apply`; static configuration alone never proves effective host access.
+<!-- MERIDIAN:END -->
+
+<!-- MERIDIAN:BEGIN capability=git-workflow v4 -->
 ## Git workflow
 
-- One writer at a time owns each task worktree. Normalize the canonical task ID to lowercase `task-<number>` (for example, `TASK-012` becomes `task-012`). Use that value for the branch and as the suffix of a sibling worktree named `<primary-checkout>-task-<number>`. The first entry from `git worktree list --porcelain` is the primary checkout even if the developer switches its branch.
+- One writer at a time owns each task worktree. Normalize the canonical task ID to lowercase `task-<number>` and use it as the branch. Derive `<root>/<remote-host>/<owner>/<repository>/<canonical-task-id>` with `meridian codex worktree-path`; the deterministic local fallback contains the repository name and canonical Git-common-directory hash. Reject unsafe or colliding identities and mismatched existing paths. Run `meridian codex doctor` first: static configuration does not prove effective write access, `approval-required` needs explicit resolution, and `blocked` is `BLOCKED`. Existing legacy worktrees remain discoverable and are never moved or deleted automatically. The first `git worktree list --porcelain` entry is the primary checkout.
 - Before any task mutation, perform a read-only collision check and create the task branch and linked worktree from current `main`. An existing branch and worktree may be selected only when they are linked to one another, on the expected branch, and clean. If only one exists or any mapping differs, return `BLOCKED`; never reuse or repair it silently. The primary checkout is only for coordination and final integration, never implementation or review.
 - After validation, the implementer creates the task commit and pushes the task branch once for each review attempt. Its completion handoff records the task branch, absolute worktree path, implementation commit, validated task commit, validated base `main` commit, exact successful validation commands or CI evidence, the declared integration surface, and whether full combined-tree validation is required. It stops writing before review and leaves the dedicated worktree clean.
 - The reviewer-integrator uses that same dedicated task worktree in a fresh agent session that did not write the implementation. It verifies the handoff-to-worktree mapping and never switches the primary checkout to the task branch. Review and implementation never run concurrently in one worktree.
