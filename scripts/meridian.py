@@ -139,6 +139,26 @@ def version_key(value: str) -> tuple[int, ...]:
         raise MeridianError(f"invalid framework version: {value}") from error
 
 
+def latest_migration_to(framework_root: Path, upto: str | None = None) -> str:
+    """Return the newest migration baseline, or the release itself for an empty ledger."""
+    limit = upto or read_version(framework_root)
+    versions = [
+        str(json.loads(path.read_text(encoding="utf-8"))["to"])
+        for path in (framework_root / "migrations").glob("*.json")
+    ]
+    if not versions:
+        return limit
+    eligible = [version for version in versions if version_key(version) <= version_key(limit)]
+    if not eligible:
+        raise MeridianError(f"no migration baseline exists at or below framework version {limit}")
+    return max(eligible, key=version_key)
+
+
+def manifest_baseline_version(manifest: dict[str, object]) -> str:
+    """Read the explicit baseline version, with compatibility for legacy manifests."""
+    return str(manifest.get("workflowBaselineVersion", manifest.get("frameworkVersion", "")))
+
+
 def managed_files_for_workflow(workflow: Path, mode: str) -> list[ManagedFile]:
     if not workflow.is_dir():
         raise MeridianError(f"workflow template is missing: {workflow}")
@@ -1713,7 +1733,7 @@ def copy_baseline(
 def prune_stale_baselines(project_root: Path, keep_version: str) -> None:
     """Remove every baseline snapshot except the one the manifest now points at.
 
-    Only the baseline matching `manifest.frameworkVersion` is ever read again
+    Only the baseline matching `manifest.workflowBaselineVersion` is ever read again
     (see `plan_upgrade`); older snapshots are dead weight the moment an
     upgrade or adoption completes.
     """
@@ -1725,21 +1745,29 @@ def prune_stale_baselines(project_root: Path, keep_version: str) -> None:
             shutil.rmtree(entry)
 
 
-def lock_project(project_root: Path, framework_root: Path, mode: str) -> None:
+def lock_project(
+    project_root: Path,
+    framework_root: Path,
+    mode: str,
+    write_workflow_baseline: bool = True,
+) -> None:
     version = read_version(framework_root)
+    baseline_version = latest_migration_to(framework_root, version)
     files = managed_files(framework_root, mode)
     missing = [str(item.target) for item in files if not (project_root / item.target).is_file()]
     if missing:
         raise MeridianError("project is missing managed files: " + ", ".join(missing))
 
-    copy_baseline(project_root, framework_root, mode, version)
+    copy_baseline(project_root, framework_root, mode, baseline_version)
     manifest = {
         "frameworkVersion": version,
         "protocolVersion": PROTOCOL_VERSION,
         "mode": mode,
         "managedFiles": {str(item.target): sha256(item.source) for item in files},
-        "appliedMigrations": migration_ids(framework_root, "0.0.0", version),
+        "appliedMigrations": migration_ids(framework_root, "0.0.0", baseline_version),
     }
+    if write_workflow_baseline:
+        manifest["workflowBaselineVersion"] = baseline_version
     write_manifest(project_root, manifest)
     print(f"Locked {project_root} to Meridian {version} ({mode}).")
 
@@ -1858,15 +1886,18 @@ def plan_from_baseline(
     applied_migrations: list[object],
     target_version_override: str | None = None,
     managed_files_override: list[ManagedFile] | None = None,
+    installed_framework_version: str | None = None,
 ) -> tuple[dict[str, object], list[PlanItem]]:
-    target_version = target_version_override or read_version(framework_root)
-    if version_key(target_version) < version_key(installed_version):
+    target_framework_version = target_version_override or read_version(framework_root)
+    target_baseline_version = latest_migration_to(framework_root, target_framework_version)
+    if version_key(target_baseline_version) < version_key(installed_version):
         raise MeridianError("framework source is older than the project lockfile")
     if not baseline_root.is_dir():
         raise MeridianError(f"baseline snapshot is missing: {baseline_root}")
 
     manifest: dict[str, object] = {
-        "frameworkVersion": installed_version,
+        "frameworkVersion": installed_framework_version or installed_version,
+        "workflowBaselineVersion": installed_version,
         "mode": mode,
         "appliedMigrations": applied_migrations,
     }
@@ -1875,7 +1906,7 @@ def plan_from_baseline(
     applied = {str(migration) for migration in applied_migrations}
     pending_migrations = [
         migration
-        for migration in migration_ids(framework_root, installed_version, target_version)
+        for migration in migration_ids(framework_root, installed_version, target_baseline_version)
         if migration not in applied
     ]
 
@@ -2076,7 +2107,7 @@ def prepare_upgrade_targets(
     manifest = load_manifest(project_root)
     if not stop_before_retirement:
         return manifest, None, None
-    installed_version = str(manifest.get("frameworkVersion", ""))
+    installed_version = manifest_baseline_version(manifest)
     full_target = read_version(framework_root)
     capped_target = capped_target_version(framework_root, installed_version, full_target)
     if capped_target == full_target:
@@ -2099,7 +2130,7 @@ def plan_upgrade(
     manifest, target_override, managed_override = prepare_upgrade_targets(
         project_root, framework_root, stop_before_retirement
     )
-    installed_version = str(manifest.get("frameworkVersion", ""))
+    installed_version = manifest_baseline_version(manifest)
     return plan_from_baseline(
         project_root,
         framework_root,
@@ -2109,6 +2140,7 @@ def plan_upgrade(
         list(manifest.get("appliedMigrations", [])),
         target_version_override=target_override,
         managed_files_override=managed_override,
+        installed_framework_version=str(manifest.get("frameworkVersion", "")),
     )
 
 
@@ -2119,15 +2151,24 @@ def print_plan(
     target_version_override: str | None = None,
 ) -> None:
     target_version = target_version_override or read_version(framework_root)
+    installed_baseline_version = manifest_baseline_version(manifest)
+    target_baseline_version = latest_migration_to(framework_root, target_version)
     print(
-        f"Meridian {manifest['frameworkVersion']} -> {target_version} "
+        f"Meridian {installed_baseline_version} -> {target_baseline_version} "
         f"({manifest['mode']})"
     )
+    framework_delta = f"Framework: {manifest['frameworkVersion']} -> {target_version}"
+    if (
+        str(manifest["frameworkVersion"]) != target_version
+        and installed_baseline_version == target_baseline_version
+    ):
+        framework_delta += " (CLI-only; no baseline change)"
+    print(framework_delta)
     applied = {str(item) for item in manifest.get("appliedMigrations", [])}
     pending = [
         migration
         for migration in migration_ids(
-            framework_root, str(manifest["frameworkVersion"]), target_version
+            framework_root, installed_baseline_version, target_baseline_version
         )
         if migration not in applied
     ]
@@ -2149,14 +2190,16 @@ def apply_plan(
     owner_reconciled: bool = False,
     target_version_override: str | None = None,
     managed_files_override: list[ManagedFile] | None = None,
+    write_workflow_baseline: bool = True,
 ) -> None:
     print_plan(manifest, framework_root, plan, target_version_override=target_version_override)
     conflicts = any(item.action == "conflict" for item in plan)
     if conflicts and not owner_reconciled:
         raise MeridianError("upgrade has conflicts")
 
-    installed_version = str(manifest["frameworkVersion"])
+    installed_version = manifest_baseline_version(manifest)
     target_version = target_version_override or read_version(framework_root)
+    target_baseline_version = latest_migration_to(framework_root, target_version)
     if owner_reconciled:
         print(
             "Owner-reconciled upgrade: skipped automatic file changes for every managed "
@@ -2167,7 +2210,7 @@ def apply_plan(
         applied = {str(migration) for migration in manifest.get("appliedMigrations", [])}
         pending_migrations = [
             migration
-            for migration in migration_ids(framework_root, installed_version, target_version)
+            for migration in migration_ids(framework_root, installed_version, target_baseline_version)
             if migration not in applied
         ]
         for item in plan:
@@ -2262,22 +2305,27 @@ def apply_plan(
                     )
                 local.write_text(retired, encoding="utf-8")
 
-    copy_baseline(
-        project_root,
-        framework_root,
-        str(manifest["mode"]),
-        target_version,
-        managed_files_override=managed_files_override,
-    )
-    prune_stale_baselines(project_root, target_version)
+    if target_baseline_version != installed_version:
+        copy_baseline(
+            project_root,
+            framework_root,
+            str(manifest["mode"]),
+            target_baseline_version,
+            managed_files_override=managed_files_override,
+        )
+        prune_stale_baselines(project_root, target_baseline_version)
     manifest["frameworkVersion"] = target_version
+    if write_workflow_baseline:
+        manifest["workflowBaselineVersion"] = target_baseline_version
+    else:
+        manifest.pop("workflowBaselineVersion", None)
     manifest["protocolVersion"] = PROTOCOL_VERSION
     manifest["managedFiles"] = {
         str(item.target): sha256(item.source)
         for item in managed_files_override or managed_files(framework_root, str(manifest["mode"]))
     }
     prior = {str(item) for item in manifest.get("appliedMigrations", [])}
-    prior.update(migration_ids(framework_root, installed_version, target_version))
+    prior.update(migration_ids(framework_root, installed_version, target_baseline_version))
     manifest["appliedMigrations"] = sorted(prior)
     write_manifest(project_root, manifest)
     print("Upgrade applied. Review the diff, run project checks, then commit it.")
@@ -2292,7 +2340,7 @@ def apply_upgrade(
     manifest, target_override, managed_override = prepare_upgrade_targets(
         project_root, framework_root, stop_before_retirement
     )
-    installed_version = str(manifest.get("frameworkVersion", ""))
+    installed_version = manifest_baseline_version(manifest)
     manifest, plan = plan_from_baseline(
         project_root,
         framework_root,
@@ -2302,13 +2350,14 @@ def apply_upgrade(
         list(manifest.get("appliedMigrations", [])),
         target_version_override=target_override,
         managed_files_override=managed_override,
+        installed_framework_version=str(manifest.get("frameworkVersion", "")),
     )
     apply_plan(
         project_root,
         framework_root,
         manifest,
         plan,
-        project_root / BASELINES_PATH / str(manifest["frameworkVersion"]),
+        project_root / BASELINES_PATH / manifest_baseline_version(manifest),
         owner_reconciled=owner_reconciled,
         target_version_override=target_override,
         managed_files_override=managed_override,
@@ -2359,7 +2408,14 @@ def adopt_project(
     if any(item.action == "conflict" for item in plan):
         raise MeridianError("adoption has conflicts")
     copy_adoption_baseline(project_root, snapshot_workflow, mode, source_version)
-    apply_plan(project_root, framework_root, manifest, plan, baseline_root)
+    apply_plan(
+        project_root,
+        framework_root,
+        manifest,
+        plan,
+        baseline_root,
+        write_workflow_baseline=False,
+    )
     return 0
 
 
@@ -2390,7 +2446,7 @@ def finalize_adoption(
                 f"(verdict={review.verdict}, unchecked findings={review.unchecked})"
             )
 
-    lock_project(project_root, framework_root, mode)
+    lock_project(project_root, framework_root, mode, write_workflow_baseline=False)
     if owner_accepted:
         print("Owner-accepted finalize: skipped the independent-review gate.")
     print("Adoption finalized. Review the migration diff and commit the project baseline.")
@@ -3526,7 +3582,7 @@ def main() -> int:
             base_manifest, target_override, managed_override = prepare_upgrade_targets(
                 project_root, framework_root, arguments.stop_before_retirement
             )
-            installed_version = str(base_manifest.get("frameworkVersion", ""))
+            installed_version = manifest_baseline_version(base_manifest)
             manifest, plan = plan_from_baseline(
                 project_root,
                 framework_root,
@@ -3536,6 +3592,7 @@ def main() -> int:
                 list(base_manifest.get("appliedMigrations", [])),
                 target_version_override=target_override,
                 managed_files_override=managed_override,
+                installed_framework_version=str(base_manifest.get("frameworkVersion", "")),
             )
             print_plan(manifest, framework_root, plan, target_version_override=target_override)
             if any(item.action == "conflict" for item in plan):

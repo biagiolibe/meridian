@@ -69,7 +69,9 @@ class MeridianCliTest(unittest.TestCase):
         need, since `setUp()` otherwise leaves the real repository's own
         current AGENTS.md/CLAUDE.md in the project directory."""
         manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
-        baseline_root = self.project / ".meridian/baselines" / str(manifest["frameworkVersion"])
+        baseline_root = self.project / ".meridian/baselines" / str(
+            manifest.get("workflowBaselineVersion", manifest["frameworkVersion"])
+        )
         for path in baseline_root.rglob("*"):
             if path.is_file():
                 destination = self.project / path.relative_to(baseline_root)
@@ -93,7 +95,9 @@ class MeridianCliTest(unittest.TestCase):
         gap in task 036 itself, out of scope here, and irrelevant to Fusa's
         real content."""
         manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
-        baseline_root = self.project / ".meridian/baselines" / str(manifest["frameworkVersion"])
+        baseline_root = self.project / ".meridian/baselines" / str(
+            manifest.get("workflowBaselineVersion", manifest["frameworkVersion"])
+        )
         for relative in (Path("AGENTS.md"), Path("CLAUDE.md")):
             for root in (self.project, baseline_root):
                 path = root / relative
@@ -197,6 +201,43 @@ class MeridianCliTest(unittest.TestCase):
             )
         (self.framework / "VERSION").write_text("1.1.3\n", encoding="utf-8")
         return moved, target
+
+    def configure_version_split_fixture(self) -> None:
+        for path in (self.framework / "migrations").glob("*.json"):
+            path.unlink()
+        migration = {
+            "id": "001-initial-baseline",
+            "from": "1.0.0",
+            "to": "1.1.0",
+            "description": "test-only initial baseline",
+            "managedPaths": ["PROJECT_WORKFLOW.md"],
+            "verification": ["test-only"],
+        }
+        (self.framework / "migrations/001-initial-baseline.json").write_text(
+            json.dumps(migration), encoding="utf-8"
+        )
+        (self.framework / "VERSION").write_text("1.1.0\n", encoding="utf-8")
+        locked = self.run_cli("lock", "--mode", "governed-sdd")
+        self.assertEqual(locked.returncode, 0, locked.stdout + locked.stderr)
+
+    def add_version_split_migration(self) -> None:
+        migration = {
+            "id": "002-next-baseline",
+            "from": "1.1.0",
+            "to": "1.1.1",
+            "description": "test-only next baseline",
+            "managedPaths": ["PROJECT_WORKFLOW.md"],
+            "verification": ["test-only"],
+        }
+        (self.framework / "migrations/002-next-baseline.json").write_text(
+            json.dumps(migration), encoding="utf-8"
+        )
+        workflow = self.framework / "templates/workflows/governed-sdd/PROJECT_WORKFLOW.md"
+        workflow.write_text(
+            workflow.read_text(encoding="utf-8") + "\nVersion split marker.\n",
+            encoding="utf-8",
+        )
+        (self.framework / "VERSION").write_text("1.1.1\n", encoding="utf-8")
 
     def test_upgrade_crosses_a_long_lag_capability_move_and_preserves_entry_points(self) -> None:
         moved, target = self.configure_long_lag_move_fixture()
@@ -376,8 +417,115 @@ class MeridianCliTest(unittest.TestCase):
         self.assertEqual(
             baselines_after_second,
             ["1.1.2"],
-            "only the current frameworkVersion's baseline should remain after a second upgrade",
+            "only the current workflowBaselineVersion's baseline should remain after a second upgrade",
         )
+
+    def test_cli_only_upgrade_advances_framework_without_rekeying_baseline(self) -> None:
+        self.configure_version_split_fixture()
+        baseline_root = self.project / ".meridian/baselines/1.1.0"
+        baseline_before = {
+            path.relative_to(baseline_root): path.read_bytes()
+            for path in baseline_root.rglob("*")
+            if path.is_file()
+        }
+        manifest_path = self.project / ".meridian/manifest.json"
+        manifest_before = json.loads(manifest_path.read_text(encoding="utf-8"))
+        self.assertEqual(manifest_before["workflowBaselineVersion"], "1.1.0")
+
+        (self.framework / "VERSION").write_text("1.1.1\n", encoding="utf-8")
+        checked = self.run_cli("upgrade", "--check")
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+        self.assertIn("Meridian 1.1.0 -> 1.1.0", checked.stdout)
+        self.assertIn(
+            "Framework: 1.1.0 -> 1.1.1 (CLI-only; no baseline change)",
+            checked.stdout,
+        )
+        self.assertNotIn("MIGRATION ", checked.stdout)
+        self.assertNotIn("CONFLICT ", checked.stdout)
+        self.assertTrue(
+            all(line.startswith("KEEP") for line in checked.stdout.splitlines()[2:]),
+            checked.stdout,
+        )
+
+        applied = self.run_cli("upgrade", "--apply")
+        self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+        manifest_after = json.loads(manifest_path.read_text(encoding="utf-8"))
+        self.assertEqual(manifest_after["frameworkVersion"], "1.1.1")
+        self.assertEqual(manifest_after["workflowBaselineVersion"], "1.1.0")
+        self.assertEqual(manifest_after["protocolVersion"], meridian.PROTOCOL_VERSION)
+        self.assertEqual(
+            {
+                key: value
+                for key, value in manifest_after.items()
+                if key not in {"frameworkVersion", "protocolVersion"}
+            },
+            {
+                key: value
+                for key, value in manifest_before.items()
+                if key not in {"frameworkVersion", "protocolVersion"}
+            },
+        )
+        self.assertEqual(
+            {
+                path.relative_to(baseline_root): path.read_bytes()
+                for path in baseline_root.rglob("*")
+                if path.is_file()
+            },
+            baseline_before,
+        )
+        self.assertEqual(
+            sorted(path.name for path in baseline_root.parent.iterdir()),
+            ["1.1.0"],
+        )
+
+        current = self.run_cli("upgrade", "--check")
+        self.assertEqual(current.returncode, 0, current.stdout + current.stderr)
+        self.assertIn("Framework: 1.1.1 -> 1.1.1", current.stdout)
+        self.assertNotIn("CLI-only", current.stdout)
+        self.assertNotIn("MIGRATION ", current.stdout)
+        self.assertNotIn("CONFLICT ", current.stdout)
+
+    def test_migration_upgrade_advances_and_rekeys_workflow_baseline(self) -> None:
+        self.configure_version_split_fixture()
+        self.add_version_split_migration()
+
+        checked = self.run_cli("upgrade", "--check")
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+        self.assertIn("Meridian 1.1.0 -> 1.1.1", checked.stdout)
+        self.assertIn("Framework: 1.1.0 -> 1.1.1", checked.stdout)
+        self.assertIn("MIGRATION 002-next-baseline", checked.stdout)
+
+        applied = self.run_cli("upgrade", "--apply")
+        self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+        manifest = json.loads(
+            (self.project / ".meridian/manifest.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(manifest["frameworkVersion"], "1.1.1")
+        self.assertEqual(manifest["workflowBaselineVersion"], "1.1.1")
+        self.assertEqual(
+            sorted(path.name for path in (self.project / ".meridian/baselines").iterdir()),
+            ["1.1.1"],
+        )
+
+    def test_legacy_manifest_uses_framework_version_as_baseline_fallback(self) -> None:
+        self.configure_version_split_fixture()
+        manifest_path = self.project / ".meridian/manifest.json"
+        legacy_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        del legacy_manifest["workflowBaselineVersion"]
+        manifest_path.write_text(
+            json.dumps(legacy_manifest, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        self.add_version_split_migration()
+
+        checked = self.run_cli("upgrade", "--check")
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+        self.assertIn("MIGRATION 002-next-baseline", checked.stdout)
+        applied = self.run_cli("upgrade", "--apply")
+        self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        self.assertEqual(manifest["frameworkVersion"], "1.1.1")
+        self.assertEqual(manifest["workflowBaselineVersion"], "1.1.1")
 
     def test_clean_upgrade_installs_host_impact_declarations_and_preserves_consumer_text(self) -> None:
         """Migration 043 upgrades the two managed host-impact files without
