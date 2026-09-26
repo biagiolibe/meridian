@@ -13,6 +13,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 RULES = ROOT / "templates/workflows/governed-sdd/.codex/rules/meridian.rules"
+LEAN_RULES = ROOT / "templates/workflows/lean-delivery/.codex/rules/meridian.rules"
 PREFIX_RULE = re.compile(
     r'^prefix_rule\(pattern=\[[^\n]+\], decision="(allow|prompt|forbidden)"\)$'
 )
@@ -21,22 +22,23 @@ import meridian  # noqa: E402
 
 
 class CodexRulesTemplateTest(unittest.TestCase):
-    def test_rules_are_managed_for_governed_sdd_only(self) -> None:
+    def test_rules_are_managed_for_both_workflows(self) -> None:
         governed = {
             item.target
             for item in meridian.managed_files(ROOT, "governed-sdd")
         }
         lean = {item.target for item in meridian.managed_files(ROOT, "lean-delivery")}
         self.assertIn(Path(".codex/rules/meridian.rules"), governed)
-        self.assertNotIn(Path(".codex/rules/meridian.rules"), lean)
+        self.assertIn(Path(".codex/rules/meridian.rules"), lean)
 
     def test_prefix_rules_are_single_line_and_well_formed(self) -> None:
-        lines = RULES.read_text(encoding="utf-8").splitlines()
-        rules = [line for line in lines if line.startswith("prefix_rule(")]
-        self.assertGreaterEqual(len(rules), 9)
-        for line in rules:
-            self.assertRegex(line, PREFIX_RULE)
-            self.assertNotIn("\n", line)
+        for path in (RULES, LEAN_RULES):
+            lines = path.read_text(encoding="utf-8").splitlines()
+            rules = [line for line in lines if line.startswith("prefix_rule(")]
+            self.assertGreaterEqual(len(rules), 9)
+            for line in rules:
+                self.assertRegex(line, PREFIX_RULE)
+                self.assertNotIn("\n", line)
 
     @unittest.skipUnless(shutil.which("codex"), "codex is not on PATH; cannot evaluate execpolicy decisions")
     def test_decision_table_with_codex_execpolicy(self) -> None:
@@ -69,8 +71,11 @@ class CodexRulesTemplateTest(unittest.TestCase):
             (["meridian", "context", "authority", "TASK-040"], "allow"),
             (["meridian", "execution", "reconcile"], None),
             (["meridian", "upgrade", "--project", "."], None),
-            (["git", "rebase", "main"], None),
-            (["git", "reset", "--hard", "HEAD~1"], None),
+            (["git", "worktree", "list", "--porcelain"], "allow"),
+            (["git", "worktree", "add", "/tmp/x", "main"], "prompt"),
+            (["git", "rebase", "main"], "forbidden"),
+            (["git", "reset", "--hard", "HEAD~1"], "forbidden"),
+            (["git", "cherry-pick", "abc"], "forbidden"),
             (["git", "fetch", "origin"], None),
             (["git", "-C", "/tmp/project", "status"], None),
         ]

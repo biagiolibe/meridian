@@ -8,8 +8,10 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -618,7 +620,7 @@ class MeridianCliTest(unittest.TestCase):
                     flags=re.DOTALL,
                 )
             previous = previous.replace("capability=roles v2", "capability=roles v1")
-            previous = previous.replace("capability=git-workflow v3", "capability=git-workflow v1")
+            previous = previous.replace("capability=git-workflow v4", "capability=git-workflow v1")
             previous = previous.replace("capability=audit-prompt v2", "capability=audit-prompt v1")
             previous = previous.replace(
                 "capability=lifecycle-orchestration v5",
@@ -645,25 +647,26 @@ class MeridianCliTest(unittest.TestCase):
 
         for relative, text in current.items():
             (workflow / relative).write_text(text, encoding="utf-8")
-        (self.framework / "VERSION").write_text("1.1.43\n", encoding="utf-8")
+        (self.framework / "VERSION").write_text("1.1.44\n", encoding="utf-8")
 
         checked = self.run_cli("upgrade", "--check")
         self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
         self.assertIn("MIGRATION 045-isolated-task-worktrees", checked.stdout)
         self.assertIn("MIGRATION 046-integration-validation-evidence-reuse", checked.stdout)
+        self.assertIn("MIGRATION 047-codex-worktree-access", checked.stdout)
         applied = self.run_cli("upgrade", "--apply")
         self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
-        self.assertIn("capability=git-workflow v3", project_workflow.read_text(encoding="utf-8"))
+        self.assertIn("capability=git-workflow v4", project_workflow.read_text(encoding="utf-8"))
         self.assertIn("Consumer-owned note.", project_workflow.read_text(encoding="utf-8"))
         self.assertIn(
-            "capability=task-worktree-boundary v1",
+            "capability=task-worktree-boundary v2",
             (self.project / "docs/workflows/IMPLEMENTATION.md").read_text(encoding="utf-8"),
         )
         report = (self.project / "docs/COMPLETION_REPORT_TEMPLATE.md").read_text(encoding="utf-8")
         self.assertIn("Worktree: `<absolute dedicated task-worktree path>`", report)
         manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
-        self.assertEqual(manifest["frameworkVersion"], "1.1.43")
-        self.assertEqual(manifest["appliedMigrations"][-1], "046-integration-validation-evidence-reuse")
+        self.assertEqual(manifest["frameworkVersion"], "1.1.44")
+        self.assertEqual(manifest["appliedMigrations"][-1], "047-codex-worktree-access")
 
     def test_clean_upgrade_installs_integration_evidence_reuse_contract(self) -> None:
         """Migration 046 upgrades every changed integration capability."""
@@ -681,7 +684,7 @@ class MeridianCliTest(unittest.TestCase):
             for relative in changed_paths
         }
         previous_versions = {
-            "git-workflow": (3, 2),
+            "git-workflow": (4, 2),
             "lifecycle-orchestration": (5, 4),
             "task-worktree-review": (2, 1),
             "task-worktree-integration": (2, 1),
@@ -690,6 +693,12 @@ class MeridianCliTest(unittest.TestCase):
         }
         for relative, text in current.items():
             previous = text
+            previous = re.sub(
+                r"<!-- MERIDIAN:BEGIN capability=codex-worktree-access v1 -->.*?<!-- MERIDIAN:END -->\n?",
+                "",
+                previous,
+                flags=re.DOTALL,
+            )
             for capability, (new, old) in previous_versions.items():
                 previous = previous.replace(
                     f"capability={capability} v{new}",
@@ -708,22 +717,23 @@ class MeridianCliTest(unittest.TestCase):
 
         for relative, text in current.items():
             (workflow / relative).write_text(text, encoding="utf-8")
-        (self.framework / "VERSION").write_text("1.1.43\n", encoding="utf-8")
+        (self.framework / "VERSION").write_text("1.1.44\n", encoding="utf-8")
 
         checked = self.run_cli("upgrade", "--check")
         self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
         self.assertIn("MIGRATION 046-integration-validation-evidence-reuse", checked.stdout)
+        self.assertIn("MIGRATION 047-codex-worktree-access", checked.stdout)
         applied = self.run_cli("upgrade", "--apply")
         self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
-        self.assertIn("capability=git-workflow v3", project_workflow.read_text(encoding="utf-8"))
+        self.assertIn("capability=git-workflow v4", project_workflow.read_text(encoding="utf-8"))
         self.assertIn("Consumer-owned note.", project_workflow.read_text(encoding="utf-8"))
         self.assertIn(
             "capability=task-worktree-handoff v2",
             (self.project / "docs/COMPLETION_REPORT_TEMPLATE.md").read_text(encoding="utf-8"),
         )
         manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
-        self.assertEqual(manifest["workflowBaselineVersion"], "1.1.43")
-        self.assertEqual(manifest["appliedMigrations"][-1], "046-integration-validation-evidence-reuse")
+        self.assertEqual(manifest["workflowBaselineVersion"], "1.1.44")
+        self.assertEqual(manifest["appliedMigrations"][-1], "047-codex-worktree-access")
 
     def test_upgrade_downgrades_cosmetic_conflict_to_verified(self) -> None:
         """Phase 3 of migrations/CAPABILITY_MARKERS.md: a conflict outside a
@@ -3040,7 +3050,8 @@ class CapabilityMarkerTest(unittest.TestCase):
         }
         expected["execution-assets"] = "2"
         expected["roles"] = "2"
-        expected["git-workflow"] = "3"
+        expected["git-workflow"] = "4"
+        expected["codex-worktree-access"] = "1"
         expected["task-lifecycle"] = "2"
         expected["review-policy"] = "2"
         self.assertEqual(sorted(pairs), sorted(expected.items()))
@@ -3248,6 +3259,128 @@ class CodexRulesUpgradeTest(unittest.TestCase):
         self.assertNotEqual(checked.returncode, 0)
         self.assertIn("CONFLICT .codex/rules/meridian.rules — managed baseline is missing", checked.stdout)
         self.assertEqual(local.read_text(encoding="utf-8"), "prefix_rule(pattern=[\"echo\"], decision=\"allow\")\n")
+
+
+class CodexWorktreeAccessTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory()
+        self.root = Path(self.temporary.name)
+
+    def tearDown(self) -> None:
+        self.temporary.cleanup()
+
+    def repository(self, name: str, remote: str | None = None) -> Path:
+        path = self.root / name
+        path.mkdir()
+        subprocess.run(["git", "init", "-b", "main"], cwd=path, check=True, capture_output=True)
+        subprocess.run(["git", "config", "user.name", "Meridian Test"], cwd=path, check=True)
+        subprocess.run(["git", "config", "user.email", "meridian@example.invalid"], cwd=path, check=True)
+        (path / "README.md").write_text(f"# {name}\n", encoding="utf-8")
+        subprocess.run(["git", "add", "README.md"], cwd=path, check=True)
+        subprocess.run(["git", "commit", "-m", "initial"], cwd=path, check=True, capture_output=True)
+        if remote:
+            subprocess.run(["git", "remote", "add", "origin", remote], cwd=path, check=True)
+        return path
+
+    def test_repository_namespaces_prevent_equal_task_id_collisions(self) -> None:
+        first = self.repository("first", "git@github.com:acme/one.git")
+        second = self.repository("second", "https://gitlab.example/acme/two.git")
+        worktrees = (self.root / "worktrees").resolve()
+        first_path = meridian.task_worktree_path(first, worktrees, "TASK-054")
+        second_path = meridian.task_worktree_path(second, worktrees, "task-054")
+        self.assertEqual(first_path.relative_to(worktrees).parts, ("github.com", "acme", "one", "task-054"))
+        self.assertEqual(second_path.relative_to(worktrees).parts, ("gitlab.example", "acme", "two", "task-054"))
+        self.assertNotEqual(first_path, second_path)
+
+    def test_local_identity_contains_name_and_common_directory_hash(self) -> None:
+        project = self.repository("local-project")
+        identity = meridian.repository_identity(project)
+        self.assertEqual((identity.remote_host, identity.owner), ("local", "repositories"))
+        self.assertRegex(identity.repository, r"^local-project-[0-9a-f]{12}$")
+        self.assertEqual(identity, meridian.repository_identity(project))
+
+    def test_unsafe_identity_task_and_root_are_rejected(self) -> None:
+        project = self.repository("safe", "git@example.com:../repo.git")
+        with self.assertRaises(meridian.MeridianError):
+            meridian.repository_identity(project)
+        with self.assertRaises(meridian.MeridianError):
+            meridian.canonical_task_id("../054")
+        with self.assertRaises(meridian.MeridianError):
+            meridian.task_worktree_path(self.repository("other"), Path.home(), "054")
+
+    def test_existing_path_for_another_repository_is_a_collision(self) -> None:
+        first = self.repository("one", "git@github.com:acme/shared.git")
+        second = self.repository("two", "git@github.com:acme/shared.git")
+        path = self.root / "existing"
+        subprocess.run(["git", "-C", str(first), "worktree", "add", "-b", "task-054", str(path), "main"], check=True, capture_output=True)
+        with self.assertRaisesRegex(meridian.MeridianError, "collision"):
+            meridian.validate_worktree_collision(second, path, "054")
+
+    def test_config_apply_preserves_text_backs_up_and_is_idempotent(self) -> None:
+        config = self.root / "config.toml"
+        original = '# keep this comment\nmodel = "gpt-test"\n\n[features]\nnetwork_proxy = false\n'
+        config.write_text(original, encoding="utf-8")
+        root = self.root / "worktrees"
+        plan = meridian.plan_codex_configuration(config, root)
+        self.assertEqual(plan.status, "approval-required")
+        self.assertTrue(meridian.apply_codex_configuration(plan))
+        changed = config.read_text(encoding="utf-8")
+        self.assertIn("# keep this comment", changed)
+        self.assertIn(str(root.resolve()), changed)
+        self.assertEqual(tomllib.loads(changed)["default_permissions"], "meridian-worktrees")
+        self.assertEqual(config.with_name("config.toml.meridian.bak").read_text(encoding="utf-8"), original)
+        second = meridian.plan_codex_configuration(config, root)
+        self.assertEqual(second.status, "ready")
+        self.assertFalse(meridian.apply_codex_configuration(second))
+
+    def test_atomic_replace_failure_keeps_original(self) -> None:
+        config = self.root / "config.toml"
+        original = 'model = "gpt-test"\n'
+        config.write_text(original, encoding="utf-8")
+        plan = meridian.plan_codex_configuration(config, self.root / "worktrees")
+        with mock.patch.object(meridian.os, "replace", side_effect=OSError("simulated")):
+            with self.assertRaises(OSError):
+                meridian.apply_codex_configuration(plan)
+        self.assertEqual(config.read_text(encoding="utf-8"), original)
+
+    def test_conflicting_and_malformed_configuration_is_blocked(self) -> None:
+        config = self.root / "config.toml"
+        config.write_text('sandbox_mode = "workspace-write"\n', encoding="utf-8")
+        with self.assertRaisesRegex(meridian.MeridianError, "legacy"):
+            meridian.plan_codex_configuration(config, self.root / "worktrees")
+        config.write_text("broken = [\n", encoding="utf-8")
+        with self.assertRaisesRegex(meridian.MeridianError, "malformed"):
+            meridian.plan_codex_configuration(config, self.root / "worktrees")
+
+    def test_managed_requirements_must_allow_the_profile(self) -> None:
+        config = self.root / "config.toml"
+        requirements = self.root / "requirements.toml"
+        requirements.write_text('[allowed_permission_profiles]\nother = true\n', encoding="utf-8")
+        with self.assertRaisesRegex(meridian.MeridianError, "managed"):
+            meridian.plan_codex_configuration(config, self.root / "worktrees", requirements)
+        requirements.write_text('[allowed_permission_profiles]\nmeridian-worktrees = true\n', encoding="utf-8")
+        self.assertEqual(
+            meridian.plan_codex_configuration(config, self.root / "worktrees", requirements).status,
+            "approval-required",
+        )
+
+    def test_existing_permission_profile_selection_is_replaced_without_losing_profiles(self) -> None:
+        config = self.root / "config.toml"
+        config.write_text(
+            'default_permissions = ":workspace"\n\n[permissions.other]\nextends = ":read-only"\n',
+            encoding="utf-8",
+        )
+        plan = meridian.plan_codex_configuration(config, self.root / "worktrees")
+        self.assertIsNotNone(plan.proposed_text)
+        parsed = tomllib.loads(plan.proposed_text or "")
+        self.assertEqual(parsed["default_permissions"], "meridian-worktrees")
+        self.assertEqual(parsed["permissions"]["other"]["extends"], ":read-only")
+
+    def test_initializer_only_offers_explicit_check_and_apply(self) -> None:
+        instructions = (ROOT / "commands/meridian-init.md").read_text(encoding="utf-8")
+        self.assertIn("codex configure --check --worktree-root", instructions)
+        self.assertIn("with `--apply` only after explicit confirmation", instructions)
+        self.assertIn("not invalidate initialization", instructions)
 
 
 class CapabilityVersionDetectionTest(unittest.TestCase):

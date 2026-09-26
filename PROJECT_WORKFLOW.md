@@ -26,12 +26,20 @@ Every task that is not a quick task records an objective, acceptance criteria, r
 
 Every task uses exactly one branch and one linked worktree, with one writer at
 a time. Normalize the canonical task ID to lowercase `task-<number>` (for
-example, `TASK-051` becomes `task-051`). Use that value as the branch name and
-as the suffix of a sibling worktree named `<primary-checkout>-task-<number>`.
-The first `worktree` entry from `git worktree list --porcelain` identifies the
-primary checkout even when the developer has switched its branch.
+example, `TASK-051` becomes `task-051`) and use it as the branch name. Derive
+the worktree path with `meridian codex worktree-path <task-id> --project
+<primary-checkout> --worktree-root <selected-root>`. The layout is
+`<root>/<remote-host>/<owner>/<repository>/<canonical-task-id>`; a repository
+without a usable remote uses a deterministic local name plus a canonical
+Git-common-directory hash. Unsafe, ambiguous, colliding, or mismatched paths
+are `BLOCKED`. Existing legacy worktrees remain discoverable and are never
+moved or deleted automatically. The first `git worktree list --porcelain`
+entry identifies the primary checkout.
 
-`Proceed with <TASK-ID>` performs a read-only collision check, then creates the
+`Proceed with <TASK-ID>` first runs `meridian codex doctor` for the selected
+root. Static configuration is not proof of effective host access; resolve
+`approval-required` explicitly and treat `blocked` as `BLOCKED`. It then
+performs a read-only collision check and creates the
 branch and linked worktree from the current `main` commit before changing task
 state or files. If both branch and worktree already exist and are linked to one
 another, it may select them after verifying the branch and clean worktree. If
