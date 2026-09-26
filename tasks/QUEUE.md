@@ -36,6 +36,16 @@ new: separates `frameworkVersion` (public CLI release), `workflowBaselineVersion
 (manifest/CLI compatibility) so a CLI-only release no longer requires a fake
 migration.
 
+### Phase 20 — Bounded worktree lifecycle commands
+
+Replaces approval-prone raw Git worktree and integration mutations with
+validated Meridian state transitions that can receive exact Codex allow rules
+without allowing arbitrary Git or shell execution outside the sandbox.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 056 | Add bounded worktree lifecycle commands | 🔴 P1 | 054, 055 | [056](056-add-bounded-worktree-lifecycle-commands.md) |
+
 ### Phase 19 — Proportional integration validation
 
 Removes the unconditional duplicate full-baseline run from task integration.
