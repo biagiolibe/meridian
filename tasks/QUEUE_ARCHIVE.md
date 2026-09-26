@@ -80,6 +80,14 @@ few upgrades.
 `011` shipped bundled with `013` (Phase 3b), per its own bundling constraint —
 listed here too since it is formally a Phase 4 item.
 
+### Phase 5 — SemVer version split
+
+| Status | ID | Title | Priority | Depends on | Task File |
+|--------|----|-------|----------|------------|-----------|
+| `[x]` | 015 | Split `workflowBaselineVersion` from `frameworkVersion` in manifest and upgrade planner | 🔴 P1 | 054 | [015](done/015-split-workflow-baseline-version.md) |
+
+Phase 5 remains active; its open tasks stay in `tasks/QUEUE.md`.
+
 ### Phase 6 — Agent instruction routing
 
 The framework first made protected capability moves conflict-safe and compacted

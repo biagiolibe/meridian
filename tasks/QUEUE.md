@@ -51,7 +51,6 @@ protected Git metadata and command policy.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[ ]` | 015 | Split `workflowBaselineVersion` from `frameworkVersion` in manifest and upgrade planner | 🔴 P1 | 054 | [015](015-split-workflow-baseline-version.md) |
 | `[ ]` | 016 | Propagate `workflowBaselineVersion` to `adopt`/`finalize-adoption` | 🔴 P1 | 015 | [016](016-adopt-workflow-baseline-version.md) |
 | `[ ]` | 017 | Relax `check_migrations()`'s VERSION equality to `<=` | 🔴 P1 | 015 | [017](017-relax-check-migrations-version-gate.md) |
 | `[ ]` | 018 | Persist-time SemVer guard for prerelease `frameworkVersion` | 🟡 P2 | 015 | [018](018-prerelease-version-guard.md) |
