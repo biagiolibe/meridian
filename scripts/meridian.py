@@ -12,9 +12,12 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import tomllib
+import unicodedata
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
+from urllib.parse import urlparse
 
 
 # `bin/meridian` dispatches this file through runpy, which retains bin/ rather
@@ -62,6 +65,326 @@ ENTRY_ROUTER_SAFEGUARDS = {
 
 class MeridianError(RuntimeError):
     """Raised when an upgrade cannot be safely planned or applied."""
+
+
+CODEX_PERMISSION_PROFILE = "meridian-worktrees"
+CODEX_MANAGED_BEGIN = "# MERIDIAN:BEGIN worktree-permissions v1"
+CODEX_MANAGED_END = "# MERIDIAN:END worktree-permissions"
+SAFE_PATH_COMPONENT = re.compile(r"[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?")
+
+
+@dataclass(frozen=True)
+class RepositoryIdentity:
+    remote_host: str
+    owner: str
+    repository: str
+
+
+@dataclass(frozen=True)
+class CodexConfigurationPlan:
+    status: str
+    config_path: Path
+    worktree_root: Path
+    current_model: str
+    proposed_text: str | None
+    detail: str
+
+
+def _safe_component(value: str, label: str) -> str:
+    """Return one unambiguous, portable path component."""
+    normalized = unicodedata.normalize("NFKC", value).strip().lower()
+    if not normalized or normalized in {".", ".."}:
+        raise MeridianError(f"{label} is empty or traversing")
+    if normalized != value.strip().lower() or not SAFE_PATH_COMPONENT.fullmatch(normalized):
+        raise MeridianError(f"{label} is not an unambiguous portable path component: {value!r}")
+    return normalized
+
+
+def _normalized_local_repository_name(value: str) -> str:
+    normalized = unicodedata.normalize("NFKC", value).strip().lower()
+    normalized = re.sub(r"[^a-z0-9]+", "-", normalized).strip("-")
+    if not normalized:
+        raise MeridianError("local repository name cannot be normalized safely")
+    return normalized
+
+
+def canonical_task_id(value: str) -> str:
+    normalized = value.strip().lower()
+    match = re.fullmatch(r"(?:task-)?([0-9]+)", normalized)
+    if match is None:
+        raise MeridianError(f"invalid task ID: {value!r}")
+    number = match.group(1)
+    if int(number) <= 0 or number != str(int(number)).zfill(len(number)):
+        raise MeridianError(f"ambiguous task ID: {value!r}")
+    return f"task-{number}"
+
+
+def git_output(project_root: Path, *arguments: str) -> str:
+    completed = subprocess.run(
+        ["git", "-C", str(project_root), *arguments],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        raise MeridianError(completed.stderr.strip() or f"git {' '.join(arguments)} failed")
+    return completed.stdout.strip()
+
+
+def canonical_git_common_dir(project_root: Path) -> Path:
+    common = Path(git_output(project_root, "rev-parse", "--git-common-dir"))
+    if not common.is_absolute():
+        common = project_root / common
+    return common.resolve()
+
+
+def repository_identity(project_root: Path, remote_url: str | None = None) -> RepositoryIdentity:
+    """Derive a repository-qualified namespace without machine-specific state."""
+    if remote_url is None:
+        completed = subprocess.run(
+            ["git", "-C", str(project_root), "config", "--get", "remote.origin.url"],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        remote_url = completed.stdout.strip() if completed.returncode == 0 else ""
+    if remote_url:
+        candidate = remote_url.strip()
+        if "://" not in candidate and re.match(r"^[^/@:]+@[^/:]+:.+$", candidate):
+            user_host, remote_path = candidate.split(":", 1)
+            host = user_host.rsplit("@", 1)[-1]
+            parts = [part for part in remote_path.strip("/").split("/") if part]
+        else:
+            parsed = urlparse(candidate)
+            host = parsed.hostname or ""
+            parts = [part for part in parsed.path.strip("/").split("/") if part]
+        if len(parts) >= 2 and host:
+            repository = parts[-1][:-4] if parts[-1].endswith(".git") else parts[-1]
+            owner_parts = [_safe_component(part, "remote owner") for part in parts[:-1]]
+            if any("--" in part for part in owner_parts):
+                raise MeridianError("remote owner contains an ambiguous namespace separator")
+            owner = "--".join(owner_parts)
+            return RepositoryIdentity(
+                _safe_component(host, "remote host"),
+                owner,
+                _safe_component(repository, "repository name"),
+            )
+
+    common = canonical_git_common_dir(project_root)
+    try:
+        repository_name = git_output(project_root, "rev-parse", "--show-toplevel").split("/")[-1]
+    except MeridianError:
+        repository_name = project_root.resolve().name
+    repository = _normalized_local_repository_name(repository_name)
+    digest = hashlib.sha256(os.fsencode(common)).hexdigest()[:12]
+    return RepositoryIdentity("local", "repositories", f"{repository}-{digest}")
+
+
+def task_worktree_path(project_root: Path, worktree_root: Path, task_id: str) -> Path:
+    root = worktree_root.expanduser().resolve()
+    if root == Path(root.anchor) or root == Path.home().resolve():
+        raise MeridianError("worktree root must be a dedicated directory, not the filesystem root or home")
+    identity = repository_identity(project_root)
+    task = canonical_task_id(task_id)
+    result = root / identity.remote_host / identity.owner / identity.repository / task
+    if root not in result.parents:
+        raise MeridianError("derived worktree path escapes the configured root")
+    return result
+
+
+def validate_worktree_collision(project_root: Path, path: Path, task_id: str) -> None:
+    """Reject an existing path unless it is the exact expected linked worktree."""
+    if not path.exists():
+        return
+    expected_common = canonical_git_common_dir(project_root)
+    try:
+        actual_common = canonical_git_common_dir(path)
+        branch = git_output(path, "branch", "--show-current")
+    except MeridianError as error:
+        raise MeridianError(f"worktree path collision at {path}: {error}") from error
+    expected_branch = canonical_task_id(task_id)
+    if actual_common != expected_common or branch != expected_branch:
+        raise MeridianError(
+            f"worktree path collision at {path}: expected {expected_common} on {expected_branch}, "
+            f"found {actual_common} on {branch or 'detached HEAD'}"
+        )
+
+
+def _toml_quote(value: str) -> str:
+    return json.dumps(value, ensure_ascii=False)
+
+
+def _codex_managed_block(worktree_root: Path) -> str:
+    root = str(worktree_root.expanduser().resolve())
+    return "\n".join(
+        [
+            CODEX_MANAGED_BEGIN,
+            f'default_permissions = "{CODEX_PERMISSION_PROFILE}"',
+            "",
+            f"[permissions.{CODEX_PERMISSION_PROFILE}]",
+            'description = "Workspace access plus Meridian-managed task worktrees."',
+            'extends = ":workspace"',
+            "",
+            f"[permissions.{CODEX_PERMISSION_PROFILE}.workspace_roots]",
+            f"{_toml_quote(root)} = true",
+            CODEX_MANAGED_END,
+        ]
+    )
+
+
+def _replace_codex_managed_block(text: str, block: str) -> str:
+    start = text.find(CODEX_MANAGED_BEGIN)
+    if start >= 0:
+        end = text.find(CODEX_MANAGED_END, start) + len(CODEX_MANAGED_END)
+        text = text[:start] + text[end:]
+
+    table = re.search(r"(?m)^\s*\[", text)
+    insertion = table.start() if table is not None else len(text)
+    prefix = text[:insertion].rstrip("\n")
+    suffix = text[insertion:].strip("\n")
+    parts = [part for part in (prefix, block, suffix) if part]
+    return "\n\n".join(parts) + "\n"
+
+
+def _without_top_level_default_permissions(text: str) -> str:
+    """Remove the root selection while leaving comments and profile tables intact."""
+    lines = text.splitlines(keepends=True)
+    for index, line in enumerate(lines):
+        if line.lstrip().startswith("["):
+            break
+        if re.match(r"^\s*default_permissions\s*=", line):
+            del lines[index]
+            break
+    return "".join(lines)
+
+
+def plan_codex_configuration(
+    config_path: Path,
+    worktree_root: Path,
+    requirements_path: Path | None = None,
+) -> CodexConfigurationPlan:
+    root = worktree_root.expanduser().resolve()
+    if root == Path(root.anchor) or root == Path.home().resolve():
+        raise MeridianError("worktree root must not authorize the filesystem root or the user's home")
+    text = config_path.read_text(encoding="utf-8") if config_path.is_file() else ""
+    try:
+        parsed = tomllib.loads(text)
+    except tomllib.TOMLDecodeError as error:
+        raise MeridianError(f"malformed Codex TOML at {config_path}: {error}") from error
+    if "sandbox_mode" in parsed or "sandbox_workspace_write" in parsed:
+        raise MeridianError("legacy Codex sandbox settings conflict with permission profiles")
+    if requirements_path is not None and requirements_path.is_file():
+        try:
+            requirements = tomllib.loads(requirements_path.read_text(encoding="utf-8"))
+        except tomllib.TOMLDecodeError as error:
+            raise MeridianError(f"malformed managed Codex requirements at {requirements_path}: {error}") from error
+        allowed = requirements.get("allowed_permission_profiles")
+        if isinstance(allowed, dict) and allowed.get(CODEX_PERMISSION_PROFILE) is not True:
+            raise MeridianError(
+                f"managed Codex requirements do not allow permission profile {CODEX_PERMISSION_PROFILE!r}"
+            )
+    existing_profile = parsed.get("permissions", {}).get(CODEX_PERMISSION_PROFILE)
+    managed_present = CODEX_MANAGED_BEGIN in text or CODEX_MANAGED_END in text
+    if existing_profile is not None and not managed_present:
+        raise MeridianError(f"Codex permission profile {CODEX_PERMISSION_PROFILE!r} already exists outside Meridian's managed block")
+    if bool(CODEX_MANAGED_BEGIN in text) != bool(CODEX_MANAGED_END in text):
+        raise MeridianError("Codex configuration contains an incomplete Meridian-managed block")
+    base_text = text
+    if "default_permissions" in parsed and not managed_present:
+        base_text = _without_top_level_default_permissions(text)
+    proposed = _replace_codex_managed_block(base_text, _codex_managed_block(root))
+    try:
+        tomllib.loads(proposed)
+    except tomllib.TOMLDecodeError as error:
+        raise MeridianError(f"proposed Codex configuration would be invalid: {error}") from error
+    current_model = "permission-profile" if "default_permissions" in parsed or "permissions" in parsed else "unconfigured"
+    if proposed == text:
+        return CodexConfigurationPlan("ready", config_path, root, current_model, None, "requested profile is already effective")
+    return CodexConfigurationPlan("approval-required", config_path, root, current_model, proposed, "explicit --apply is required")
+
+
+def print_codex_configuration_plan(plan: CodexConfigurationPlan) -> None:
+    print(f"status: {plan.status}")
+    print(f"config: {plan.config_path}")
+    print(f"permission-model: {plan.current_model}")
+    print(f"worktree-root: {plan.worktree_root}")
+    print(f"detail: {plan.detail}")
+    if plan.proposed_text is not None:
+        print("proposed-change:")
+        print(_codex_managed_block(plan.worktree_root))
+
+
+def apply_codex_configuration(plan: CodexConfigurationPlan) -> bool:
+    if plan.proposed_text is None:
+        return False
+    path = plan.config_path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    backup = path.with_name(path.name + ".meridian.bak")
+    if path.exists() and not backup.exists():
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+        descriptor = os.open(backup, flags, 0o600)
+        try:
+            with os.fdopen(descriptor, "wb") as stream:
+                stream.write(path.read_bytes())
+                stream.flush()
+                os.fsync(stream.fileno())
+        except Exception:
+            try:
+                backup.unlink()
+            except OSError:
+                pass
+            raise
+    descriptor, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    temporary = Path(temporary_name)
+    try:
+        os.chmod(temporary, 0o600)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            stream.write(plan.proposed_text)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+    except Exception:
+        try:
+            temporary.unlink()
+        except OSError:
+            pass
+        raise
+    return True
+
+
+def codex_doctor(project_root: Path, config_path: Path, worktree_root: Path) -> dict[str, str]:
+    result: dict[str, str] = {}
+    try:
+        plan = plan_codex_configuration(config_path, worktree_root)
+        result["permission-model"] = plan.status
+    except MeridianError:
+        result["permission-model"] = "blocked"
+    text = config_path.read_text(encoding="utf-8") if config_path.is_file() else ""
+    try:
+        parsed = tomllib.loads(text)
+    except tomllib.TOMLDecodeError:
+        parsed = {}
+    trusted = any(
+        isinstance(settings, dict)
+        and settings.get("trust_level") == "trusted"
+        and Path(path).expanduser().resolve() == project_root.resolve()
+        for path, settings in parsed.get("projects", {}).items()
+    )
+    result["project-trust"] = "ready" if trusted else "approval-required"
+    rules = project_root / ".codex/rules/meridian.rules"
+    result["command-policy"] = "ready" if rules.is_file() and trusted else ("approval-required" if rules.is_file() else "blocked")
+    root_write = "approval-required"
+    if result["permission-model"] == "ready" and worktree_root.is_dir():
+        try:
+            descriptor, probe_name = tempfile.mkstemp(prefix=".meridian-codex-probe-", dir=worktree_root)
+            os.close(descriptor)
+            Path(probe_name).unlink()
+            root_write = "ready"
+        except OSError:
+            root_write = "blocked"
+    result["worktree-root-write"] = root_write
+    result["git-metadata"] = "approval-required"
+    return result
 
 
 class IntegrationValidationOutcome(str, Enum):
@@ -277,12 +600,12 @@ def managed_files_for_workflow(workflow: Path, mode: str) -> list[ManagedFile]:
                 ],
             ]
         )
-        # Packaged legacy baselines predate task 040. Include the rules file
-        # when the particular workflow snapshot supplies it, without making a
-        # historical adoption baseline claim a file it never shipped.
-        for codex_path in (Path(".codex/rules/meridian.rules"), Path(".codex/hooks.json")):
-            if (workflow / codex_path).is_file():
-                paths.append(codex_path)
+    # Packaged legacy baselines predate Codex policy files. Include each file
+    # when the particular workflow snapshot supplies it, without making a
+    # historical adoption baseline claim a file it never shipped.
+    for codex_path in (Path(".codex/rules/meridian.rules"), Path(".codex/hooks.json")):
+        if (workflow / codex_path).is_file():
+            paths.append(codex_path)
 
     result = []
     for target in paths:
@@ -3470,6 +3793,24 @@ def main() -> int:
     locations.add_argument("--project", type=Path, default=Path.cwd())
     locations.add_argument("--field", choices=("queue", "task-roots"))
 
+    codex = subparsers.add_parser("codex", help="configure and diagnose Codex task-worktree access")
+    codex_sub = codex.add_subparsers(dest="codex_command", required=True)
+    codex_configure = codex_sub.add_parser("configure", help="plan or apply a bounded Codex permission profile")
+    codex_configure_group = codex_configure.add_mutually_exclusive_group(required=True)
+    codex_configure_group.add_argument("--check", action="store_true")
+    codex_configure_group.add_argument("--apply", action="store_true")
+    codex_configure.add_argument("--worktree-root", type=Path, required=True)
+    codex_configure.add_argument("--config", type=Path, default=Path.home() / ".codex/config.toml", help=argparse.SUPPRESS)
+    codex_configure.add_argument("--requirements", type=Path, help=argparse.SUPPRESS)
+    codex_path = codex_sub.add_parser("worktree-path", help="derive one repository-qualified task worktree path")
+    codex_path.add_argument("task_id")
+    codex_path.add_argument("--project", type=Path, default=Path.cwd())
+    codex_path.add_argument("--worktree-root", type=Path, required=True)
+    codex_doctor_parser = codex_sub.add_parser("doctor", help="report Codex host capabilities separately")
+    codex_doctor_parser.add_argument("--project", type=Path, default=Path.cwd())
+    codex_doctor_parser.add_argument("--worktree-root", type=Path, required=True)
+    codex_doctor_parser.add_argument("--config", type=Path, default=Path.home() / ".codex/config.toml", help=argparse.SUPPRESS)
+
     adr = subparsers.add_parser("adr", help="read a project's ADR log")
     adr_sub = adr.add_subparsers(dest="adr_command", required=True)
     adr_show_parser = adr_sub.add_parser("show", help="print exactly one ADR section")
@@ -3612,6 +3953,25 @@ def main() -> int:
                 print("\n".join(str(root) for root in locations.task_roots))
             else:
                 print(json.dumps({"queue": str(locations.queue), "taskRoots": [str(root) for root in locations.task_roots]}))
+        elif arguments.command == "codex":
+            if arguments.codex_command == "configure":
+                plan = plan_codex_configuration(
+                    arguments.config.expanduser().resolve(),
+                    arguments.worktree_root,
+                    arguments.requirements.expanduser().resolve() if arguments.requirements else None,
+                )
+                print_codex_configuration_plan(plan)
+                if arguments.apply:
+                    changed = apply_codex_configuration(plan)
+                    print("result: updated; restart Codex and select the profile" if changed else "result: no-op")
+            elif arguments.codex_command == "worktree-path":
+                path = task_worktree_path(project_root, arguments.worktree_root, arguments.task_id)
+                validate_worktree_collision(project_root, path, arguments.task_id)
+                print(path)
+            else:
+                report = codex_doctor(project_root, arguments.config.expanduser().resolve(), arguments.worktree_root.expanduser().resolve())
+                for capability, status in report.items():
+                    print(f"{capability}: {status}")
         elif arguments.command == "adr":
             print(adr_show(project_root, arguments.adr_id))
         elif arguments.command == "context":
@@ -3708,6 +4068,9 @@ def main() -> int:
             )
     except MeridianError as error:
         print(f"BLOCKED: {error}", file=sys.stderr)
+        return 2
+    except OSError as error:
+        print(f"BLOCKED: operating-system access failed: {error}", file=sys.stderr)
         return 2
     return 0
 

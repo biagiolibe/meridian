@@ -55,7 +55,7 @@ protected Git metadata and command policy.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[ ]` | 054 | Configure Codex access for isolated task worktrees | 🔴 P1 | 055 | [054](054-configure-codex-worktree-access.md) |
+| `[x]` | 054 | Configure Codex access for isolated task worktrees | 🔴 P1 | 055 | [054](done/054-configure-codex-worktree-access.md) |
 
 ### Phase 5 — SemVer version split
 

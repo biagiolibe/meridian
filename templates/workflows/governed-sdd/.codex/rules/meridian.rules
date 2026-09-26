@@ -1,4 +1,4 @@
-# Meridian governed-SDD command approval policy.
+# Meridian task-worktree command approval policy.
 #
 # Codex loads this project-local file only after the project's .codex layer is
 # trusted in ~/.codex/config.toml. An untrusted project silently ignores it.
@@ -17,12 +17,15 @@
 # ran without a prompt: an unmatched later segment was not safely evaluated.
 # `execpolicy check` evaluates argument vectors, not shell syntax such as `&&`.
 
-# Routine governed-SDD Git operations.
+# Routine bounded Git operations. Worktree creation and protected Git metadata
+# remain approval-reviewed because execpolicy does not widen filesystem access.
 prefix_rule(pattern=["git", ["status", "diff", "log", "show", "rev-parse", "merge-base", "branch", "add"]], decision="allow")
 prefix_rule(pattern=["git", "switch"], decision="allow")
 prefix_rule(pattern=["git", "commit", "-m"], decision="allow")
 prefix_rule(pattern=["git", "merge", "--ff-only"], decision="allow")
 prefix_rule(pattern=["git", "push"], decision="allow")
+prefix_rule(pattern=["git", "worktree", "list"], decision="allow")
+prefix_rule(pattern=["git", "worktree", ["add", "remove", "prune"]], decision="prompt")
 
 # A reviewer-integrator author override needs a project-specific literal token.
 # Add a resolved local rule outside this managed template, for example:
@@ -32,8 +35,10 @@ prefix_rule(pattern=["git", "push"], decision="allow")
 # including `upgrade`, `adopt`, `lock`, `finalize-adoption`, `generate-*`, and
 # `execution reconcile`, intentionally retain Codex's normal approval flow.
 prefix_rule(pattern=["meridian", ["context", "locations", "adr", "budget", "audit"]], decision="allow")
+prefix_rule(pattern=["meridian", "codex", ["doctor", "worktree-path"]], decision="allow")
 prefix_rule(pattern=["meridian", "execution", ["validate", "ready-check", "handoff-check", "preflight", "evidence", "contract", "investigate"]], decision="allow")
 
 # More restrictive matches override the broad Git rules above.
 prefix_rule(pattern=["git", "push", ["--force", "-f", "--force-with-lease", "--delete", "--mirror"]], decision="forbidden")
 prefix_rule(pattern=["git", "branch", ["-D", "--delete", "--force", "-f"]], decision="prompt")
+prefix_rule(pattern=["git", ["reset", "rebase", "cherry-pick"]], decision="forbidden")

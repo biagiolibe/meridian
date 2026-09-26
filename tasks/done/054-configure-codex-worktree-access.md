@@ -27,65 +27,65 @@ and integrated.
 
 ## 📋 Acceptance Criteria
 
-- [ ] Both local and generated workflow contracts derive a task worktree path
+- [x] Both local and generated workflow contracts derive a task worktree path
       below a configurable shared root using
       `<root>/<remote-host>/<owner>/<repository>/<canonical-task-id>`. A
       repository without a usable remote uses a deterministic local identity
       containing a normalized repository name and a short hash of its
       canonical Git common-directory path.
-- [ ] Repository identity, task ID, and final path normalization reject empty,
+- [x] Repository identity, task ID, and final path normalization reject empty,
       traversing, ambiguous, or colliding values. An existing path linked to a
       different Git common directory or task branch is `BLOCKED`; Meridian
       never silently reuses or repairs it.
-- [ ] The CLI exposes an idempotent read-only check and an explicit apply
+- [x] The CLI exposes an idempotent read-only check and an explicit apply
       operation, with an interface equivalent to
       `meridian codex configure --check|--apply --worktree-root <path>`.
       `--check` prints the exact effective state and proposed change without
       writing outside the project.
-- [ ] `--apply` updates the user's Codex configuration only after explicit
+- [x] `--apply` updates the user's Codex configuration only after explicit
       invocation. It preserves unrelated keys and comments, performs an atomic
       replacement, creates a recoverable backup before the first changed
       write, and becomes a no-op when the requested configuration is already
       effective.
-- [ ] The configurator uses one supported Codex permission model at a time. It
+- [x] The configurator uses one supported Codex permission model at a time. It
       detects incompatible legacy sandbox settings, managed restrictions,
       malformed TOML, or an unavailable configuration layer and returns a
       diagnostic instead of combining models or overwriting the conflict.
-- [ ] The configured profile extends the bounded workspace permission and adds
+- [x] The configured profile extends the bounded workspace permission and adds
       only the selected worktree root. It does not authorize the user's home
       directory, a source-code parent containing unrelated repositories, or
       unrestricted filesystem/network access.
-- [ ] Initialization detects Codex without making it mandatory, shows the
+- [x] Initialization detects Codex without making it mandatory, shows the
       proposed user-configuration diff, and offers the explicit apply step.
       Declining or lacking permission leaves repository initialization valid
       and reports the exact manual command required later.
-- [ ] Lean Delivery and Governed SDD install the same narrowly scoped Codex
+- [x] Lean Delivery and Governed SDD install the same narrowly scoped Codex
       command policy needed by the worktree lifecycle. The decision table
       distinguishes ordinary file writes from protected `.git` operations and
       does not permit generic `git`, destructive branch deletion, reset,
       rebase, cherry-pick, or force-push.
-- [ ] A Codex preflight/doctor reports project trust, active permission model,
+- [x] A Codex preflight/doctor reports project trust, active permission model,
       effective worktree-root write access, command-policy availability, and
       Git-metadata behavior separately as `ready`, `approval-required`, or
       `blocked`. Static configuration never counts as proof of effective host
       access.
-- [ ] Existing active legacy worktrees remain discoverable and recoverable;
+- [x] Existing active legacy worktrees remain discoverable and recoverable;
       Meridian does not move or delete them automatically. Newly prepared
       worktrees use the shared namespaced root after activation.
-- [ ] Automated tests cover repository namespacing, equal task IDs in different
+- [x] Automated tests cover repository namespacing, equal task IDs in different
       repositories, local-repository fallback identity, collision rejection,
       check/apply idempotence, preservation of existing TOML, backup and
       atomic-failure behavior, conflicting configuration models, initializer
       opt-in/decline behavior, and the command-rule decision table.
-- [ ] Managed-template changes include the required migration, capability
+- [x] Managed-template changes include the required migration, capability
       markers, and baseline updates so existing adopters receive the new path
       and preflight contract through `meridian upgrade`.
-- [ ] A real Codex host probe demonstrates that an ordinary file below the
+- [x] A real Codex host probe demonstrates that an ordinary file below the
       configured worktree root can be changed without per-file user approval.
       Protected Git operations are recorded independently and may remain
       approval-reviewed when the narrower command policy cannot authorize them
       safely.
-- [ ] `python3 scripts/check_repository.py`,
+- [x] `python3 scripts/check_repository.py`,
       `python3 -m unittest discover -s tests -v`, and `git diff --check` pass.
 
 ## 📁 Relevant Files
@@ -170,7 +170,9 @@ Evidence plan:
 - Manual activation: record configuration-layer selection, project trust, session restart, and the host's effective permission status.
 
 Completion evidence:
-- Codex desktop / trusted project / selected user permission profile: unverified until the named host probe is recorded.
+- Codex desktop / trusted project / selected user permission profile: enforced
+  for the tested reloaded session; the ordinary-file probe succeeded without
+  approval and the resolved Git common-directory write remained blocked.
 - Codex CLI / trusted project / selected user permission profile: unverified until the named host probe is recorded.
 - Claude Code plugin session: retained advisory; no enforcement claim is introduced.
 

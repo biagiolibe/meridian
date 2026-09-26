@@ -14,6 +14,11 @@ numbers follow the `frameworkVersion` tracked in generated projects'
 
 ### Added
 
+- Migration `047-codex-worktree-access` adds repository-qualified task
+  worktree paths, an explicit and atomic Codex permission-profile configurator,
+  a host-capability doctor, and the same bounded command policy for Lean
+  Delivery and Governed SDD. Existing legacy worktrees remain untouched.
+
 - Governed-SDD now defines an authority-change restart procedure for rejected
   implementation attempts: an accepted design amendment precedes a distinct
   retry, while the rejected tip and its evidence remain retained.
