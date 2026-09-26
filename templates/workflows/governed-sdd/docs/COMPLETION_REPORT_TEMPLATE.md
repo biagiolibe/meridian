@@ -8,12 +8,15 @@ and `ready-check` use that canonical path when no report path is supplied.
 ## Completion Report — <TASK-ID>
 
 - Files changed: `<paths>`
-<!-- MERIDIAN:BEGIN capability=task-worktree-handoff v1 -->
+<!-- MERIDIAN:BEGIN capability=task-worktree-handoff v2 -->
 - Branch: `<task-branch>`
 - Worktree: `<absolute dedicated task-worktree path>`
 - Implementation commit: `<commit SHA>`
-- Base `main` commit: `<commit SHA>`
-- Current task commit: `<commit SHA>`
+- Validated task commit: `<commit SHA covered by all validation evidence>`
+- Validated base `main` commit: `<commit SHA from which the task worktree was created>`
+- Current task commit: `<commit SHA; validated task commit must be its ancestor and the intervening diff must contain only permitted lifecycle records>`
+- Integration requirement: `<bounded gate | full combined-tree validation with reason>`
+- Declared integration surface: `<files/directories; dependencies; generated/configuration inputs; schemas; shared-governance records; behavioral surfaces, or explicit none for each category>`
 <!-- MERIDIAN:END -->
 - Validation: `<exact commands run with their exit status, or the CI check run and its conclusion for this exact commit — not a bare "passed">`
 - Manual verification: `<none | screenshot path — view checked — result>`

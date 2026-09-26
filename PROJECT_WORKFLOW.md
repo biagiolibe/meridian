@@ -52,7 +52,7 @@ abort and return `BLOCKED` without choosing or recreating either task's state.
 
 ## Completion and integration
 
-Before marking a task `[x]`, verify its acceptance criteria and run its stated validation plus the project's applicable baseline checks. If evidence is incomplete or a check fails, keep the task `[/]` and report the blocker. Update the queue and project plan together when they both record the task. Archive a completed task file and fully closed queue section only after successful verification.
+Before marking a task `[x]`, verify its acceptance criteria and run its stated validation plus the project's applicable baseline checks. The handoff records the validated task commit, validated base `main` commit, exact commands and successful results, whether full combined-tree validation is required, and the task's declared files, dependencies, and behavioral surfaces. If evidence is incomplete or a check fails, keep the task `[/]` and report the blocker. Update the queue and project plan together when they both record the task. Archive a completed task file and fully closed queue section only after successful verification.
 
 Final integration is serialized in the primary checkout. Acquire the lease by
 atomically creating `meridian-integration.lock` inside the absolute common Git
@@ -60,12 +60,36 @@ directory; an existing lease is `BLOCKED`, and only its owner removes it.
 Stale-lease removal requires explicit developer authorization. If the checkout
 is missing, dirty, or cannot switch to `main`, return `BLOCKED` and retain the
 task branch and worktree. With an exclusive integration lease, verify the
-handoff commits and clean task worktree, then run `git merge --no-ff
---no-commit <task-branch>` on `main`. A conflict is rejected with `git merge
---abort`. Validate the combined tree before creating the merge commit; abort
-the merge if validation fails. This preserves reviewed task commits and never
-uses rebase, amend, cherry-pick, or force-push. Release the integration lease
-after a successful transaction or a cleanly aborted merge.
+handoff commits and clean task worktree. Reject missing evidence, a validated
+base that is not an ancestor of the validated task commit, or a task HEAD whose
+diff from that commit changes anything except the permitted completion status,
+queue, plan, archive, or handoff records. The validated task commit must be an
+ancestor of task HEAD; any task-relevant tree change makes the evidence stale.
+
+If current `main` equals the validated base, reuse the task evidence. If it has
+advanced, compare `git diff --name-only <validated-base>..main` with the
+handoff's declared files, dependencies, generated or configuration inputs,
+schemas, shared-governance records, and behavioral surfaces. Equal or nested
+paths, a shared dependency/input/schema/configuration identity, or a shared
+behavioral surface are material interactions and require full combined-tree
+validation. An incomplete declaration or comparison is `BLOCKED`; a clean Git
+merge or disjoint filenames alone never establish independence. Record an
+independent comparison before using the bounded gate. Also use full validation
+when the task explicitly requires it. Stale task evidence is rejected rather
+than refreshed during integration.
+
+Run `git merge --no-ff --no-commit <task-branch>` on `main` and reject a
+conflict with `git merge --abort`. Every conflict-free candidate runs the
+bounded gate: `git diff --check` plus the project smoke command declared below
+when it is not `none`. A missing smoke command does not expand the gate to the
+complete baseline. Run the complete baseline only for the full-validation
+cases above, or after a bounded-gate failure when broader diagnosis is needed;
+a failed bounded or full gate still aborts the merge and cannot create a merge
+commit. Release the lease after success or a clean abort, and record the
+decision, comparison evidence, commands, and results. This preserves validated
+task commits and never uses rebase, amend, cherry-pick, or force-push.
+
+Project integration smoke command: `none`.
 
 Remove the linked worktree and then delete its local branch only after the
 validated integration succeeds (and the required `main` push succeeds when

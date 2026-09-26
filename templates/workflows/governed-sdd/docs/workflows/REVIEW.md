@@ -43,7 +43,7 @@ same acceptance commit and main integration after validation. Owner acceptance
 is status-only and does not automatically integrate the branch.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v1 -->
+<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v2 -->
 This block supersedes the checkout, ancestry, integration, and cleanup steps in
 the legacy handoff block above. The completion handoff also records the
 absolute task-worktree path and current task commit. Stop the implementer and
@@ -52,9 +52,13 @@ registered path, branch, HEAD, cleanliness, and handoff commits. Never switch
 the primary checkout to the task branch or review concurrently with an
 implementer. After approval, commit the review and `ACCEPTED` state on the task
 branch, then use the serialized integration transaction in
-`PROJECT_WORKFLOW.md`; the recorded base must be an ancestor of the task
-commit, while current `main` need not be. Cleanup removes the worktree before
-the branch only after validated integration succeeds.
+`PROJECT_WORKFLOW.md`. The validated task commit must be an ancestor of task
+HEAD, with only permitted lifecycle records in the intervening diff, and the
+validated base must be an ancestor of the validated commit. Current `main` may have advanced; reuse
+evidence, run the bounded gate, select full validation, or return `BLOCKED`
+only through that transaction's deterministic decision. Independent review,
+acceptance evidence, and forge gates remain mandatory. Cleanup removes the
+worktree before the branch only after validated integration succeeds.
 <!-- MERIDIAN:END -->
 
 <!-- MERIDIAN:BEGIN capability=reviewer-integrator-identity v1 -->
