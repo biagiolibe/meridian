@@ -176,7 +176,7 @@ Completion evidence:
 
 ## 🔗 Dependencies
 
-- **Depends on**: 051
+- **Depends on**: 055
 - **Blocks**: 015, 039, 046, 047, 053, and transitively every other open task
 
 ## 🤖 How to delegate this task to Claude CLI
