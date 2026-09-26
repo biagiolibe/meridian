@@ -25,8 +25,14 @@ discard, or commit them; report the conflict and stop.
 - After successful verification, update the matching queue and project-plan
   records, then archive the completed task file or a fully closed queue section
   when applicable.
-- Follow local project Git conventions. Lean Delivery does not imply a required
-  branch, push, reviewer identity, or integration procedure.
+- For `Proceed with <TASK-ID>`, create or select the deterministic task branch
+  and linked worktree required by `PROJECT_WORKFLOW.md` before changing task
+  state or files. Run implementation, validation, and task-local lifecycle
+  edits only there; the primary checkout is reserved for coordination and
+  final integration.
+- Use one writer per task worktree. A review uses the same task worktree only
+  after the implementer has stopped; it never switches the primary checkout to
+  the task branch.
 - A requested review is read-only unless the developer separately authorizes a
   fix. Report actionable findings; do not silently correct implementation code
   during review.

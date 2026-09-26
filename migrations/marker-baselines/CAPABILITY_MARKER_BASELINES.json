@@ -31,16 +31,16 @@
       "version": 1
     },
     "git-workflow": {
-      "sha256": "dc27c3f1ba76dc5d6c2ecf629b09602e6d46f0f7f82d91578e57f47da3d73072",
-      "version": 1
+      "sha256": "79262ab8895c3109821e8d275418ac0cfd30f67dc4ceb0d032cf1f0f965a4d48",
+      "version": 2
     },
     "review-policy": {
       "sha256": "129c502cf2a684ea1fedce822a7a4a39f507c2d66a1a9746f3055d0d71102a09",
       "version": 2
     },
     "roles": {
-      "sha256": "23ca81162081b34c3c92e412ffea91935c6ccfe32cf98e4c98a670754f997582",
-      "version": 1
+      "sha256": "05284a7884859c7dd006b4eec3d890c191a5e534f427ce1b05681550fe9c4073",
+      "version": 2
     },
     "task-lifecycle": {
       "sha256": "d85e522478f31d34e6f6a433c07cc5adb825378e3792fb8f40ae0d99814e0a48",
@@ -53,8 +53,8 @@
   },
   "templates/workflows/governed-sdd/docs/AUDIT_PROMPT_READ_ONLY.md": {
     "audit-prompt": {
-      "sha256": "1ee009ba51f4d22cf6db61a127c172145e7c46e8c35ead4d1b675a35a7f78823",
-      "version": 1
+      "sha256": "70b68320a85ab254656153edcd64831bf0023ddecf891aadab0cca3a6a420435",
+      "version": 2
     }
   },
   "templates/workflows/governed-sdd/docs/CODE_ORGANIZATION.md": {
@@ -71,6 +71,10 @@
     "manual-verification-review-check": {
       "sha256": "298f88d5c9b4ad1d7384ef36b627b702d5dd8f1f1540314cc655a46a3f1d437f",
       "version": 1
+    },
+    "task-worktree-review": {
+      "sha256": "37e62e8a39b1ad1f7194fe41599cd5fe3db644cb85ce8fd8828c40b8c2cd5377",
+      "version": 1
     }
   },
   "templates/workflows/governed-sdd/docs/COMPLETION_REPORT_TEMPLATE.md": {
@@ -80,6 +84,10 @@
     },
     "manual-verification-record": {
       "sha256": "df183bbca1242244974b7cc46669fc2792fbb956bca5cdfaa931ae24b94e03fa",
+      "version": 1
+    },
+    "task-worktree-handoff": {
+      "sha256": "cad9a825f452cd2c46d4b15a7cd3ffdd57e4381ea2afabef6c70430ac98e2cc9",
       "version": 1
     }
   },
@@ -129,8 +137,8 @@
   },
   "templates/workflows/governed-sdd/docs/LIFECYCLE_ORCHESTRATION.md": {
     "lifecycle-orchestration": {
-      "sha256": "e787247609ac89be68e8cf327e387aadb2816db4f98bd3cdca50d9014b99c91d",
-      "version": 3
+      "sha256": "4ae5e76531222a9e2fc704da271f774e92c6c7431c9fd5062a2a2749c4600ea2",
+      "version": 4
     },
     "rejected-attempt-restart": {
       "sha256": "ed9029375c608faafd84c29838281159d82436a3443566798e0b99856e8c2c6c",
@@ -140,6 +148,10 @@
   "templates/workflows/governed-sdd/docs/PULL_REQUEST_POLICY.md": {
     "ci-verified-validation": {
       "sha256": "17e153168949bf116474e1503f037010f0010ca51e6e1ef717de31877580ef8b",
+      "version": 1
+    },
+    "task-worktree-integration": {
+      "sha256": "5135228460a0d230e1a3ae9f70920f610fb0b72a9bcabce4b8748da7f9293240",
       "version": 1
     }
   },
@@ -170,6 +182,10 @@
       "sha256": "70cedafaf7606a75a66059115f8f1fc9112567990dafaa82015cdafb4b6dd1b5",
       "version": 1
     },
+    "task-worktree-boundary": {
+      "sha256": "113a03f9c16d2bd5f24bc336719ed9f6c0484bbc572f78a787426948d8f40d53",
+      "version": 1
+    },
     "validation-scoping": {
       "sha256": "447faaddb875883d676be4c53abf218fc555325cbb591e411412249f7077012d",
       "version": 1
@@ -187,6 +203,10 @@
     "rejected-attempt-restart": {
       "sha256": "3f61871729e246df77c431f58bb5a04e8a1b87d9367b55cfbaf13db5d97a8092",
       "version": 3
+    },
+    "task-worktree-lifecycle": {
+      "sha256": "941614a187dcf4f5e4124c78dfca618076bf5b025aa3d23ae26abc389c1ba429",
+      "version": 1
     }
   },
   "templates/workflows/governed-sdd/docs/workflows/REMEDIATION.md": {
@@ -197,6 +217,10 @@
     "review-remediation-record": {
       "sha256": "7b358f7c13e75c16702a031b0fe80406720120f5f1e33829fe6d4d2b35c58095",
       "version": 2
+    },
+    "task-worktree-remediation": {
+      "sha256": "d0a3100c48f9d19c58a7bc1db1fdc1b57cf5d5452a2f28a0155a650e0b55b069",
+      "version": 1
     }
   },
   "templates/workflows/governed-sdd/docs/workflows/REVIEW.md": {
@@ -210,6 +234,10 @@
     },
     "reviewer-integrator-identity": {
       "sha256": "ed7f9f2ccc880a1f5dfcd12c538fcb153510a823a910c337aa1bb4d8913b8070",
+      "version": 1
+    },
+    "task-worktree-review-procedure": {
+      "sha256": "70d4ec832ab7e39c8b69b22de40c12c2119abe62d9937dc56dc29d0b2ad64772",
       "version": 1
     }
   },

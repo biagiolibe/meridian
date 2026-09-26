@@ -155,4 +155,14 @@ Authority: [docs/PROPOSAL_CONTEXT_ENFORCEMENT.md](../docs/PROPOSAL_CONTEXT_ENFOR
 | `[x]` | 044 | Distribute the governed-SDD host-impact task declaration | 🔴 P1 | 043 | [044](done/044-distribute-host-impact-declaration.md) |
 | `[x]` | 045 | Enforce host-impact declarations at lifecycle gates | 🔴 P1 | 044 | [045](done/045-enforce-host-impact-lifecycle-gates.md) |
 
-*Last updated: 2026-09-21*
+### Phase 17 — Per-task worktree isolation
+
+This phase establishes a dedicated linked worktree as the mandatory execution
+boundary for every Lean Delivery and Governed SDD task, with serialized,
+non-rewriting final integration.
+
+| Status | ID | Title | Priority | Depends on | Task File |
+|--------|----|-------|----------|-----------|-----------|
+| `[x]` | 051 | Enforce isolated worktrees for every task | 🔴 P1 | — | [051](done/051-enforce-isolated-task-worktrees.md) |
+
+*Last updated: 2026-09-26*

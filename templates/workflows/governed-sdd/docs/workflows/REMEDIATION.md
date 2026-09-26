@@ -2,6 +2,14 @@
 
 Use this procedure only for `Address review <TASK-ID>` after the entry-point router has applied its always-loaded invariants.
 
+<!-- MERIDIAN:BEGIN capability=task-worktree-remediation v1 -->
+Remediation reuses the registered dedicated task worktree only after the
+reviewer has stopped. Verify its branch, path, current task commit, and clean
+state against the durable handoff before writing. Never remediate in the
+primary checkout, create a replacement worktree, or run concurrently with a
+reviewer. A mismatch is `BLOCKED` and preserves the existing task state.
+<!-- MERIDIAN:END -->
+
 <!-- MERIDIAN:BEGIN capability=review-remediation-record v2 -->
 ### Review-remediation workflow
 
