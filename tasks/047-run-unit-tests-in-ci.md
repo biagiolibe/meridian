@@ -58,7 +58,7 @@ so a regression cannot reach `main` or a tagged release unnoticed.
 
 ## 🔗 Dependencies
 
-- **Depends on**: none
+- **Depends on**: 051
 - **Blocks**: 050
 
 ## 🤖 How to delegate this task to Claude CLI

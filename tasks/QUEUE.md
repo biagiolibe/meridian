@@ -36,11 +36,22 @@ new: separates `frameworkVersion` (public CLI release), `workflowBaselineVersion
 (manifest/CLI compatibility) so a CLI-only release no longer requires a fake
 migration.
 
+### Phase 17 — Per-task worktree isolation
+
+This phase is a global prerequisite for all other active work. It makes a
+dedicated linked worktree mandatory for each Lean Delivery and Governed SDD
+task and replaces the parallel-hostile integration assumptions in the current
+Governed SDD contract.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 051 | Enforce isolated worktrees for every task | 🔴 P1 | — | [051](051-enforce-isolated-task-worktrees.md) |
+
 ### Phase 5 — SemVer version split
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[ ]` | 015 | Split `workflowBaselineVersion` from `frameworkVersion` in manifest and upgrade planner | 🔴 P1 | — | [015](015-split-workflow-baseline-version.md) |
+| `[ ]` | 015 | Split `workflowBaselineVersion` from `frameworkVersion` in manifest and upgrade planner | 🔴 P1 | 051 | [015](015-split-workflow-baseline-version.md) |
 | `[ ]` | 016 | Propagate `workflowBaselineVersion` to `adopt`/`finalize-adoption` | 🔴 P1 | 015 | [016](016-adopt-workflow-baseline-version.md) |
 | `[ ]` | 017 | Relax `check_migrations()`'s VERSION equality to `<=` | 🔴 P1 | 015 | [017](017-relax-check-migrations-version-gate.md) |
 | `[ ]` | 018 | Persist-time SemVer guard for prerelease `frameworkVersion` | 🟡 P2 | 015 | [018](018-prerelease-version-guard.md) |
@@ -56,8 +67,8 @@ for adopters, and a manual-only release procedure.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[ ]` | 046 | Keep `.claude-plugin/plugin.json` version in sync with `VERSION` | 🔴 P1 | — | [046](046-sync-plugin-manifest-version.md) |
-| `[ ]` | 047 | Run the unit test suite in CI | 🔴 P1 | — | [047](047-run-unit-tests-in-ci.md) |
+| `[ ]` | 046 | Keep `.claude-plugin/plugin.json` version in sync with `VERSION` | 🔴 P1 | 051 | [046](046-sync-plugin-manifest-version.md) |
+| `[ ]` | 047 | Run the unit test suite in CI | 🔴 P1 | 051 | [047](047-run-unit-tests-in-ci.md) |
 | `[ ]` | 048 | Enforce `protocolVersion` compatibility in the CLI | 🟡 P2 | 015 | [048](048-enforce-protocol-version-compatibility.md) |
 | `[ ]` | 049 | Design the distribution and update channel for adopters | 🟡 P2 | 019 | [049](049-design-distribution-and-update-channel.md) |
 | `[ ]` | 050 | Automate the GitHub Release from a version tag | 🟢 P3 | 021, 046, 047 | [050](050-automate-github-release-from-tag.md) |
@@ -66,7 +77,7 @@ for adopters, and a manual-only release procedure.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[ ]` | 039 | Design an opt-in structured task-identity policy | 🟡 P2 | — | [039](039-design-opt-in-task-identity-policy.md) |
+| `[ ]` | 039 | Design an opt-in structured task-identity policy | 🟡 P2 | 051 | [039](039-design-opt-in-task-identity-policy.md) |
 
 ## 🧪 Quick Tasks (No File)
 
@@ -79,4 +90,4 @@ then folded it into the regenerated `CLAUDE.md`.
 All completed task and phase records are in `tasks/QUEUE_ARCHIVE.md`; this
 operational queue contains only non-terminal work.
 
-*Last updated: 2026-09-23*
+*Last updated: 2026-09-26*

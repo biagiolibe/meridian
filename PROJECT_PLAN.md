@@ -8,6 +8,7 @@
 
 ## Active Delivery
 
+- `[ ]` 051 — Enforce isolated worktrees for every task.
 - `[ ]` 015 — Split `workflowBaselineVersion` from `frameworkVersion` in manifest and upgrade planner.
 - `[ ]` 016 — Propagate `workflowBaselineVersion` to `adopt`/`finalize-adoption`.
 - `[ ]` 017 — Relax `check_migrations()`'s VERSION equality to `<=`.
