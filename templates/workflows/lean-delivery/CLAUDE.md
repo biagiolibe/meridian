@@ -23,17 +23,25 @@ status --short`; state a short plan. Do not choose a queue item autonomously.
 If unrelated uncommitted changes prevent safe work, do not modify, stage,
 discard, or commit them; report the conflict and stop.
 
-Keep the task scope bounded. Run its validation and applicable baseline checks
-before marking it `[x]`, archiving it, or claiming completion. If required
-evidence is missing or validation fails, keep it `[/]` and report the blocker.
-After success, update matching queue and project-plan records and archive a
-completed task file or fully closed queue section when applicable. Follow local
-project Git conventions; Lean Delivery does not require a branch, reviewer
-identity, or integration procedure.
-
-A requested review is read-only unless the developer separately authorizes a
-fix. Report actionable findings instead of silently correcting implementation
-code during review.
+- Keep the task scope bounded. Record a newly discovered requirement as a new
+  task rather than silently widening the current one.
+- Run the task validation and applicable project baseline checks. Do not mark a
+  task `[x]`, archive it, or claim completion if required evidence is missing or
+  validation fails.
+- After successful verification, update the matching queue and project-plan
+  records, then archive the completed task file or a fully closed queue section
+  when applicable.
+- For `Proceed with <TASK-ID>`, create or select the deterministic task branch
+  and linked worktree required by `PROJECT_WORKFLOW.md` before changing task
+  state or files. Run implementation, validation, and task-local lifecycle
+  edits only there; the primary checkout is reserved for coordination and
+  final integration.
+- Use one writer per task worktree. A review uses the same task worktree only
+  after the implementer has stopped; it never switches the primary checkout to
+  the task branch.
+- A requested review is read-only unless the developer separately authorizes a
+  fix. Report actionable findings; do not silently correct implementation code
+  during review.
 
 ## Command triggers
 

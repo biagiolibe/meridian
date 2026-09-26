@@ -21,49 +21,49 @@ start until this task is complete and integrated.
 
 ## 📋 Acceptance Criteria
 
-- [ ] The local Meridian workflow and both generated workflow templates define
+- [x] The local Meridian workflow and both generated workflow templates define
       one task branch and one linked worktree per active task, with one writer
       per worktree. They identify the primary checkout as a coordination and
       final-integration surface, never an implementation or review surface.
-- [ ] The procedure defines deterministic branch and worktree naming from the
+- [x] The procedure defines deterministic branch and worktree naming from the
       canonical task ID, records the task branch, worktree path, base `main`
       commit, and current task commit in the durable handoff, and rejects an
       existing conflicting branch or worktree instead of reusing it silently.
-- [ ] `Proceed with <TASK-ID>` creates or selects the task's dedicated
+- [x] `Proceed with <TASK-ID>` creates or selects the task's dedicated
       worktree before any task mutation. Implementation, validation,
       remediation, and task-local status changes run only there.
-- [ ] Governed SDD review runs in a fresh agent session against the same
+- [x] Governed SDD review runs in a fresh agent session against the same
       dedicated task worktree after the implementer has stopped. Review never
       switches the developer's primary checkout to the task branch and never
       runs concurrently with an implementer in that worktree.
-- [ ] Changing the branch in the developer's primary checkout while a task is
+- [x] Changing the branch in the developer's primary checkout while a task is
       being implemented or reviewed cannot change the task worktree's `HEAD`,
       index, or files. If the primary checkout is dirty or unavailable at
       integration time, integration returns `BLOCKED` while preserving the
       task branch and worktree intact.
-- [ ] The integration protocol supports two independent task branches created
+- [x] The integration protocol supports two independent task branches created
       from the same `main` commit. It preserves reviewed task commits without
       rebase, amend, cherry-pick, or force-push; serializes `main` integration;
       rejects conflicts; and validates the combined tree before completing an
       integration. Replace the current fast-forward-only rule where necessary
       so integrating the first task does not make the second task
       unrecoverably stale.
-- [ ] Queue/task transitions for concurrently active work do not lose another
+- [x] Queue/task transitions for concurrently active work do not lose another
       task's state. The procedure defines where reservation, completion,
       review, and archive mutations occur and how conflicts in shared
       governance files are handled.
-- [ ] Worktree cleanup happens only after successful integration: remove the
+- [x] Worktree cleanup happens only after successful integration: remove the
       linked worktree and then the local task branch. Failure, review changes,
       cancellation, or blocked integration retains recoverable task state and
       documents the permitted cleanup path.
-- [ ] Automated tests create two temporary task worktrees, modify them
+- [x] Automated tests create two temporary task worktrees, modify them
       independently, switch the primary checkout's branch during one task,
       and prove that both task branches can be validated and integrated
       serially without cross-worktree changes or lost governance state.
-- [ ] Managed-template changes include the required migration and capability
+- [x] Managed-template changes include the required migration and capability
       marker/baseline updates so existing adopters receive the new behavior
       through `meridian upgrade`, not only through fresh initialization.
-- [ ] `python3 scripts/check_repository.py` and
+- [x] `python3 scripts/check_repository.py` and
       `python3 -m unittest discover -s tests -v` pass.
 
 ## 📁 Relevant Files

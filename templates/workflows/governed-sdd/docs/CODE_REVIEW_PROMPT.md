@@ -3,7 +3,7 @@
 ```text
 Review and integrate <TASK-ID> as an independent reviewer-integrator for meridian.
 
-Run this in a fresh agent session that did not write the implementation. Use the same primary checkout. If it starts on clean `main`, run `git switch <task-branch>`. If the task branch is missing locally, or a dirty checkout prevents switching, return `BLOCKED` with the exact condition. Re-derive evidence from the actual diff and cited sources rather than trusting the implementation report.
+<!-- MERIDIAN:BEGIN capability=task-worktree-review v1 -->Run this in a fresh agent session that did not write the implementation. Use the same dedicated task worktree only after the implementer has stopped. Verify its registered absolute path, branch, clean state, current task commit, and base `main` commit against the completion handoff. Never switch the developer's primary checkout to the task branch or review concurrently with an implementer. A missing or mismatched branch/worktree returns `BLOCKED` while preserving it.<!-- MERIDIAN:END --> Re-derive evidence from the actual diff and cited sources rather than trusting the implementation report.
 
 Treat `PROJECT_WORKFLOW.md` as a `GOVERNED_SDD` mode lock. Before any mutation,
 confirm the local workflow and ignore global, home-directory, remembered, or
@@ -28,13 +28,13 @@ handoff: end the report by naming its path and instruct the developer to use
 handoff with the fields from `docs/COMPLETION_REPORT_TEMPLATE.md` plus the
 verdict. For `APPROVE`, append the same evidence and verdict to the review
 record before updating the task and queue status to `ACCEPTED`.
-Before changing either status record, verify `git merge-base --is-ancestor main <task-branch>`. If it fails, do not mark the task `ACCEPTED`; return `BLOCKED`. Do not fetch, rebase, use a non-fast-forward merge, or force-push as recovery. After APPROVE only, commit the review record and the two `ACCEPTED` status updates with:
+Before changing either status record, verify the recorded base `main` commit is an ancestor of the current task commit. Current `main` may have advanced and need not be an ancestor of the task branch. After APPROVE only, commit the review record and the two `ACCEPTED` status updates with:
 
 ```bash
 git commit --author="meridian Reviewer-Integrator <reviewer-integrator@meridian.local>" -m "docs: reviewer-integrator pass <TASK-ID>; independently re-verified diff, cited sources, acceptance evidence, and validation"
 ```
 
-The author override applies only to this `ACCEPTED` commit; keep the operator's normal committer identity and do not change global or repository Git config. Verify it with `git log --format='%an <%ae>'`. The reviewer must never push the task branch. If the ancestry check passes, switch to `main`, fast-forward merge the task branch, push `main` exactly once, then delete the local task branch. A remote task branch may lack the local review-and-status acceptance commit; remote cleanup is optional and must never block accepted integration. Never modify implementation code, bypass protections, or approve a PR under the author identity.
+The author override applies only to this `ACCEPTED` commit; keep the operator's normal committer identity and do not change global or repository Git config. Verify it with `git log --format='%an <%ae>'`. The reviewer must never push the task branch. Integrate from the primary checkout only after acquiring the exclusive integration lease: require it to be clean and switchable to `main`, run `git merge --no-ff --no-commit <task-branch>`, reject conflicts, and validate the combined tree before committing and pushing `main` exactly once. On any failure, abort the merge and preserve the task worktree and branch. After success, remove the task worktree and then delete the local task branch. A remote task branch may lack the local review-and-status acceptance commit; remote cleanup is optional and must never block accepted integration. Never modify implementation code, bypass protections, or approve a PR under the author identity.
 
 Keep the final review report within ten lines unless findings require more detail.
 ```

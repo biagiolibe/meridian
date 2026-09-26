@@ -2,9 +2,14 @@
 
 Task context loading, reasoning selection, task shape, and completion handoffs are governed by `docs/CONTEXT_BUDGET_POLICY.md`, `tasks/TASK_BLUEPRINT.md`, and `docs/COMPLETION_REPORT_TEMPLATE.md`; this document defines review and forge integration only.
 
-For `Review: REQUIRED`, the implementer pushes the task branch once after validation for each review attempt and records the branch name, implementation commit, and base `main` commit in the completion handoff. The reviewer-integrator uses the same primary checkout in a fresh session that did not write the implementation. It must never push the task branch.
-
-If the reviewer session starts on clean `main`, run `git switch <task-branch>`. If the task branch is missing locally, or a dirty checkout prevents switching, return `BLOCKED` with the exact condition.
+<!-- MERIDIAN:BEGIN capability=task-worktree-integration v1 -->
+For `Review: REQUIRED`, the implementer pushes the task branch once after
+validation for each review attempt and records its deterministic branch,
+absolute dedicated-worktree path, implementation commit, base `main` commit,
+and current task commit in the completion handoff. The reviewer-integrator
+uses that same task worktree in a fresh session after the implementer stops. It
+verifies the registered mapping and cleanliness, never switches the primary
+checkout to the task branch, and never pushes the task branch.
 
 On `CHANGES_REQUESTED`, the reviewer creates or appends
 `tasks/reviews/<TASK-ID>.md` following `docs/REVIEW_RECORD_TEMPLATE.md`, then
@@ -18,12 +23,40 @@ repair implementation artifacts.
 Before accepting, verify:
 
 ```bash
-git merge-base --is-ancestor main <task-branch>
+git merge-base --is-ancestor <recorded-base-main> <current-task-commit>
 ```
 
-If this fails, do not mark the task `ACCEPTED`; return `BLOCKED`. Do not fetch, rebase, use a non-fast-forward merge, or force-push as recovery. After `APPROVE`, append the verdict and evidence to the review record and create only the local review-and-status `ACCEPTED` commit. If the check passes, switch to `main`, fast-forward merge the task branch, push `main` exactly once, then delete the local task branch.
+Current `main` need not be an ancestor of the branch. If the recorded-base
+check fails, do not mark the task `ACCEPTED`; return `BLOCKED`. Do not fetch,
+rebase, amend, cherry-pick, or force-push as recovery. After `APPROVE`, append
+the verdict and evidence to the review record and create only the local
+review-and-status `ACCEPTED` commit.
 
-For `Review: NOT_REQUIRED`, the implementer performs the same `ACCEPTED` status commit, fast-forward `main` merge, single `main` push, and local task-branch deletion after validation. Owner acceptance remains an explicit exception: it updates only statuses and does not automatically integrate the branch.
+Final integration is serialized in the primary checkout under one exclusive
+integration lease, acquired by atomically creating
+`meridian-integration.lock` in the absolute common Git directory. An existing
+lease is `BLOCKED`; only its owner removes it, and stale-lease removal requires
+explicit developer authorization. If the primary checkout is missing, dirty,
+cannot switch to `main`, or another
+integration owns the lease, return `BLOCKED` and preserve task state. Run `git
+merge --no-ff --no-commit <task-branch>`. Reject a conflict with `git merge
+--abort`; never resolve it by choosing one task's governance state. Run the
+applicable validation against the combined tree, abort on failure, and only
+then create the merge commit and push `main` exactly once. Remove the linked
+worktree and then the local branch only after success. Release the lease after
+success or a clean abort.
+
+For `Review: NOT_REQUIRED`, the implementer performs the same `ACCEPTED` status
+commit and integration transaction after validation. Owner acceptance remains
+an explicit exception: it updates only statuses and does not automatically
+integrate the branch.
+
+Task reservation, completion, review, and archive mutations stay on the task
+branch. Concurrent tasks change only their own task row and records. They do
+not reorder shared governance files, change shared timestamps, or archive a
+phase; phase archival waits until all rows are integrated. Any shared-file
+conflict blocks integration with both branches intact.
+<!-- MERIDIAN:END -->
 
 ## Validation evidence for review
 
