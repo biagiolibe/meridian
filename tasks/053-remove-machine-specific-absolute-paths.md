@@ -95,7 +95,7 @@ existing occurrences, and add a repository guard.
 
 ## 🔗 Dependencies
 
-- **Depends on**: none
+- **Depends on**: 054
 - **Blocks**: none
 
 ## 🤖 How to delegate this task to Claude CLI

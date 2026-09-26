@@ -97,7 +97,7 @@ shows mechanical checking is warranted.
 
 ## 🔗 Dependencies
 
-- **Depends on**: 051
+- **Depends on**: 054
 - **Blocks**: any implementation of structured task-identity policy support.
 
 ## 🤖 How to delegate this task to Claude CLI
@@ -105,4 +105,3 @@ shows mechanical checking is warranted.
 ```bash
 claude "$(cat tasks/039-design-opt-in-task-identity-policy.md)"$'\n\nExecute this task in the current project.'
 ```
-

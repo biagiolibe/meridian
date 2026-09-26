@@ -100,7 +100,7 @@ CLI-only release ship without a fake migration, and makes `meridian upgrade
 
 ## 🔗 Dependencies
 
-- **Depends on**: 051
+- **Depends on**: 054
 - **Blocks**: 016
 
 ## 🤖 How to delegate this task to Claude CLI
