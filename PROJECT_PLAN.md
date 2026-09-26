@@ -9,6 +9,7 @@
 ## Active Delivery
 
 - `[x]` 051 — Enforce isolated worktrees for every task.
+- `[ ]` 055 — Avoid duplicate full validation during worktree integration.
 - `[ ]` 054 — Configure Codex access for isolated task worktrees.
 - `[x]` 015 — Split `workflowBaselineVersion` from `frameworkVersion` in manifest and upgrade planner.
 - `[ ]` 016 — Propagate `workflowBaselineVersion` to `adopt`/`finalize-adoption`.

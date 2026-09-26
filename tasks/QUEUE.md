@@ -36,6 +36,16 @@ new: separates `frameworkVersion` (public CLI release), `workflowBaselineVersion
 (manifest/CLI compatibility) so a CLI-only release no longer requires a fake
 migration.
 
+### Phase 19 — Proportional integration validation
+
+Removes the unconditional duplicate full-baseline run from task integration.
+Validated task evidence is reused when safe; integration defaults to a bounded
+gate and escalates to full validation only for explicit or material risk.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 055 | Avoid duplicate full validation during worktree integration | 🔴 P1 | 051 | [055](055-avoid-duplicate-full-integration-validation.md) |
+
 ### Phase 18 — Codex worktree access
 
 Completes the host-integration side of the isolated-worktree contract: task
@@ -45,7 +55,7 @@ protected Git metadata and command policy.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[ ]` | 054 | Configure Codex access for isolated task worktrees | 🔴 P1 | 051 | [054](054-configure-codex-worktree-access.md) |
+| `[ ]` | 054 | Configure Codex access for isolated task worktrees | 🔴 P1 | 055 | [054](054-configure-codex-worktree-access.md) |
 
 ### Phase 5 — SemVer version split
 
