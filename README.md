@@ -364,6 +364,9 @@ CONTRIBUTING.md                   Contribution guidance and validation
 
 ## Development and contributions
 
+Meridian's maintenance commands and test suite support Python 3.11 and later;
+CI uses Python 3.11 as the minimum-version baseline.
+
 Meridian’s templates are the product. Before proposing a change, run:
 
 ```bash
