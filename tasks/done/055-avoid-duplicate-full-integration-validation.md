@@ -25,47 +25,47 @@ land before Task 054 extends the same worktree lifecycle.
 
 ## 📋 Acceptance Criteria
 
-- [ ] Task completion records the validated task commit, its validated base
+- [x] Task completion records the validated task commit, its validated base
       `main` commit, the validation commands, and their successful evidence.
       Integration rejects missing evidence or a task branch whose relevant
       tree changed after validation.
-- [ ] When current `main` still equals the validated base, integration reuses
+- [x] When current `main` still equals the validated base, integration reuses
       the task-worktree evidence and does not rerun the complete project
       baseline on the combined tree.
-- [ ] Every integration still acquires the exclusive lease, verifies handoff
+- [x] Every integration still acquires the exclusive lease, verifies handoff
       and ancestry, requires clean participating worktrees, performs
       `git merge --no-ff --no-commit`, rejects conflicts, and runs a bounded
       integration gate before creating the merge commit.
-- [ ] The default bounded gate contains `git diff --check` plus an optional
+- [x] The default bounded gate contains `git diff --check` plus an optional
       project-declared fast integration smoke command. Absence of a smoke
       command is explicit and does not silently expand back to the complete
       baseline.
-- [ ] Full combined-tree validation runs only when the task explicitly
+- [x] Full combined-tree validation runs only when the task explicitly
       requires it, validation evidence is stale or cannot be matched to the
       candidate, current `main` has advanced with a material interaction in
       the task's declared files/dependencies/behavioral surface, or the bounded
       gate reports a failure requiring broader diagnosis.
-- [ ] The contract defines material interaction conservatively and
+- [x] The contract defines material interaction conservatively and
       deterministically. An implementation may return `BLOCKED` when it cannot
       establish independence; it must not infer safety solely from Git's lack
       of textual conflicts.
-- [ ] If current `main` advanced without a material interaction, integration
+- [x] If current `main` advanced without a material interaction, integration
       records the comparison evidence and uses the bounded gate instead of the
       complete baseline.
-- [ ] A failed bounded or full integration gate aborts the merge, releases the
+- [x] A failed bounded or full integration gate aborts the merge, releases the
       lease after the clean abort, and retains the task branch and worktree.
       Successful integration and cleanup semantics remain unchanged.
-- [ ] Lean Delivery and Governed SDD use the same evidence-reuse and escalation
+- [x] Lean Delivery and Governed SDD use the same evidence-reuse and escalation
       semantics without weakening Governed SDD review independence, acceptance
       evidence, or forge gates.
-- [ ] Tests cover unchanged-base evidence reuse, advanced-main independent
+- [x] Tests cover unchanged-base evidence reuse, advanced-main independent
       changes, advanced-main interacting changes, stale task commits, missing
       smoke configuration, smoke failure, required full validation, and clean
       merge abort. They prove that the complete baseline is not invoked on the
       default evidence-reuse path.
-- [ ] Managed-template changes include the required migrations, capability
+- [x] Managed-template changes include the required migrations, capability
       marker updates, and baseline updates for existing adopters.
-- [ ] `python3 scripts/check_repository.py`,
+- [x] `python3 scripts/check_repository.py`,
       `python3 -m unittest discover -s tests -v`, and `git diff --check` pass.
 
 ## 📁 Relevant Files

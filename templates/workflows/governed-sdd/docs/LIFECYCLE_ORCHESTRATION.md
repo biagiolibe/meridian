@@ -1,6 +1,6 @@
 # Autonomous Task Lifecycle Orchestration
 
-<!-- MERIDIAN:BEGIN capability=lifecycle-orchestration v4 -->
+<!-- MERIDIAN:BEGIN capability=lifecycle-orchestration v5 -->
 `Run lifecycle <TASK-ID>` authorizes an orchestrator to carry one dependency-ready
 task through implementation, independent review, requested-change remediation,
 acceptance, and `main` integration without further developer prompts. It does
@@ -48,8 +48,10 @@ Continue automatically only while the current task and queue state permit the
 next transition. Stop with `BLOCKED` when validation fails, authority is
 ambiguous, the task branch or required local handoff commit is unavailable,
 the worktree becomes dirty with unrelated changes, its registered branch/path
-mapping changes, serialized integration conflicts or fails combined-tree
-validation, or an external forge approval is required but unavailable.
+mapping changes, validation evidence is missing or stale, independence from an
+advanced `main` cannot be established, serialized integration conflicts or
+fails its selected integration gate, or an external forge approval is required
+but unavailable.
 
 After two consecutive `CHANGES_REQUESTED` verdicts, stop and report `BLOCKED`
 with the review-record path and unresolved findings. A developer may explicitly
@@ -58,14 +60,21 @@ restart the lifecycle after resolving the underlying scope or authority issue.
 ## Integration and forge gates
 
 The `Run lifecycle` authorization includes the local review-and-status commit,
-serialized `--no-ff --no-commit` integration, combined-tree validation, and
-the single `main` push only after `APPROVE` and all repository checks pass. The
-recorded base must be an ancestor of the task commit; current `main` may have
-advanced through another accepted task. A dirty or unavailable primary
-checkout blocks integration without changing the task worktree. A merge
-conflict or validation failure is aborted and preserves the task branch and
-worktree. Only successful integration permits removing the worktree and then
-the branch. It does not fabricate an external approval. If the
+serialized `--no-ff --no-commit` integration, evidence-reuse decision, selected
+integration gate, and the single `main` push only after `APPROVE` and all
+repository checks pass. The validated task commit must be an ancestor of task
+HEAD, its intervening diff may contain only permitted lifecycle records, and
+the validated base must be an ancestor of the validated commit. When current `main` still equals that
+base, reuse the successful task evidence. When `main` advanced, use the
+deterministic material-interaction comparison in `PROJECT_WORKFLOW.md`; use the
+bounded gate only after independence is recorded, full validation for an
+interaction or explicit requirement, and `BLOCKED` when independence cannot
+be established. A dirty or unavailable primary checkout blocks integration
+without changing the task worktree. A merge conflict or bounded/full gate
+failure is aborted and preserves the task branch and worktree. Only successful
+integration permits removing the worktree and then the branch. These reuse
+rules do not weaken independent review, acceptance evidence, or forge gates,
+and do not fabricate an external approval. If the
 forge requires an approval from a distinct authorized identity, leave the PR
 open and report `BLOCKED` unless that independent identity has actually
 approved it.
