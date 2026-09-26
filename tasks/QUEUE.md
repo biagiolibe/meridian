@@ -62,6 +62,17 @@ for adopters, and a manual-only release procedure.
 | `[ ]` | 049 | Design the distribution and update channel for adopters | 🟡 P2 | 019 | [049](049-design-distribution-and-update-channel.md) |
 | `[ ]` | 050 | Automate the GitHub Release from a version tag | 🟢 P3 | 021, 046, 047 | [050](050-automate-github-release-from-tag.md) |
 
+### Phase 17 — Consumer workflow integrity
+
+Fixes found while repairing a consumer's generated entry routers: the upgrade
+planner merges templates into generated `AGENTS.md`/`CLAUDE.md`, and tracked
+records carry machine-specific absolute paths.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 052 | Make the upgrade planner aware of generated entry routers | 🔴 P1 | 015 | [052](052-router-aware-upgrade-planner.md) |
+| `[ ]` | 053 | Remove machine-specific absolute paths from tracked records | 🟡 P2 | — | [053](053-remove-machine-specific-absolute-paths.md) |
+
 ### Phase 13 — Optional structured task identity
 
 | Status | ID | Title | Priority | Depends on | File |

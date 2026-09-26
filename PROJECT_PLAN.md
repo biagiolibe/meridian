@@ -22,6 +22,8 @@
 - `[ ]` 048 — Enforce `protocolVersion` compatibility in the CLI.
 - `[ ]` 049 — Design the distribution and update channel for adopters.
 - `[ ]` 050 — Automate the GitHub Release from a version tag.
+- `[ ]` 052 — Make the upgrade planner aware of generated entry routers.
+- `[ ]` 053 — Remove machine-specific absolute paths from tracked records.
 
 `tasks/QUEUE.md` is the operational source for ordering, dependencies, and
 phase status. Completed delivery records are archived in
