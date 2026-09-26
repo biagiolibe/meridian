@@ -36,6 +36,17 @@ new: separates `frameworkVersion` (public CLI release), `workflowBaselineVersion
 (manifest/CLI compatibility) so a CLI-only release no longer requires a fake
 migration.
 
+### Phase 18 — Codex worktree access
+
+Completes the host-integration side of the isolated-worktree contract: task
+worktrees use a shared repository-qualified root, Codex can configure that root
+with explicit user consent, and filesystem access remains separate from
+protected Git metadata and command policy.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 054 | Configure Codex access for isolated task worktrees | 🔴 P1 | 051 | [054](054-configure-codex-worktree-access.md) |
+
 ### Phase 5 — SemVer version split
 
 | Status | ID | Title | Priority | Depends on | File |
@@ -55,8 +66,8 @@ for adopters, and a manual-only release procedure.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[ ]` | 046 | Keep `.claude-plugin/plugin.json` version in sync with `VERSION` | 🔴 P1 | 051 | [046](046-sync-plugin-manifest-version.md) |
-| `[ ]` | 047 | Run the unit test suite in CI | 🔴 P1 | 051 | [047](047-run-unit-tests-in-ci.md) |
+| `[ ]` | 046 | Keep `.claude-plugin/plugin.json` version in sync with `VERSION` | 🔴 P1 | 054 | [046](046-sync-plugin-manifest-version.md) |
+| `[ ]` | 047 | Run the unit test suite in CI | 🔴 P1 | 054 | [047](047-run-unit-tests-in-ci.md) |
 | `[ ]` | 048 | Enforce `protocolVersion` compatibility in the CLI | 🟡 P2 | 015 | [048](048-enforce-protocol-version-compatibility.md) |
 | `[ ]` | 049 | Design the distribution and update channel for adopters | 🟡 P2 | 019 | [049](049-design-distribution-and-update-channel.md) |
 | `[ ]` | 050 | Automate the GitHub Release from a version tag | 🟢 P3 | 021, 046, 047 | [050](050-automate-github-release-from-tag.md) |
@@ -70,13 +81,13 @@ records carry machine-specific absolute paths.
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
 | `[ ]` | 052 | Make the upgrade planner aware of generated entry routers | 🔴 P1 | 015 | [052](052-router-aware-upgrade-planner.md) |
-| `[ ]` | 053 | Remove machine-specific absolute paths from tracked records | 🟡 P2 | — | [053](053-remove-machine-specific-absolute-paths.md) |
+| `[ ]` | 053 | Remove machine-specific absolute paths from tracked records | 🟡 P2 | 054 | [053](053-remove-machine-specific-absolute-paths.md) |
 
 ### Phase 13 — Optional structured task identity
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[ ]` | 039 | Design an opt-in structured task-identity policy | 🟡 P2 | 051 | [039](039-design-opt-in-task-identity-policy.md) |
+| `[ ]` | 039 | Design an opt-in structured task-identity policy | 🟡 P2 | 054 | [039](039-design-opt-in-task-identity-policy.md) |
 
 ## 🧪 Quick Tasks (No File)
 

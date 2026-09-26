@@ -100,7 +100,7 @@ CLI-only release ship without a fake migration, and makes `meridian upgrade
 
 ## 🔗 Dependencies
 
-- **Depends on**: 051
+- **Depends on**: 054
 - **Blocks**: 016
 
 ## 🤖 How to delegate this task to Claude CLI
@@ -116,6 +116,11 @@ release independently from the migration-derived workflow baseline, retain a
 legacy-manifest fallback, and report both deltas. Regression coverage verifies
 CLI-only releases, migration releases, and legacy manifests. Adoption and
 finalize-adoption propagation remains scoped to task 016.
+
+Task 054 was added to `main` as a prerequisite after this task had already
+started from commit `30a2cb8`. The developer explicitly authorized resolving
+the resulting integration conflict while preserving Task 054 and its new queue
+dependencies.
 
 Validation:
 

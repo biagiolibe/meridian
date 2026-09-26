@@ -84,7 +84,7 @@ listed here too since it is formally a Phase 4 item.
 
 | Status | ID | Title | Priority | Depends on | Task File |
 |--------|----|-------|----------|------------|-----------|
-| `[x]` | 015 | Split `workflowBaselineVersion` from `frameworkVersion` in manifest and upgrade planner | 🔴 P1 | 051 | [015](done/015-split-workflow-baseline-version.md) |
+| `[x]` | 015 | Split `workflowBaselineVersion` from `frameworkVersion` in manifest and upgrade planner | 🔴 P1 | 054 | [015](done/015-split-workflow-baseline-version.md) |
 
 Phase 5 remains active; its open tasks stay in `tasks/QUEUE.md`.
 
