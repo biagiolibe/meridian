@@ -67,7 +67,7 @@ public release (task 021) is cut.
 
 ## 🔗 Dependencies
 
-- **Depends on**: none
+- **Depends on**: 051
 - **Blocks**: 021
 
 ## 🤖 How to delegate this task to Claude CLI

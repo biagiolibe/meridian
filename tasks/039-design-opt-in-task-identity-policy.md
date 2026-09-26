@@ -97,7 +97,7 @@ shows mechanical checking is warranted.
 
 ## 🔗 Dependencies
 
-- **Depends on**: none
+- **Depends on**: 051
 - **Blocks**: any implementation of structured task-identity policy support.
 
 ## 🤖 How to delegate this task to Claude CLI
