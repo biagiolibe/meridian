@@ -16,15 +16,15 @@ so a regression cannot reach `main` or a tagged release unnoticed.
 
 ## 📋 Acceptance Criteria
 
-- [ ] `validate.yml` runs `python3 -m unittest discover -s tests -v` after
+- [x] `validate.yml` runs `python3 -m unittest discover -s tests -v` after
       the repository check, on both `pull_request` and `push` to `main`.
-- [ ] The workflow pins a concrete supported Python version (or a small
+- [x] The workflow pins a concrete supported Python version (or a small
       matrix) instead of the floating `"3.x"`, and the chosen version(s)
       match what `README.md` or `CONTRIBUTING.md` states as supported. If no
       supported version is documented, document the chosen one.
-- [ ] The suite passes on the CI runner (link a green run in the task
+- [x] The suite passes on the CI runner (link a green run in the task
       completion note).
-- [ ] `python3 scripts/check_repository.py` and
+- [x] `python3 scripts/check_repository.py` and
       `python3 -m unittest discover -s tests -v` pass locally.
 
 ## 📁 Relevant Files
@@ -60,6 +60,14 @@ so a regression cannot reach `main` or a tagged release unnoticed.
 
 - **Depends on**: 054
 - **Blocks**: 050
+
+## Completion Note
+
+- GitHub pull request: [#1](https://github.com/biagiolibe/meridian/pull/1)
+- Green CI job: [Validate repository](https://github.com/biagiolibe/meridian/actions/runs/36279576862/job/108508723438)
+- Local validation: `python3 scripts/check_repository.py` (exit 0),
+  `python3 -m unittest discover -s tests -v` (exit 0, 197 tests), and
+  `git diff --check` (exit 0).
 
 ## 🤖 How to delegate this task to Claude CLI
 
