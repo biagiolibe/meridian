@@ -28,11 +28,19 @@ if str(SCRIPTS_ROOT) not in sys.path:
 
 
 MANIFEST_PATH = Path(".meridian/manifest.json")
+CAPABILITY_CATALOG_VERSION = 1
+CAPABILITY_CATALOG_PATH = Path("capabilities/catalog-v1.json")
 BASELINES_PATH = Path(".meridian/baselines")
 ADOPTION_REVIEW_PATH = Path(".meridian/adoption-review.md")
 # Bump only when the manifest's shape or semantics change in a way that an
 # older CLI cannot safely read. Add backward-compatible fields without a bump.
-PROTOCOL_VERSION = 1
+PROTOCOL_VERSION = 2
+LEGACY_PROTOCOL_VERSION = 1
+WORKFLOW_MODES = ("lean-delivery", "governed-sdd")
+INSTALLATION_FORMS = ("managed-copy", "shared-source", "declaration-only")
+INSTALLATION_STATES = ("INSTALLED", "MISSING", "DRIFTED", "NOT_APPLICABLE")
+HOST_ACTIVATION_STATES = ("ENFORCED", "ADVISORY", "UNSUPPORTED", "UNVERIFIED", "NOT_APPLICABLE")
+VERIFICATION_STATES = ("PASS", "ADVISORY", "UNVERIFIED", "NOT_APPLICABLE", "FAIL")
 ADOPTION_VERDICTS = ("APPROVE", "CHANGES_REQUESTED", "BLOCKED")
 ADOPTION_RETRY_LIMIT = 2
 CAPABILITY_MARKER = re.compile(r"<!-- MERIDIAN:BEGIN capability=([a-z0-9-]+) v(\d+) -->")
@@ -90,6 +98,80 @@ class CodexConfigurationPlan:
     current_model: str
     proposed_text: str | None
     detail: str
+
+
+@dataclass(frozen=True)
+class CatalogSurface:
+    path: str
+    forms: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class CatalogCapability:
+    capability_id: str
+    version: int
+    workflow_modes: tuple[str, ...]
+    self_hosting_eligible: bool
+    host_profiles: tuple[tuple[str, str], ...]
+    installation_forms: tuple[str, ...]
+    managed_surfaces: tuple[CatalogSurface, ...]
+    evidence_requirements: tuple[tuple[str, tuple[str, ...]], ...]
+    dependencies: tuple[tuple[str, int], ...]
+
+
+@dataclass(frozen=True)
+class CatalogProfile:
+    profile_id: str
+    version: int
+    capabilities: tuple[tuple[str, int], ...]
+
+
+@dataclass(frozen=True)
+class CapabilityCatalog:
+    catalog_version: int
+    capabilities: tuple[CatalogCapability, ...]
+    profiles: tuple[CatalogProfile, ...]
+
+    def capability(self, capability_id: str) -> CatalogCapability | None:
+        return next(
+            (item for item in self.capabilities if item.capability_id == capability_id),
+            None,
+        )
+
+    def profile(self, profile_id: str) -> CatalogProfile | None:
+        return next((item for item in self.profiles if item.profile_id == profile_id), None)
+
+
+@dataclass(frozen=True)
+class EvidenceSnapshot:
+    state: str
+    evidence: tuple[str, ...]
+    not_applicable_rationale: str | None
+    verified_at: str | None = None
+    verifier_version: str | None = None
+
+
+@dataclass(frozen=True)
+class DeclaredSurface:
+    path: str
+    form: str
+
+
+@dataclass(frozen=True)
+class CapabilityDeclaration:
+    capability_id: str
+    required_version: int
+    managed_surface: tuple[DeclaredSurface, ...]
+    installation: EvidenceSnapshot
+    host_activation: tuple[tuple[str, EvidenceSnapshot], ...]
+    verification: EvidenceSnapshot
+
+
+@dataclass(frozen=True)
+class CapabilityProfileDeclaration:
+    profile_id: str
+    profile_version: int
+    capabilities: tuple[CapabilityDeclaration, ...]
 
 
 def _safe_component(value: str, label: str) -> str:
@@ -709,18 +791,446 @@ def capped_managed_files(
     return result
 
 
-def check_protocol_compatibility(manifest: dict[str, object]) -> None:
-    protocol_version = manifest.get("protocolVersion", 1)
+def _required_object(value: object, label: str) -> dict[str, object]:
+    if not isinstance(value, dict) or any(not isinstance(key, str) for key in value):
+        raise MeridianError(f"{label} must be a JSON object")
+    return value
+
+
+def _required_string(value: object, label: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise MeridianError(f"{label} must be a non-empty string")
+    return value
+
+
+def _required_positive_integer(value: object, label: str) -> int:
+    if type(value) is not int or value < 1:
+        raise MeridianError(f"{label} must be a positive integer")
+    return value
+
+
+def _required_string_list(value: object, label: str, *, non_empty: bool = False) -> tuple[str, ...]:
+    if not isinstance(value, list) or (non_empty and not value):
+        qualifier = "a non-empty" if non_empty else "a"
+        raise MeridianError(f"{label} must be {qualifier} list of strings")
+    result = tuple(_required_string(item, f"{label} item") for item in value)
+    if len(set(result)) != len(result):
+        raise MeridianError(f"{label} must not contain duplicates")
+    return result
+
+
+def _repository_relative_path(value: object, label: str) -> str:
+    text = _required_string(value, label)
+    path = Path(text)
+    if path.is_absolute() or ".." in path.parts or text != path.as_posix() or text in {".", ""}:
+        raise MeridianError(f"{label} must be a normalized repository-relative path")
+    return text
+
+
+def check_protocol_compatibility(manifest: dict[str, object]) -> int:
+    protocol_version = manifest.get("protocolVersion", LEGACY_PROTOCOL_VERSION)
     if type(protocol_version) is not int:
         raise MeridianError("manifest protocolVersion must be an integer")
+    if protocol_version < 1:
+        raise MeridianError("manifest protocolVersion must be a positive integer")
     if protocol_version > PROTOCOL_VERSION:
         raise MeridianError(
             f"manifest protocolVersion {protocol_version} is newer than this Meridian CLI "
             f"supports ({PROTOCOL_VERSION}); update your Meridian checkout"
         )
+    return protocol_version
 
 
-def load_manifest(project_root: Path) -> dict[str, object]:
+def manifest_workflow_mode(manifest: dict[str, object]) -> str:
+    """Return the canonical workflow mode without mutating a legacy manifest."""
+    protocol_version = check_protocol_compatibility(manifest)
+    legacy_mode = manifest.get("mode")
+    workflow_mode = manifest.get("workflowMode")
+    if legacy_mode is not None and workflow_mode is not None and legacy_mode != workflow_mode:
+        raise MeridianError("manifest mode and workflowMode conflict")
+    selected = workflow_mode if workflow_mode is not None else legacy_mode
+    if selected is None:
+        raise MeridianError("manifest must declare workflowMode (or legacy mode)")
+    if not isinstance(selected, str) or selected not in WORKFLOW_MODES:
+        raise MeridianError(
+            "manifest workflowMode must be one of: " + ", ".join(WORKFLOW_MODES)
+        )
+    if protocol_version >= 2 and workflow_mode is None:
+        raise MeridianError("manifest protocolVersion 2 requires workflowMode")
+    return selected
+
+
+def _parse_catalog_surface(value: object, label: str) -> CatalogSurface:
+    data = _required_object(value, label)
+    forms = _required_string_list(data.get("forms"), f"{label}.forms", non_empty=True)
+    unsupported = sorted(set(forms) - set(INSTALLATION_FORMS))
+    if unsupported:
+        raise MeridianError(f"{label}.forms contains unsupported form: {unsupported[0]}")
+    return CatalogSurface(
+        path=_repository_relative_path(data.get("path"), f"{label}.path"),
+        forms=forms,
+    )
+
+
+def parse_capability_catalog(value: object) -> CapabilityCatalog:
+    data = _required_object(value, "capability catalog")
+    catalog_version = _required_positive_integer(data.get("catalogVersion"), "catalogVersion")
+    if catalog_version != CAPABILITY_CATALOG_VERSION:
+        raise MeridianError(
+            f"capability catalog version {catalog_version} is unsupported; "
+            f"expected {CAPABILITY_CATALOG_VERSION}"
+        )
+    raw_capabilities = _required_object(data.get("capabilities"), "capabilities")
+    raw_profiles = _required_object(data.get("profiles"), "profiles")
+    capabilities: list[CatalogCapability] = []
+    for capability_id, raw_capability in sorted(raw_capabilities.items()):
+        if not SAFE_PATH_COMPONENT.fullmatch(capability_id):
+            raise MeridianError(f"invalid capability ID: {capability_id!r}")
+        label = f"capabilities.{capability_id}"
+        item = _required_object(raw_capability, label)
+        workflow_modes = _required_string_list(
+            item.get("workflowModes"), f"{label}.workflowModes", non_empty=True
+        )
+        unsupported_modes = sorted(set(workflow_modes) - set(WORKFLOW_MODES))
+        if unsupported_modes:
+            raise MeridianError(
+                f"{label}.workflowModes contains unsupported mode: {unsupported_modes[0]}"
+            )
+        eligible = item.get("selfHostingEligible")
+        if type(eligible) is not bool:
+            raise MeridianError(f"{label}.selfHostingEligible must be a boolean")
+        forms = _required_string_list(
+            item.get("installationForms"), f"{label}.installationForms", non_empty=True
+        )
+        unsupported_forms = sorted(set(forms) - set(INSTALLATION_FORMS))
+        if unsupported_forms:
+            raise MeridianError(
+                f"{label}.installationForms contains unsupported form: {unsupported_forms[0]}"
+            )
+        surfaces_value = item.get("managedSurfaces")
+        if not isinstance(surfaces_value, list) or not surfaces_value:
+            raise MeridianError(f"{label}.managedSurfaces must be a non-empty list")
+        surfaces = tuple(
+            _parse_catalog_surface(surface, f"{label}.managedSurfaces[{index}]")
+            for index, surface in enumerate(surfaces_value)
+        )
+        surface_paths = [surface.path for surface in surfaces]
+        if len(set(surface_paths)) != len(surface_paths):
+            raise MeridianError(f"{label}.managedSurfaces contains duplicate paths")
+        for surface in surfaces:
+            if not set(surface.forms) <= set(forms):
+                raise MeridianError(
+                    f"{label} surface {surface.path} uses a form absent from installationForms"
+                )
+        host_profiles = _required_object(item.get("hostProfiles"), f"{label}.hostProfiles")
+        parsed_hosts = tuple(
+            (
+                host_id,
+                _required_string(
+                    _required_object(host, f"{label}.hostProfiles.{host_id}").get("evidenceKind"),
+                    f"{label}.hostProfiles.{host_id}.evidenceKind",
+                ),
+            )
+            for host_id, host in sorted(host_profiles.items())
+        )
+        requirements = _required_object(
+            item.get("evidenceRequirements"), f"{label}.evidenceRequirements"
+        )
+        required_dimensions = {"installation", "hostActivation", "verification"}
+        if set(requirements) != required_dimensions:
+            raise MeridianError(
+                f"{label}.evidenceRequirements must declare installation, hostActivation, and verification"
+            )
+        evidence_requirements = tuple(
+            (
+                dimension,
+                _required_string_list(
+                    requirements[dimension],
+                    f"{label}.evidenceRequirements.{dimension}",
+                ),
+            )
+            for dimension in sorted(required_dimensions)
+        )
+        dependencies_value = item.get("dependencies")
+        if not isinstance(dependencies_value, list):
+            raise MeridianError(f"{label}.dependencies must be a list")
+        dependencies = tuple(
+            (
+                _required_string(
+                    _required_object(dependency, f"{label}.dependencies[{index}]").get("id"),
+                    f"{label}.dependencies[{index}].id",
+                ),
+                _required_positive_integer(
+                    _required_object(dependency, f"{label}.dependencies[{index}]").get("version"),
+                    f"{label}.dependencies[{index}].version",
+                ),
+            )
+            for index, dependency in enumerate(dependencies_value)
+        )
+        capabilities.append(
+            CatalogCapability(
+                capability_id=capability_id,
+                version=_required_positive_integer(item.get("version"), f"{label}.version"),
+                workflow_modes=workflow_modes,
+                self_hosting_eligible=eligible,
+                host_profiles=parsed_hosts,
+                installation_forms=forms,
+                managed_surfaces=surfaces,
+                evidence_requirements=evidence_requirements,
+                dependencies=dependencies,
+            )
+        )
+    catalog = CapabilityCatalog(catalog_version, tuple(capabilities), ())
+    for capability in catalog.capabilities:
+        for dependency_id, dependency_version in capability.dependencies:
+            dependency = catalog.capability(dependency_id)
+            if dependency is None or dependency.version != dependency_version:
+                raise MeridianError(
+                    f"capability {capability.capability_id} has an unresolved dependency "
+                    f"{dependency_id} v{dependency_version}"
+                )
+    profiles: list[CatalogProfile] = []
+    for profile_id, raw_profile in sorted(raw_profiles.items()):
+        if not SAFE_PATH_COMPONENT.fullmatch(profile_id):
+            raise MeridianError(f"invalid profile ID: {profile_id!r}")
+        label = f"profiles.{profile_id}"
+        profile = _required_object(raw_profile, label)
+        raw_required = _required_object(profile.get("capabilities"), f"{label}.capabilities")
+        required = tuple(
+            (capability_id, _required_positive_integer(version, f"{label}.capabilities.{capability_id}"))
+            for capability_id, version in sorted(raw_required.items())
+        )
+        for capability_id, version in required:
+            capability = catalog.capability(capability_id)
+            if capability is None or capability.version != version:
+                raise MeridianError(
+                    f"{label} requires unknown capability version {capability_id} v{version}"
+                )
+            for dependency_id, dependency_version in capability.dependencies:
+                if dict(required).get(dependency_id) != dependency_version:
+                    raise MeridianError(
+                        f"{label} omits dependency {dependency_id} v{dependency_version} "
+                        f"required by {capability_id}"
+                    )
+        profiles.append(
+            CatalogProfile(
+                profile_id=profile_id,
+                version=_required_positive_integer(profile.get("version"), f"{label}.version"),
+                capabilities=required,
+            )
+        )
+    return CapabilityCatalog(catalog_version, catalog.capabilities, tuple(profiles))
+
+
+def load_capability_catalog(framework_root: Path) -> CapabilityCatalog:
+    path = framework_root / CAPABILITY_CATALOG_PATH
+    if not path.is_file():
+        raise MeridianError(f"capability catalog is missing: {path}")
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        raise MeridianError(f"invalid capability catalog: {path}") from error
+    return parse_capability_catalog(value)
+
+
+def _parse_evidence_snapshot(
+    value: object,
+    label: str,
+    allowed_states: tuple[str, ...],
+    positive_states: tuple[str, ...],
+    allowed_not_applicable_rationales: tuple[str, ...],
+    *,
+    verification: bool = False,
+) -> EvidenceSnapshot:
+    data = _required_object(value, label)
+    state = _required_string(data.get("state"), f"{label}.state")
+    if state not in allowed_states:
+        raise MeridianError(f"{label}.state is unsupported: {state}")
+    evidence = _required_string_list(data.get("evidence"), f"{label}.evidence")
+    rationale_value = data.get("notApplicableRationale")
+    if rationale_value is not None and not isinstance(rationale_value, str):
+        raise MeridianError(f"{label}.notApplicableRationale must be null or a string")
+    rationale = rationale_value.strip() if isinstance(rationale_value, str) else None
+    if state in positive_states and not evidence:
+        raise MeridianError(f"{label} state {state} requires evidence")
+    if state == "NOT_APPLICABLE":
+        if not rationale or rationale not in allowed_not_applicable_rationales:
+            expected = ", ".join(allowed_not_applicable_rationales) or "no catalog exclusion applies"
+            raise MeridianError(
+                f"{label} NOT_APPLICABLE requires a catalog-backed rationale ({expected})"
+            )
+    elif rationale:
+        raise MeridianError(f"{label}.notApplicableRationale is only valid for NOT_APPLICABLE")
+    verified_at = data.get("verifiedAt") if verification else None
+    verifier_version = data.get("verifierVersion") if verification else None
+    if verification:
+        for field, field_value in (("verifiedAt", verified_at), ("verifierVersion", verifier_version)):
+            if field_value is not None and (not isinstance(field_value, str) or not field_value.strip()):
+                raise MeridianError(f"{label}.{field} must be null or a non-empty string")
+    return EvidenceSnapshot(
+        state=state,
+        evidence=evidence,
+        not_applicable_rationale=rationale,
+        verified_at=verified_at if isinstance(verified_at, str) else None,
+        verifier_version=verifier_version if isinstance(verifier_version, str) else None,
+    )
+
+
+def parse_capability_profiles(
+    manifest: dict[str, object], catalog: CapabilityCatalog
+) -> tuple[CapabilityProfileDeclaration, ...]:
+    raw_profiles = manifest.get("capabilityProfiles", {})
+    profiles = _required_object(raw_profiles, "manifest capabilityProfiles")
+    workflow_mode = manifest_workflow_mode(manifest)
+    parsed_profiles: list[CapabilityProfileDeclaration] = []
+    for profile_id, raw_profile in sorted(profiles.items()):
+        label = f"capabilityProfiles.{profile_id}"
+        catalog_profile = catalog.profile(profile_id)
+        if catalog_profile is None:
+            raise MeridianError(f"{label} is absent from capability catalog v{catalog.catalog_version}")
+        profile = _required_object(raw_profile, label)
+        profile_version = _required_positive_integer(
+            profile.get("profileVersion"), f"{label}.profileVersion"
+        )
+        if profile_version != catalog_profile.version:
+            raise MeridianError(
+                f"{label}.profileVersion must be {catalog_profile.version}, got {profile_version}"
+            )
+        raw_capabilities = _required_object(profile.get("capabilities"), f"{label}.capabilities")
+        required = dict(catalog_profile.capabilities)
+        if set(raw_capabilities) != set(required):
+            missing = sorted(set(required) - set(raw_capabilities))
+            extra = sorted(set(raw_capabilities) - set(required))
+            detail = []
+            if missing:
+                detail.append("missing " + ", ".join(missing))
+            if extra:
+                detail.append("unexpected " + ", ".join(extra))
+            raise MeridianError(f"{label}.capabilities is incomplete: {'; '.join(detail)}")
+        declarations: list[CapabilityDeclaration] = []
+        for capability_id, raw_declaration in sorted(raw_capabilities.items()):
+            capability_label = f"{label}.capabilities.{capability_id}"
+            capability = catalog.capability(capability_id)
+            if capability is None:
+                raise MeridianError(f"{capability_label} is absent from the capability catalog")
+            declaration = _required_object(raw_declaration, capability_label)
+            required_version = _required_positive_integer(
+                declaration.get("requiredVersion"), f"{capability_label}.requiredVersion"
+            )
+            if required_version != required[capability_id] or required_version != capability.version:
+                raise MeridianError(
+                    f"{capability_label}.requiredVersion must be {required[capability_id]}"
+                )
+            raw_surfaces = declaration.get("managedSurface")
+            if not isinstance(raw_surfaces, list) or not raw_surfaces:
+                raise MeridianError(f"{capability_label}.managedSurface must be a non-empty list")
+            surfaces = tuple(
+                DeclaredSurface(
+                    path=_repository_relative_path(
+                        _required_object(surface, f"{capability_label}.managedSurface[{index}]").get("path"),
+                        f"{capability_label}.managedSurface[{index}].path",
+                    ),
+                    form=_required_string(
+                        _required_object(surface, f"{capability_label}.managedSurface[{index}]").get("form"),
+                        f"{capability_label}.managedSurface[{index}].form",
+                    ),
+                )
+                for index, surface in enumerate(raw_surfaces)
+            )
+            if len({surface.path for surface in surfaces}) != len(surfaces):
+                raise MeridianError(f"{capability_label}.managedSurface contains duplicate paths")
+            catalog_surfaces = {surface.path: surface for surface in capability.managed_surfaces}
+            if {surface.path for surface in surfaces} != set(catalog_surfaces):
+                raise MeridianError(
+                    f"{capability_label}.managedSurface must completely match the catalog surface"
+                )
+            for surface in surfaces:
+                if surface.form not in catalog_surfaces[surface.path].forms:
+                    raise MeridianError(
+                        f"{capability_label}.managedSurface form {surface.form} is not allowed for {surface.path}"
+                    )
+            exclusions: list[str] = []
+            if workflow_mode not in capability.workflow_modes:
+                exclusions.append("workflow-mode-excluded")
+            if profile_id == "meridian-self-hosting" and not capability.self_hosting_eligible:
+                exclusions.append("self-hosting-ineligible")
+            installation = _parse_evidence_snapshot(
+                declaration.get("installation"),
+                f"{capability_label}.installation",
+                INSTALLATION_STATES,
+                ("INSTALLED",),
+                tuple(exclusions),
+            )
+            raw_hosts = _required_object(
+                declaration.get("hostActivation"), f"{capability_label}.hostActivation"
+            )
+            host_activation: list[tuple[str, EvidenceSnapshot]] = []
+            supported_hosts = dict(capability.host_profiles)
+            missing_hosts = sorted(set(supported_hosts) - set(raw_hosts))
+            if missing_hosts:
+                raise MeridianError(
+                    f"{capability_label}.hostActivation is missing supported host profile: "
+                    f"{missing_hosts[0]}"
+                )
+            for host_id, raw_snapshot in sorted(raw_hosts.items()):
+                host_exclusions = list(exclusions)
+                if host_id not in supported_hosts:
+                    host_exclusions.append("host-profile-unsupported")
+                host_activation.append(
+                    (
+                        host_id,
+                        _parse_evidence_snapshot(
+                            raw_snapshot,
+                            f"{capability_label}.hostActivation.{host_id}",
+                            HOST_ACTIVATION_STATES,
+                            ("ENFORCED", "ADVISORY"),
+                            tuple(host_exclusions),
+                        ),
+                    )
+                )
+            verification_snapshot = _parse_evidence_snapshot(
+                declaration.get("verification"),
+                f"{capability_label}.verification",
+                VERIFICATION_STATES,
+                ("PASS", "ADVISORY"),
+                tuple(exclusions),
+                verification=True,
+            )
+            declarations.append(
+                CapabilityDeclaration(
+                    capability_id=capability_id,
+                    required_version=required_version,
+                    managed_surface=surfaces,
+                    installation=installation,
+                    host_activation=tuple(host_activation),
+                    verification=verification_snapshot,
+                )
+            )
+        parsed_profiles.append(
+            CapabilityProfileDeclaration(profile_id, profile_version, tuple(declarations))
+        )
+    return tuple(parsed_profiles)
+
+
+def validate_manifest(
+    manifest: dict[str, object], catalog: CapabilityCatalog | None = None
+) -> tuple[CapabilityProfileDeclaration, ...]:
+    manifest_workflow_mode(manifest)
+    applied_migrations = manifest.get("appliedMigrations", [])
+    _required_string_list(applied_migrations, "manifest appliedMigrations")
+    managed_files = _required_object(manifest.get("managedFiles", {}), "manifest managedFiles")
+    for path, digest in managed_files.items():
+        _repository_relative_path(path, "manifest managedFiles path")
+        if not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
+            raise MeridianError(f"manifest managedFiles.{path} must be a SHA-256 digest")
+    if "capabilityProfiles" not in manifest:
+        return ()
+    if catalog is None:
+        raise MeridianError("manifest capabilityProfiles require a capability catalog")
+    return parse_capability_profiles(manifest, catalog)
+
+
+def load_manifest(project_root: Path, framework_root: Path | None = None) -> dict[str, object]:
     manifest_path = project_root / MANIFEST_PATH
     if not manifest_path.is_file():
         raise MeridianError(
@@ -732,11 +1242,28 @@ def load_manifest(project_root: Path) -> dict[str, object]:
         raise MeridianError(f"invalid manifest: {manifest_path}") from error
     if not isinstance(manifest, dict):
         raise MeridianError(f"invalid manifest: {manifest_path} must contain a JSON object")
-    check_protocol_compatibility(manifest)
+    catalog = load_capability_catalog(framework_root) if framework_root is not None else None
+    validate_manifest(manifest, catalog)
     return manifest
 
 
-def write_manifest(project_root: Path, manifest: dict[str, object]) -> None:
+def canonical_manifest(manifest: dict[str, object]) -> dict[str, object]:
+    """Return the current-protocol representation without changing effective state."""
+    result = dict(manifest)
+    result["protocolVersion"] = PROTOCOL_VERSION
+    result["workflowMode"] = manifest_workflow_mode(manifest)
+    result.pop("mode", None)
+    return result
+
+
+def write_manifest(
+    project_root: Path,
+    manifest: dict[str, object],
+    framework_root: Path | None = None,
+) -> None:
+    manifest = canonical_manifest(manifest)
+    catalog = load_capability_catalog(framework_root) if framework_root is not None else None
+    validate_manifest(manifest, catalog)
     destination = project_root / MANIFEST_PATH
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -1646,7 +2173,10 @@ def audit_capability_moves(project_root: Path, framework_root: Path, mode: str) 
     if mode != "governed-sdd":
         return []
     try:
-        applied = {str(item) for item in load_manifest(project_root).get("appliedMigrations", [])}
+        applied = {
+            str(item)
+            for item in load_manifest(project_root, framework_root).get("appliedMigrations", [])
+        }
     except MeridianError:
         if (project_root / MANIFEST_PATH).is_file():
             raise
@@ -2206,13 +2736,13 @@ def lock_project(
     manifest = {
         "frameworkVersion": version,
         "protocolVersion": PROTOCOL_VERSION,
-        "mode": mode,
+        "workflowMode": mode,
         "managedFiles": {str(item.target): sha256(item.source) for item in files},
         "appliedMigrations": migration_ids(framework_root, "0.0.0", baseline_version),
     }
     if write_workflow_baseline:
         manifest["workflowBaselineVersion"] = baseline_version
-    write_manifest(project_root, manifest)
+    write_manifest(project_root, manifest, framework_root)
     print(f"Locked {project_root} to Meridian {version} ({mode}).")
 
 
@@ -2331,6 +2861,7 @@ def plan_from_baseline(
     target_version_override: str | None = None,
     managed_files_override: list[ManagedFile] | None = None,
     installed_framework_version: str | None = None,
+    capability_profiles: object | None = None,
 ) -> tuple[dict[str, object], list[PlanItem]]:
     target_framework_version = target_version_override or read_version(framework_root)
     target_baseline_version = latest_migration_to(framework_root, target_framework_version)
@@ -2342,9 +2873,11 @@ def plan_from_baseline(
     manifest: dict[str, object] = {
         "frameworkVersion": installed_framework_version or installed_version,
         "workflowBaselineVersion": installed_version,
-        "mode": mode,
+        "workflowMode": mode,
         "appliedMigrations": applied_migrations,
     }
+    if capability_profiles is not None:
+        manifest["capabilityProfiles"] = capability_profiles
 
     requirements = capability_requirements(framework_root)
     applied = {str(migration) for migration in applied_migrations}
@@ -2548,7 +3081,7 @@ def prepare_upgrade_targets(
     actually narrows the upgrade. Both are `None` when the flag is unset, or
     the pending migrations contain no retirement-stage move (a full,
     unmodified upgrade)."""
-    manifest = load_manifest(project_root)
+    manifest = load_manifest(project_root, framework_root)
     if not stop_before_retirement:
         return manifest, None, None
     installed_version = manifest_baseline_version(manifest)
@@ -2563,7 +3096,7 @@ def prepare_upgrade_targets(
     scratch_dir = Path(tempfile.mkdtemp(prefix="meridian-capped-"))
     baseline_root = project_root / BASELINES_PATH / installed_version
     managed_override = capped_managed_files(
-        framework_root, str(manifest.get("mode", "")), baseline_root, excluded, scratch_dir
+        framework_root, manifest_workflow_mode(manifest), baseline_root, excluded, scratch_dir
     )
     return manifest, capped_target, managed_override
 
@@ -2578,13 +3111,14 @@ def plan_upgrade(
     return plan_from_baseline(
         project_root,
         framework_root,
-        str(manifest.get("mode", "")),
+        manifest_workflow_mode(manifest),
         installed_version,
         project_root / BASELINES_PATH / installed_version,
         list(manifest.get("appliedMigrations", [])),
         target_version_override=target_override,
         managed_files_override=managed_override,
         installed_framework_version=str(manifest.get("frameworkVersion", "")),
+        capability_profiles=manifest.get("capabilityProfiles"),
     )
 
 
@@ -2599,7 +3133,7 @@ def print_plan(
     target_baseline_version = latest_migration_to(framework_root, target_version)
     print(
         f"Meridian {installed_baseline_version} -> {target_baseline_version} "
-        f"({manifest['mode']})"
+        f"({manifest_workflow_mode(manifest)})"
     )
     framework_delta = f"Framework: {manifest['frameworkVersion']} -> {target_version}"
     if (
@@ -2687,7 +3221,11 @@ def apply_plan(
             elif item.action == "pointer-upgrade":
                 local_text = local.read_text(encoding="utf-8")
                 if not agents_pointer_satisfies_claude(
-                    project_root, framework_root, str(manifest["mode"]), item.file.source.read_text(encoding="utf-8"), local_text
+                    project_root,
+                    framework_root,
+                    manifest_workflow_mode(manifest),
+                    item.file.source.read_text(encoding="utf-8"),
+                    local_text,
                 ):
                     raise MeridianError(
                         f"AGENTS.md no longer satisfies the Claude pointer for {item.file.target}; rerun upgrade --check"
@@ -2753,7 +3291,7 @@ def apply_plan(
         copy_baseline(
             project_root,
             framework_root,
-            str(manifest["mode"]),
+            manifest_workflow_mode(manifest),
             target_baseline_version,
             managed_files_override=managed_files_override,
         )
@@ -2766,12 +3304,13 @@ def apply_plan(
     manifest["protocolVersion"] = PROTOCOL_VERSION
     manifest["managedFiles"] = {
         str(item.target): sha256(item.source)
-        for item in managed_files_override or managed_files(framework_root, str(manifest["mode"]))
+        for item in managed_files_override
+        or managed_files(framework_root, manifest_workflow_mode(manifest))
     }
     prior = {str(item) for item in manifest.get("appliedMigrations", [])}
     prior.update(migration_ids(framework_root, installed_version, target_baseline_version))
     manifest["appliedMigrations"] = sorted(prior)
-    write_manifest(project_root, manifest)
+    write_manifest(project_root, manifest, framework_root)
     print("Upgrade applied. Review the diff, run project checks, then commit it.")
 
 
@@ -2788,13 +3327,14 @@ def apply_upgrade(
     manifest, plan = plan_from_baseline(
         project_root,
         framework_root,
-        str(manifest.get("mode", "")),
+        manifest_workflow_mode(manifest),
         installed_version,
         project_root / BASELINES_PATH / installed_version,
         list(manifest.get("appliedMigrations", [])),
         target_version_override=target_override,
         managed_files_override=managed_override,
         installed_framework_version=str(manifest.get("frameworkVersion", "")),
+        capability_profiles=manifest.get("capabilityProfiles"),
     )
     apply_plan(
         project_root,
@@ -4067,13 +4607,14 @@ def main() -> int:
             manifest, plan = plan_from_baseline(
                 project_root,
                 framework_root,
-                str(base_manifest.get("mode", "")),
+                manifest_workflow_mode(base_manifest),
                 installed_version,
                 project_root / BASELINES_PATH / installed_version,
                 list(base_manifest.get("appliedMigrations", [])),
                 target_version_override=target_override,
                 managed_files_override=managed_override,
                 installed_framework_version=str(base_manifest.get("frameworkVersion", "")),
+                capability_profiles=base_manifest.get("capabilityProfiles"),
             )
             print_plan(manifest, framework_root, plan, target_version_override=target_override)
             if any(item.action == "conflict" for item in plan):
