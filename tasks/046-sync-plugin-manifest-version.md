@@ -10,7 +10,7 @@
 ## 🎯 Objective
 
 `.claude-plugin/plugin.json` declares `"version": "1.1.39"` while `VERSION`
-is `1.1.41`. Claude Code adopters see the plugin version, so the drift makes
+is `1.1.45`. Claude Code adopters see the plugin version, so the drift makes
 the public release number wrong for them. Realign the field and add a
 repository check so the two values can never diverge again, before the first
 public release (task 021) is cut.
@@ -44,7 +44,7 @@ public release (task 021) is cut.
 
 - **Current behavior**: `check_required_files()` only checks that
   `plugin.json` exists and `check_json()` only checks that it parses; no
-  check compares its `version` with `VERSION`, and it has drifted two
+  check compares its `version` with `VERSION`, and it has drifted six patch
   releases behind.
 - **Desired behavior**: `VERSION` stays the single source of truth for
   `frameworkVersion`; `plugin.json` mirrors it and the repository check

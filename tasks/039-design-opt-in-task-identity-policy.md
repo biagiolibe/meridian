@@ -2,7 +2,7 @@
 
 > **ID**: `039`
 > **Category**: Design
-> **Priority**: 🟡 P2
+> **Priority**: 🔴 P1
 > **Estimate**: ~1–2h
 > **Assigned to**: unassigned
 > **Session**: unassigned
@@ -44,6 +44,10 @@ audit implementation is authorized.
       each with a bounded surface, migration/capability-marker implications,
       and validation. It does not silently create those tasks or implement
       them.
+- [ ] The design defines the task-identity resolver contract consumed by the
+      host-neutral `meridian worktree` namespace from Task 056. Path, branch,
+      handoff, review, and budget derivation must use that one resolver rather
+      than host-specific or command-specific parsers.
 - [ ] The note explains why generic names such as `VERIFY`, `SPIKE`, and
       `PRESENT` remain project-selected workstream labels rather than a
       Meridian-reserved taxonomy.
@@ -59,6 +63,7 @@ audit implementation is authorized.
 | `scripts/meridian.py` | Resolves task, queue, handoff, review, and budget locations; inspect only if deciding a mechanical check. |
 | `hooks/queue-briefing.sh` | Candidate consumer of any opt-in identity diagnostic; do not change in this task. |
 | `docs/TASK_IDENTITY_POLICY.md` | New design-note deliverable. |
+| `tasks/056-add-bounded-worktree-lifecycle-commands.md` | Consumer of the selected identity-resolver contract. |
 
 ## 🧩 Technical Context
 
@@ -67,6 +72,11 @@ such as `M30-INSPECT-001` and a milestone checkpoint named `M30-VERIFY`.
 Those names make its milestone/workstream/slice structure legible, but they
 are not Meridian protocol: the generic task blueprint accepts an arbitrary
 `<TASK-ID>`, and other consumers legitimately use linear IDs.
+
+The current worktree resolver is narrower than that documented protocol: it
+accepts only numeric forms such as `TASK-023`. Task 056 must not copy that
+host-era restriction into the new host-neutral lifecycle API, so this design
+now precedes its implementation.
 
 The abstraction must therefore be an opt-in project policy, not a parser that
 infers architecture from a string. A broad user-supplied regular-expression
@@ -98,7 +108,8 @@ shows mechanical checking is warranted.
 ## 🔗 Dependencies
 
 - **Depends on**: 054
-- **Blocks**: any implementation of structured task-identity policy support.
+- **Blocks**: the structured identity implementation follow-up and Task 056's
+  host-neutral lifecycle implementation.
 
 ## 🤖 How to delegate this task to Claude CLI
 
