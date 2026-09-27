@@ -33,6 +33,9 @@ REQUIRED_FILES = (
     "hooks/queue-briefing.sh",
     "bin/meridian",
     "scripts/meridian.py",
+    "capabilities/catalog-v1.json",
+    "schemas/capability-catalog-v1.schema.json",
+    "schemas/manifest-v2.schema.json",
     "migrations/001-review-remediation-record.json",
     "migrations/002-lifecycle-orchestration.json",
     "migrations/003-framework-updater.json",
@@ -46,6 +49,7 @@ REQUIRED_FILES = (
     "migrations/011-whole-file-baseline-capabilities.json",
     "migrations/012-agents-claude-residual-capabilities.json",
     "migrations/013-language-policy-v2.json",
+    "migrations/048-manifest-capability-profile-schema.json",
     "migrations/README.md",
     "migrations/ASSISTED_ADOPTION.md",
     "release-baselines/1.0.0/templates/workflows/governed-sdd/PROJECT_WORKFLOW.md",
@@ -140,6 +144,30 @@ def check_json() -> None:
             json.loads(path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as error:
             fail(f"invalid JSON in {path.relative_to(ROOT)}: {error}")
+
+
+def check_capability_catalog(root: Path = ROOT) -> None:
+    try:
+        catalog = meridian.load_capability_catalog(root)
+    except meridian.MeridianError as error:
+        fail(f"invalid capability catalog: {error}")
+    profile = catalog.profile("meridian-self-hosting")
+    if profile is None or not profile.capabilities:
+        fail("capability catalog is missing the versioned meridian-self-hosting profile")
+    transition_path = root / "migrations/048-manifest-capability-profile-schema.json"
+    if not transition_path.is_file():
+        fail("manifest capability-profile schema transition is missing")
+    transition = json.loads(transition_path.read_text(encoding="utf-8")).get(
+        "schemaTransition", {}
+    )
+    if transition != {
+        "catalogVersion": meridian.CAPABILITY_CATALOG_VERSION,
+        "fromProtocolVersion": meridian.LEGACY_PROTOCOL_VERSION,
+        "legacyWorkflowModeField": "mode",
+        "toProtocolVersion": meridian.PROTOCOL_VERSION,
+        "workflowModeField": "workflowMode",
+    }:
+        fail("manifest capability-profile schema transition does not match the parser")
 
 
 def check_migrations() -> None:
@@ -292,6 +320,7 @@ def main() -> None:
     check_required_files()
     check_language_policy()
     check_json()
+    check_capability_catalog()
     check_migrations()
     check_bash()
     check_local_markdown_links()

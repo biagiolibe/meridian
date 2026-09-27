@@ -3,6 +3,7 @@ added for task 014 (tasks/014-generator-altered-protected-blocks.md)."""
 
 from __future__ import annotations
 
+import json
 import shutil
 import sys
 import tempfile
@@ -21,6 +22,7 @@ class CapabilityMarkerBaselineTest(unittest.TestCase):
         self.root = Path(self.temporary.name)
         shutil.copytree(ROOT / "templates", self.root / "templates")
         shutil.copytree(ROOT / "migrations", self.root / "migrations")
+        shutil.copytree(ROOT / "capabilities", self.root / "capabilities")
 
     def tearDown(self) -> None:
         self.temporary.cleanup()
@@ -96,6 +98,17 @@ class CapabilityMarkerBaselineTest(unittest.TestCase):
         (self.root / "migrations" / "marker-baselines" / "CAPABILITY_MARKER_BASELINES.json").unlink()
         with self.assertRaises(SystemExit):
             cr.check_capability_marker_baselines(self.root)
+
+    def test_capability_catalog_is_valid_as_shipped(self) -> None:
+        cr.check_capability_catalog(self.root)
+
+    def test_capability_catalog_rejects_an_unresolved_dependency(self) -> None:
+        path = self.root / "capabilities/catalog-v1.json"
+        catalog = json.loads(path.read_text(encoding="utf-8"))
+        catalog["capabilities"]["read-guard"]["dependencies"][0]["version"] = 999
+        path.write_text(json.dumps(catalog), encoding="utf-8")
+        with self.assertRaises(SystemExit):
+            cr.check_capability_catalog(self.root)
 
     def _remove_marker_block(self, target: Path, capability: str, version: int) -> None:
         import re
