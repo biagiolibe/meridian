@@ -30,6 +30,8 @@ if str(SCRIPTS_ROOT) not in sys.path:
 MANIFEST_PATH = Path(".meridian/manifest.json")
 BASELINES_PATH = Path(".meridian/baselines")
 ADOPTION_REVIEW_PATH = Path(".meridian/adoption-review.md")
+# Bump only when the manifest's shape or semantics change in a way that an
+# older CLI cannot safely read. Add backward-compatible fields without a bump.
 PROTOCOL_VERSION = 1
 ADOPTION_VERDICTS = ("APPROVE", "CHANGES_REQUESTED", "BLOCKED")
 ADOPTION_RETRY_LIMIT = 2
@@ -707,6 +709,17 @@ def capped_managed_files(
     return result
 
 
+def check_protocol_compatibility(manifest: dict[str, object]) -> None:
+    protocol_version = manifest.get("protocolVersion", 1)
+    if type(protocol_version) is not int:
+        raise MeridianError("manifest protocolVersion must be an integer")
+    if protocol_version > PROTOCOL_VERSION:
+        raise MeridianError(
+            f"manifest protocolVersion {protocol_version} is newer than this Meridian CLI "
+            f"supports ({PROTOCOL_VERSION}); update your Meridian checkout"
+        )
+
+
 def load_manifest(project_root: Path) -> dict[str, object]:
     manifest_path = project_root / MANIFEST_PATH
     if not manifest_path.is_file():
@@ -714,9 +727,13 @@ def load_manifest(project_root: Path) -> dict[str, object]:
             "project is not locked; run `meridian lock --project <path> --mode <mode>` first"
         )
     try:
-        return json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as error:
         raise MeridianError(f"invalid manifest: {manifest_path}") from error
+    if not isinstance(manifest, dict):
+        raise MeridianError(f"invalid manifest: {manifest_path} must contain a JSON object")
+    check_protocol_compatibility(manifest)
+    return manifest
 
 
 def write_manifest(project_root: Path, manifest: dict[str, object]) -> None:
@@ -1631,6 +1648,8 @@ def audit_capability_moves(project_root: Path, framework_root: Path, mode: str) 
     try:
         applied = {str(item) for item in load_manifest(project_root).get("appliedMigrations", [])}
     except MeridianError:
+        if (project_root / MANIFEST_PATH).is_file():
+            raise
         return []
     results = []
     moves = [move for move in declared_capability_moves(framework_root) if move.migration in applied]
