@@ -36,6 +36,17 @@ new: separates `frameworkVersion` (public CLI release), `workflowBaselineVersion
 (manifest/CLI compatibility) so a CLI-only release no longer requires a fake
 migration.
 
+### Phase 23 — Shared task identity resolver
+
+Implements the opt-in identity policy designed by Task 039 as one
+host-neutral resolver. Projects remain opaque by default, while structured
+milestone adopters gain deterministic task, path, branch, handoff, review, and
+budget identities for the worktree lifecycle to consume.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 063 | Implement the task-identity declaration and resolver | 🔴 P1 | 039 | [063](063-implement-task-identity-resolver.md) |
+
 ### Phase 22 — Codex configuration resilience
 
 Keeps Meridian's least-privilege task-worktree permission profile recoverable
@@ -69,7 +80,7 @@ the same lifecycle surface through their own host permission mechanisms.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[ ]` | 056 | Add bounded worktree lifecycle commands | 🔴 P1 | 039, 054, 055, 059 | [056](056-add-bounded-worktree-lifecycle-commands.md) |
+| `[ ]` | 056 | Add bounded worktree lifecycle commands | 🔴 P1 | 054, 055, 059, 063 | [056](056-add-bounded-worktree-lifecycle-commands.md) |
 
 ### Phase 19 — Proportional integration validation
 
