@@ -57,6 +57,16 @@ python3 -m unittest discover -s tests -v
 
 For a change to a template or workflow rule, also manually trace the affected path from initialization through task creation, implementation, review, acceptance, and a framework-upgrade plan. The templates are the product.
 
+## Release procedure
+
+Before releasing, compare the manifest written by the new CLI with the prior
+release. Bump `PROTOCOL_VERSION` only when the manifest shape or semantics
+change in a way that an older CLI cannot safely read. Backward-compatible
+additions, including fields with a safe legacy fallback, do not require a
+protocol bump. When a bump is required, add compatibility tests that prove the
+older protocol remains readable and the newer protocol is rejected by the
+current reader with upgrade guidance.
+
 ## Pull requests
 
 Explain the user-facing problem, the workflow behavior that changes, and how you validated it. When a change modifies a mode rule, identify every corresponding asset you updated—for example, the workflow document, `AGENTS.md`, `CLAUDE.md`, task template, queue template, commands, and skills.
