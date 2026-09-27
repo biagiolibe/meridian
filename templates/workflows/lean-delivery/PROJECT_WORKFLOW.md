@@ -39,6 +39,17 @@ relevant files or technical context, and validation. A quick task may omit a
 task file only when it is small, reversible, and can be verified immediately.
 Neither form may bypass validation or hide scope changes.
 
+<!-- MERIDIAN:BEGIN capability=task-identity-policy v1 -->
+## Task identity
+
+`.meridian/task-identity.json` is the sole optional project declaration for
+task-identity policy. Its absence selects backwards-compatible `opaque` mode;
+an explicit version-1 declaration may select `opaque` or `milestone` mode.
+Meridian resolves task IDs through this declaration and the canonical task and
+queue authorities. Workflow mode, host configuration, and identifier spelling
+do not provide a second identity policy or imply task semantics.
+<!-- MERIDIAN:END -->
+
 ## Task worktree boundary
 
 <!-- MERIDIAN:BEGIN capability=codex-worktree-access v1 -->

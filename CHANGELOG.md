@@ -14,6 +14,12 @@ numbers follow the `frameworkVersion` tracked in generated projects'
 
 ### Added
 
+- Migration `049-task-identity-policy` adds the optional, closed
+  `.meridian/task-identity.json` declaration and one host-neutral resolver for
+  task, path, handoff, review, and budget identities. Projects without the
+  declaration remain in backwards-compatible `opaque` mode; the migration
+  does not create the declaration or rewrite project-owned task authorities.
+
 - Migration `047-codex-worktree-access` adds repository-qualified task
   worktree paths, an explicit and atomic Codex permission-profile configurator,
   a host-capability doctor, and the same bounded command policy for Lean

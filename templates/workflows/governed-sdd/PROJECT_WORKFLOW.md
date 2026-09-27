@@ -88,6 +88,17 @@ other document that references these locations follows this declaration,
 not a hardcoded path of its own.
 <!-- MERIDIAN:END -->
 
+<!-- MERIDIAN:BEGIN capability=task-identity-policy v1 -->
+## Task identity
+
+`.meridian/task-identity.json` is the sole optional project declaration for
+task-identity policy. Its absence selects backwards-compatible `opaque` mode;
+an explicit version-1 declaration may select `opaque` or `milestone` mode.
+Meridian resolves task IDs through this declaration and the canonical task and
+queue authorities. Workflow mode, host configuration, and identifier spelling
+do not provide a second identity policy or imply task semantics.
+<!-- MERIDIAN:END -->
+
 <!-- MERIDIAN:BEGIN capability=roles v2 -->
 ## Roles
 

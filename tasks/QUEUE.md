@@ -55,7 +55,7 @@ budget identities for the worktree lifecycle to consume.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[ ]` | 063 | Implement the task-identity declaration and resolver | 🔴 P1 | 039 | [063](063-implement-task-identity-resolver.md) |
+| `[x]` | 063 | Implement the task-identity declaration and resolver | 🔴 P1 | 039 | [063](done/063-implement-task-identity-resolver.md) |
 
 ### Phase 22 — Codex configuration resilience
 
