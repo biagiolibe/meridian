@@ -28,7 +28,7 @@
 - `[ ]` 039 — Design an opt-in structured task-identity policy.
 - `[ ]` 046 — Keep `.claude-plugin/plugin.json` version in sync with `VERSION`.
 - `[x]` 047 — Run the unit test suite in CI.
-- `[ ]` 048 — Enforce `protocolVersion` compatibility in the CLI.
+- `[/]` 048 — Enforce `protocolVersion` compatibility in the CLI.
 - `[ ]` 049 — Design the distribution and update channel for adopters.
 - `[ ]` 050 — Automate the GitHub Release from a version tag.
 - `[ ]` 052 — Make the upgrade planner aware of generated entry routers.

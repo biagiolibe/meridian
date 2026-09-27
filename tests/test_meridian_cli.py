@@ -487,6 +487,101 @@ class MeridianCliTest(unittest.TestCase):
         self.assertNotIn("MIGRATION ", current.stdout)
         self.assertNotIn("CONFLICT ", current.stdout)
 
+    def test_manifest_protocol_compatibility_for_upgrade_check_and_audit(self) -> None:
+        self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
+        manifest_path = self.project / ".meridian/manifest.json"
+        commands = (
+            ("upgrade --check", ("upgrade", "--check")),
+            ("audit", ("audit", "--mode", "governed-sdd")),
+        )
+        cases = (
+            ("newer", meridian.PROTOCOL_VERSION + 1, 2),
+            ("equal", meridian.PROTOCOL_VERSION, 0),
+            ("lower", meridian.PROTOCOL_VERSION - 1, 0),
+            ("missing", None, 0),
+        )
+
+        for command_name, command in commands:
+            for case_name, protocol_version, expected_returncode in cases:
+                with self.subTest(command=command_name, protocol=case_name):
+                    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                    if protocol_version is None:
+                        manifest.pop("protocolVersion", None)
+                    else:
+                        manifest["protocolVersion"] = protocol_version
+                    manifest_path.write_text(
+                        json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+                        encoding="utf-8",
+                    )
+
+                    result = self.run_cli(*command)
+                    self.assertEqual(
+                        result.returncode,
+                        expected_returncode,
+                        result.stdout + result.stderr,
+                    )
+                    if case_name == "newer":
+                        self.assertIn("update your Meridian checkout", result.stderr)
+
+    def test_upgrade_apply_rejects_newer_protocol_before_touching_project(self) -> None:
+        self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
+        manifest_path = self.project / ".meridian/manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["protocolVersion"] = meridian.PROTOCOL_VERSION + 1
+        manifest_path.write_text(
+            json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        project_before = {
+            path.relative_to(self.project): path.read_bytes()
+            for path in self.project.rglob("*")
+            if path.is_file()
+        }
+
+        applied = self.run_cli("upgrade", "--apply")
+
+        self.assertEqual(applied.returncode, 2, applied.stdout + applied.stderr)
+        self.assertIn("update your Meridian checkout", applied.stderr)
+        self.assertEqual(
+            {
+                path.relative_to(self.project): path.read_bytes()
+                for path in self.project.rglob("*")
+                if path.is_file()
+            },
+            project_before,
+        )
+
+    def test_upgrade_apply_rewrites_lower_protocol_to_current(self) -> None:
+        self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
+        manifest_path = self.project / ".meridian/manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["protocolVersion"] = meridian.PROTOCOL_VERSION - 1
+        manifest_path.write_text(
+            json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+
+        applied = self.run_cli("upgrade", "--apply")
+
+        self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+        rewritten = json.loads(manifest_path.read_text(encoding="utf-8"))
+        self.assertEqual(rewritten["protocolVersion"], meridian.PROTOCOL_VERSION)
+
+    def test_manifest_protocol_version_must_be_an_integer(self) -> None:
+        self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
+        manifest_path = self.project / ".meridian/manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["protocolVersion"] = "1"
+        manifest_path.write_text(
+            json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+
+        checked = self.run_cli("upgrade", "--check")
+
+        self.assertEqual(checked.returncode, 2, checked.stdout + checked.stderr)
+        self.assertIn("manifest protocolVersion must be an integer", checked.stderr)
+
     def test_migration_upgrade_advances_and_rekeys_workflow_baseline(self) -> None:
         self.configure_version_split_fixture()
         self.add_version_split_migration()
