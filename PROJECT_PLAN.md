@@ -12,7 +12,7 @@
 - `[x]` 055 — Avoid duplicate full validation during worktree integration.
 - `[x]` 054 — Configure Codex access for isolated task worktrees.
 - `[ ]` 056 — Add bounded worktree lifecycle commands.
-- `[ ]` 057 — Design the Meridian self-hosting capability profile.
+- `[x]` 057 — Design the Meridian self-hosting capability profile.
 - `[x]` 015 — Split `workflowBaselineVersion` from `frameworkVersion` in manifest and upgrade planner.
 - `[ ]` 016 — Propagate `workflowBaselineVersion` to `adopt`/`finalize-adoption`.
 - `[ ]` 017 — Relax `check_migrations()`'s VERSION equality to `<=`.
