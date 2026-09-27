@@ -27,7 +27,7 @@
 - `[ ]` 021 — Ship the first CLI-only release as end-to-end proof.
 - `[x]` 039 — Design an opt-in structured task-identity policy.
 - `[x]` 063 — Implement the task-identity declaration and resolver.
-- `[/]` 064 — Remove the primary-checkout review conflict.
+- `[x]` 064 — Remove the primary-checkout review conflict.
 - `[x]` 046 — Keep `.claude-plugin/plugin.json` version in sync with `VERSION`.
 - `[x]` 047 — Run the unit test suite in CI.
 - `[x]` 048 — Enforce `protocolVersion` compatibility in the CLI.
