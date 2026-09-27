@@ -26,7 +26,7 @@
 - `[ ]` 020 — Update docs for the version split.
 - `[ ]` 021 — Ship the first CLI-only release as end-to-end proof.
 - `[ ]` 039 — Design an opt-in structured task-identity policy.
-- `[ ]` 046 — Keep `.claude-plugin/plugin.json` version in sync with `VERSION`.
+- `[/]` 046 — Keep `.claude-plugin/plugin.json` version in sync with `VERSION`.
 - `[x]` 047 — Run the unit test suite in CI.
 - `[x]` 048 — Enforce `protocolVersion` compatibility in the CLI.
 - `[ ]` 049 — Design the distribution and update channel for adopters.
