@@ -128,12 +128,6 @@ records carry machine-specific absolute paths.
 | `[ ]` | 052 | Make the upgrade planner aware of generated entry routers | 🔴 P1 | 015 | [052](052-router-aware-upgrade-planner.md) |
 | `[ ]` | 053 | Remove machine-specific absolute paths from tracked records | 🟡 P2 | 054 | [053](053-remove-machine-specific-absolute-paths.md) |
 
-### Phase 13 — Optional structured task identity
-
-| Status | ID | Title | Priority | Depends on | File |
-|--------|----|-------|----------|------------|------|
-| `[/]` | 039 | Design an opt-in structured task-identity policy | 🔴 P1 | 054 | [039](039-design-opt-in-task-identity-policy.md) |
-
 ## 🧪 Quick Tasks (No File)
 
 None currently. The three pre-queue uncommitted working-tree edits flagged at
