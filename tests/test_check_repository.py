@@ -180,5 +180,45 @@ class CapabilityMarkerBaselineTest(unittest.TestCase):
         cr.check_capability_marker_baselines(self.root)
 
 
+class GovernedReviewWorktreeContractTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory()
+        self.root = Path(self.temporary.name)
+        shutil.copytree(ROOT / "templates", self.root / "templates")
+
+    def tearDown(self) -> None:
+        self.temporary.cleanup()
+
+    def test_shipped_review_contract_passes(self) -> None:
+        cr.check_governed_review_worktree_contract(self.root)
+
+    def test_retired_primary_checkout_instruction_fails(self) -> None:
+        review = (
+            self.root
+            / "templates/workflows/governed-sdd/docs/workflows/REVIEW.md"
+        )
+        review.write_text(
+            review.read_text(encoding="utf-8")
+            + "\nThe reviewer uses that same primary checkout.\n",
+            encoding="utf-8",
+        )
+        with self.assertRaises(SystemExit):
+            cr.check_governed_review_worktree_contract(self.root)
+
+    def test_preflight_must_precede_substantive_review_boundary(self) -> None:
+        review = (
+            self.root
+            / "templates/workflows/governed-sdd/docs/workflows/REVIEW.md"
+        )
+        text = review.read_text(encoding="utf-8")
+        begin = "<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v3 -->"
+        boundary = "<!-- MERIDIAN:BEGIN capability=review-mode-boundary v1 -->"
+        text = text.replace(begin, "TEMP-PREFLIGHT", 1)
+        text = text.replace(boundary, begin, 1).replace("TEMP-PREFLIGHT", boundary, 1)
+        review.write_text(text, encoding="utf-8")
+        with self.assertRaises(SystemExit):
+            cr.check_governed_review_worktree_contract(self.root)
+
+
 if __name__ == "__main__":
     unittest.main()

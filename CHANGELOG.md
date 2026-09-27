@@ -43,6 +43,14 @@ numbers follow the `frameworkVersion` tracked in generated projects'
 
 ### Fixed
 
+- Governed-SDD review now starts with a fail-closed verification of the
+  completion handoff and registered task worktree before reading the task,
+  implementation, or diff. Migration `050-review-worktree-preflight` removes
+  the obsolete primary-checkout switching and fast-forward review procedure,
+  preserves sequential worktree ownership, and requires sessions launched in
+  the primary checkout to root every review operation in the verified task
+  worktree.
+
 - Codex's read guard now denies recognised over-budget absolute file reads
   outside the project root. Previously it attempted to render every denied
   path relative to the project, and an external path such as `/tmp/file`
