@@ -13,7 +13,7 @@
 - `[x]` 054 — Configure Codex access for isolated task worktrees.
 - `[ ]` 056 — Add bounded worktree lifecycle commands.
 - `[x]` 057 — Design the Meridian self-hosting capability profile.
-- `[ ]` 058 — Add self-hosting manifest and capability-catalog support.
+- `[x]` 058 — Add self-hosting manifest and capability-catalog support.
 - `[ ]` 059 — Implement cross-mode capability audit semantics.
 - `[ ]` 060 — Install Meridian self-hosting capability surfaces.
 - `[ ]` 061 — Add self-hosting host probes and CI dogfooding gate.
