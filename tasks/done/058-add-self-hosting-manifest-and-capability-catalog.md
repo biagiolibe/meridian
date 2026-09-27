@@ -19,34 +19,34 @@ that later audit and installation tasks consume.
 
 ## 📋 Acceptance Criteria
 
-- [ ] The manifest model has a protocol-versioned canonical `workflowMode`
+- [x] The manifest model has a protocol-versioned canonical `workflowMode`
       field and rejects conflicting simultaneous `mode` and `workflowMode`
       values. Compatibility readers accept legacy `mode`; writers follow the
       protocol transition defined by Task 048.
-- [ ] A versioned capability catalog represents capability ID and version,
+- [x] A versioned capability catalog represents capability ID and version,
       applicable workflow modes, self-hosting eligibility, supported host
       profiles, installation forms, managed surfaces, evidence requirements,
       and capability dependencies.
-- [ ] Manifest validation supports `capabilityProfiles` with profile version,
+- [x] Manifest validation supports `capabilityProfiles` with profile version,
       required capability versions, complete managed surfaces, installation
       state, per-host activation state, verification state, and evidence
       references.
-- [ ] State validation implements the Task 057 vocabularies and rejects an
+- [x] State validation implements the Task 057 vocabularies and rejects an
       unsupported state, an empty applicable managed surface, missing evidence
       required by a positive claim, or `NOT_APPLICABLE` without a catalog-backed
       rationale.
-- [ ] `appliedMigrations` remains historical provenance and is never projected
+- [x] `appliedMigrations` remains historical provenance and is never projected
       into effective capability installation, activation, or verification.
-- [ ] A legacy Lean manifest whose migration history names Governed
+- [x] A legacy Lean manifest whose migration history names Governed
       capabilities loads without fabricating capability declarations. Its
       compatibility projection is deterministic and covered by tests.
-- [ ] Bootstrap and upgrade planning can inspect catalog/profile declarations
+- [x] Bootstrap and upgrade planning can inspect catalog/profile declarations
       without changing project files or silently promoting observed state.
-- [ ] Schema, catalog, parser, writer, invalid-state, compatibility, and
+- [x] Schema, catalog, parser, writer, invalid-state, compatibility, and
       round-trip tests cover both Lean and Governed manifests.
-- [ ] No hook, policy document, self-hosting surface, capability marker, or host
+- [x] No hook, policy document, self-hosting surface, capability marker, or host
       probe is installed by this task.
-- [ ] `python3 scripts/check_repository.py`,
+- [x] `python3 scripts/check_repository.py`,
       `python3 -m unittest discover -s tests -v`, and `git diff --check` pass.
 
 ## 📁 Relevant Files
