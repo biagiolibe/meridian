@@ -5,7 +5,7 @@
 > **Priority**: 🔴 P1
 > **Estimate**: ~3–4h
 > **Assigned to**: unassigned
-> **Session**: unassigned
+> **Session**: 2026-09-27 self-hosting profile design
 
 ## 🎯 Objective
 
