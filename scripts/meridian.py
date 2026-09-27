@@ -1493,6 +1493,7 @@ def pending_migration_establishes_move_source(
 def validate_capability_moves(framework_root: Path, mode: str) -> list[str]:
     """Validate move declarations against the exact current release templates."""
     managed = {item.target: item.source for item in managed_files(framework_root, mode)}
+    requirements = capability_requirements(framework_root)
     errors = []
     seen_sources: set[tuple[Path, str, int]] = set()
     for path in sorted((framework_root / "migrations").glob("*.json")):
@@ -1535,7 +1536,21 @@ def validate_capability_moves(framework_root: Path, mode: str) -> list[str]:
                     errors.append(f"{label}.{side}.path is not a managed path")
                     break
                 template_text = managed[location[0]].read_text(encoding="utf-8")
-                if not (side == "source" and not marker_blocks(template_text, location[1], location[2])) and not (raw["stage"] == "retirement" and side == "source") and not exact_marker_matches(template_text, location[1], location[2], location[3]):
+                superseding_version = max(
+                    (
+                        int(version)
+                        for capability, version in CAPABILITY_MARKER.findall(template_text)
+                        if capability == location[1] and int(version) > location[2]
+                    ),
+                    default=None,
+                )
+                superseded_target = (
+                    side == "target"
+                    and superseding_version is not None
+                    and requirements.get(location[1], (0, ""))[0] == superseding_version
+                    and len(marker_blocks(template_text, location[1], superseding_version)) == 1
+                )
+                if not (side == "source" and not marker_blocks(template_text, location[1], location[2])) and not (raw["stage"] == "retirement" and side == "source") and not exact_marker_matches(template_text, location[1], location[2], location[3]) and not superseded_target:
                     errors.append(f"{label}.{side} does not name one exact marker in the release template")
                     break
                 locations.append(location)
@@ -2277,9 +2292,25 @@ def audit_capability_moves(project_root: Path, framework_root: Path, mode: str) 
                         f"capability move {move.migration}: retired source {move.source_path} is still present",
                     )
                 )
-            if not exact_marker_matches(
+            target_matches = exact_marker_matches(
                 target_text, move.target_capability, move.target_version, move.target_sha256
-            ):
+            )
+            if not target_matches:
+                template = framework_root / "templates" / "workflows" / mode / move.target_path
+                template_text = template.read_text(encoding="utf-8") if template.is_file() else ""
+                superseding_versions = [
+                    int(version)
+                    for capability, version in CAPABILITY_MARKER.findall(template_text)
+                    if capability == move.target_capability and int(version) > move.target_version
+                ]
+                if superseding_versions:
+                    current_version = max(superseding_versions)
+                    target_matches = (
+                        extract_marker_block(target_text, move.target_capability, current_version)
+                        == extract_marker_block(template_text, move.target_capability, current_version)
+                        is not None
+                    )
+            if not target_matches:
                 results.append(
                     (
                         "FAIL",
