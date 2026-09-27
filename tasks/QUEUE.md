@@ -36,6 +36,16 @@ new: separates `frameworkVersion` (public CLI release), `workflowBaselineVersion
 (manifest/CLI compatibility) so a CLI-only release no longer requires a fake
 migration.
 
+### Phase 24 — Review worktree routing correction
+
+Removes contradictory Governed SDD instructions that can send a fresh
+reviewer to the primary checkout instead of the task's registered linked
+worktree, and migrates the correction to existing adopters.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 064 | Remove the primary-checkout review conflict | 🔴 P1 | 051, 063 | [064](064-remove-primary-checkout-review-conflict.md) |
+
 ### Phase 23 — Shared task identity resolver
 
 Implements the opt-in identity policy designed by Task 039 as one
