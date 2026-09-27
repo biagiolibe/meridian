@@ -36,6 +36,16 @@ new: separates `frameworkVersion` (public CLI release), `workflowBaselineVersion
 (manifest/CLI compatibility) so a CLI-only release no longer requires a fake
 migration.
 
+### Phase 21 — Meridian self-hosting profile
+
+Separates workflow lifecycle from workflow-neutral operational capabilities so
+Meridian can retain Lean Delivery while consuming and verifying the safeguards
+it distributes to consumer projects.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 057 | Design the Meridian self-hosting capability profile | 🔴 P1 | 054 | [057](057-design-meridian-self-hosting-profile.md) |
+
 ### Phase 20 — Bounded worktree lifecycle commands
 
 Replaces approval-prone raw Git worktree and integration mutations with
