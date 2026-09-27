@@ -46,6 +46,10 @@
       "sha256": "05284a7884859c7dd006b4eec3d890c191a5e534f427ce1b05681550fe9c4073",
       "version": 2
     },
+    "task-identity-policy": {
+      "sha256": "78df2cd565b113a06771de7572bd260667aa8a687aa3b6066d12b4578d510221",
+      "version": 1
+    },
     "task-lifecycle": {
       "sha256": "d85e522478f31d34e6f6a433c07cc5adb825378e3792fb8f40ae0d99814e0a48",
       "version": 2
@@ -254,6 +258,10 @@
   "templates/workflows/lean-delivery/PROJECT_WORKFLOW.md": {
     "codex-worktree-access": {
       "sha256": "e703132606e5ad9b34e8bedd2f2d3bd51aef62cb305e5caaa21383274daecd07",
+      "version": 1
+    },
+    "task-identity-policy": {
+      "sha256": "78df2cd565b113a06771de7572bd260667aa8a687aa3b6066d12b4578d510221",
       "version": 1
     }
   }

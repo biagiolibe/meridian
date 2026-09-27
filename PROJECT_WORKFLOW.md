@@ -22,6 +22,12 @@ Lean Delivery is the workflow for this repository's bounded framework maintenanc
 
 Every task that is not a quick task records an objective, acceptance criteria, relevant files or technical context, and validation. A quick task may omit a task file only when it is small, reversible, and can be verified immediately. Neither form may bypass validation or hide scope changes.
 
+## Task identity
+
+`.meridian/task-identity.json` is the sole optional project declaration for
+task-identity policy. Its absence selects backwards-compatible `opaque` mode;
+an explicit version-1 declaration may select `opaque` or `milestone` mode.
+
 ## Task worktree boundary
 
 Every task uses exactly one branch and one linked worktree, with one writer at
