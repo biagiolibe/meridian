@@ -147,6 +147,12 @@ Authority: [docs/PROPOSAL_CONTEXT_ENFORCEMENT.md](../docs/PROPOSAL_CONTEXT_ENFOR
 |--------|----|-------|----------|-----------|-----------|
 | `[x]` | 038 | Make a budget cap admit exactly `cap` uses | 🟡 P2 | — | [038](done/038-budget-cap-boundary-allows-cap-uses.md) |
 
+### Phase 13 — Optional structured task identity
+
+| Status | ID | Title | Priority | Depends on | Task File |
+|--------|----|-------|----------|------------|-----------|
+| `[x]` | 039 | Design an opt-in structured task-identity policy | 🔴 P1 | 054 | [039](done/039-design-opt-in-task-identity-policy.md) |
+
 ### Phase 14 — Codex execution-policy support
 
 | Status | ID | Title | Priority | Depends on | Task File |
