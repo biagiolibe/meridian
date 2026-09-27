@@ -59,6 +59,10 @@ For a change to a template or workflow rule, also manually trace the affected pa
 
 ## Release procedure
 
+When changing the release version, update both `VERSION` and the `version`
+field in `.claude-plugin/plugin.json`; the repository check requires them to
+match.
+
 Before releasing, compare the manifest written by the new CLI with the prior
 release. Bump `PROTOCOL_VERSION` only when the manifest shape or semantics
 change in a way that an older CLI cannot safely read. Backward-compatible
