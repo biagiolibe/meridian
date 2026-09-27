@@ -32,6 +32,7 @@ class MeridianCliTest(unittest.TestCase):
         shutil.copytree(ROOT / "templates", self.framework / "templates")
         shutil.copytree(ROOT / "migrations", self.framework / "migrations")
         shutil.copytree(ROOT / "release-baselines", self.framework / "release-baselines")
+        shutil.copytree(ROOT / "capabilities", self.framework / "capabilities")
         (self.framework / "VERSION").write_text("1.1.0\n", encoding="utf-8")
         self.project.mkdir()
         self.copy_governed_templates()
@@ -3287,6 +3288,7 @@ class CodexRulesUpgradeTest(unittest.TestCase):
         self.project = root / "project"
         shutil.copytree(ROOT / "templates", self.framework / "templates")
         shutil.copytree(ROOT / "migrations", self.framework / "migrations")
+        shutil.copytree(ROOT / "capabilities", self.framework / "capabilities")
         self.project.mkdir()
         source = self.framework / "templates/workflows/governed-sdd"
         for path in source.rglob("*"):
@@ -3594,6 +3596,219 @@ class CapabilityVersionDetectionTest(unittest.TestCase):
             self.assertTrue(satisfied[0].present)
         finally:
             m.managed_files = original_managed_files
+
+
+class CapabilityProfileManifestTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.catalog = meridian.load_capability_catalog(ROOT)
+
+    def manifest(self, mode: str = "lean-delivery") -> dict[str, object]:
+        profile = self.catalog.profile("meridian-self-hosting")
+        self.assertIsNotNone(profile)
+        capabilities: dict[str, object] = {}
+        for capability_id, version in profile.capabilities:
+            capability = self.catalog.capability(capability_id)
+            self.assertIsNotNone(capability)
+            capabilities[capability_id] = {
+                "requiredVersion": version,
+                "managedSurface": [
+                    {"path": surface.path, "form": surface.forms[0]}
+                    for surface in capability.managed_surfaces
+                ],
+                "installation": {
+                    "state": "MISSING",
+                    "evidence": [],
+                    "notApplicableRationale": None,
+                },
+                "hostActivation": {
+                    host_id: {
+                        "state": "UNVERIFIED",
+                        "evidence": [],
+                        "notApplicableRationale": None,
+                    }
+                    for host_id, _evidence_kind in capability.host_profiles
+                },
+                "verification": {
+                    "state": "UNVERIFIED",
+                    "evidence": [],
+                    "verifiedAt": None,
+                    "verifierVersion": None,
+                    "notApplicableRationale": None,
+                },
+            }
+        return {
+            "protocolVersion": meridian.PROTOCOL_VERSION,
+            "frameworkVersion": "1.1.0",
+            "workflowMode": mode,
+            "managedFiles": {},
+            "appliedMigrations": ["014-minimal-read-only-status", "040-pretooluse-read-guard"],
+            "capabilityProfiles": {
+                "meridian-self-hosting": {
+                    "profileVersion": profile.version,
+                    "capabilities": capabilities,
+                }
+            },
+        }
+
+    def test_catalog_exposes_versioned_profile_metadata_and_dependencies(self) -> None:
+        self.assertEqual(self.catalog.catalog_version, 1)
+        self.assertEqual(len(self.catalog.capabilities), 8)
+        read_guard = self.catalog.capability("read-guard")
+        self.assertEqual(read_guard.version, 1)
+        self.assertEqual(read_guard.workflow_modes, ("lean-delivery", "governed-sdd"))
+        self.assertTrue(read_guard.self_hosting_eligible)
+        self.assertIn(("codex-project", "hook-invocation-observation"), read_guard.host_profiles)
+        self.assertIn("shared-source", read_guard.installation_forms)
+        self.assertTrue(read_guard.managed_surfaces)
+        self.assertEqual(read_guard.dependencies, (("context-budgeting", 1),))
+
+    def test_published_schemas_track_protocol_and_state_vocabularies(self) -> None:
+        manifest_schema = json.loads(
+            (ROOT / "schemas/manifest-v2.schema.json").read_text(encoding="utf-8")
+        )
+        catalog_schema = json.loads(
+            (ROOT / "schemas/capability-catalog-v1.schema.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(manifest_schema["properties"]["protocolVersion"]["const"], 2)
+        self.assertEqual(
+            tuple(manifest_schema["properties"]["workflowMode"]["enum"]),
+            meridian.WORKFLOW_MODES,
+        )
+        self.assertEqual(
+            tuple(
+                manifest_schema["$defs"]["installationSnapshot"]["properties"]["state"]["enum"]
+            ),
+            meridian.INSTALLATION_STATES,
+        )
+        self.assertEqual(catalog_schema["properties"]["catalogVersion"]["const"], 1)
+
+    def test_lean_and_governed_profiles_round_trip_through_the_current_writer(self) -> None:
+        for mode in meridian.WORKFLOW_MODES:
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as directory:
+                project = Path(directory)
+                manifest = self.manifest(mode)
+                meridian.write_manifest(project, manifest, ROOT)
+                written = json.loads((project / meridian.MANIFEST_PATH).read_text(encoding="utf-8"))
+                self.assertEqual(written["protocolVersion"], 2)
+                self.assertEqual(written["workflowMode"], mode)
+                self.assertNotIn("mode", written)
+                loaded = meridian.load_manifest(project, ROOT)
+                self.assertEqual(meridian.manifest_workflow_mode(loaded), mode)
+                self.assertEqual(len(meridian.parse_capability_profiles(loaded, self.catalog)), 1)
+
+    def test_legacy_mode_and_migration_history_do_not_fabricate_capabilities(self) -> None:
+        legacy = {
+            "protocolVersion": 1,
+            "mode": "lean-delivery",
+            "managedFiles": {},
+            "appliedMigrations": [
+                "014-minimal-read-only-status",
+                "018-execution-evidence-profile",
+                "040-pretooluse-read-guard",
+            ],
+        }
+        self.assertEqual(meridian.validate_manifest(legacy, self.catalog), ())
+        projected = meridian.canonical_manifest(legacy)
+        self.assertEqual(projected["workflowMode"], "lean-delivery")
+        self.assertNotIn("mode", projected)
+        self.assertNotIn("capabilityProfiles", projected)
+        self.assertEqual(projected, meridian.canonical_manifest(legacy))
+
+    def test_conflicting_mode_aliases_are_rejected(self) -> None:
+        manifest = self.manifest()
+        manifest["mode"] = "governed-sdd"
+        with self.assertRaisesRegex(meridian.MeridianError, "mode and workflowMode conflict"):
+            meridian.validate_manifest(manifest, self.catalog)
+
+    def test_invalid_state_empty_surface_and_missing_positive_evidence_are_rejected(self) -> None:
+        cases = []
+        unsupported = self.manifest()
+        unsupported["capabilityProfiles"]["meridian-self-hosting"]["capabilities"]["language-policy"]["installation"]["state"] = "UNKNOWN"
+        cases.append((unsupported, "state is unsupported"))
+        empty_surface = self.manifest()
+        empty_surface["capabilityProfiles"]["meridian-self-hosting"]["capabilities"]["language-policy"]["managedSurface"] = []
+        cases.append((empty_surface, "managedSurface must be a non-empty list"))
+        no_evidence = self.manifest()
+        no_evidence["capabilityProfiles"]["meridian-self-hosting"]["capabilities"]["language-policy"]["installation"]["state"] = "INSTALLED"
+        cases.append((no_evidence, "INSTALLED requires evidence"))
+        for manifest, message in cases:
+            with self.subTest(message=message), self.assertRaisesRegex(meridian.MeridianError, message):
+                meridian.validate_manifest(manifest, self.catalog)
+
+    def test_not_applicable_requires_a_catalog_backed_rationale(self) -> None:
+        manifest = self.manifest()
+        hosts = manifest["capabilityProfiles"]["meridian-self-hosting"]["capabilities"]["queue-briefing"]["hostActivation"]
+        hosts["codex-project"] = {
+            "state": "NOT_APPLICABLE",
+            "evidence": [],
+            "notApplicableRationale": "host-profile-unsupported",
+        }
+        meridian.validate_manifest(manifest, self.catalog)
+        hosts["codex-project"]["notApplicableRationale"] = None
+        with self.assertRaisesRegex(meridian.MeridianError, "catalog-backed rationale"):
+            meridian.validate_manifest(manifest, self.catalog)
+
+    def test_upgrade_check_reads_profile_without_writing_or_promoting_state(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            framework = root / "framework"
+            project = root / "project"
+            for source in ("templates", "migrations", "release-baselines", "capabilities"):
+                shutil.copytree(ROOT / source, framework / source)
+            (framework / "VERSION").write_text("1.1.0\n", encoding="utf-8")
+            source = framework / "templates/workflows/governed-sdd"
+            for path in source.rglob("*"):
+                if path.is_file():
+                    destination = project / path.relative_to(source)
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copyfile(path, destination)
+            command = [
+                sys.executable,
+                str(CLI),
+                "--framework-root",
+                str(framework),
+                "lock",
+                "--mode",
+                "governed-sdd",
+                "--project",
+                str(project),
+            ]
+            locked = subprocess.run(command, text=True, capture_output=True, check=False)
+            self.assertEqual(locked.returncode, 0, locked.stdout + locked.stderr)
+            manifest_path = project / meridian.MANIFEST_PATH
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["capabilityProfiles"] = self.manifest("governed-sdd")["capabilityProfiles"]
+            manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+            before = {
+                path.relative_to(project): path.read_bytes()
+                for path in project.rglob("*")
+                if path.is_file()
+            }
+            checked = subprocess.run(
+                [
+                    sys.executable,
+                    str(CLI),
+                    "--framework-root",
+                    str(framework),
+                    "upgrade",
+                    "--check",
+                    "--project",
+                    str(project),
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+            after = {
+                path.relative_to(project): path.read_bytes()
+                for path in project.rglob("*")
+                if path.is_file()
+            }
+            self.assertEqual(after, before)
+            persisted = json.loads(manifest_path.read_text(encoding="utf-8"))
+            installation = persisted["capabilityProfiles"]["meridian-self-hosting"]["capabilities"]["language-policy"]["installation"]
+            self.assertEqual(installation["state"], "MISSING")
 
 
 if __name__ == "__main__":
