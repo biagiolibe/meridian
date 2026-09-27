@@ -10,9 +10,11 @@
 ## 🎯 Objective
 
 Replace approval-prone raw Git mutations in the isolated-worktree lifecycle
-with narrowly bounded Meridian commands whose arguments, repository, paths,
-state transitions, and recovery behavior are validated before Git metadata is
-changed.
+with a host-neutral `meridian worktree` namespace whose arguments, repository,
+paths, state transitions, and recovery behavior are validated before Git
+metadata is changed. Claude Code, Codex, and direct terminal users must invoke
+the same lifecycle commands; host-specific commands remain adapters for host
+configuration and capability diagnosis only.
 
 Project execpolicy rules may then allow the exact Meridian command prefixes
 without allowing generic `git worktree`, merge, branch deletion, or other
@@ -23,20 +25,27 @@ approval while destructive exceptional recovery remains explicit.
 ## 📋 Acceptance Criteria
 
 - [ ] The CLI exposes one stable lifecycle namespace with commands equivalent
-      to `meridian worktree prepare`, `meridian worktree check`,
+      to `meridian worktree path`, `meridian worktree prepare`,
+      `meridian worktree check`,
       `meridian worktree integrate stage|finalize|abort`, and
       `meridian worktree cleanup`. Command names, positional arguments, exit
       codes, and machine-readable outputs are documented and tested.
+- [ ] `meridian codex worktree-path` remains a documented deprecated alias for
+      `meridian worktree path` for one migration window. New templates,
+      migrations, handoffs, and host instructions use only the host-neutral
+      form, and equivalence tests prevent the alias from diverging.
 - [ ] Every mutating command resolves the canonical Meridian project from the
       current working directory, verifies that any supplied `--project` names
       that same project, and rejects arbitrary repositories, paths, symlink
       escapes, unknown task IDs, non-canonical task branches, and worktree
       roots that differ from the effective configured root.
-- [ ] `prepare` reuses Task 054's repository identity, canonical task ID,
-      namespaced path derivation, collision detection, and Codex preflight. It
-      creates exactly one branch/worktree pair from the permitted base commit
-      and writes the required handoff identity without silently repairing
-      partial state.
+- [ ] `prepare` reuses Task 054's repository identity, namespaced path
+      derivation, and collision detection, and consumes the project-selected
+      identity resolver designed by Task 039. Its mandatory preflight is
+      host-neutral; a Codex or Claude capability probe is supplementary and
+      cannot redefine lifecycle validity. It creates exactly one
+      branch/worktree pair from the permitted base commit and writes the
+      required handoff identity without silently repairing partial state.
 - [ ] `check` is read-only and reports branch, worktree, Git common directory,
       base commit, task commit, cleanliness, handoff consistency, active
       integration state, and the next permitted lifecycle action.
@@ -67,10 +76,13 @@ approval while destructive exceptional recovery remains explicit.
       safe and otherwise fail closed with a diagnostic naming the retained
       state and recovery command. Interruptions between Git operations have a
       deterministic inspect/abort/resume path.
-- [ ] The canonical allowlisted executable form is defined and checked by
-      `meridian codex doctor`. Project instructions invoke the same argv form;
-      source-checkout, installed CLI, Claude plugin, and Codex project contexts
-      must not document a form that misses the rule prefix silently.
+- [ ] The canonical lifecycle executable form is defined by the host-neutral
+      namespace and verified without reading host configuration. `meridian
+      codex doctor` additionally checks whether Codex can execute the exact
+      bounded prefixes without approval. Project instructions invoke the same
+      argv form; source-checkout, installed CLI, Claude plugin, and Codex
+      project contexts must not document a form that silently misses their
+      applicable command policy.
 - [ ] Lean Delivery and Governed SDD install equivalent project rules that
       allow only the bounded lifecycle prefixes and the established safe
       read-only/status commands. Raw `git worktree add|remove|prune`, raw
@@ -141,9 +153,10 @@ approval while destructive exceptional recovery remains explicit.
 3. Implement prepare/check first, then staged integration and guarded cleanup.
    Execute Git with argument arrays, never shell strings, and reject unknown or
    repeated options rather than forwarding them.
-4. Add exact project rules for the canonical executable and subcommands. Keep
-   raw Git mutation policy restrictive and verify rule precedence with the real
-   Codex execpolicy evaluator when available.
+4. Add exact Codex project rules for the host-neutral executable and
+   subcommands, and route Claude instructions through the same CLI surface.
+   Keep raw Git mutation policy restrictive and verify rule precedence with
+   the real Codex execpolicy evaluator when available.
 5. Update both workflow modes and ship the managed changes through the normal
    migration/capability-baseline mechanism.
 6. Record static, real-Git, and actual Codex activation evidence separately.
@@ -161,22 +174,25 @@ approval while destructive exceptional recovery remains explicit.
 - Do not auto-remove stale leases, abandoned branches, unintegrated worktrees,
   or remote branches.
 - Keep push/network behavior separate from local Git lifecycle authorization.
-- Preserve Task 055's proportional validation policy and Task 054's
-  repository-qualified shared worktree root.
+- Preserve Task 055's proportional validation policy, Task 054's
+  repository-qualified shared worktree root, and Task 039's selected task
+  identity contract.
 - Repository artifacts are English-only.
 
 ## Host impact
 
 Classification: REQUIRED
-Policy outcome: Codex can perform the normal Meridian task-worktree Git
-lifecycle without repeated command approvals while arbitrary Git and shell
-mutations remain outside the allowlisted surface.
+Policy outcome: every supported agent uses one Meridian task-worktree Git
+lifecycle. Codex can execute its bounded transitions without repeated command
+approvals while arbitrary Git and shell mutations remain outside the
+allowlisted surface; Claude uses its own host permission mechanism without a
+second lifecycle vocabulary.
 
 | Profile | Before | Intended after | Activation preconditions | Fallback |
 |---|---|---|---|---|
 | Codex desktop / trusted project / active Meridian permission profile and project rules | advisory | enforced | Canonical Meridian executable resolves on PATH, project trust and permission profile are active, migrated rules load at startup, and the lifecycle host probe passes. | Report `approval-required` or `blocked`; retain raw Git prompts and all task state. |
 | Codex CLI / trusted project / active Meridian permission profile and project rules | advisory | enforced | Supported CLI version loads the same project rule and the real execpolicy/lifecycle probe passes. | Use interactive approvals; do not widen raw Git rules. |
-| Claude Code plugin session | advisory | advisory | The bounded CLI commands are installed and workflow instructions route through them. | Use Claude's host permission mechanism without claiming Codex rule enforcement. |
+| Claude Code plugin session | advisory | enforced by CLI, host authorization remains advisory | The bounded CLI commands are installed and workflow instructions route through the host-neutral namespace. | Use Claude's host permission mechanism without claiming Codex rule enforcement; do not use Claude-managed worktree creation as a substitute for Meridian preparation. |
 | Host-neutral Meridian CLI | unverified | enforced | Real-Git state-machine tests pass independently of any host approval system. | Fail closed and print the retained/recovery state. |
 
 Evidence plan:
@@ -192,7 +208,7 @@ Completion evidence:
 
 ## 🔗 Dependencies
 
-- **Depends on**: 054, 055, 059
+- **Depends on**: 039, 054, 055, 059
 - **Blocks**: none
 
 ## 🤖 How to delegate this task to Claude CLI
