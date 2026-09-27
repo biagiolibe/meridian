@@ -81,6 +81,12 @@ CODEX_PERMISSION_PROFILE = "meridian-worktrees"
 CODEX_MANAGED_BEGIN = "# MERIDIAN:BEGIN worktree-permissions v1"
 CODEX_MANAGED_END = "# MERIDIAN:END worktree-permissions"
 SAFE_PATH_COMPONENT = re.compile(r"[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?")
+TASK_IDENTITY_PATH = Path(".meridian/task-identity.json")
+STRUCTURED_TASK_ID = re.compile(
+    r"M(?P<milestone>[1-9][0-9]*)-(?P<workstream>[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*)-"
+    r"(?P<ordinal>00[1-9]|0[1-9][0-9]|[1-9][0-9]{2})"
+)
+NUMERIC_TASK_ALIAS = re.compile(r"(?:task-)?([0-9]+)", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
@@ -88,6 +94,56 @@ class RepositoryIdentity:
     remote_host: str
     owner: str
     repository: str
+
+
+@dataclass(frozen=True)
+class TaskIdentityPolicy:
+    version: int
+    mode: str
+
+
+@dataclass(frozen=True)
+class ResolvedTaskIdentity:
+    policy_version: int
+    mode: str
+    kind: str
+    canonical_id: str
+    branch_name: str
+    artifact_stem: str
+    semantic_tuple: dict[str, object] | None
+    task_path: Path
+    queue_path: Path
+    handoff_path: Path
+    review_path: Path
+
+    def budget_key(self, attempt: int) -> str:
+        if attempt < 1:
+            raise MeridianError("budget attempt must be positive")
+        return f"{self.canonical_id}:{attempt}"
+
+    def as_json(self, project_root: Path, attempt: int = 1) -> dict[str, object]:
+        project_root = project_root.resolve()
+
+        def display(path: Path) -> str:
+            try:
+                return str(path.relative_to(project_root))
+            except ValueError:
+                return str(path)
+
+        return {
+            "policy_version": self.policy_version,
+            "mode": self.mode,
+            "kind": self.kind,
+            "canonical_id": self.canonical_id,
+            "branch_name": self.branch_name,
+            "artifact_stem": self.artifact_stem,
+            "semantic_tuple": self.semantic_tuple,
+            "task_path": display(self.task_path),
+            "queue_path": display(self.queue_path),
+            "handoff_path": display(self.handoff_path),
+            "review_path": display(self.review_path),
+            "budget_key": self.budget_key(attempt),
+        }
 
 
 @dataclass(frozen=True)
@@ -269,7 +325,7 @@ def task_worktree_path(project_root: Path, worktree_root: Path, task_id: str) ->
     if root == Path(root.anchor) or root == Path.home().resolve():
         raise MeridianError("worktree root must be a dedicated directory, not the filesystem root or home")
     identity = repository_identity(project_root)
-    task = canonical_task_id(task_id)
+    task = resolve_task_identity(project_root, task_id, "new").branch_name
     result = root / identity.remote_host / identity.owner / identity.repository / task
     if root not in result.parents:
         raise MeridianError("derived worktree path escapes the configured root")
@@ -286,7 +342,7 @@ def validate_worktree_collision(project_root: Path, path: Path, task_id: str) ->
         branch = git_output(path, "branch", "--show-current")
     except MeridianError as error:
         raise MeridianError(f"worktree path collision at {path}: {error}") from error
-    expected_branch = canonical_task_id(task_id)
+    expected_branch = resolve_task_identity(project_root, task_id, "new").branch_name
     if actual_common != expected_common or branch != expected_branch:
         raise MeridianError(
             f"worktree path collision at {path}: expected {expected_common} on {expected_branch}, "
@@ -628,6 +684,8 @@ class ProjectLocations:
     queue: Path
     task_roots: tuple[Path, ...]
     adr_log: Path
+    handoff_root: Path
+    review_root: Path
 
 
 def sha256(path: Path) -> str:
@@ -3464,6 +3522,19 @@ def write_budget_state(project_root: Path, state: dict[str, object]) -> None:
     path.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
+def task_identity_json(project_root: Path, identity: ResolvedTaskIdentity) -> dict[str, object]:
+    """Render the diagnostic with the same effective attempt used by budgets,
+    without persisting the transition that a mutating budget command records.
+    """
+    state = load_budget_state(project_root)
+    meta = dict(state.get(identity.canonical_id) or {"attempt": 1, "lastStatus": None})
+    status = read_task_field(identity.task_path.read_text(encoding="utf-8"), "Status") or "UNKNOWN"
+    attempt = int(meta.get("attempt", 1))
+    if meta.get("lastStatus") == "READY_FOR_REVIEW" and status == "IN_PROGRESS":
+        attempt += 1
+    return identity.as_json(project_root, attempt)
+
+
 def read_task_field(text: str, field: str) -> str | None:
     match = re.search(rf"^{re.escape(field)}:\s*(.+)$", text, re.MULTILINE)
     if not match:
@@ -3529,23 +3600,304 @@ def resolve_project_locations(project_root: Path) -> ProjectLocations:
     """
     workflow = project_root / "PROJECT_WORKFLOW.md"
     zone = ""
+    block_zone = ""
     if workflow.is_file():
+        workflow_text = workflow.read_text(encoding="utf-8")
+        block_match = re.search(
+            r"<!-- MERIDIAN:BEGIN capability=execution-assets .*?<!-- MERIDIAN:END -->",
+            workflow_text,
+            re.DOTALL,
+        )
+        block_zone = block_match.group(0) if block_match else ""
         match = re.search(
             r"<!-- MERIDIAN:BEGIN capability=execution-assets .*?<!-- MERIDIAN:END -->\s*(.*?)(?=^## |\Z)",
-            workflow.read_text(encoding="utf-8"), re.MULTILINE | re.DOTALL,
+            workflow_text,
+            re.MULTILINE | re.DOTALL,
         )
         zone = match.group(1) if match else ""
     queue_matches = re.findall(r"`([^`]*queue[^`]*\.md)`", zone, re.IGNORECASE)
     queues = [Path(path) for path in dict.fromkeys(path for path in queue_matches if "archive" not in path.lower())]
+    if len(queues) != 1:
+        block_matches = re.findall(r"`([^`]*queue[^`]*\.md)`", block_zone, re.IGNORECASE)
+        queues = [Path(path) for path in dict.fromkeys(path for path in block_matches if "archive" not in path.lower())]
     queue = queues[0] if len(queues) == 1 else Path("tasks/QUEUE.md")
     roots = [Path("tasks")]
-    for raw in re.findall(r"task files live under\s+`?([^`\s<]+)(?:/<[^>]+>)?/?`?", zone, re.IGNORECASE):
-        root = Path(raw.rstrip("/"))
+    for raw in re.findall(r"task files live (?:at|under)\s+`([^`]+)`", zone + "\n" + block_zone, re.IGNORECASE):
+        prefix = raw.split("<", 1)[0].rstrip("/")
+        candidate = Path(prefix)
+        root = candidate.parent if candidate.suffix else candidate
         if root not in roots:
             roots.append(root)
     adr_matches = re.findall(r"ADR log(?:\s+is|\s+at)?\s+`([^`]+)`", zone, re.IGNORECASE)
+    if len(set(adr_matches)) != 1:
+        adr_matches = re.findall(r"ADR log(?:\s+is|\s+at)?\s+`([^`]+)`", block_zone, re.IGNORECASE)
     adr_log = Path(adr_matches[0]) if len(set(adr_matches)) == 1 else Path("docs/ARCHITECTURE_DECISIONS.md")
-    return ProjectLocations(queue=queue, task_roots=tuple(roots), adr_log=adr_log)
+    handoff_matches = re.findall(r"[Cc]ompletion handoffs live at `([^`]+)/<TASK-ID>\.md`", zone)
+    if len(set(handoff_matches)) != 1:
+        handoff_matches = re.findall(r"[Cc]ompletion handoffs live at `([^`]+)/<TASK-ID>\.md`", block_zone)
+    review_matches = re.findall(r"(?:durable )?review records (?:live )?at `([^`]+)/<TASK-ID>\.md`", zone, re.IGNORECASE)
+    if len(set(review_matches)) != 1:
+        review_matches = re.findall(r"(?:durable )?review records (?:live )?at `([^`]+)/<TASK-ID>\.md`", block_zone, re.IGNORECASE)
+    handoff_root = Path(handoff_matches[0]) if len(set(handoff_matches)) == 1 else Path("tasks/handoffs")
+    review_root = Path(review_matches[0]) if len(set(review_matches)) == 1 else Path("tasks/reviews")
+    for label, path in (
+        ("queue", queue),
+        ("ADR log", adr_log),
+        ("handoff root", handoff_root),
+        ("review root", review_root),
+        *(("task root", root) for root in roots),
+    ):
+        if path.is_absolute() or ".." in path.parts:
+            raise MeridianError(f"canonical {label} must be a safe project-relative path: {path}")
+    return ProjectLocations(
+        queue=queue,
+        task_roots=tuple(roots),
+        adr_log=adr_log,
+        handoff_root=handoff_root,
+        review_root=review_root,
+    )
+
+
+@dataclass(frozen=True)
+class _TaskAuthority:
+    canonical_id: str
+    task_paths: tuple[Path, ...]
+    queue_links: tuple[Path, ...]
+    queue_records: int
+
+
+def read_task_identity_policy(project_root: Path) -> TaskIdentityPolicy:
+    path = project_root / TASK_IDENTITY_PATH
+    if not path.is_file():
+        return TaskIdentityPolicy(version=1, mode="opaque")
+    try:
+        declaration = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError) as error:
+        raise MeridianError(f"invalid task identity declaration: {path}") from error
+    if not isinstance(declaration, dict):
+        raise MeridianError("task identity declaration must be a JSON object")
+    if set(declaration) != {"version", "mode"}:
+        raise MeridianError("task identity declaration accepts only version and mode")
+    if type(declaration["version"]) is not int or declaration["version"] != 1:
+        raise MeridianError(f"unsupported task identity policy version: {declaration['version']!r}")
+    if declaration["mode"] not in ("opaque", "milestone"):
+        raise MeridianError(f"unsupported task identity mode: {declaration['mode']!r}")
+    return TaskIdentityPolicy(version=1, mode=str(declaration["mode"]))
+
+
+def _task_record_id(path: Path) -> str | None:
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return None
+    for pattern in (
+        r"^>\s*\*\*ID\*\*:\s*`([^`]+)`\s*$",
+        r"^ID:\s*`?([^`\s]+)`?\s*$",
+    ):
+        match = re.search(pattern, text, re.MULTILINE)
+        if match and "[" not in match.group(1) and "<" not in match.group(1):
+            return match.group(1)
+    return None
+
+
+def _clean_queue_id(cell: str) -> tuple[str, str | None]:
+    cell = cell.strip().strip("`")
+    link = re.fullmatch(r"\[([^]]+)\]\(([^)]+)\)", cell)
+    if link:
+        return link.group(1).strip().strip("`"), link.group(2).strip()
+    return cell, None
+
+
+def _task_authorities(project_root: Path, locations: ProjectLocations) -> dict[str, _TaskAuthority]:
+    task_paths: dict[str, set[Path]] = {}
+    queue_links: dict[str, set[Path]] = {}
+    queue_counts: dict[str, int] = {}
+    excluded_names = {"QUEUE.md", "QUEUE_ARCHIVE.md", "QUEUE_TEMPLATE.md", "TASK_BLUEPRINT.md"}
+    for root in locations.task_roots:
+        absolute = project_root / root
+        if not absolute.is_dir():
+            continue
+        for path in absolute.rglob("*.md"):
+            relative_parts = path.relative_to(absolute).parts
+            if path.name in excluded_names or {"handoffs", "reviews"}.intersection(relative_parts):
+                continue
+            canonical = _task_record_id(path) or path.stem
+            task_paths.setdefault(canonical, set()).add(path.resolve())
+
+    queue_path = (project_root / locations.queue).resolve()
+    if queue_path.is_file():
+        lines = queue_path.read_text(encoding="utf-8").splitlines()
+        headers: list[str] | None = None
+        for line in lines:
+            if not line.lstrip().startswith("|"):
+                headers = None
+                continue
+            cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+            if "ID" in cells:
+                headers = cells
+                continue
+            if headers is None or len(cells) != len(headers) or set("".join(cells)) <= {"-", ":"}:
+                continue
+            canonical, inline_link = _clean_queue_id(cells[headers.index("ID")])
+            if not canonical or canonical in ("ID", "[ID]"):
+                continue
+            queue_counts[canonical] = queue_counts.get(canonical, 0) + 1
+            link_value = inline_link
+            for heading in ("Task file", "File"):
+                if heading in headers:
+                    _label, candidate = _clean_queue_id(cells[headers.index(heading)])
+                    link_value = candidate or link_value
+            if link_value and "://" not in link_value and not link_value.startswith("#"):
+                resolved = (queue_path.parent / link_value.split("#", 1)[0]).resolve()
+                if project_root.resolve() not in (resolved, *resolved.parents):
+                    raise MeridianError(f"queue task link escapes the project: {link_value}")
+                queue_links.setdefault(canonical, set()).add(resolved)
+
+    identities = set(task_paths) | set(queue_counts)
+    return {
+        canonical: _TaskAuthority(
+            canonical,
+            tuple(sorted(task_paths.get(canonical, set()))),
+            tuple(sorted(queue_links.get(canonical, set()))),
+            queue_counts.get(canonical, 0),
+        )
+        for canonical in identities
+    }
+
+
+def _numeric_alias_key(value: str) -> str | None:
+    match = NUMERIC_TASK_ALIAS.fullmatch(value)
+    if match is None or int(match.group(1)) <= 0:
+        return None
+    return match.group(1)
+
+
+def _authority_matches(authorities: dict[str, _TaskAuthority], supplied_id: str) -> list[str]:
+    if supplied_id in authorities:
+        return [supplied_id]
+    structured = STRUCTURED_TASK_ID.fullmatch(supplied_id.upper())
+    if structured:
+        candidate = supplied_id.upper()
+        return [candidate] if candidate in authorities else []
+    numeric = _numeric_alias_key(supplied_id)
+    if numeric is None:
+        return []
+    return [canonical for canonical in authorities if _numeric_alias_key(canonical) == numeric]
+
+
+def _identity_derivations(canonical_id: str, kind: str) -> tuple[str, str, dict[str, object] | None]:
+    structured = STRUCTURED_TASK_ID.fullmatch(canonical_id)
+    semantic: dict[str, object] | None = None
+    if kind == "structured":
+        if structured is None:
+            raise MeridianError(f"invalid structured task ID: {canonical_id!r}")
+        semantic = {
+            "milestone": int(structured.group("milestone")),
+            "workstream": structured.group("workstream"),
+            "ordinal": int(structured.group("ordinal")),
+        }
+        branch = canonical_id.lower()
+    else:
+        numeric = _numeric_alias_key(canonical_id)
+        branch = f"task-{numeric}" if numeric is not None else canonical_id.lower()
+    artifact = canonical_id
+    normalized = unicodedata.normalize("NFKC", artifact)
+    if normalized != artifact or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", artifact):
+        raise MeridianError(f"task ID is not a safe filesystem component: {canonical_id!r}")
+    if artifact in (".", "..") or artifact.casefold() in {"con", "prn", "aux", "nul"} or artifact.endswith((".", ".lock")):
+        raise MeridianError(f"task ID is a reserved filesystem or Git component: {canonical_id!r}")
+    checked = subprocess.run(
+        ["git", "check-ref-format", "--branch", branch],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if checked.returncode != 0 or not SAFE_PATH_COMPONENT.fullmatch(branch):
+        raise MeridianError(f"task ID does not derive a safe Git branch: {canonical_id!r}")
+    return branch, artifact, semantic
+
+
+def resolve_task_identity(project_root: Path, supplied_id: str, intent: str) -> ResolvedTaskIdentity:
+    if intent not in ("existing", "new"):
+        raise MeridianError(f"unsupported task identity intent: {intent!r}")
+    project_root = project_root.resolve()
+    supplied = supplied_id.strip()
+    if not supplied or supplied != supplied_id.strip() or any(separator in supplied for separator in ("/", "\\")):
+        raise MeridianError(f"invalid task ID: {supplied_id!r}")
+    policy = read_task_identity_policy(project_root)
+    locations = resolve_project_locations(project_root)
+    authorities = _task_authorities(project_root, locations)
+    matches = _authority_matches(authorities, supplied)
+    if len(matches) > 1:
+        raise MeridianError(f"ambiguous task identity {supplied_id!r}: {', '.join(sorted(matches))}")
+    if intent == "existing" and not matches:
+        raise MeridianError(f"unknown task identity: {supplied_id!r}")
+
+    if matches:
+        canonical = matches[0]
+    elif policy.mode == "milestone":
+        canonical = supplied.upper()
+        if STRUCTURED_TASK_ID.fullmatch(canonical) is None:
+            raise MeridianError("new milestone-mode tasks must use M<milestone>-<WORKSTREAM>-<ordinal>")
+    else:
+        canonical = supplied
+
+    structured = STRUCTURED_TASK_ID.fullmatch(canonical)
+    structured_casefold = STRUCTURED_TASK_ID.fullmatch(canonical.upper())
+    if policy.mode == "milestone" and structured_casefold and structured is None:
+        raise MeridianError(f"authoritative structured task ID is not canonical uppercase: {canonical!r}")
+    if policy.mode == "milestone" and structured:
+        kind = "structured"
+    elif policy.mode == "milestone":
+        if not matches:
+            raise MeridianError(f"unknown legacy task identity: {supplied_id!r}")
+        kind = "legacy-opaque"
+    else:
+        kind = "opaque"
+
+    branch, artifact, semantic = _identity_derivations(canonical, kind)
+    authority = authorities.get(canonical)
+    if authority is not None:
+        if len(authority.task_paths) > 1 or authority.queue_records > 1 or len(authority.queue_links) > 1:
+            raise MeridianError(f"ambiguous authoritative artifacts for task {canonical}")
+        linked_existing = tuple(path for path in authority.queue_links if path.is_file())
+        if authority.queue_links and len(linked_existing) != len(authority.queue_links):
+            raise MeridianError(f"queue link for task {canonical} does not resolve to an existing task file")
+        if linked_existing and not authority.task_paths:
+            raise MeridianError(f"queue and task authorities disagree for {canonical}")
+        if authority.task_paths and linked_existing and authority.task_paths[0] != linked_existing[0]:
+            raise MeridianError(f"task and queue authorities disagree for {canonical}")
+        paths = authority.task_paths
+        if not paths:
+            raise MeridianError(f"task {canonical} has no authoritative task file")
+        task_path = paths[0]
+    else:
+        task_path = (project_root / locations.task_roots[0] / f"{artifact}.md").resolve()
+
+    for other_id in authorities:
+        if other_id == canonical:
+            continue
+        try:
+            other_kind = "structured" if policy.mode == "milestone" and STRUCTURED_TASK_ID.fullmatch(other_id) else "opaque"
+            other_branch, other_artifact, _other_semantic = _identity_derivations(other_id, other_kind)
+        except MeridianError:
+            continue
+        if other_branch.casefold() == branch.casefold() or other_artifact.casefold() == artifact.casefold():
+            raise MeridianError(f"task identity collision between {canonical!r} and {other_id!r}")
+
+    return ResolvedTaskIdentity(
+        policy_version=policy.version,
+        mode=policy.mode,
+        kind=kind,
+        canonical_id=canonical,
+        branch_name=branch,
+        artifact_stem=artifact,
+        semantic_tuple=semantic,
+        task_path=task_path,
+        queue_path=(project_root / locations.queue).resolve(),
+        handoff_path=(project_root / locations.handoff_root / f"{artifact}.md").resolve(),
+        review_path=(project_root / locations.review_root / f"{artifact}.md").resolve(),
+    )
 
 
 HEADING_LINE = re.compile(r"^(#{1,6})[ \t]+(.*)$", re.MULTILINE)
@@ -3694,31 +4046,8 @@ def task_cap(project_root: Path, text: str, kind: str) -> int:
 
 
 def find_task_file(project_root: Path, task_id: str) -> Path:
-    """Locate a task in either the framework default or a project-declared tree.
-
-    The common `docs/tasks/<milestone>/<TASK-ID>.md` layout is deliberately
-    supported without forcing a mature project to migrate its task archive.
-    Ambiguity is an error: a budget attached to the wrong task is worse than
-    no budget at all.
-    """
-    candidates: list[Path] = []
-    for root in resolve_project_locations(project_root).task_roots:
-        absolute = project_root / root
-        candidates.append(absolute / f"{task_id}.md")
-        if absolute.is_dir():
-            # Review records and completion handoffs deliberately share a task
-            # ID with their task, but are not task contracts. Do not let the
-            # conventional nested artifact directories turn an otherwise
-            # unambiguous task into an ambiguity.
-            candidates.extend(
-                path
-                for path in absolute.rglob(f"{task_id}.md")
-                if not {"reviews", "handoffs"}.intersection(path.relative_to(absolute).parts)
-            )
-    existing = list(dict.fromkeys(path for path in candidates if path.is_file()))
-    if len(existing) != 1:
-        raise MeridianError(f"unknown task or ambiguous task path: {task_id}")
-    return existing[0]
+    """Locate a task through the shared declaration-driven identity resolver."""
+    return resolve_task_identity(project_root, task_id, "existing").task_path
 
 
 def resolve_budget_key(project_root: Path, state: dict[str, object], task_id: str) -> tuple[str, str]:
@@ -3727,15 +4056,17 @@ def resolve_budget_key(project_root: Path, state: dict[str, object], task_id: st
     shows a fresh READY_FOR_REVIEW -> IN_PROGRESS transition (a new
     remediation attempt) since the last time this was resolved.
     """
-    task_file = find_task_file(project_root, task_id)
+    identity = resolve_task_identity(project_root, task_id, "existing")
+    task_file = identity.task_path
     text = task_file.read_text(encoding="utf-8")
     status = read_task_field(text, "Status") or "UNKNOWN"
-    meta = dict(state.get(task_id) or {"attempt": 1, "lastStatus": None})
+    canonical_id = identity.canonical_id
+    meta = dict(state.get(canonical_id) or {"attempt": 1, "lastStatus": None})
     if meta.get("lastStatus") == "READY_FOR_REVIEW" and status == "IN_PROGRESS":
         meta["attempt"] = int(meta.get("attempt", 1)) + 1
     meta["lastStatus"] = status
-    state[task_id] = meta
-    return f"{task_id}:{meta['attempt']}", text
+    state[canonical_id] = meta
+    return identity.budget_key(int(meta["attempt"])), text
 
 
 def budget_show(project_root: Path, task_id: str) -> str:
@@ -3905,7 +4236,8 @@ def execution_preflight(project_root: Path, task_id: str) -> str:
     This intentionally does not inspect a chat's reasoning setting: that is a
     host concern and is outside this command's authority.
     """
-    task_file = find_task_file(project_root, task_id)
+    identity = resolve_task_identity(project_root, task_id, "existing")
+    task_file = identity.task_path
     text = task_file.read_text(encoding="utf-8")
     require_named_validation_commands(text)
     validate_host_impact_declaration(text)
@@ -3950,7 +4282,7 @@ def execution_preflight(project_root: Path, task_id: str) -> str:
                 if not re.match(r"^\|\s*\d+\s*\|", line):
                     continue
                 values = [value.strip() for value in line.strip("|").split("|")]
-                if len(values) == len(columns) and values[columns.index("ID")] == task_id:
+                if len(values) == len(columns) and values[columns.index("ID")] == identity.canonical_id:
                     queued_status = values[columns.index("Status")]
                     if queued_status != status:
                         raise MeridianError(
@@ -4002,7 +4334,8 @@ def execution_entries(project_root: Path, task_id: str) -> list[dict[str, object
         state = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as error:
         raise MeridianError(f"invalid execution evidence state: {path}") from error
-    entries = state.get(task_id, [])
+    canonical_id = resolve_task_identity(project_root, task_id, "existing").canonical_id
+    entries = state.get(canonical_id, [])
     if not isinstance(entries, list) or not all(isinstance(entry, dict) for entry in entries):
         raise MeridianError(f"invalid execution evidence entries for {task_id}: {path}")
     return entries
@@ -4063,22 +4396,15 @@ def check_handoff(project_root: Path, task_id: str, report: Path) -> str:
     missing = [field for field in HANDOFF_FIELDS if not re.search(rf"^- {re.escape(field)}:\s*\S+", text, re.MULTILINE)]
     if missing:
         raise MeridianError("handoff check BLOCKED: missing required fields: " + ", ".join(missing))
-    if f"Completion Report — {task_id}" not in text:
-        raise MeridianError(f"handoff check BLOCKED: report does not identify {task_id}")
+    canonical_id = resolve_task_identity(project_root, task_id, "existing").canonical_id
+    if f"Completion Report — {canonical_id}" not in text:
+        raise MeridianError(f"handoff check BLOCKED: report does not identify {canonical_id}")
     verify_execution_evidence(project_root, task_id, text)
     return f"Handoff evidence complete for {task_id}: {report}"
 
 
 def default_handoff_path(project_root: Path, task_id: str) -> Path:
-    workflow = project_root / "PROJECT_WORKFLOW.md"
-    if workflow.is_file():
-        match = re.search(
-            r"[Cc]ompletion handoffs live at `([^`]+)/<TASK-ID>\.md`",
-            workflow.read_text(encoding="utf-8"),
-        )
-        if match:
-            return project_root / match.group(1) / f"{task_id}.md"
-    return project_root / "tasks" / "handoffs" / f"{task_id}.md"
+    return resolve_task_identity(project_root, task_id, "existing").handoff_path
 
 
 def readiness_check(project_root: Path, task_id: str, report: Path) -> str:
@@ -4122,9 +4448,10 @@ def record_validation(project_root: Path, task_id: str, command_id: str, command
             state = json.loads(path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as error:
             raise MeridianError(f"invalid execution evidence state: {path}") from error
-    entries = list(state.get(task_id, []))
+    canonical_id = resolve_task_identity(project_root, task_id, "existing").canonical_id
+    entries = list(state.get(canonical_id, []))
     entries.append({"id": command_id, "command": command, "exitStatus": status})
-    state[task_id] = entries
+    state[canonical_id] = entries
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
@@ -4167,14 +4494,15 @@ def record_execution_event(
             state = json.loads(path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as error:
             raise MeridianError(f"invalid execution evidence state: {path}") from error
-    events = list(state.get(task_id, []))
+    canonical_id = resolve_task_identity(project_root, task_id, "existing").canonical_id
+    events = list(state.get(canonical_id, []))
     event: dict[str, object] = {"kind": kind, "gap": gap, "count": count, "cap": cap}
     if criterion:
         event["criterion"] = criterion
     if artifact:
         event["artifact"] = artifact
     events.append(event)
-    state[task_id] = events
+    state[canonical_id] = events
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return f"Evidence {task_id}: {kind} {count}/{cap} recorded"
@@ -4200,7 +4528,8 @@ def record_investigation(
             state = json.loads(path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as error:
             raise MeridianError(f"invalid execution evidence state: {path}") from error
-    events = list(state.get(task_id, []))
+    canonical_id = resolve_task_identity(project_root, task_id, "existing").canonical_id
+    events = list(state.get(canonical_id, []))
     events.append({
         "kind": "investigation",
         "question": question,
@@ -4210,7 +4539,7 @@ def record_investigation(
         "count": count,
         "cap": cap,
     })
-    state[task_id] = events
+    state[canonical_id] = events
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return f"Investigation {task_id}: {count}/{cap} recorded"
@@ -4229,6 +4558,16 @@ CLAUDE_MD_SHARED_ANCHOR = {
     "governed-sdd": "## Command triggers",
     "lean-delivery": "## Command triggers",
 }
+
+
+class MeridianArgumentParser(argparse.ArgumentParser):
+    """Use sysexits-style usage status for the task-identity diagnostic."""
+
+    def error(self, message: str) -> None:
+        if " task identity" in self.prog:
+            self.print_usage(sys.stderr)
+            self.exit(64, f"{self.prog}: error: {message}\n")
+        super().error(message)
 
 
 def generate_claude_md(mode: str, agents_text: str, existing_claude_text: str) -> str:
@@ -4262,7 +4601,7 @@ def generate_claude_md(mode: str, agents_text: str, existing_claude_text: str) -
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(prog="meridian")
+    parser = MeridianArgumentParser(prog="meridian")
     parser.add_argument(
         "--framework-root",
         type=Path,
@@ -4369,6 +4708,15 @@ def main() -> int:
     codex_doctor_parser.add_argument("--project", type=Path, default=Path.cwd())
     codex_doctor_parser.add_argument("--worktree-root", type=Path, required=True)
     codex_doctor_parser.add_argument("--config", type=Path, default=Path.home() / ".codex/config.toml", help=argparse.SUPPRESS)
+
+    task = subparsers.add_parser("task", help="inspect task records and identities")
+    task_sub = task.add_subparsers(dest="task_command", required=True)
+    identity = task_sub.add_parser("identity", help="resolve the project-selected task identity policy")
+    identity_sub = identity.add_subparsers(dest="identity_command", required=True)
+    identity_check = identity_sub.add_parser("check", help="validate and print one resolved task identity")
+    identity_check.add_argument("task_id")
+    identity_check.add_argument("--project", type=Path, default=Path.cwd())
+    identity_check.add_argument("--format", choices=("json",), required=True)
 
     adr = subparsers.add_parser("adr", help="read a project's ADR log")
     adr_sub = adr.add_subparsers(dest="adr_command", required=True)
@@ -4531,6 +4879,9 @@ def main() -> int:
                 report = codex_doctor(project_root, arguments.config.expanduser().resolve(), arguments.worktree_root.expanduser().resolve())
                 for capability, status in report.items():
                     print(f"{capability}: {status}")
+        elif arguments.command == "task":
+            resolved = resolve_task_identity(project_root, arguments.task_id, "existing")
+            print(json.dumps(task_identity_json(project_root, resolved), sort_keys=True))
         elif arguments.command == "adr":
             print(adr_show(project_root, arguments.adr_id))
         elif arguments.command == "context":
