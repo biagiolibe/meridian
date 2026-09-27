@@ -132,7 +132,7 @@ records carry machine-specific absolute paths.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[ ]` | 039 | Design an opt-in structured task-identity policy | 🔴 P1 | 054 | [039](039-design-opt-in-task-identity-policy.md) |
+| `[/]` | 039 | Design an opt-in structured task-identity policy | 🔴 P1 | 054 | [039](039-design-opt-in-task-identity-policy.md) |
 
 ## 🧪 Quick Tasks (No File)
 
