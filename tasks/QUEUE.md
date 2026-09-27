@@ -44,7 +44,7 @@ it distributes to consumer projects.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[/]` | 057 | Design the Meridian self-hosting capability profile | 🔴 P1 | 054 | [057](057-design-meridian-self-hosting-profile.md) |
+| `[x]` | 057 | Design the Meridian self-hosting capability profile | 🔴 P1 | 054 | [057](done/057-design-meridian-self-hosting-profile.md) |
 
 ### Phase 20 — Bounded worktree lifecycle commands
 

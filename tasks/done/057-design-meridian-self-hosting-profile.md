@@ -22,46 +22,46 @@ without changing runtime behavior or enabling hooks.
 
 ## 📋 Acceptance Criteria
 
-- [ ] A design note at `docs/MERIDIAN_SELF_HOSTING_PROFILE.md` defines the
+- [x] A design note at `docs/MERIDIAN_SELF_HOSTING_PROFILE.md` defines the
       distinction between `workflowMode` and an independently declared set of
       capabilities. It preserves `lean-delivery` as Meridian's lifecycle and
       does not import Governed SDD task states, roles, or acceptance ceremony.
-- [ ] The note defines the first self-hosted capability set and gives an
+- [x] The note defines the first self-hosted capability set and gives an
       inclusion or exclusion rationale for at least language policy, minimal
       read-only status, context budgeting, queue briefing, read guard,
       validation scoping, execution-evidence discipline, and worktree safety.
-- [ ] The design distinguishes migration history from effective capability
+- [x] The design distinguishes migration history from effective capability
       state. It specifies how the manifest records required capability version,
       managed surface, installation state, host activation state, verification
       state, and an explicit `NOT_APPLICABLE` rationale where appropriate.
-- [ ] The design defines non-vacuous audit behavior for every workflow mode.
+- [x] The design defines non-vacuous audit behavior for every workflow mode.
       A project that declares capabilities but exposes no auditable surface
       cannot receive an implicit successful result such as `No capability
       markers found to audit.` The result vocabulary and exit-code behavior for
       `PASS`, `ADVISORY` or `UNVERIFIED`, `NOT_APPLICABLE`, and `FAIL` are
       specified.
-- [ ] The note defines how a capability declares its applicability to Lean
+- [x] The note defines how a capability declares its applicability to Lean
       Delivery, Governed SDD, Meridian self-hosting, and supported hosts without
       duplicating canonical policy text or treating template presence as host
       enforcement.
-- [ ] The design identifies the minimum repository surfaces that would become
+- [x] The design identifies the minimum repository surfaces that would become
       managed by the self-hosting profile, including whether
       `docs/CONTEXT_BUDGET_POLICY.md`, `.codex/hooks.json`, and supporting hook
       files are installed locally, referenced from a shared source, or excluded
       with rationale.
-- [ ] The design specifies bootstrap and upgrade compatibility for existing
+- [x] The design specifies bootstrap and upgrade compatibility for existing
       manifests whose `appliedMigrations` include capability migrations that
       were not installed under `lean-delivery`. It does not reinterpret those
       historical entries as proof of current activation.
-- [ ] The design defines CI and local verification that prove Meridian is
+- [x] The design defines CI and local verification that prove Meridian is
       dogfooding the declared profile, including at least one negative fixture
       where a declared capability or activation surface is absent and the
       check fails or reports the specified non-success state.
-- [ ] The note names bounded implementation follow-up tasks for manifest/schema
+- [x] The note names bounded implementation follow-up tasks for manifest/schema
       support, audit semantics, managed self-hosting surfaces, and host probes.
       It states their ordering and migration/capability-marker implications but
       does not create or implement them in this task.
-- [ ] `git diff --check` passes.
+- [x] `git diff --check` passes.
 
 ## 📁 Relevant Files
 
