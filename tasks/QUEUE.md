@@ -44,7 +44,7 @@ worktree, and migrates the correction to existing adopters.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[ ]` | 064 | Remove the primary-checkout review conflict | 🔴 P1 | 051, 063 | [064](064-remove-primary-checkout-review-conflict.md) |
+| `[/]` | 064 | Remove the primary-checkout review conflict | 🔴 P1 | 051, 063 | [064](064-remove-primary-checkout-review-conflict.md) |
 
 ### Phase 23 — Shared task identity resolver
 
