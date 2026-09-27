@@ -21,37 +21,37 @@ audit implementation is authorized.
 
 ## 📋 Acceptance Criteria
 
-- [ ] A design note at `docs/TASK_IDENTITY_POLICY.md` defines two modes:
+- [x] A design note at `docs/TASK_IDENTITY_POLICY.md` defines two modes:
       `opaque` (the backwards-compatible default) and one opt-in structured
       milestone mode. It states that a project can opt in without renaming
       historical tasks.
-- [ ] The structured mode defines the semantic tuple represented by an ID
+- [x] The structured mode defines the semantic tuple represented by an ID
       (milestone, workstream, ordinal), a concrete grammar, case rules, and
       how task filename, queue row, branch name, handoff path, review path,
       and budget key derive from the canonical ID. It explicitly distinguishes
       those mechanical derivations from the task record's authoritative status,
       dependencies, scope, and priority.
-- [ ] The design selects one declaration location that is project-owned and
+- [x] The design selects one declaration location that is project-owned and
       upgrade-safe, identifies the corresponding managed-template pointer (if
       any), and explains how a consumer with a customised queue location is
       resolved without duplicating the declaration.
-- [ ] The design states whether the first delivery includes a CLI/audit check.
+- [x] The design states whether the first delivery includes a CLI/audit check.
       If it does, define its exact command, success/failure behaviour, and
       backwards-compatible handling for `opaque` projects. If it does not,
       state the evidence that makes a documentation-only policy sufficient and
       file the mechanical validation as a separately bounded follow-up.
-- [ ] The design names the required implementation follow-up task or tasks,
+- [x] The design names the required implementation follow-up task or tasks,
       each with a bounded surface, migration/capability-marker implications,
       and validation. It does not silently create those tasks or implement
       them.
-- [ ] The design defines the task-identity resolver contract consumed by the
+- [x] The design defines the task-identity resolver contract consumed by the
       host-neutral `meridian worktree` namespace from Task 056. Path, branch,
       handoff, review, and budget derivation must use that one resolver rather
       than host-specific or command-specific parsers.
-- [ ] The note explains why generic names such as `VERIFY`, `SPIKE`, and
+- [x] The note explains why generic names such as `VERIFY`, `SPIKE`, and
       `PRESENT` remain project-selected workstream labels rather than a
       Meridian-reserved taxonomy.
-- [ ] `git diff --check` passes.
+- [x] `git diff --check` passes.
 
 ## 📁 Relevant Files
 
