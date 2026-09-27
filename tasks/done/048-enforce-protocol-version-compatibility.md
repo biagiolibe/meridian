@@ -18,22 +18,22 @@ loads a project manifest.
 
 ## 📋 Acceptance Criteria
 
-- [ ] Loading a manifest whose `protocolVersion` is greater than the CLI's
+- [x] Loading a manifest whose `protocolVersion` is greater than the CLI's
       `PROTOCOL_VERSION` fails before any file is touched, with a message
       telling the adopter to update their Meridian checkout.
-- [ ] A manifest without `protocolVersion` (legacy) is treated as protocol
+- [x] A manifest without `protocolVersion` (legacy) is treated as protocol
       `1` and keeps working.
-- [ ] A manifest with a lower `protocolVersion` is accepted, and
+- [x] A manifest with a lower `protocolVersion` is accepted, and
       `upgrade --apply` rewrites it to the current value (already the case at
       the write site; add a test that proves it).
-- [ ] The rule for when to bump `PROTOCOL_VERSION` (a change in manifest
+- [x] The rule for when to bump `PROTOCOL_VERSION` (a change in manifest
       shape or semantics that an older CLI cannot safely read) is
       documented next to the constant and in `CONTRIBUTING.md`'s release
       procedure.
-- [ ] Tests in `tests/test_meridian_cli.py` cover newer, equal, lower, and
+- [x] Tests in `tests/test_meridian_cli.py` cover newer, equal, lower, and
       missing `protocolVersion` for at least `upgrade --check` and one other
       manifest-reading command.
-- [ ] `python3 scripts/check_repository.py` and
+- [x] `python3 scripts/check_repository.py` and
       `python3 -m unittest discover -s tests -v` pass.
 
 ## 📁 Relevant Files
@@ -68,6 +68,12 @@ loads a project manifest.
   conclusion in the completion note.
 - Keep the check independent of `version_key()`; protocol versions are plain
   integers.
+
+## Completion note
+
+Task 015's `workflowBaselineVersion` addition has a safe fallback to
+`frameworkVersion` for legacy manifests. Older readers can continue to read
+the manifest shape safely, so `PROTOCOL_VERSION` remains at 1.
 
 ## 🔗 Dependencies
 
