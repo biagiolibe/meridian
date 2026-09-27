@@ -45,6 +45,10 @@ it distributes to consumer projects.
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
 | `[x]` | 057 | Design the Meridian self-hosting capability profile | 🔴 P1 | 054 | [057](done/057-design-meridian-self-hosting-profile.md) |
+| `[ ]` | 058 | Add self-hosting manifest and capability-catalog support | 🔴 P1 | 057, 048 | [058](058-add-self-hosting-manifest-and-capability-catalog.md) |
+| `[ ]` | 059 | Implement cross-mode capability audit semantics | 🔴 P1 | 058 | [059](059-implement-cross-mode-capability-audit.md) |
+| `[ ]` | 060 | Install Meridian self-hosting capability surfaces | 🔴 P1 | 059, 056, 052 | [060](060-install-meridian-self-hosting-surfaces.md) |
+| `[ ]` | 061 | Add self-hosting host probes and CI dogfooding gate | 🔴 P1 | 060, 047 | [061](061-add-self-hosting-host-probes-and-ci-gate.md) |
 
 ### Phase 20 — Bounded worktree lifecycle commands
 
@@ -54,7 +58,7 @@ without allowing arbitrary Git or shell execution outside the sandbox.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[ ]` | 056 | Add bounded worktree lifecycle commands | 🔴 P1 | 054, 055 | [056](056-add-bounded-worktree-lifecycle-commands.md) |
+| `[ ]` | 056 | Add bounded worktree lifecycle commands | 🔴 P1 | 054, 055, 059 | [056](056-add-bounded-worktree-lifecycle-commands.md) |
 
 ### Phase 19 — Proportional integration validation
 

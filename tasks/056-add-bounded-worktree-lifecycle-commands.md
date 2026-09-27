@@ -192,7 +192,7 @@ Completion evidence:
 
 ## 🔗 Dependencies
 
-- **Depends on**: 054, 055
+- **Depends on**: 054, 055, 059
 - **Blocks**: none
 
 ## 🤖 How to delegate this task to Claude CLI

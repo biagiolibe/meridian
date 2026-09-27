@@ -13,6 +13,10 @@
 - `[x]` 054 — Configure Codex access for isolated task worktrees.
 - `[ ]` 056 — Add bounded worktree lifecycle commands.
 - `[x]` 057 — Design the Meridian self-hosting capability profile.
+- `[ ]` 058 — Add self-hosting manifest and capability-catalog support.
+- `[ ]` 059 — Implement cross-mode capability audit semantics.
+- `[ ]` 060 — Install Meridian self-hosting capability surfaces.
+- `[ ]` 061 — Add self-hosting host probes and CI dogfooding gate.
 - `[x]` 015 — Split `workflowBaselineVersion` from `frameworkVersion` in manifest and upgrade planner.
 - `[ ]` 016 — Propagate `workflowBaselineVersion` to `adopt`/`finalize-adoption`.
 - `[ ]` 017 — Relax `check_migrations()`'s VERSION equality to `<=`.
