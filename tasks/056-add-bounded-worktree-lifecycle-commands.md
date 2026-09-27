@@ -41,7 +41,7 @@ approval while destructive exceptional recovery remains explicit.
       roots that differ from the effective configured root.
 - [ ] `prepare` reuses Task 054's repository identity, namespaced path
       derivation, and collision detection, and consumes the project-selected
-      identity resolver designed by Task 039. Its mandatory preflight is
+      identity resolver implemented by Task 063. Its mandatory preflight is
       host-neutral; a Codex or Claude capability probe is supplementary and
       cannot redefine lifecycle validity. It creates exactly one
       branch/worktree pair from the permitted base commit and writes the
@@ -175,7 +175,7 @@ approval while destructive exceptional recovery remains explicit.
   or remote branches.
 - Keep push/network behavior separate from local Git lifecycle authorization.
 - Preserve Task 055's proportional validation policy, Task 054's
-  repository-qualified shared worktree root, and Task 039's selected task
+  repository-qualified shared worktree root, and Task 063's implemented task
   identity contract.
 - Repository artifacts are English-only.
 
@@ -208,7 +208,7 @@ Completion evidence:
 
 ## 🔗 Dependencies
 
-- **Depends on**: 039, 054, 055, 059
+- **Depends on**: 054, 055, 059, 063
 - **Blocks**: none
 
 ## 🤖 How to delegate this task to Claude CLI
