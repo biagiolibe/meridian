@@ -36,6 +36,16 @@ new: separates `frameworkVersion` (public CLI release), `workflowBaselineVersion
 (manifest/CLI compatibility) so a CLI-only release no longer requires a fake
 migration.
 
+### Phase 22 — Codex configuration resilience
+
+Keeps Meridian's least-privilege task-worktree permission profile recoverable
+when Codex app updates or settings rewrites preserve effective TOML semantics
+but normalize or remove Meridian's ownership comments.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 062 | Make Codex permission-profile repair resilient | 🟡 P2 | 054 | [062](062-make-codex-profile-repair-resilient.md) |
+
 ### Phase 21 — Meridian self-hosting profile
 
 Separates workflow lifecycle from workflow-neutral operational capabilities so
