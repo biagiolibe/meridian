@@ -17,17 +17,17 @@ public release (task 021) is cut.
 
 ## 📋 Acceptance Criteria
 
-- [ ] `.claude-plugin/plugin.json`'s `version` equals the content of
+- [x] `.claude-plugin/plugin.json`'s `version` equals the content of
       `VERSION` at the time this task lands.
-- [ ] A new `check_plugin_version()` in `scripts/check_repository.py` fails
+- [x] A new `check_plugin_version()` in `scripts/check_repository.py` fails
       when `plugin.json`'s `version` differs from `VERSION`, and is called
       from `main()`.
-- [ ] Test fixtures in `tests/test_check_repository.py`: matching versions
+- [x] Test fixtures in `tests/test_check_repository.py`: matching versions
       pass; a mismatched `plugin.json` version fails with a message naming
       both values.
-- [ ] `CONTRIBUTING.md` (or the release procedure written by task 020, if it
+- [x] `CONTRIBUTING.md` (or the release procedure written by task 020, if it
       has landed) lists the `plugin.json` bump as a release step.
-- [ ] `python3 scripts/check_repository.py` and
+- [x] `python3 scripts/check_repository.py` and
       `python3 -m unittest discover -s tests -v` pass.
 
 ## 📁 Relevant Files
