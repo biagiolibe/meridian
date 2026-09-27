@@ -2,6 +2,54 @@
 
 Use this procedure only for `Review <TASK-ID>` after the entry-point router has applied its always-loaded invariants.
 
+<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v3 -->
+## Mandatory task-worktree preflight
+
+This is the first review action. Before reading the assigned task,
+implementation files, or any implementation diff:
+
+1. Resolve the canonical completion-handoff location and read only that
+   handoff. Obtain its absolute task-worktree path, task branch, current task
+   commit, validated task commit, and validated base `main` commit. Confirm
+   that the implementer session has stopped. A missing field, missing handoff,
+   or active or unconfirmed implementer is `BLOCKED`.
+2. From the repository available to the session, run `git worktree list
+   --porcelain` and locate exactly one registered entry whose normalized
+   absolute path is the handoff path. The entry must record the handoff branch
+   as `refs/heads/<task-branch>` and the handoff current task commit as its
+   `HEAD`. Do not infer the task worktree from the session's initial current
+   directory. If the path is absent, unregistered, duplicated, or disagrees
+   with the handoff, return `BLOCKED`.
+3. Root read-only Git checks in the recorded path with `git -C
+   <absolute-task-worktree> ...`. Verify its absolute top level, symbolic
+   branch, `HEAD`, and empty `git status --short`; verify that the validated
+   task and base commits exist; then verify that the base is an ancestor of
+   the validated task commit and the validated task commit is an ancestor of
+   current task `HEAD`. A missing commit, detached or mismatched branch,
+   mismatched `HEAD`, dirty worktree, or failed ancestry check is `BLOCKED`.
+
+Every failure above stops before substantive review and preserves the task,
+branch, primary checkout, and linked worktree exactly as found. Never switch,
+move, create, repair, or delete a checkout to make preflight pass. Until a
+managed `meridian worktree check` provides these same read-only invariants,
+use the handoff and bounded Git checks above.
+
+Only after every preflight check passes may the reviewer read the task, queue,
+implementation files, or compute the implementation diff. When the session
+started in the primary checkout, every such read uses the verified absolute
+task-worktree path and every Git command uses `git -C
+<absolute-task-worktree>`; the initial current directory is never treated as
+the task checkout. Review never runs concurrently with an implementer.
+
+After approval, commit the review and `ACCEPTED` state on the task branch,
+then use the serialized integration transaction in `PROJECT_WORKFLOW.md`.
+The validated task commit must remain an ancestor of task `HEAD`, with only
+permitted lifecycle records in the intervening diff. Current `main` may have
+advanced; reuse evidence, run the bounded gate, select full validation, or
+return `BLOCKED` only through that transaction's deterministic decision.
+Independent review, acceptance evidence, and forge gates remain mandatory.
+<!-- MERIDIAN:END -->
+
 <!-- MERIDIAN:BEGIN capability=review-mode-boundary v1 -->
 ### Review-mode boundary
 
@@ -20,45 +68,25 @@ the review record, make the two `ACCEPTED` status edits, and commit those three
 artifacts with the required reviewer-integrator author override.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=implementer-reviewer-handoff v1 -->
+<!-- MERIDIAN:BEGIN capability=implementer-reviewer-handoff v2 -->
 ## Implementer-to-reviewer handoff
 
 After validation, create the task commit and push the task branch once for each
 review attempt. The completion handoff must record the branch name,
-implementation commit, and base `main` commit. Leave the primary checkout
-clean and on the task branch; do not switch back to `main`.
-
-The reviewer-integrator uses that same primary checkout in a fresh agent session that did not write the implementation. If the reviewer session starts on clean `main`, run `git switch <task-branch>`. If the branch is missing locally, or a dirty checkout prevents switching, return `BLOCKED` with the exact condition.
+absolute linked-worktree path, implementation and current task commits,
+validated task and base `main` commits, successful validation evidence, and
+declared integration surface. Stop the implementer and leave the registered
+task worktree clean before starting the fresh reviewer session. This durable
+handoff transfers sequential ownership of that worktree; implementation and
+review never overlap.
 
 For `Review: REQUIRED`, the reviewer must never push the task branch. On
 `CHANGES_REQUESTED`, it commits only the review record and matching task/queue
 transition to `IN_PROGRESS`; the implementer then resolves and pushes the next
-review attempt. Before accepting, run `git merge-base --is-ancestor main
-<task-branch>`. If it fails, do not mark the task `ACCEPTED`; return `BLOCKED`
-with no fetch, rebase, non-fast-forward merge, or force-push recovery. If it
-passes, create the local review-and-status `ACCEPTED` commit, switch to `main`,
-fast-forward merge the task branch, push `main` exactly once, and delete the
-local task branch. For `Review: NOT_REQUIRED`, the implementer performs the
-same acceptance commit and main integration after validation. Owner acceptance
-is status-only and does not automatically integrate the branch.
-<!-- MERIDIAN:END -->
-
-<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v2 -->
-This block supersedes the checkout, ancestry, integration, and cleanup steps in
-the legacy handoff block above. The completion handoff also records the
-absolute task-worktree path and current task commit. Stop the implementer and
-leave that worktree clean before a fresh reviewer session uses it. Verify its
-registered path, branch, HEAD, cleanliness, and handoff commits. Never switch
-the primary checkout to the task branch or review concurrently with an
-implementer. After approval, commit the review and `ACCEPTED` state on the task
-branch, then use the serialized integration transaction in
-`PROJECT_WORKFLOW.md`. The validated task commit must be an ancestor of task
-HEAD, with only permitted lifecycle records in the intervening diff, and the
-validated base must be an ancestor of the validated commit. Current `main` may have advanced; reuse
-evidence, run the bounded gate, select full validation, or return `BLOCKED`
-only through that transaction's deterministic decision. Independent review,
-acceptance evidence, and forge gates remain mandatory. Cleanup removes the
-worktree before the branch only after validated integration succeeds.
+review attempt. For `Review: NOT_REQUIRED`, the implementer records acceptance
+after validation without creating a reviewer session. Owner acceptance is
+status-only. Checkout selection, validation ancestry, integration, and cleanup
+are governed by their current dedicated procedures, not by this handoff.
 <!-- MERIDIAN:END -->
 
 <!-- MERIDIAN:BEGIN capability=reviewer-integrator-identity v1 -->
