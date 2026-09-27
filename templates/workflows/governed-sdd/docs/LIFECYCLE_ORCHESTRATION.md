@@ -1,6 +1,6 @@
 # Autonomous Task Lifecycle Orchestration
 
-<!-- MERIDIAN:BEGIN capability=lifecycle-orchestration v5 -->
+<!-- MERIDIAN:BEGIN capability=lifecycle-orchestration v6 -->
 `Run lifecycle <TASK-ID>` authorizes an orchestrator to carry one dependency-ready
 task through implementation, independent review, requested-change remediation,
 acceptance, and `main` integration without further developer prompts. It does
@@ -41,8 +41,13 @@ each fresh worker session to that value and stop before delegation if the
 effective setting differs or cannot be confirmed. Never escalate either worker
 automatically. Use the lowest available reasoning profile for the orchestrator.
 Do not run implementation and review concurrently in the same worktree. Stop
-the implementer before starting the fresh reviewer against that same task
-worktree; neither worker uses the primary checkout.
+the implementer before starting the fresh reviewer. The review worker's first
+action is the fail-closed handoff and registered-worktree preflight in
+`docs/workflows/REVIEW.md`; it performs no substantive review unless the
+absolute path, branch, HEAD, clean state, validated commits, and stopped
+implementer all verify. If launched from the primary checkout, it roots every
+review read and command in the verified task worktree and never switches the
+primary checkout.
 
 Continue automatically only while the current task and queue state permit the
 next transition. Stop with `BLOCKED` when validation fails, authority is

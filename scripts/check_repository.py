@@ -67,6 +67,11 @@ LANGUAGE_POLICY_FILES = (
     "templates/workflows/governed-sdd/LANGUAGE_POLICY.md",
 )
 MARKDOWN_LINK = re.compile(r"(?<!!)\[[^]]*\]\(([^)]+)\)")
+RETIRED_GOVERNED_REVIEW_PHRASES = (
+    "uses that same primary checkout",
+    "git switch <task-branch>",
+    "leave the primary checkout clean and on the task branch",
+)
 
 
 def fail(message: str) -> None:
@@ -136,6 +141,43 @@ def check_language_policy() -> None:
         encoding="utf-8"
     ):
         fail("governed-SDD operator prompts must remain non-normative")
+
+
+def check_governed_review_worktree_contract(root: Path = ROOT) -> None:
+    workflow = root / "templates" / "workflows" / "governed-sdd"
+    review_paths = (
+        workflow / "PROJECT_WORKFLOW.md",
+        workflow / "docs" / "CODE_REVIEW_PROMPT.md",
+        workflow / "docs" / "LIFECYCLE_ORCHESTRATION.md",
+        workflow / "docs" / "workflows" / "REVIEW.md",
+    )
+    for path in review_paths:
+        text = path.read_text(encoding="utf-8")
+        lowered = text.lower()
+        for phrase in RETIRED_GOVERNED_REVIEW_PHRASES:
+            if phrase in lowered:
+                fail(
+                    f"retired primary-checkout review instruction in "
+                    f"{path.relative_to(root)}: {phrase}"
+                )
+
+    review = review_paths[-1].read_text(encoding="utf-8")
+    preflight = "<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v3 -->"
+    boundary = "<!-- MERIDIAN:BEGIN capability=review-mode-boundary v1 -->"
+    required = (
+        "Before reading the assigned task",
+        "git worktree list\n   --porcelain",
+        "git -C\n   <absolute-task-worktree>",
+        "empty `git status --short`",
+        "task and base commits exist",
+        "Only after every preflight check passes",
+        "initial current directory is never treated as\nthe task checkout",
+    )
+    if preflight not in review or boundary not in review or review.index(preflight) > review.index(boundary):
+        fail("governed review must begin with the task-worktree preflight")
+    for fragment in required:
+        if fragment not in review:
+            fail(f"governed task-worktree review preflight is incomplete: {fragment}")
 
 
 def check_json() -> None:
@@ -332,6 +374,7 @@ def main() -> None:
         return
     check_required_files()
     check_language_policy()
+    check_governed_review_worktree_contract()
     check_json()
     check_plugin_version()
     check_capability_catalog()

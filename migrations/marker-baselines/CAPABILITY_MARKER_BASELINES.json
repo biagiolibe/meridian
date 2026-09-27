@@ -35,8 +35,8 @@
       "version": 1
     },
     "git-workflow": {
-      "sha256": "650b5e35c3e4e2b4c17030b272b0acd66d4f2fa947ea72c6678eca44dd6da29a",
-      "version": 4
+      "sha256": "54c7fd590c8699cb5039a307b46d569a089c98de4725a681bbcbff975aa30e1e",
+      "version": 5
     },
     "review-policy": {
       "sha256": "129c502cf2a684ea1fedce822a7a4a39f507c2d66a1a9746f3055d0d71102a09",
@@ -81,8 +81,8 @@
       "version": 1
     },
     "task-worktree-review": {
-      "sha256": "bbff871930cc30080913a74ddb5688968ee479604b3c0dd3b61946a5bc717474",
-      "version": 2
+      "sha256": "8cbebb5c943289720f8bca5d59f63afa26a91d6a494ba40ce38605b5904203e5",
+      "version": 3
     }
   },
   "templates/workflows/governed-sdd/docs/COMPLETION_REPORT_TEMPLATE.md": {
@@ -145,8 +145,8 @@
   },
   "templates/workflows/governed-sdd/docs/LIFECYCLE_ORCHESTRATION.md": {
     "lifecycle-orchestration": {
-      "sha256": "387e5df3f0195ee04df87ce33553bdb1ee0b09e35d37bce6930753d1ee53e947",
-      "version": 5
+      "sha256": "6f51e60012c491f0ceff5456b2e5e0a5f21c0e5510417435f09bb0ae06a350b1",
+      "version": 6
     },
     "rejected-attempt-restart": {
       "sha256": "ed9029375c608faafd84c29838281159d82436a3443566798e0b99856e8c2c6c",
@@ -233,8 +233,8 @@
   },
   "templates/workflows/governed-sdd/docs/workflows/REVIEW.md": {
     "implementer-reviewer-handoff": {
-      "sha256": "7639cf5a048eb1abca7970f0d5c73a9ecb029f47a84e618aa6f834baea4e86b6",
-      "version": 1
+      "sha256": "45cd630cc5c520f5fa6d3bc13b3fe47221617dded5b30efaefc9fbc9548d81ab",
+      "version": 2
     },
     "review-mode-boundary": {
       "sha256": "9bcd8f8c44bf0b6254ce4ea9a796c5a073916cd4d2c2af7f01938027c17e5787",
@@ -245,8 +245,8 @@
       "version": 1
     },
     "task-worktree-review-procedure": {
-      "sha256": "b90e0e81c2c312284ef7093a96af8e0579d92925670cae55244d8a91aa92e490",
-      "version": 2
+      "sha256": "d2729d54461da52c034e7c3fcf5207f9a9353698ad6fc7813eb57761709e45d1",
+      "version": 3
     }
   },
   "templates/workflows/governed-sdd/tasks/TASK_BLUEPRINT.md": {
