@@ -4,8 +4,8 @@
 > **Category**: Design
 > **Priority**: 🔴 P1
 > **Estimate**: ~1–2h
-> **Assigned to**: unassigned
-> **Session**: unassigned
+> **Assigned to**: Codex
+> **Session**: 2026-09-27 task-039
 
 ## 🎯 Objective
 
