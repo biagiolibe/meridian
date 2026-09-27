@@ -1,8 +1,9 @@
-"""Regression tests for the capability-marker-vs-version repository guard
-added for task 014 (tasks/014-generator-altered-protected-blocks.md)."""
+"""Regression tests for the repository validation checks."""
 
 from __future__ import annotations
 
+import contextlib
+import io
 import json
 import shutil
 import sys
@@ -14,6 +15,38 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 import check_repository as cr  # noqa: E402
+
+
+class PluginVersionTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory()
+        self.root = Path(self.temporary.name)
+        (self.root / ".claude-plugin").mkdir()
+        (self.root / "VERSION").write_text("1.2.3\n", encoding="utf-8")
+
+    def tearDown(self) -> None:
+        self.temporary.cleanup()
+
+    def write_plugin_version(self, version: str) -> None:
+        manifest = {"name": "meridian", "version": version}
+        (self.root / ".claude-plugin" / "plugin.json").write_text(
+            json.dumps(manifest), encoding="utf-8"
+        )
+
+    def test_matching_plugin_version_passes(self) -> None:
+        self.write_plugin_version("1.2.3")
+
+        cr.check_plugin_version(self.root)
+
+    def test_mismatched_plugin_version_names_both_values(self) -> None:
+        self.write_plugin_version("1.2.2")
+        output = io.StringIO()
+
+        with contextlib.redirect_stdout(output), self.assertRaises(SystemExit):
+            cr.check_plugin_version(self.root)
+
+        self.assertIn("1.2.2", output.getvalue())
+        self.assertIn("1.2.3", output.getvalue())
 
 
 class CapabilityMarkerBaselineTest(unittest.TestCase):
