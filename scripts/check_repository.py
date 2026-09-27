@@ -146,6 +146,19 @@ def check_json() -> None:
             fail(f"invalid JSON in {path.relative_to(ROOT)}: {error}")
 
 
+def check_plugin_version(root: Path = ROOT) -> None:
+    expected_version = (root / "VERSION").read_text(encoding="utf-8").strip()
+    plugin_manifest = json.loads(
+        (root / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8")
+    )
+    plugin_version = plugin_manifest.get("version")
+    if plugin_version != expected_version:
+        fail(
+            ".claude-plugin/plugin.json version "
+            f"{plugin_version!r} does not match VERSION {expected_version!r}"
+        )
+
+
 def check_capability_catalog(root: Path = ROOT) -> None:
     try:
         catalog = meridian.load_capability_catalog(root)
@@ -320,6 +333,7 @@ def main() -> None:
     check_required_files()
     check_language_policy()
     check_json()
+    check_plugin_version()
     check_capability_catalog()
     check_migrations()
     check_bash()
