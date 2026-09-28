@@ -8,13 +8,11 @@
   "task_paths": [
     ".github/workflows/validate.yml",
     ".meridian/probes",
-    "PROJECT_PLAN.md",
     "capabilities/catalog-v1.json",
     "docs/MERIDIAN_SELF_HOSTING_PROFILE.md",
     "schemas/capability-catalog-v1.schema.json",
     "scripts/check_repository.py",
     "scripts/meridian.py",
-    "tasks/QUEUE.md",
     "tests/test_meridian_cli.py"
   ],
   "task_dependencies": ["060", "047"],
