@@ -19,35 +19,35 @@ or auditable surface was found.
 
 ## 📋 Acceptance Criteria
 
-- [ ] `meridian audit` begins from the locked project's manifest declarations
+- [x] `meridian audit` begins from the locked project's manifest declarations
       and capability catalog in both Lean Delivery and Governed SDD modes.
-- [ ] Every declared capability and applicable host profile emits named results
+- [x] Every declared capability and applicable host profile emits named results
       using `PASS`, `ADVISORY`, `UNVERIFIED`, `NOT_APPLICABLE`, or `FAIL` with
       evidence and rationale consistent with Task 057.
-- [ ] Aggregate exit codes are `0` for complete passing evidence, `1` when at
+- [x] Aggregate exit codes are `0` for complete passing evidence, `1` when at
       least one result is `ADVISORY` or `UNVERIFIED` and none is `FAIL`, and `2`
       for any failure or invalid/unauditable required declaration.
-- [ ] A locked legacy project with no `capabilityProfiles` receives the defined
+- [x] A locked legacy project with no `capabilityProfiles` receives the defined
       compatibility result instead of `No capability markers found to audit.`
       The result becomes a failure when the active protocol requires explicit
       declarations.
-- [ ] An applicable declaration with an empty, missing, drifted, contradictory,
+- [x] An applicable declaration with an empty, missing, drifted, contradictory,
       or unresolvable managed surface is `FAIL`; migration history cannot
       satisfy it.
-- [ ] A `NOT_APPLICABLE` result is accepted only when the catalog excludes the
+- [x] A `NOT_APPLICABLE` result is accepted only when the catalog excludes the
       workflow, selected profile, or named host and the report prints that
       exact rationale.
-- [ ] Existing marker-integrity, duplicate-heading, capability-move, and entry-
+- [x] Existing marker-integrity, duplicate-heading, capability-move, and entry-
       router checks remain distinct audit items and retain their protections.
-- [ ] Output reports per-state counts, the worst aggregate result, and enough
+- [x] Output reports per-state counts, the worst aggregate result, and enough
       surface/evidence identity to diagnose a failure without dumping unrelated
       project context.
-- [ ] Fixtures cover complete declarations, legacy Lean manifests, empty
+- [x] Fixtures cover complete declarations, legacy Lean manifests, empty
       surfaces, missing policy files, missing hook configuration/shared sources,
       stale evidence, invalid positive claims, valid exclusions, and mixed
       aggregate results.
-- [ ] No self-hosted profile or managed surface is installed by this task.
-- [ ] `python3 scripts/check_repository.py`,
+- [x] No self-hosted profile or managed surface is installed by this task.
+- [x] `python3 scripts/check_repository.py`,
       `python3 -m unittest discover -s tests -v`, and `git diff --check` pass.
 
 ## 📁 Relevant Files

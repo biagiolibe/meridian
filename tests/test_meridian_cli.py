@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import io
 import re
 import shutil
 import subprocess
@@ -10,6 +11,7 @@ import sys
 import tempfile
 import tomllib
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 from unittest import mock
 
@@ -516,6 +518,8 @@ class MeridianCliTest(unittest.TestCase):
                     )
 
                     result = self.run_cli(*command)
+                    if command_name == "audit" and case_name != "newer":
+                        expected_returncode = 1
                     self.assertEqual(
                         result.returncode,
                         expected_returncode,
@@ -764,7 +768,8 @@ class MeridianCliTest(unittest.TestCase):
         self.assertEqual(manifest["frameworkVersion"], "1.1.47")
         self.assertEqual(manifest["appliedMigrations"][-1], "050-review-worktree-preflight")
         audited = self.run_cli("audit", "--mode", "governed-sdd")
-        self.assertEqual(audited.returncode, 0, audited.stdout + audited.stderr)
+        self.assertEqual(audited.returncode, 1, audited.stdout + audited.stderr)
+        self.assertIn("declaration/legacy-compatibility", audited.stdout)
 
     def test_clean_upgrade_installs_integration_evidence_reuse_contract(self) -> None:
         """Migration 046 upgrades every changed integration capability."""
@@ -1399,7 +1404,8 @@ worktree before the branch only after validated integration succeeds.
         self.assertEqual((self.project / "docs/ROUTED_STATUS_RULE.md").read_text(encoding="utf-8"), marker_text + "\n")
 
         audited = self.run_cli("audit", "--mode", "governed-sdd")
-        self.assertEqual(audited.returncode, 0, audited.stdout + audited.stderr)
+        self.assertEqual(audited.returncode, 1, audited.stdout + audited.stderr)
+        self.assertIn("declaration/legacy-compatibility", audited.stdout)
 
     def _reinsert_role_scoped_agent_rules_block(self, text: str) -> str:
         block = (
@@ -1453,7 +1459,8 @@ worktree before the branch only after validated integration succeeds.
         self.assertIn("capability=validation-scoping v1", upgraded)
 
         audited = self.run_cli("audit", "--mode", "governed-sdd")
-        self.assertEqual(audited.returncode, 0, audited.stdout + audited.stderr)
+        self.assertEqual(audited.returncode, 1, audited.stdout + audited.stderr)
+        self.assertIn("declaration/legacy-compatibility", audited.stdout)
 
     def test_upgrade_refuses_role_scoped_agent_rules_removal_when_locally_modified(self) -> None:
         """Task 008's other half of AC3: the real migration 025 must refuse
@@ -1503,9 +1510,10 @@ worktree before the branch only after validated integration succeeds.
     def test_audit_passes_on_unmodified_markers(self) -> None:
         self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
         audited = self.run_cli("audit", "--mode", "governed-sdd")
-        self.assertEqual(audited.returncode, 0, audited.stdout + audited.stderr)
+        self.assertEqual(audited.returncode, 1, audited.stdout + audited.stderr)
         self.assertIn("PASS", audited.stdout)
-        self.assertNotIn("FAIL", audited.stdout)
+        self.assertNotRegex(audited.stdout, r"(?m)^FAIL\s")
+        self.assertIn("declaration/legacy-compatibility", audited.stdout)
 
     def test_audit_fails_on_edited_protected_region(self) -> None:
         self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
@@ -1520,8 +1528,12 @@ worktree before the branch only after validated integration succeeds.
 
         audited = self.run_cli("audit", "--mode", "governed-sdd")
         self.assertEqual(audited.returncode, 2)
-        self.assertIn("FAIL docs/workflows/LIFECYCLE.md: capability=lifecycle-orchestration v3", audited.stdout)
-        self.assertIn("BLOCKED: 1 protected-region integrity failure", audited.stdout)
+        self.assertIn(
+            "FAIL           marker-integrity — docs/workflows/LIFECYCLE.md: "
+            "capability=lifecycle-orchestration v3",
+            audited.stdout,
+        )
+        self.assertIn("SUMMARY worst=FAIL", audited.stdout)
 
     def test_audit_fails_when_a_file_carries_two_versions_of_one_capability(self) -> None:
         """Task 012: a version bump that was appended instead of replacing the
@@ -1547,7 +1559,9 @@ worktree before the branch only after validated integration succeeds.
         audited = self.run_cli("audit", "--mode", "governed-sdd")
         self.assertEqual(audited.returncode, 2)
         self.assertIn(
-            "FAIL AGENTS.md: capability=command-triggers carries 2 versions (v3, v4)", audited.stdout
+            "FAIL           marker-integrity — AGENTS.md: capability=command-triggers "
+            "carries 2 versions (v3, v4)",
+            audited.stdout,
         )
 
     def test_audit_skips_a_version_the_current_template_no_longer_carries(self) -> None:
@@ -1563,10 +1577,10 @@ worktree before the branch only after validated integration succeeds.
             )
 
         audited = self.run_cli("audit", "--mode", "governed-sdd")
-        self.assertEqual(audited.returncode, 0, audited.stdout + audited.stderr)
-        self.assertIn("SKIP", audited.stdout)
+        self.assertEqual(audited.returncode, 1, audited.stdout + audited.stderr)
+        self.assertIn("UNVERIFIED", audited.stdout)
         self.assertIn("lifecycle-orchestration v99", audited.stdout)
-        self.assertNotIn("FAIL", audited.stdout)
+        self.assertNotRegex(audited.stdout, r"(?m)^FAIL\s")
 
     def test_audit_fails_a_retired_marker_still_present_outside_managed_paths(self) -> None:
         """Task 007: a marker whose exact (capability, version) some migration
@@ -4045,6 +4059,62 @@ class CapabilityProfileManifestTest(unittest.TestCase):
             },
         }
 
+    def installed_project(
+        self, project: Path, mode: str = "lean-delivery"
+    ) -> dict[str, object]:
+        manifest = self.manifest(mode)
+        managed_files: dict[str, str] = {}
+        for capability_id, declaration in manifest["capabilityProfiles"][
+            "meridian-self-hosting"
+        ]["capabilities"].items():
+            surface_digests = []
+            for surface in declaration["managedSurface"]:
+                path = project / surface["path"]
+                if not path.exists():
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_text(f"surface: {surface['path']}\n", encoding="utf-8")
+                digest = meridian.sha256(path)
+                surface_digests.append(f"sha256:{digest}")
+                if surface["form"] == "managed-copy":
+                    managed_files[surface["path"]] = digest
+            declaration["installation"] = {
+                "state": "INSTALLED",
+                "evidence": surface_digests,
+                "notApplicableRationale": None,
+            }
+            host_activation = {}
+            for host_id in declaration["hostActivation"]:
+                probe_path = f".meridian/evidence/{capability_id}-{host_id}.json"
+                probe = project / probe_path
+                probe.parent.mkdir(parents=True, exist_ok=True)
+                probe.write_text("{}\n", encoding="utf-8")
+                host_activation[host_id] = {
+                    "state": "ENFORCED",
+                    "evidence": [f"probe:{probe_path}"],
+                    "notApplicableRationale": None,
+                }
+            declaration["hostActivation"] = host_activation
+            verification_path = f".meridian/evidence/{capability_id}-verification.json"
+            verification_probe = project / verification_path
+            verification_probe.parent.mkdir(parents=True, exist_ok=True)
+            verification_probe.write_text("{}\n", encoding="utf-8")
+            declaration["verification"] = {
+                "state": "PASS",
+                "evidence": [f"probe:{verification_path}"],
+                "verifiedAt": "2026-09-28T00:00:00Z",
+                "verifierVersion": meridian.read_version(ROOT),
+                "notApplicableRationale": None,
+            }
+        manifest["managedFiles"] = managed_files
+        meridian.write_manifest(project, manifest, ROOT)
+        return manifest
+
+    def audit(self, project: Path, mode: str = "lean-delivery") -> tuple[int, str]:
+        output = io.StringIO()
+        with redirect_stdout(output):
+            return_code = meridian.run_audit(project, ROOT, mode)
+        return return_code, output.getvalue()
+
     def test_catalog_exposes_versioned_profile_metadata_and_dependencies(self) -> None:
         self.assertEqual(self.catalog.catalog_version, 1)
         self.assertEqual(len(self.catalog.capabilities), 8)
@@ -4204,6 +4274,213 @@ class CapabilityProfileManifestTest(unittest.TestCase):
             persisted = json.loads(manifest_path.read_text(encoding="utf-8"))
             installation = persisted["capabilityProfiles"]["meridian-self-hosting"]["capabilities"]["language-policy"]["installation"]
             self.assertEqual(installation["state"], "MISSING")
+
+    def test_cross_mode_audit_accepts_complete_declarations_and_reports_counts(self) -> None:
+        for mode in meridian.WORKFLOW_MODES:
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as directory:
+                project = Path(directory)
+                self.installed_project(project, mode)
+
+                return_code, output = self.audit(project, mode)
+
+                self.assertEqual(return_code, 0, output)
+                self.assertIn("PASS", output)
+                self.assertIn("SUMMARY worst=PASS", output)
+                for state in meridian.AUDIT_STATES:
+                    self.assertRegex(output, rf"\b{state}=\d+")
+                self.assertNotIn("No capability markers found", output)
+
+    def test_audit_fails_missing_and_drifted_managed_surfaces(self) -> None:
+        missing_surfaces = (
+            ("LANGUAGE_POLICY.md", "missing managed-copy surface LANGUAGE_POLICY.md"),
+            (".codex/hooks.json", "missing managed-copy surface .codex/hooks.json"),
+            ("hooks/read-guard.sh", "missing shared-source surface hooks/read-guard.sh"),
+        )
+        for relative_path, diagnostic in missing_surfaces:
+            with self.subTest(surface=relative_path), tempfile.TemporaryDirectory() as directory:
+                project = Path(directory)
+                self.installed_project(project)
+                (project / relative_path).unlink()
+
+                return_code, output = self.audit(project)
+
+                self.assertEqual(return_code, 2, output)
+                self.assertIn(diagnostic, output)
+                self.assertIn("SUMMARY worst=FAIL", output)
+
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            self.installed_project(project)
+            hook = project / "hooks/read-guard.sh"
+            hook.write_text("drifted\n", encoding="utf-8")
+
+            return_code, output = self.audit(project)
+
+            self.assertEqual(return_code, 2, output)
+            self.assertIn("stale digest evidence", output)
+            self.assertIn("shared-source:hooks/read-guard.sh", output)
+
+    def test_audit_rejects_empty_surfaces_and_invalid_positive_claims(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            manifest = self.installed_project(project)
+            declaration = manifest["capabilityProfiles"]["meridian-self-hosting"][
+                "capabilities"
+            ]["language-policy"]
+            declaration["managedSurface"] = []
+            (project / meridian.MANIFEST_PATH).write_text(
+                json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
+
+            return_code, output = self.audit(project)
+
+            self.assertEqual(return_code, 2, output)
+            self.assertIn("managedSurface must be a non-empty list", output)
+
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            manifest = self.installed_project(project)
+            activation = manifest["capabilityProfiles"]["meridian-self-hosting"][
+                "capabilities"
+            ]["language-policy"]["hostActivation"]["codex-project"]
+            activation["evidence"] = ["positive-claim-without-an-artifact"]
+            (project / meridian.MANIFEST_PATH).write_text(
+                json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
+
+            return_code, output = self.audit(project)
+
+            self.assertEqual(return_code, 2, output)
+            self.assertIn("invalid positive evidence", output)
+            self.assertIn("expected probe:<path>", output)
+
+    def test_audit_reports_stale_evidence_and_mixed_aggregate_results(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            manifest = self.installed_project(project)
+            capabilities = manifest["capabilityProfiles"]["meridian-self-hosting"][
+                "capabilities"
+            ]
+            capabilities["language-policy"]["hostActivation"]["codex-project"] = {
+                "state": "UNVERIFIED",
+                "evidence": [],
+                "notApplicableRationale": None,
+            }
+            capabilities["read-guard"]["verification"]["verifierVersion"] = "0.0.0"
+            (project / meridian.MANIFEST_PATH).write_text(
+                json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
+
+            return_code, output = self.audit(project)
+
+            self.assertEqual(return_code, 2, output)
+            self.assertIn("UNVERIFIED", output)
+            self.assertIn("stale verifierVersion", output)
+            self.assertIn("SUMMARY worst=FAIL", output)
+
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            manifest = self.installed_project(project)
+            capabilities = manifest["capabilityProfiles"]["meridian-self-hosting"][
+                "capabilities"
+            ]
+            advisory = capabilities["language-policy"]["hostActivation"]["codex-project"]
+            advisory["state"] = "ADVISORY"
+            capabilities["read-guard"]["hostActivation"]["codex-project"] = {
+                "state": "UNVERIFIED",
+                "evidence": [],
+                "notApplicableRationale": None,
+            }
+            (project / meridian.MANIFEST_PATH).write_text(
+                json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
+
+            return_code, output = self.audit(project)
+
+            self.assertEqual(return_code, 1, output)
+            self.assertRegex(output, r"ADVISORY=[1-9]\d*")
+            self.assertRegex(output, r"UNVERIFIED=[1-9]\d*")
+            self.assertIn("SUMMARY worst=UNVERIFIED", output)
+
+    def test_audit_accepts_only_catalog_backed_exclusions(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            framework = root / "framework"
+            project = root / "project"
+            shutil.copytree(ROOT, framework)
+            catalog_path = framework / meridian.CAPABILITY_CATALOG_PATH
+            catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+            catalog["capabilities"]["language-policy"]["workflowModes"] = ["governed-sdd"]
+            catalog_path.write_text(
+                json.dumps(catalog, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
+            custom_catalog = meridian.load_capability_catalog(framework)
+            self.catalog = custom_catalog
+            manifest = self.installed_project(project)
+            declaration = manifest["capabilityProfiles"]["meridian-self-hosting"][
+                "capabilities"
+            ]["language-policy"]
+            declaration["installation"] = {
+                "state": "NOT_APPLICABLE",
+                "evidence": [],
+                "notApplicableRationale": "workflow-mode-excluded",
+            }
+            for activation in declaration["hostActivation"].values():
+                activation.update(
+                    state="NOT_APPLICABLE",
+                    evidence=[],
+                    notApplicableRationale="workflow-mode-excluded",
+                )
+            declaration["verification"] = {
+                "state": "NOT_APPLICABLE",
+                "evidence": [],
+                "verifiedAt": None,
+                "verifierVersion": None,
+                "notApplicableRationale": "workflow-mode-excluded",
+            }
+            manifest["capabilityProfiles"]["meridian-self-hosting"]["capabilities"][
+                "queue-briefing"
+            ]["hostActivation"]["codex-project"] = {
+                "state": "NOT_APPLICABLE",
+                "evidence": [],
+                "notApplicableRationale": "host-profile-unsupported",
+            }
+            meridian.write_manifest(project, manifest, framework)
+            output = io.StringIO()
+
+            with redirect_stdout(output):
+                return_code = meridian.run_audit(project, framework, "lean-delivery")
+
+            self.assertEqual(return_code, 0, output.getvalue())
+            self.assertIn("NOT_APPLICABLE", output.getvalue())
+            self.assertIn("catalog exclusion: workflow-mode-excluded", output.getvalue())
+            self.assertIn(
+                "meridian-self-hosting/queue-briefing/host/codex-project",
+                output.getvalue(),
+            )
+            self.assertIn("catalog exclusion: host-profile-unsupported", output.getvalue())
+
+    def test_legacy_lean_manifest_is_named_and_migration_history_is_not_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            meridian.write_manifest(
+                project,
+                {
+                    "protocolVersion": 1,
+                    "mode": "lean-delivery",
+                    "frameworkVersion": meridian.read_version(ROOT),
+                    "managedFiles": {},
+                    "appliedMigrations": ["040-pretooluse-read-guard"],
+                },
+                ROOT,
+            )
+
+            return_code, output = self.audit(project)
+
+            self.assertEqual(return_code, 1, output)
+            self.assertIn("declaration/legacy-compatibility", output)
+            self.assertIn("migration history is provenance only", output)
+            self.assertIn("SUMMARY worst=UNVERIFIED", output)
 
 
 if __name__ == "__main__":
