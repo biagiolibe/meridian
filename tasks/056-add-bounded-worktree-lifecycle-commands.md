@@ -266,7 +266,7 @@ Evidence plan:
 Completion evidence:
 - Codex desktop / trusted project / active Meridian permission profile and project rules: unverified; the CLI probe does not establish desktop profile activation.
 - Codex CLI / trusted project / active Meridian permission profile and project rules: verified for Codex CLI 0.157.1 by the prepare/check, actual execpolicy, stage/finalize, and cleanup evidence in `docs/TASK_056_HOST_PROBE.md`.
-- Claude Code plugin session: unverified. Claude Code 2.1.283 launched from the exact prepared directory without registering a substitute checkout, but stopped before an API turn because the client was not logged in; repeat after authentication.
+- Claude Code plugin session: verified with Claude Code 2.1.283. An authenticated fresh session completed from the exact repository-qualified worktree returned by `prepare`; it reported that path and branch, the subsequent worker `check` returned `ready`, and Git enumeration showed no host-created substitute checkout. See `docs/TASK_056_HOST_PROBE.md`.
 - Host-neutral Meridian CLI: verified by the real-Git lifecycle suite and the temporary-repository end-to-end probe recorded in `docs/TASK_056_HOST_PROBE.md`.
 
 ## 🔗 Dependencies

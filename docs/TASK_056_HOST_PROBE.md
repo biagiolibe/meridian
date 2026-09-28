@@ -31,16 +31,21 @@ Date: 2026-09-28
 ## Claude Code
 
 - Profile: Claude Code 2.1.283.
-- Launch: non-interactive Claude was started with its process working directory
-  set to the exact prepared Meridian worktree, permission prompts disabled, and
-  only bounded `pwd` and branch inspection tools offered.
-- Result: the client created session
-  `9a8d465f-1189-47f3-ab8a-13d6377f5fb2` but returned `Not logged in · Please
-  run /login` before an API turn or tool use. Git worktree enumeration before
-  launch contained only the primary and prepared worktree; the later successful
-  Meridian cleanup proved no substitute checkout was registered.
-- Classification: `UNVERIFIED`, not enforced. The executable and existing-
-  directory launch path are available, but authentication is an external
-  activation precondition. Repeat the probe after Claude login; do not treat
-  this result as proof that a usable fresh worker can attach to the prepared
-  directory.
+- Preparation: from the temporary repository's primary checkout, `meridian
+  worktree prepare 056` created the repository-qualified worktree
+  `/private/tmp/meridian-task056-probe.J8d9Gz/worktrees/local/repositories/project-6316bc4c7e1a/task-056`.
+- Launch: authenticated non-interactive Claude was started with its process
+  working directory set to that exact existing worktree, without `--worktree`,
+  with permission prompts disabled, and with only bounded `pwd` and branch
+  inspection tools offered.
+- Result: session `8a0e37e4-9ee1-4e5c-b632-cc739c2b3bff` completed an API turn
+  and reported the exact prepared path and branch `task-056`, with no permission
+  denials. A subsequent `meridian worktree check 056` returned `ready`, a clean
+  tree, matching effective and canonical paths, and no errors.
+- Isolation: Git worktree enumeration after the Claude turn contained exactly
+  the primary checkout and the prepared Meridian worktree. No
+  `.claude/worktrees` directory or other registered substitute checkout
+  appeared. Verified Meridian cleanup then removed the prepared worktree and
+  its merged-equivalent local branch.
+- Classification: `VERIFIED`. A fresh authenticated Claude worker can attach to
+  the existing Meridian-prepared directory without creating a second checkout.
