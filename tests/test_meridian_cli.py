@@ -4345,6 +4345,38 @@ class CapabilityProfileManifestTest(unittest.TestCase):
             self.assertEqual(return_code, 2, output.getvalue())
             self.assertIn("missing managed-copy surface .codex/hooks.json", output.getvalue())
 
+    def test_ci_profile_gate_rejects_missing_managed_policy_file(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            self.installed_project(project)
+            (project / "docs/CONTEXT_BUDGET_POLICY.md").unlink()
+            output = io.StringIO()
+            with redirect_stdout(output):
+                return_code = meridian.run_audit(
+                    project, ROOT, "lean-delivery", "meridian-self-hosting"
+                )
+            self.assertEqual(return_code, 2, output.getvalue())
+            self.assertIn(
+                "missing managed-copy surface docs/CONTEXT_BUDGET_POLICY.md",
+                output.getvalue(),
+            )
+
+    def test_ci_profile_gate_rejects_missing_shared_hook_source(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            self.installed_project(project)
+            (project / "hooks/queue-briefing.sh").unlink()
+            output = io.StringIO()
+            with redirect_stdout(output):
+                return_code = meridian.run_audit(
+                    project, ROOT, "lean-delivery", "meridian-self-hosting"
+                )
+            self.assertEqual(return_code, 2, output.getvalue())
+            self.assertIn(
+                "missing shared-source surface hooks/queue-briefing.sh",
+                output.getvalue(),
+            )
+
     def test_ci_profile_gate_rejects_an_unknown_profile(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
