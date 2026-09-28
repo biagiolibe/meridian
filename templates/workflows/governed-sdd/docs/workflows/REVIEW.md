@@ -2,25 +2,31 @@
 
 Use this procedure only for `Review <TASK-ID>` after the entry-point router has applied its always-loaded invariants.
 
-<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v3 -->
+<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v4 -->
 ## Mandatory task-worktree preflight
 
 This is the first review action. Before reading the assigned task,
 implementation files, or any implementation diff:
 
-1. Resolve the canonical completion-handoff location and read only that
+1. Start in the exact existing directory returned by `meridian worktree
+   prepare` and run `meridian worktree check <TASK-ID> --project
+   <primary-checkout> --worktree-root <root> --format json`. A blocked result
+   stops before any other read; never use host automatic worktree isolation.
+2. Resolve the canonical completion-handoff location and read only that
    handoff. Obtain its absolute task-worktree path, task branch, current task
    commit, validated task commit, and validated base `main` commit. Confirm
    that the implementer session has stopped. A missing field, missing handoff,
    or active or unconfirmed implementer is `BLOCKED`.
-2. From the repository available to the session, run `git worktree list
+3. Confirm that the successful check result and handoff name the same path,
+   branch, HEAD, base, clean state, and repository. As an additional bounded
+   check, run `git worktree list
    --porcelain` and locate exactly one registered entry whose normalized
    absolute path is the handoff path. The entry must record the handoff branch
    as `refs/heads/<task-branch>` and the handoff current task commit as its
    `HEAD`. Do not infer the task worktree from the session's initial current
    directory. If the path is absent, unregistered, duplicated, or disagrees
    with the handoff, return `BLOCKED`.
-3. Root read-only Git checks in the recorded path with `git -C
+4. Root additional read-only Git checks in the recorded path with `git -C
    <absolute-task-worktree> ...`. Verify its absolute top level, symbolic
    branch, `HEAD`, and empty `git status --short`; verify that the validated
    task and base commits exist; then verify that the base is an ancestor of
@@ -30,9 +36,9 @@ implementation files, or any implementation diff:
 
 Every failure above stops before substantive review and preserves the task,
 branch, primary checkout, and linked worktree exactly as found. Never switch,
-move, create, repair, or delete a checkout to make preflight pass. Until a
-managed `meridian worktree check` provides these same read-only invariants,
-use the handoff and bounded Git checks above.
+move, create, repair, or delete a checkout to make preflight pass. The bounded
+`check` result is required and is never replaced by a branch name or the
+worker's initial directory.
 
 Only after every preflight check passes may the reviewer read the task, queue,
 implementation files, or compute the implementation diff. When the session
