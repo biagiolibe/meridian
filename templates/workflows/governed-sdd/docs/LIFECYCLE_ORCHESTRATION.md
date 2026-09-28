@@ -1,6 +1,6 @@
 # Autonomous Task Lifecycle Orchestration
 
-<!-- MERIDIAN:BEGIN capability=lifecycle-orchestration v6 -->
+<!-- MERIDIAN:BEGIN capability=lifecycle-orchestration v7 -->
 `Run lifecycle <TASK-ID>` authorizes an orchestrator to carry one dependency-ready
 task through implementation, independent review, requested-change remediation,
 acceptance, and `main` integration without further developer prompts. It does
@@ -33,16 +33,20 @@ copies findings between chats.
 ## Preconditions and stop conditions
 
 Before delegation, confirm that the task is assigned and dependency-ready,
-that its deterministic branch/worktree names do not conflict, and that the
-dedicated task worktree is clean. Create or select that worktree before any
-task mutation. The task's declared `Reasoning` value is the exact
+then run `meridian worktree prepare` from the primary checkout. Pass its exact
+existing path, branch, primary checkout, and worktree root to every worker as
+durable launch inputs. If the host cannot launch a fresh session with that path
+as its effective workspace, return `BLOCKED`; never use automatic isolation,
+`.claude/worktrees`, the primary checkout, or a substitute path. The task's
+declared `Reasoning` value is the exact
 permitted effort for both implementer and reviewer, not a minimum: configure
 each fresh worker session to that value and stop before delegation if the
 effective setting differs or cannot be confirmed. Never escalate either worker
 automatically. Use the lowest available reasoning profile for the orchestrator.
-Do not run implementation and review concurrently in the same worktree. Stop
-the implementer before starting the fresh reviewer. The review worker's first
-action is the fail-closed handoff and registered-worktree preflight in
+Do not run implementation and review concurrently in the same worktree. Every
+worker's first action is `meridian worktree check` in the prepared directory,
+before any task or handoff read. Stop the implementer before starting the fresh
+reviewer. The reviewer then runs the handoff preflight in
 `docs/workflows/REVIEW.md`; it performs no substantive review unless the
 absolute path, branch, HEAD, clean state, validated commits, and stopped
 implementer all verify. If launched from the primary checkout, it roots every
@@ -65,9 +69,9 @@ restart the lifecycle after resolving the underlying scope or authority issue.
 ## Integration and forge gates
 
 The `Run lifecycle` authorization includes the local review-and-status commit,
-serialized `--no-ff --no-commit` integration, evidence-reuse decision, selected
-integration gate, and the single `main` push only after `APPROVE` and all
-repository checks pass. The validated task commit must be an ancestor of task
+`meridian worktree integrate stage`, separately executed candidate validation,
+`integrate finalize` or `integrate abort`, and the single `main` push only after
+`APPROVE` and all repository checks pass. The validated task commit must be an ancestor of task
 HEAD, its intervening diff may contain only permitted lifecycle records, and
 the validated base must be an ancestor of the validated commit. When current `main` still equals that
 base, reuse the successful task evidence. When `main` advanced, use the
@@ -76,8 +80,9 @@ bounded gate only after independence is recorded, full validation for an
 interaction or explicit requirement, and `BLOCKED` when independence cannot
 be established. A dirty or unavailable primary checkout blocks integration
 without changing the task worktree. A merge conflict or bounded/full gate
-failure is aborted and preserves the task branch and worktree. Only successful
-integration permits removing the worktree and then the branch. These reuse
+failure uses `integrate abort` and preserves the task branch and worktree. Only
+successful integration and required push permit `meridian worktree cleanup`.
+These reuse
 rules do not weaken independent review, acceptance evidence, or forge gates,
 and do not fabricate an external approval. If the
 forge requires an approval from a distinct authorized identity, leave the PR

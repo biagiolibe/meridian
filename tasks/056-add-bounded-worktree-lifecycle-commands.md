@@ -264,11 +264,10 @@ Evidence plan:
   rule loading after restart, and remaining push/network behavior.
 
 Completion evidence:
-- Codex desktop / trusted project / active Meridian permission profile and project rules: unverified until the named end-to-end probe is recorded.
-- Codex CLI / trusted project / active Meridian permission profile and project rules: unverified until the named end-to-end probe is recorded.
-- Claude Code plugin session: unverified until the named existing-worktree
-  binding probe completes without creating a substitute checkout.
-- Host-neutral Meridian CLI: unverified until the real-Git lifecycle suite passes.
+- Codex desktop / trusted project / active Meridian permission profile and project rules: unverified; the CLI probe does not establish desktop profile activation.
+- Codex CLI / trusted project / active Meridian permission profile and project rules: verified for Codex CLI 0.157.1 by the prepare/check, actual execpolicy, stage/finalize, and cleanup evidence in `docs/TASK_056_HOST_PROBE.md`.
+- Claude Code plugin session: unverified. Claude Code 2.1.283 launched from the exact prepared directory without registering a substitute checkout, but stopped before an API turn because the client was not logged in; repeat after authentication.
+- Host-neutral Meridian CLI: verified by the real-Git lifecycle suite and the temporary-repository end-to-end probe recorded in `docs/TASK_056_HOST_PROBE.md`.
 
 ## 🔗 Dependencies
 

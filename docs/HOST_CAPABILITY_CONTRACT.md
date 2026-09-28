@@ -153,6 +153,23 @@ metadata separately. Static configuration is not host-execution evidence.
 project execpolicy rules control approval decisions but cannot widen the
 filesystem sandbox.
 
+## Host-neutral worktree lifecycle
+
+`meridian worktree path|prepare|check|integrate|cleanup` is the canonical
+lifecycle surface for Codex, Claude Code, and direct-terminal use. Codex rules
+may allow only those action prefixes; Claude uses its own permission adapter.
+The commands validate the current canonical project, task identity, configured
+root, repository-qualified path, branch, state, lease ownership, and evidence
+before changing Git metadata. They never execute project-controlled commands.
+
+Orchestration prepares the checkout before starting any worker and passes the
+returned existing path as a launch input. A worker immediately runs read-only
+`check` from that exact directory. A host facility that creates a second
+checkout, including a Claude automatic worktree, is not an equivalent adapter;
+if the host cannot attach a fresh context to the prepared directory, the
+lifecycle is `BLOCKED` and both checkouts are retained. `meridian codex
+worktree-path` remains a deprecated path-only alias for one migration window.
+
 ## Decision rules
 
 - Prefer a common policy with narrow host adapters over a common parser that
