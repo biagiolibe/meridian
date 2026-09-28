@@ -259,6 +259,12 @@
       "version": 12
     }
   },
+  "templates/workflows/lean-delivery/LANGUAGE_POLICY.md": {
+    "language-policy": {
+      "sha256": "71a8ada0767ac92c3b6a4030b8b911fc58b23f7473fd1a96af1fe85f84645985",
+      "version": 2
+    }
+  },
   "templates/workflows/lean-delivery/PROJECT_WORKFLOW.md": {
     "bounded-worktree-lifecycle": {
       "sha256": "73b6a01f64f3ce9260d45909f4b7a79e4d06b795ce4c29b9fe49fbf346a07e5d",
@@ -270,6 +276,36 @@
     },
     "task-identity-policy": {
       "sha256": "78df2cd565b113a06771de7572bd260667aa8a687aa3b6066d12b4578d510221",
+      "version": 1
+    },
+    "validation-scoping": {
+      "sha256": "e96c1d406eb517daa36e43819dedddc16bb9574b080115d3961fa1c4edac8f2c",
+      "version": 1
+    }
+  },
+  "templates/workflows/lean-delivery/docs/CONTEXT_BUDGET_POLICY.md": {
+    "evidence-tiers": {
+      "sha256": "16e34a46c2064604047d9eb13acf5130886605aa930dc0c64413506ba4e6ca4d",
+      "version": 1
+    },
+    "execution-evidence-profile": {
+      "sha256": "1cfafcc7a5f166c5d27828a540324e6172d0046d7bc4532b3a215d29358ca591",
+      "version": 3
+    },
+    "minimal-read-only-status": {
+      "sha256": "e8526a7cb209070293c269433930771a7777c76b4ec74704e384eeb08650662c",
+      "version": 1
+    },
+    "queue-briefing": {
+      "sha256": "66ab441a87d602a6948131f3c28179f59df9a12ce79f0678c62acc79db29e1ac",
+      "version": 1
+    },
+    "read-guard": {
+      "sha256": "84eead3e10d82d2859bf53b7477c304b2e71030a9e6912d4dd7b4e53b41b4a98",
+      "version": 1
+    },
+    "validation-scoping": {
+      "sha256": "8e165c94ec1b84f1e2da7d5ef6d355c0c009c9e7b2b799aa13422420cf41dd45",
       "version": 1
     }
   }

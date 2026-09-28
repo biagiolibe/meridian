@@ -37,7 +37,9 @@ The Meridian template source is at: `${CLAUDE_PLUGIN_ROOT}`
      - `templates/workflows/lean-delivery/PROJECT_WORKFLOW.md` → `PROJECT_WORKFLOW.md`
      - `templates/workflows/lean-delivery/AGENTS.md` → `AGENTS.md`
      - `templates/workflows/lean-delivery/CLAUDE.md` → `CLAUDE.md`
-     - `templates/workflows/lean-delivery/.codex/rules/meridian.rules` → `.codex/rules/meridian.rules`
+     - `templates/workflows/lean-delivery/LANGUAGE_POLICY.md` → `LANGUAGE_POLICY.md`
+     - `templates/workflows/lean-delivery/docs/` → `docs/`
+     - `templates/workflows/lean-delivery/.codex/` → `.codex/`
    - For `governed-sdd`:
      - `templates/workflows/governed-sdd/PROJECT_WORKFLOW.md` → `PROJECT_WORKFLOW.md`
      - `templates/workflows/governed-sdd/AGENTS.md` → `AGENTS.md`

@@ -1,0 +1,22 @@
+# Meridian task-worktree command approval policy.
+#
+# Codex loads this project-local file only after the project's .codex layer is
+# trusted in ~/.codex/config.toml. Execpolicy controls prompts; it does not
+# widen filesystem access or remove .git protection.
+
+prefix_rule(pattern=["git", ["status", "diff", "log", "show", "rev-parse", "merge-base", "branch", "add"]], decision="allow")
+prefix_rule(pattern=["git", "switch"], decision="allow")
+prefix_rule(pattern=["git", "commit", "-m"], decision="allow")
+prefix_rule(pattern=["git", "merge", "--ff-only"], decision="allow")
+prefix_rule(pattern=["git", "push"], decision="allow")
+prefix_rule(pattern=["git", "worktree", "list"], decision="allow")
+prefix_rule(pattern=["git", "worktree", ["add", "remove", "prune"]], decision="prompt")
+
+prefix_rule(pattern=["meridian", ["context", "locations", "adr", "budget", "audit"]], decision="allow")
+prefix_rule(pattern=["meridian", "codex", ["doctor", "worktree-path"]], decision="allow")
+prefix_rule(pattern=["meridian", "worktree", ["path", "prepare", "check", "cleanup"]], decision="allow")
+prefix_rule(pattern=["meridian", "worktree", "integrate", ["stage", "finalize", "abort"]], decision="allow")
+
+prefix_rule(pattern=["git", "push", ["--force", "-f", "--force-with-lease", "--delete", "--mirror"]], decision="forbidden")
+prefix_rule(pattern=["git", "branch", ["-D", "--delete", "--force", "-f"]], decision="prompt")
+prefix_rule(pattern=["git", ["reset", "rebase", "cherry-pick"]], decision="forbidden")
