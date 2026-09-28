@@ -1,8 +1,8 @@
 # Meridian Self-Hosting Capability Profile
 
-Status: design proposal. This note defines a future implementation boundary;
-it does not change runtime behavior, the manifest schema, managed templates,
-hooks, migrations, tests, or host configuration.
+Status: implemented profile contract. Tasks 058–060 provide the manifest,
+catalog, audit semantics, managed templates, adapters, and conservative
+bootstrap described here. Host activation remains unverified until Task 061.
 
 ## Decision
 

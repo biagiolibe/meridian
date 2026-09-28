@@ -1346,11 +1346,22 @@ def managed_files_for_workflow(workflow: Path, mode: str) -> list[ManagedFile]:
     if not workflow.is_dir():
         raise MeridianError(f"workflow template is missing: {workflow}")
 
-    paths = [Path("PROJECT_WORKFLOW.md"), Path("AGENTS.md"), Path("CLAUDE.md")]
+    paths = [
+        Path("PROJECT_WORKFLOW.md"),
+        Path("AGENTS.md"),
+        Path("CLAUDE.md"),
+        Path("LANGUAGE_POLICY.md"),
+    ]
+    if mode == "lean-delivery":
+        paths.extend(
+            [
+                Path("docs/CONTEXT_BUDGET_POLICY.md"),
+                Path("docs/EXECUTION_EVIDENCE_PROFILE.md"),
+            ]
+        )
     if mode == "governed-sdd":
         paths.extend(
             [
-                Path("LANGUAGE_POLICY.md"),
                 Path("tasks/TASK_BLUEPRINT.md"),
                 *[
                     item.relative_to(workflow)
@@ -2729,8 +2740,6 @@ def audit_capability_markers(
     superseded, so an already-damaged project is found instead of left to
     accumulate a growing set of contradictory pairs.
     """
-    if mode != "governed-sdd":
-        return []
     retired_versions = retired_capability_versions(framework_root)
     results: list[tuple[str, str]] = []
     for item in managed_files(framework_root, mode):
@@ -2832,8 +2841,6 @@ def audit_duplicate_headings(project_root: Path, framework_root: Path, mode: str
     remains a human review concern; this only catches the structural case a
     marker can see.
     """
-    if mode != "governed-sdd":
-        return []
     results: list[tuple[str, str]] = []
     for item in managed_files(framework_root, mode):
         local = project_root / item.target
@@ -3412,6 +3419,83 @@ def run_audit(project_root: Path, framework_root: Path, mode: str) -> int:
     summary = " ".join(f"{state}={counts[state]}" for state in AUDIT_STATES)
     print(f"SUMMARY worst={aggregate} {summary}")
     return exit_code
+
+
+def bootstrap_capability_profile(
+    project_root: Path, framework_root: Path, profile_id: str, *, apply: bool
+) -> dict[str, object]:
+    """Observe catalog surfaces and conservatively declare one profile.
+
+    Static files can establish installation only. Host activation and
+    capability verification remain UNVERIFIED until a versioned probe records
+    stronger evidence.
+    """
+    manifest = load_manifest(project_root, framework_root)
+    catalog = load_capability_catalog(framework_root)
+    profile = catalog.profile(profile_id)
+    if profile is None:
+        raise MeridianError(f"capability profile is not present in the catalog: {profile_id}")
+    workflow_mode = manifest_workflow_mode(manifest)
+    declarations: dict[str, object] = {}
+    managed_files = dict(manifest.get("managedFiles", {}))
+    for capability_id, required_version in profile.capabilities:
+        capability = catalog.capability(capability_id)
+        assert capability is not None
+        if workflow_mode not in capability.workflow_modes:
+            raise MeridianError(
+                f"profile {profile_id} capability {capability_id} excludes workflow {workflow_mode}"
+            )
+        surfaces: list[dict[str, str]] = []
+        evidence: list[str] = []
+        complete = True
+        for surface in capability.managed_surfaces:
+            form = surface.forms[0]
+            surfaces.append({"path": surface.path, "form": form})
+            path = project_root / surface.path
+            if form != "declaration-only" and not path.is_file():
+                complete = False
+                continue
+            if form != "declaration-only":
+                digest = sha256(path)
+                evidence.append(f"sha256:{digest}")
+                if form == "managed-copy":
+                    managed_files[surface.path] = digest
+        declarations[capability_id] = {
+            "requiredVersion": required_version,
+            "managedSurface": surfaces,
+            "installation": {
+                "state": "INSTALLED" if complete else "MISSING",
+                "evidence": sorted(set(evidence)),
+                "notApplicableRationale": None,
+            },
+            "hostActivation": {
+                host_id: {
+                    "state": "UNVERIFIED",
+                    "evidence": [],
+                    "notApplicableRationale": None,
+                }
+                for host_id, _evidence_kind in capability.host_profiles
+            },
+            "verification": {
+                "state": "UNVERIFIED",
+                "evidence": [],
+                "verifiedAt": None,
+                "verifierVersion": None,
+                "notApplicableRationale": None,
+            },
+        }
+    updated = canonical_manifest(manifest)
+    profiles = dict(updated.get("capabilityProfiles", {}))
+    profiles[profile_id] = {
+        "profileVersion": profile.version,
+        "capabilities": declarations,
+    }
+    updated["capabilityProfiles"] = profiles
+    updated["managedFiles"] = dict(sorted(managed_files.items()))
+    validate_manifest(updated, catalog)
+    if apply:
+        write_manifest(project_root, updated, framework_root)
+    return updated
 
 
 def detect_capabilities(project_root: Path, mode: str, framework_root: Path) -> list[Capability]:
@@ -5759,6 +5843,19 @@ def main() -> int:
         help="detected from the project's PROJECT_WORKFLOW.md mode lock when omitted",
     )
 
+    profile_parser = subparsers.add_parser(
+        "profile", help="inspect or bootstrap an effective capability profile"
+    )
+    profile_sub = profile_parser.add_subparsers(dest="profile_command", required=True)
+    profile_bootstrap = profile_sub.add_parser(
+        "bootstrap", help="observe installation surfaces without claiming host activation"
+    )
+    profile_bootstrap.add_argument("profile_id")
+    profile_bootstrap.add_argument("--project", type=Path, default=Path.cwd())
+    profile_action = profile_bootstrap.add_mutually_exclusive_group(required=True)
+    profile_action.add_argument("--check", action="store_true")
+    profile_action.add_argument("--apply", action="store_true")
+
     locations = subparsers.add_parser("locations", help="print resolved project queue and task locations")
     locations.add_argument("--project", type=Path, default=Path.cwd())
     locations.add_argument("--field", choices=("queue", "task-roots"))
@@ -5969,6 +6066,14 @@ def main() -> int:
         elif arguments.command == "audit":
             mode = arguments.mode or detect_mode(project_root)
             return run_audit(project_root, framework_root, mode)
+        elif arguments.command == "profile":
+            manifest = bootstrap_capability_profile(
+                project_root,
+                framework_root,
+                arguments.profile_id,
+                apply=arguments.apply,
+            )
+            print(json.dumps(manifest["capabilityProfiles"][arguments.profile_id], indent=2, sort_keys=True))
         elif arguments.command == "locations":
             locations = resolve_project_locations(project_root)
             if arguments.field == "queue":

@@ -50,6 +50,7 @@ REQUIRED_FILES = (
     "migrations/012-agents-claude-residual-capabilities.json",
     "migrations/013-language-policy-v2.json",
     "migrations/048-manifest-capability-profile-schema.json",
+    "migrations/052-install-meridian-self-hosting-surfaces.json",
     "migrations/README.md",
     "migrations/ASSISTED_ADOPTION.md",
     "release-baselines/1.0.0/templates/workflows/governed-sdd/PROJECT_WORKFLOW.md",
@@ -59,11 +60,16 @@ REQUIRED_FILES = (
     "templates/workflows/lean-delivery/PROJECT_WORKFLOW.md",
     "templates/workflows/lean-delivery/AGENTS.md",
     "templates/workflows/lean-delivery/CLAUDE.md",
+    "templates/workflows/lean-delivery/LANGUAGE_POLICY.md",
+    "templates/workflows/lean-delivery/docs/CONTEXT_BUDGET_POLICY.md",
+    "templates/workflows/lean-delivery/docs/EXECUTION_EVIDENCE_PROFILE.md",
+    "templates/workflows/lean-delivery/.codex/hooks.json",
     "skills/meridian-lean-delivery/SKILL.md",
     "skills/meridian-lean-delivery-claude-code/SKILL.md",
 )
 LANGUAGE_POLICY_FILES = (
     "templates/base/LANGUAGE_POLICY.md",
+    "templates/workflows/lean-delivery/LANGUAGE_POLICY.md",
     "templates/workflows/governed-sdd/LANGUAGE_POLICY.md",
 )
 MARKDOWN_LINK = re.compile(r"(?<!!)\[[^]]*\]\(([^)]+)\)")
