@@ -66,6 +66,60 @@ class MeridianCliTest(unittest.TestCase):
             check=False,
         )
 
+    def configure_1_1_40_to_1_1_41_upgrade(self) -> None:
+        """Lock the entry points immediately before migration 044."""
+        workflow = self.framework / "templates/workflows/governed-sdd"
+        for name in ("AGENTS.md", "CLAUDE.md"):
+            current = workflow / name
+            old_text = current.read_text(encoding="utf-8").replace(
+                "MERIDIAN:BEGIN capability=command-triggers v3",
+                "MERIDIAN:BEGIN capability=command-triggers v2",
+            ).replace(
+                "- `Restart rejected <TASK-ID>` — read `docs/workflows/LIFECYCLE.md`.\n",
+                "",
+            )
+            current.write_text(old_text, encoding="utf-8")
+            (self.project / name).write_text(old_text, encoding="utf-8")
+        (self.framework / "VERSION").write_text("1.1.40\n", encoding="utf-8")
+        self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
+        for name in ("AGENTS.md", "CLAUDE.md"):
+            source = ROOT / "templates/workflows/governed-sdd" / name
+            (workflow / name).write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
+        (self.framework / "VERSION").write_text("1.1.41\n", encoding="utf-8")
+
+    def install_entry_router(self, include_restart: bool = True) -> None:
+        lifecycle_triggers = (
+            "`Restart rejected <TASK-ID>`, " if include_restart else ""
+        ) + "`Run lifecycle <TASK-ID>`, or `Accept <TASK-ID>`"
+        router = (
+            "# Project entry router\n\n"
+            "- Status or design question: `docs/workflows/STATUS_DESIGN.md`.\n"
+            "- `Proceed with <TASK-ID>`: `docs/workflows/IMPLEMENTATION.md`.\n"
+            "- `Review <TASK-ID>`: `docs/workflows/REVIEW.md`.\n"
+            "- `Address review <TASK-ID>`: `docs/workflows/REMEDIATION.md`.\n"
+            f"- {lifecycle_triggers}: `docs/workflows/LIFECYCLE.md`.\n"
+            "- Explicit audit: `docs/AUDIT_PROMPT_READ_ONLY.md`.\n"
+        )
+        router_path = self.project / meridian.ENTRY_ROUTER_PATH
+        router_path.parent.mkdir(parents=True, exist_ok=True)
+        router_path.write_text(router, encoding="utf-8")
+        (self.project / meridian.ENTRY_ROUTER_MAP_PATH).write_text(
+            json.dumps(meridian.ENTRY_ROUTER_ROUTES, indent=2) + "\n", encoding="utf-8"
+        )
+        for route, relative in meridian.ENTRY_ROUTER_ROUTES.items():
+            target = self.project / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            text = target.read_text(encoding="utf-8") if target.is_file() else "# Routed procedure\n"
+            missing = [
+                token
+                for token in meridian.ENTRY_ROUTER_SAFEGUARDS[route]
+                if token not in text.lower()
+            ]
+            if missing:
+                target.write_text(text.rstrip() + "\n\n" + " ".join(missing) + "\n", encoding="utf-8")
+        for target, output in meridian.entry_router_outputs(self.project).items():
+            (self.project / target).write_text(output, encoding="utf-8")
+
     def reset_project_to_installed_baseline(self) -> None:
         """Overwrite every managed project file with the exact content
         `.meridian/baselines/<installed version>` recorded at `lock` time,
@@ -1635,6 +1689,72 @@ worktree before the branch only after validated integration succeeds.
         self.assertEqual(applied.returncode, 2)
         self.assertIn("BLOCKED", applied.stderr)
         self.assertIn("## Local Roles", local.read_text(encoding="utf-8"))
+
+    def test_router_project_upgrades_1_1_40_to_1_1_41_without_generated_drift(self) -> None:
+        self.configure_1_1_40_to_1_1_41_upgrade()
+        self.install_entry_router(include_restart=True)
+
+        checked = self.run_cli("upgrade", "--check")
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+        self.assertIn("ROUTER   AGENTS.md", checked.stdout)
+        self.assertIn("ROUTER   CLAUDE.md", checked.stdout)
+        self.assertNotIn("MERGE    AGENTS.md", checked.stdout)
+
+        applied = self.run_cli("upgrade", "--apply")
+        self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+        outputs = meridian.entry_router_outputs(self.project)
+        for target, expected in outputs.items():
+            self.assertEqual((self.project / target).read_text(encoding="utf-8"), expected)
+        self.assertEqual(meridian.audit_entry_router(self.project), [])
+        manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual(manifest["managedFiles"]["AGENTS.md"], meridian.sha256(self.project / "AGENTS.md"))
+        self.assertEqual(manifest["managedFiles"]["CLAUDE.md"], meridian.sha256(self.project / "CLAUDE.md"))
+
+        noop = self.run_cli("upgrade", "--check")
+        self.assertEqual(noop.returncode, 0, noop.stdout + noop.stderr)
+        self.assertIn("ROUTER   AGENTS.md", noop.stdout)
+
+    def test_router_project_missing_restart_trigger_blocks_before_writing(self) -> None:
+        self.configure_1_1_40_to_1_1_41_upgrade()
+        self.install_entry_router(include_restart=False)
+        before = {
+            path.relative_to(self.project): path.read_bytes()
+            for path in self.project.rglob("*")
+            if path.is_file()
+        }
+
+        checked = self.run_cli("upgrade", "--check")
+        self.assertEqual(checked.returncode, 2, checked.stdout + checked.stderr)
+        self.assertIn("ROUTER   AGENTS.md", checked.stdout)
+        self.assertIn("missing trigger `Restart rejected <TASK-ID>`", checked.stdout)
+        self.assertIn("for `docs/workflows/LIFECYCLE.md`", checked.stdout)
+        self.assertIn("existing route line", checked.stdout)
+        self.assertIn("exactly once", checked.stdout)
+
+        applied = self.run_cli("upgrade", "--apply")
+        self.assertEqual(applied.returncode, 2, applied.stdout + applied.stderr)
+        after = {
+            path.relative_to(self.project): path.read_bytes()
+            for path in self.project.rglob("*")
+            if path.is_file()
+        }
+        self.assertEqual(after, before)
+
+    def test_project_without_entry_router_keeps_managed_entry_point_upgrade(self) -> None:
+        self.configure_1_1_40_to_1_1_41_upgrade()
+
+        checked = self.run_cli("upgrade", "--check")
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+        self.assertIn("REPLACE  AGENTS.md", checked.stdout)
+        self.assertIn("REPLACE  CLAUDE.md", checked.stdout)
+        self.assertNotIn("ROUTER", checked.stdout)
+
+        applied = self.run_cli("upgrade", "--apply")
+        self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+        self.assertIn(
+            "`Restart rejected <TASK-ID>`",
+            (self.project / "AGENTS.md").read_text(encoding="utf-8"),
+        )
 
     def test_owner_reconciled_upgrade_registers_baseline_despite_conflicts(self) -> None:
         self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)

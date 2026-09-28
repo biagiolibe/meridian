@@ -107,6 +107,15 @@ Only after Release A is accepted and the route fixtures pass:
    resolve it with a forward, explicitly reviewed change rather than deleting
    around it.
 
+After adoption, framework upgrades treat `AGENTS.md` and `CLAUDE.md` as
+generated outputs. An upgrade plan reports them as `ROUTER` and never merges
+the framework templates into them. When a pending `command-triggers` migration
+adds a command, the canonical router must expose that exact command and its
+target document before apply can start. If the target already has a route,
+append the command to that existing line: the route audit requires every target
+document to appear exactly once. Successful apply regenerates both entry
+points, audits the result immediately, and records the generated-file hashes.
+
 The final router contains bootstrap invariants and the route map, not role
 procedures. It must not emit a Claude pointer.
 
