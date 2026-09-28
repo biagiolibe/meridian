@@ -1,8 +1,8 @@
 # Meridian Self-Hosting Capability Profile
 
-Status: implemented profile contract. Tasks 058–060 provide the manifest,
-catalog, audit semantics, managed templates, adapters, and conservative
-bootstrap described here. Host activation remains unverified until Task 061.
+Status: implemented profile contract. Tasks 058–061 provide the manifest,
+catalog, audit semantics, managed templates, adapters, conservative host
+probes, and the clean-checkout dogfooding gate described here.
 
 ## Decision
 
@@ -294,6 +294,33 @@ must confirm:
 - every applicable capability has a non-empty auditable surface;
 - host-dependent results are no stronger than the recorded host evidence;
 - no Governed-only lifecycle capability entered the profile.
+
+The concrete commands are:
+
+```bash
+python3 scripts/meridian.py --framework-root . profile doctor meridian-self-hosting --project .
+python3 scripts/meridian.py --framework-root . audit --project . --mode lean-delivery --ci-profile meridian-self-hosting
+```
+
+The doctor resolves catalog declarations, managed copies, shared sources,
+manifest evidence references, and every profile-required probe without
+writing. The CI audit continues to print host-dependent `UNVERIFIED` rows, but
+its CI gate requires every static installation row and every global audit
+failure condition to pass. The separately executed unit suite supplies the
+behavior checks named by the host-neutral probe. This does not promote an
+interactive host state.
+
+Versioned probe records live under
+`.meridian/probes/meridian-self-hosting/`. Each names the exact host profile,
+host version or explicit unverified scope, invocation mode, configuration
+layer, observation time, evidence artifact, behaviors and dimensions, state,
+and fallback. The Codex record keeps hook configuration, project trust,
+filesystem access, execpolicy decisions, command results, and read-guard
+behavior separate. The Claude record separately covers shared-source
+integrity, plugin activation, permission behavior, queue briefing, and
+read-guard behavior. Until a probe is run in a matching Meridian host session,
+its observation and evidence fields remain null and manifest activation stays
+`UNVERIFIED`.
 
 Deterministic fixtures cover at least:
 

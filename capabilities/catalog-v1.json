@@ -354,6 +354,11 @@
         "validation-scoping": 1,
         "worktree-safety": 1
       },
+      "hostProbes": {
+        "claude-project": ".meridian/probes/meridian-self-hosting/claude-project-v1.json",
+        "codex-project": ".meridian/probes/meridian-self-hosting/codex-project-v1.json"
+      },
+      "verificationProbe": ".meridian/probes/meridian-self-hosting/host-neutral-ci-v1.json",
       "version": 1
     }
   }

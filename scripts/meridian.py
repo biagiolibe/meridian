@@ -188,6 +188,8 @@ class CatalogProfile:
     profile_id: str
     version: int
     capabilities: tuple[tuple[str, int], ...]
+    verification_probe: str
+    host_probes: tuple[tuple[str, str], ...]
 
 
 @dataclass(frozen=True)
@@ -1702,8 +1704,29 @@ def parse_capability_catalog(value: object) -> CapabilityCatalog:
                 profile_id=profile_id,
                 version=_required_positive_integer(profile.get("version"), f"{label}.version"),
                 capabilities=required,
+                verification_probe=_repository_relative_path(
+                    profile.get("verificationProbe"), f"{label}.verificationProbe"
+                ),
+                host_probes=tuple(
+                    (
+                        host_id,
+                        _repository_relative_path(path, f"{label}.hostProbes.{host_id}"),
+                    )
+                    for host_id, path in sorted(
+                        _required_object(profile.get("hostProbes"), f"{label}.hostProbes").items()
+                    )
+                ),
             )
         )
+        declared_hosts = {
+            host_id
+            for capability_id, _version in required
+            for host_id, _kind in catalog.capability(capability_id).host_profiles
+        }
+        if set(dict(profiles[-1].host_probes)) != declared_hosts:
+            raise MeridianError(
+                f"{label}.hostProbes must declare exactly: {', '.join(sorted(declared_hosts))}"
+            )
     return CapabilityCatalog(catalog_version, catalog.capabilities, tuple(profiles))
 
 
@@ -3381,7 +3404,12 @@ def audit_declared_capabilities(
     return results, workflow_mode
 
 
-def run_audit(project_root: Path, framework_root: Path, mode: str) -> int:
+def run_audit(
+    project_root: Path,
+    framework_root: Path,
+    mode: str,
+    ci_profile: str | None = None,
+) -> int:
     results, locked_mode = audit_declared_capabilities(project_root, framework_root, mode)
     legacy_checks = (
         ("marker-integrity", audit_capability_markers),
@@ -3418,7 +3446,157 @@ def run_audit(project_root: Path, framework_root: Path, mode: str) -> int:
         exit_code = 0
     summary = " ".join(f"{state}={counts[state]}" for state in AUDIT_STATES)
     print(f"SUMMARY worst={aggregate} {summary}")
+    if ci_profile is not None:
+        required = [
+            result
+            for result in results
+            if result.status == "FAIL"
+            or (
+                result.identity.startswith(f"{ci_profile}/")
+                and result.identity.endswith("/installation")
+            )
+        ]
+        profile_installations = [
+            result
+            for result in required
+            if result.identity.startswith(f"{ci_profile}/")
+            and result.identity.endswith("/installation")
+        ]
+        required_failures = [result for result in required if result.status != "PASS"]
+        if not profile_installations:
+            required_failures.append(
+                AuditResult(
+                    "FAIL",
+                    f"{ci_profile}/ci-gate",
+                    "profile has no declared installation results",
+                )
+            )
+        ci_status = "FAIL" if required_failures else "PASS"
+        print(
+            f"CI_GATE profile={ci_profile} worst={ci_status} "
+            f"required={len(required)} failures={len(required_failures)}"
+        )
+        return 2 if required_failures else 0
     return exit_code
+
+
+def _load_profile_probe(
+    project_root: Path,
+    relative_path: str,
+    profile: CatalogProfile,
+    expected_host: str,
+) -> dict[str, object]:
+    path = project_root / relative_path
+    if not path.is_file():
+        raise MeridianError(f"required probe is missing: {relative_path}")
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        raise MeridianError(f"required probe is invalid JSON: {relative_path}") from error
+    data = _required_object(value, f"probe {relative_path}")
+    if data.get("schemaVersion") != 1:
+        raise MeridianError(f"probe {relative_path} must use schemaVersion 1")
+    if data.get("profileId") != profile.profile_id or data.get("profileVersion") != profile.version:
+        raise MeridianError(f"probe {relative_path} targets the wrong profile version")
+    if data.get("hostProfile") != expected_host:
+        raise MeridianError(f"probe {relative_path} must target host profile {expected_host}")
+    for field in ("host", "hostVersion", "invocationMode", "configurationLayer", "fallback"):
+        _required_string(data.get(field), f"probe {relative_path}.{field}")
+    state = _required_string(data.get("state"), f"probe {relative_path}.state")
+    if state not in {"PASS", "ADVISORY", "UNSUPPORTED", "UNVERIFIED"}:
+        raise MeridianError(f"probe {relative_path}.state is unsupported: {state}")
+    for field in ("observationTime", "evidenceArtifact"):
+        field_value = data.get(field)
+        if field_value is not None and (not isinstance(field_value, str) or not field_value.strip()):
+            raise MeridianError(f"probe {relative_path}.{field} must be null or a non-empty string")
+    if state == "PASS" and (data.get("observationTime") is None or data.get("evidenceArtifact") is None):
+        raise MeridianError(f"probe {relative_path} PASS requires observationTime and evidenceArtifact")
+    checks = data.get("checks")
+    if not isinstance(checks, list) or not checks:
+        raise MeridianError(f"probe {relative_path}.checks must be a non-empty list")
+    covered: set[str] = set()
+    for index, raw_check in enumerate(checks):
+        check = _required_object(raw_check, f"probe {relative_path}.checks[{index}]")
+        capability_id = _required_string(
+            check.get("capability"), f"probe {relative_path}.checks[{index}].capability"
+        )
+        if capability_id not in dict(profile.capabilities):
+            raise MeridianError(f"probe {relative_path} names undeclared capability {capability_id}")
+        _required_string(check.get("behavior"), f"probe {relative_path}.checks[{index}].behavior")
+        dimensions = _required_string_list(
+            check.get("dimensions"), f"probe {relative_path}.checks[{index}].dimensions", non_empty=True
+        )
+        if len(set(dimensions)) != len(dimensions):
+            raise MeridianError(f"probe {relative_path} has duplicate check dimensions")
+        covered.add(capability_id)
+    data["_coveredCapabilities"] = sorted(covered)
+    return data
+
+
+def profile_doctor(project_root: Path, framework_root: Path, profile_id: str) -> int:
+    """Resolve a profile and all repository-owned evidence without mutation."""
+    results: list[AuditResult] = []
+    try:
+        manifest = load_manifest(project_root, framework_root)
+        catalog = load_capability_catalog(framework_root)
+        profile = catalog.profile(profile_id)
+        if profile is None:
+            raise MeridianError(f"capability profile is not present in the catalog: {profile_id}")
+        declarations = {item.profile_id: item for item in parse_capability_profiles(manifest, catalog)}
+        declaration = declarations.get(profile_id)
+        if declaration is None:
+            raise MeridianError(f"manifest does not declare capability profile: {profile_id}")
+        audit_results, _mode = audit_declared_capabilities(
+            project_root, framework_root, manifest_workflow_mode(manifest)
+        )
+        for result in audit_results:
+            if result.identity.startswith(f"{profile_id}/") and result.identity.endswith("/installation"):
+                results.append(result)
+        for capability in declaration.capabilities:
+            references = list(capability.installation.evidence)
+            references.extend(
+                reference
+                for _host, snapshot in capability.host_activation
+                for reference in snapshot.evidence
+            )
+            references.extend(capability.verification.evidence)
+            for reference in references:
+                if reference.startswith(("path:", "probe:")):
+                    raw_path = reference.split(":", 1)[1]
+                    relative = _repository_relative_path(raw_path, "profile evidence path")
+                    status = "PASS" if (project_root / relative).is_file() else "FAIL"
+                    results.append(AuditResult(status, f"{profile_id}/evidence/{relative}", "resolved" if status == "PASS" else "missing"))
+        ci_probe = _load_profile_probe(
+            project_root, profile.verification_probe, profile, "host-neutral-ci"
+        )
+        missing_ci = sorted(set(dict(profile.capabilities)) - set(ci_probe["_coveredCapabilities"]))
+        results.append(AuditResult(
+            "FAIL" if missing_ci else "PASS",
+            f"{profile_id}/probe/host-neutral-ci",
+            "missing capability checks: " + ", ".join(missing_ci) if missing_ci else f"resolved {profile.verification_probe}",
+        ))
+        supported_by_host: dict[str, set[str]] = {}
+        for capability_id, _version in profile.capabilities:
+            capability = catalog.capability(capability_id)
+            assert capability is not None
+            for host_id, _kind in capability.host_profiles:
+                supported_by_host.setdefault(host_id, set()).add(capability_id)
+        for host_id, probe_path in profile.host_probes:
+            probe = _load_profile_probe(project_root, probe_path, profile, host_id)
+            missing = sorted(supported_by_host[host_id] - set(probe["_coveredCapabilities"]))
+            results.append(AuditResult(
+                "FAIL" if missing else "PASS",
+                f"{profile_id}/probe/{host_id}",
+                "missing capability checks: " + ", ".join(missing) if missing else f"resolved {probe_path}; host state={probe['state']}",
+            ))
+    except MeridianError as error:
+        results.append(AuditResult("FAIL", f"{profile_id}/doctor", str(error)))
+    results.sort(key=lambda result: (result.identity, result.detail))
+    for result in results:
+        print(f"{result.status:14} {result.identity} — {result.detail}")
+    failures = sum(result.status == "FAIL" for result in results)
+    print(f"SUMMARY profile={profile_id} PASS={sum(result.status == 'PASS' for result in results)} FAIL={failures}")
+    return 2 if failures else 0
 
 
 def bootstrap_capability_profile(
@@ -5842,11 +6020,20 @@ def main() -> int:
         choices=("lean-delivery", "governed-sdd"),
         help="detected from the project's PROJECT_WORKFLOW.md mode lock when omitted",
     )
+    audit.add_argument(
+        "--ci-profile",
+        help="gate catalog-required static installation while retaining visible host UNVERIFIED rows",
+    )
 
     profile_parser = subparsers.add_parser(
         "profile", help="inspect or bootstrap an effective capability profile"
     )
     profile_sub = profile_parser.add_subparsers(dest="profile_command", required=True)
+    profile_doctor_parser = profile_sub.add_parser(
+        "doctor", help="resolve a declared profile, its evidence, and required probes"
+    )
+    profile_doctor_parser.add_argument("profile_id")
+    profile_doctor_parser.add_argument("--project", type=Path, default=Path.cwd())
     profile_bootstrap = profile_sub.add_parser(
         "bootstrap", help="observe installation surfaces without claiming host activation"
     )
@@ -6065,8 +6252,10 @@ def main() -> int:
             finalize_adoption(project_root, framework_root, mode, arguments.owner_accepted)
         elif arguments.command == "audit":
             mode = arguments.mode or detect_mode(project_root)
-            return run_audit(project_root, framework_root, mode)
+            return run_audit(project_root, framework_root, mode, arguments.ci_profile)
         elif arguments.command == "profile":
+            if arguments.profile_command == "doctor":
+                return profile_doctor(project_root, framework_root, arguments.profile_id)
             manifest = bootstrap_capability_profile(
                 project_root,
                 framework_root,

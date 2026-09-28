@@ -4259,6 +4259,145 @@ class CapabilityProfileManifestTest(unittest.TestCase):
         self.assertIn("shared-source", read_guard.installation_forms)
         self.assertTrue(read_guard.managed_surfaces)
         self.assertEqual(read_guard.dependencies, (("context-budgeting", 1),))
+        profile = self.catalog.profile("meridian-self-hosting")
+        self.assertEqual(
+            profile.verification_probe,
+            ".meridian/probes/meridian-self-hosting/host-neutral-ci-v1.json",
+        )
+        self.assertEqual(
+            set(dict(profile.host_probes)), {"claude-project", "codex-project"}
+        )
+
+    def test_profile_doctor_is_read_only_and_resolves_required_probes(self) -> None:
+        before = {
+            path.relative_to(ROOT): path.read_bytes()
+            for path in ROOT.rglob("*")
+            if path.is_file() and ".git" not in path.parts
+        }
+        output = io.StringIO()
+        with redirect_stdout(output):
+            return_code = meridian.profile_doctor(
+                ROOT, ROOT, "meridian-self-hosting"
+            )
+        after = {
+            path.relative_to(ROOT): path.read_bytes()
+            for path in ROOT.rglob("*")
+            if path.is_file() and ".git" not in path.parts
+        }
+        self.assertEqual(return_code, 0, output.getvalue())
+        self.assertEqual(after, before)
+        self.assertIn("probe/claude-project", output.getvalue())
+        self.assertIn("probe/codex-project", output.getvalue())
+        self.assertIn("host state=UNVERIFIED", output.getvalue())
+
+    def test_profile_doctor_fails_missing_or_incomplete_probe(self) -> None:
+        for mutation, diagnostic in (("missing", "required probe is missing"), ("incomplete", "missing capability checks")):
+            with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as directory:
+                project = Path(directory)
+                shutil.copytree(ROOT / ".meridian/probes", project / ".meridian/probes")
+                self.installed_project(project)
+                probe = project / ".meridian/probes/meridian-self-hosting/codex-project-v1.json"
+                if mutation == "missing":
+                    probe.unlink()
+                else:
+                    data = json.loads(probe.read_text(encoding="utf-8"))
+                    data["checks"] = data["checks"][:-1]
+                    probe.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+                output = io.StringIO()
+                with redirect_stdout(output):
+                    return_code = meridian.profile_doctor(
+                        project, ROOT, "meridian-self-hosting"
+                    )
+                self.assertEqual(return_code, 2, output.getvalue())
+                self.assertIn(diagnostic, output.getvalue())
+
+    def test_ci_profile_gate_accepts_host_unverified_but_rejects_static_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            manifest = self.installed_project(project)
+            capabilities = manifest["capabilityProfiles"]["meridian-self-hosting"]["capabilities"]
+            for declaration in capabilities.values():
+                for activation in declaration["hostActivation"].values():
+                    activation.update(state="UNVERIFIED", evidence=[])
+                declaration["verification"] = {
+                    "state": "UNVERIFIED",
+                    "evidence": [],
+                    "verifiedAt": None,
+                    "verifierVersion": None,
+                    "notApplicableRationale": None,
+                }
+            meridian.write_manifest(project, manifest, ROOT)
+            output = io.StringIO()
+            with redirect_stdout(output):
+                return_code = meridian.run_audit(
+                    project, ROOT, "lean-delivery", "meridian-self-hosting"
+                )
+            self.assertEqual(return_code, 0, output.getvalue())
+            self.assertIn("SUMMARY worst=UNVERIFIED", output.getvalue())
+            self.assertIn("CI_GATE profile=meridian-self-hosting worst=PASS", output.getvalue())
+
+            (project / ".codex/hooks.json").unlink()
+            output = io.StringIO()
+            with redirect_stdout(output):
+                return_code = meridian.run_audit(
+                    project, ROOT, "lean-delivery", "meridian-self-hosting"
+                )
+            self.assertEqual(return_code, 2, output.getvalue())
+            self.assertIn("missing managed-copy surface .codex/hooks.json", output.getvalue())
+
+    def test_ci_profile_gate_rejects_missing_managed_policy_file(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            self.installed_project(project)
+            (project / "docs/CONTEXT_BUDGET_POLICY.md").unlink()
+            output = io.StringIO()
+            with redirect_stdout(output):
+                return_code = meridian.run_audit(
+                    project, ROOT, "lean-delivery", "meridian-self-hosting"
+                )
+            self.assertEqual(return_code, 2, output.getvalue())
+            self.assertIn(
+                "missing managed-copy surface docs/CONTEXT_BUDGET_POLICY.md",
+                output.getvalue(),
+            )
+
+    def test_ci_profile_gate_rejects_missing_shared_hook_source(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            self.installed_project(project)
+            (project / "hooks/queue-briefing.sh").unlink()
+            output = io.StringIO()
+            with redirect_stdout(output):
+                return_code = meridian.run_audit(
+                    project, ROOT, "lean-delivery", "meridian-self-hosting"
+                )
+            self.assertEqual(return_code, 2, output.getvalue())
+            self.assertIn(
+                "missing shared-source surface hooks/queue-briefing.sh",
+                output.getvalue(),
+            )
+
+    def test_ci_profile_gate_rejects_an_unknown_profile(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            self.installed_project(project)
+            output = io.StringIO()
+            with redirect_stdout(output):
+                return_code = meridian.run_audit(
+                    project, ROOT, "lean-delivery", "unknown-profile"
+                )
+            self.assertEqual(return_code, 2, output.getvalue())
+            self.assertIn("CI_GATE profile=unknown-profile worst=FAIL", output.getvalue())
+
+    def test_live_manifest_has_no_host_claim_or_machine_specific_path(self) -> None:
+        manifest_text = (ROOT / meridian.MANIFEST_PATH).read_text(encoding="utf-8")
+        manifest = json.loads(manifest_text)
+        capabilities = manifest["capabilityProfiles"]["meridian-self-hosting"]["capabilities"]
+        self.assertNotIn(str(Path.home()), manifest_text)
+        for declaration in capabilities.values():
+            for activation in declaration["hostActivation"].values():
+                self.assertEqual(activation["state"], "UNVERIFIED")
+                self.assertEqual(activation["evidence"], [])
 
     def test_published_schemas_track_protocol_and_state_vocabularies(self) -> None:
         manifest_schema = json.loads(
