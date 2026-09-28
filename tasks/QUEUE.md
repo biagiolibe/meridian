@@ -81,17 +81,6 @@ it distributes to consumer projects.
 | `[ ]` | 060 | Install Meridian self-hosting capability surfaces | 🔴 P1 | 059, 056, 052 | [060](060-install-meridian-self-hosting-surfaces.md) |
 | `[ ]` | 061 | Add self-hosting host probes and CI dogfooding gate | 🔴 P1 | 060, 047 | [061](061-add-self-hosting-host-probes-and-ci-gate.md) |
 
-### Phase 20 — Host-neutral bounded worktree lifecycle commands
-
-Replaces approval-prone raw Git worktree and integration mutations with
-validated, agent-agnostic Meridian state transitions. Codex may grant exact
-allow rules for those commands, while Claude and direct terminal users invoke
-the same lifecycle surface through their own host permission mechanisms.
-
-| Status | ID | Title | Priority | Depends on | File |
-|--------|----|-------|----------|------------|------|
-| `[/]` | 056 | Add bounded worktree lifecycle commands | 🔴 P1 | 054, 055, 059, 063 | [056](056-add-bounded-worktree-lifecycle-commands.md) |
-
 ### Phase 19 — Proportional integration validation
 
 Removes the unconditional duplicate full-baseline run from task integration.
