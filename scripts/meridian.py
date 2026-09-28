@@ -1310,11 +1310,68 @@ def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def read_version(framework_root: Path) -> str:
+@dataclass(frozen=True)
+class SemVer:
+    major: int
+    minor: int
+    patch: int
+    prerelease: str = ""
+    build: str = ""
+
+    def __str__(self) -> str:
+        text = f"{self.major}.{self.minor}.{self.patch}"
+        if self.prerelease:
+            text += f"-{self.prerelease}"
+        if self.build:
+            text += f"+{self.build}"
+        return text
+
+
+_SEMVER_IDENTIFIER = r"[0-9A-Za-z-]+"
+_SEMVER_PATTERN = re.compile(
+    r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"
+    rf"(?:-({_SEMVER_IDENTIFIER}(?:\.{_SEMVER_IDENTIFIER})*))?"
+    rf"(?:\+({_SEMVER_IDENTIFIER}(?:\.{_SEMVER_IDENTIFIER})*))?"
+)
+
+
+def parse_semver(value: str) -> SemVer:
+    """Parse `MAJOR.MINOR.PATCH[-PRERELEASE][+BUILD]`.
+
+    Used only for display and the persist-time guard; `version_key()` remains the
+    comparator for upgrade planning.
+    """
+    match = _SEMVER_PATTERN.fullmatch(value)
+    if match is None:
+        raise MeridianError(f"invalid framework version: {value}")
+    major, minor, patch, prerelease, build = match.groups()
+    return SemVer(int(major), int(minor), int(patch), prerelease or "", build or "")
+
+
+def read_raw_version(framework_root: Path) -> str:
     version_file = framework_root / "VERSION"
     if not version_file.is_file():
         raise MeridianError(f"framework VERSION file is missing: {version_file}")
     return version_file.read_text(encoding="utf-8").strip()
+
+
+def require_release_version(framework_root: Path) -> None:
+    """Reject a prerelease framework VERSION before it can become durable."""
+    version = parse_semver(read_raw_version(framework_root))
+    if version.prerelease:
+        raise MeridianError(
+            f"framework VERSION {version} is a prerelease; a prerelease version cannot be "
+            "persisted into a manifest, migration, or release record"
+        )
+
+
+def read_version(framework_root: Path) -> str:
+    """Return the framework version without build metadata, which never becomes durable."""
+    raw = read_raw_version(framework_root)
+    match = _SEMVER_PATTERN.fullmatch(raw)
+    if match is not None and match.group(5):
+        return raw.split("+", 1)[0]
+    return raw
 
 
 def version_key(value: str) -> tuple[int, ...]:
@@ -4070,6 +4127,7 @@ def lock_project(
     framework_root: Path,
     mode: str,
 ) -> None:
+    require_release_version(framework_root)
     version = read_version(framework_root)
     baseline_version = latest_migration_to(framework_root, version)
     files = managed_files(framework_root, mode)
@@ -4706,6 +4764,7 @@ def apply_upgrade(
     owner_reconciled: bool = False,
     stop_before_retirement: bool = False,
 ) -> None:
+    require_release_version(framework_root)
     manifest, target_override, managed_override = prepare_upgrade_targets(
         project_root, framework_root, stop_before_retirement
     )
@@ -5921,12 +5980,26 @@ def generate_claude_md(mode: str, agents_text: str, existing_claude_text: str) -
     return preamble + shared_body
 
 
+class ShowVersionAction(argparse.Action):
+    def __init__(self, option_strings, dest, **kwargs):
+        super().__init__(option_strings, dest, nargs=0, default=argparse.SUPPRESS, **kwargs)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        print(parse_semver(read_raw_version(namespace.framework_root)))
+        parser.exit()
+
+
 def main() -> int:
     parser = MeridianArgumentParser(prog="meridian")
     parser.add_argument(
         "--framework-root",
         type=Path,
         default=Path(os.environ.get("MERIDIAN_ROOT", Path(__file__).resolve().parents[1])),
+    )
+    parser.add_argument(
+        "--version",
+        action=ShowVersionAction,
+        help="print the framework SemVer, including prerelease and build metadata",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
