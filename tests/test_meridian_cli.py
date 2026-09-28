@@ -747,7 +747,7 @@ class MeridianCliTest(unittest.TestCase):
 
         for relative, text in current.items():
             (workflow / relative).write_text(text, encoding="utf-8")
-        (self.framework / "VERSION").write_text("1.1.47\n", encoding="utf-8")
+        (self.framework / "VERSION").write_text("1.1.48\n", encoding="utf-8")
 
         checked = self.run_cli("upgrade", "--check")
         self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
@@ -756,17 +756,17 @@ class MeridianCliTest(unittest.TestCase):
         self.assertIn("MIGRATION 047-codex-worktree-access", checked.stdout)
         applied = self.run_cli("upgrade", "--apply")
         self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
-        self.assertIn("capability=git-workflow v5", project_workflow.read_text(encoding="utf-8"))
+        self.assertIn("capability=git-workflow v6", project_workflow.read_text(encoding="utf-8"))
         self.assertIn("Consumer-owned note.", project_workflow.read_text(encoding="utf-8"))
         self.assertIn(
-            "capability=task-worktree-boundary v2",
+            "capability=task-worktree-boundary v3",
             (self.project / "docs/workflows/IMPLEMENTATION.md").read_text(encoding="utf-8"),
         )
         report = (self.project / "docs/COMPLETION_REPORT_TEMPLATE.md").read_text(encoding="utf-8")
         self.assertIn("Worktree: `<absolute dedicated task-worktree path>`", report)
         manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
-        self.assertEqual(manifest["frameworkVersion"], "1.1.47")
-        self.assertEqual(manifest["appliedMigrations"][-1], "050-review-worktree-preflight")
+        self.assertEqual(manifest["frameworkVersion"], "1.1.48")
+        self.assertEqual(manifest["appliedMigrations"][-1], "051-bounded-worktree-lifecycle")
         audited = self.run_cli("audit", "--mode", "governed-sdd")
         self.assertEqual(audited.returncode, 1, audited.stdout + audited.stderr)
         self.assertIn("declaration/legacy-compatibility", audited.stdout)
@@ -787,11 +787,11 @@ class MeridianCliTest(unittest.TestCase):
             for relative in changed_paths
         }
         previous_versions = {
-            "git-workflow": (5, 2),
-            "lifecycle-orchestration": (6, 4),
-            "task-worktree-review": (3, 1),
+            "git-workflow": (6, 2),
+            "lifecycle-orchestration": (7, 4),
+            "task-worktree-review": (4, 1),
             "task-worktree-integration": (2, 1),
-            "task-worktree-review-procedure": (3, 1),
+            "task-worktree-review-procedure": (4, 1),
             "task-worktree-handoff": (2, 1),
         }
         for relative, text in current.items():
@@ -820,7 +820,7 @@ class MeridianCliTest(unittest.TestCase):
 
         for relative, text in current.items():
             (workflow / relative).write_text(text, encoding="utf-8")
-        (self.framework / "VERSION").write_text("1.1.47\n", encoding="utf-8")
+        (self.framework / "VERSION").write_text("1.1.48\n", encoding="utf-8")
 
         checked = self.run_cli("upgrade", "--check")
         self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
@@ -828,15 +828,15 @@ class MeridianCliTest(unittest.TestCase):
         self.assertIn("MIGRATION 047-codex-worktree-access", checked.stdout)
         applied = self.run_cli("upgrade", "--apply")
         self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
-        self.assertIn("capability=git-workflow v5", project_workflow.read_text(encoding="utf-8"))
+        self.assertIn("capability=git-workflow v6", project_workflow.read_text(encoding="utf-8"))
         self.assertIn("Consumer-owned note.", project_workflow.read_text(encoding="utf-8"))
         self.assertIn(
             "capability=task-worktree-handoff v2",
             (self.project / "docs/COMPLETION_REPORT_TEMPLATE.md").read_text(encoding="utf-8"),
         )
         manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
-        self.assertEqual(manifest["workflowBaselineVersion"], "1.1.47")
-        self.assertEqual(manifest["appliedMigrations"][-1], "050-review-worktree-preflight")
+        self.assertEqual(manifest["workflowBaselineVersion"], "1.1.48")
+        self.assertEqual(manifest["appliedMigrations"][-1], "051-bounded-worktree-lifecycle")
 
     def test_upgrade_replaces_conflicting_review_blocks_and_preserves_consumer_text(self) -> None:
         """Migration 050 replaces the distributed checkout conflict in place."""
@@ -893,7 +893,7 @@ worktree before the branch only after validated integration succeeds.
 
         previous = current.copy()
         previous["docs/workflows/REVIEW.md"] = re.sub(
-            r"<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v3 -->.*?<!-- MERIDIAN:END -->",
+            r"<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v4 -->.*?<!-- MERIDIAN:END -->",
             legacy_preflight,
             previous["docs/workflows/REVIEW.md"],
             count=1,
@@ -907,14 +907,14 @@ worktree before the branch only after validated integration succeeds.
             flags=re.DOTALL,
         )
         previous["docs/CODE_REVIEW_PROMPT.md"] = previous["docs/CODE_REVIEW_PROMPT.md"].replace(
-            "capability=task-worktree-review v3", "capability=task-worktree-review v2"
+            "capability=task-worktree-review v4", "capability=task-worktree-review v2"
         )
         previous["PROJECT_WORKFLOW.md"] = previous["PROJECT_WORKFLOW.md"].replace(
-            "capability=git-workflow v5", "capability=git-workflow v4"
+            "capability=git-workflow v6", "capability=git-workflow v4"
         )
         previous["docs/LIFECYCLE_ORCHESTRATION.md"] = previous[
             "docs/LIFECYCLE_ORCHESTRATION.md"
-        ].replace("capability=lifecycle-orchestration v6", "capability=lifecycle-orchestration v5")
+        ].replace("capability=lifecycle-orchestration v7", "capability=lifecycle-orchestration v5")
 
         for relative, text in previous.items():
             (workflow / relative).write_text(text, encoding="utf-8")
@@ -930,7 +930,7 @@ worktree before the branch only after validated integration succeeds.
         )
         for relative, text in current.items():
             (workflow / relative).write_text(text, encoding="utf-8")
-        (self.framework / "VERSION").write_text("1.1.47\n", encoding="utf-8")
+        (self.framework / "VERSION").write_text("1.1.48\n", encoding="utf-8")
 
         checked = self.run_cli("upgrade", "--check")
         self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
@@ -940,13 +940,13 @@ worktree before the branch only after validated integration succeeds.
 
         upgraded = review.read_text(encoding="utf-8")
         self.assertIn("capability=implementer-reviewer-handoff v2", upgraded)
-        self.assertIn("capability=task-worktree-review-procedure v3", upgraded)
+        self.assertIn("capability=task-worktree-review-procedure v4", upgraded)
         self.assertIn("Consumer-owned review note.", upgraded)
         self.assertNotIn("uses that same primary checkout", upgraded)
         self.assertNotIn("git switch <task-branch>", upgraded)
         manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
-        self.assertEqual(manifest["frameworkVersion"], "1.1.47")
-        self.assertEqual(manifest["appliedMigrations"][-1], "050-review-worktree-preflight")
+        self.assertEqual(manifest["frameworkVersion"], "1.1.48")
+        self.assertEqual(manifest["appliedMigrations"][-1], "051-bounded-worktree-lifecycle")
 
     def test_upgrade_downgrades_cosmetic_conflict_to_verified(self) -> None:
         """Phase 3 of migrations/CAPABILITY_MARKERS.md: a conflict outside a
@@ -1769,8 +1769,8 @@ worktree before the branch only after validated integration succeeds.
             planned.stdout,
         )
         self.assertIn(
-            "CAPABILITY MISSING 050-review-worktree-preflight — no marker found; "
-            "legacy pre-marker evidence only confirms v1, but v6 is required",
+            "CAPABILITY MISSING 051-bounded-worktree-lifecycle — no marker found; "
+            "legacy pre-marker evidence only confirms v1, but v7 is required",
             planned.stdout,
         )
         self.assertIn("\nNEXT_ACTION IMPLEMENT_MIGRATION\n", planned.stdout)
@@ -1840,6 +1840,7 @@ worktree before the branch only after validated integration succeeds.
             "docs/workflows/REVIEW.md",
             "docs/workflows/REMEDIATION.md",
             "docs/workflows/LIFECYCLE.md",
+            "docs/WORKTREE_LIFECYCLE.md",
             ".codex/rules/meridian.rules",
             ".codex/hooks.json",
         ):
@@ -1985,6 +1986,7 @@ worktree before the branch only after validated integration succeeds.
             "docs/workflows/REVIEW.md",
             "docs/workflows/REMEDIATION.md",
             "docs/workflows/LIFECYCLE.md",
+            "docs/WORKTREE_LIFECYCLE.md",
             ".codex/rules/meridian.rules",
             ".codex/hooks.json",
         ):
@@ -3113,7 +3115,7 @@ class CapabilityMarkerTest(unittest.TestCase):
         text = (self.WORKFLOW / "docs/LIFECYCLE_ORCHESTRATION.md").read_text(encoding="utf-8")
         self.assertEqual(
             self.marker_pairs(text),
-            [("lifecycle-orchestration", "6"), ("rejected-attempt-restart", "3")],
+            [("lifecycle-orchestration", "7"), ("rejected-attempt-restart", "3")],
         )
 
     def test_context_budget_policy_carries_its_capability_markers(self) -> None:
@@ -3158,7 +3160,7 @@ class CapabilityMarkerTest(unittest.TestCase):
 
         self.assertIn(("task-blueprint", "12"), self.marker_pairs(blueprint))
         self.assertIn(("reasoning-budget-contract", "1"), self.marker_pairs(policy))
-        self.assertIn(("lifecycle-orchestration", "6"), self.marker_pairs(lifecycle))
+        self.assertIn(("lifecycle-orchestration", "7"), self.marker_pairs(lifecycle))
         self.assertIn("[low / medium / high / xhigh]", blueprint)
         self.assertIn("exact permitted runtime cap", blueprint)
         self.assertIn("must never raise its effort", blueprint)
@@ -3213,7 +3215,7 @@ class CapabilityMarkerTest(unittest.TestCase):
         self.assertEqual(
             self.marker_pairs(code_review_prompt),
             [
-                ("task-worktree-review", "3"),
+                ("task-worktree-review", "4"),
                 ("manual-verification-review-check", "1"),
                 ("ci-verified-validation", "1"),
             ],
@@ -3272,7 +3274,8 @@ class CapabilityMarkerTest(unittest.TestCase):
         }
         expected["execution-assets"] = "2"
         expected["roles"] = "2"
-        expected["git-workflow"] = "5"
+        expected["git-workflow"] = "6"
+        expected["bounded-worktree-lifecycle"] = "1"
         expected["codex-worktree-access"] = "1"
         expected["task-identity-policy"] = "1"
         expected["task-lifecycle"] = "2"
@@ -3311,7 +3314,7 @@ class CapabilityMarkerTest(unittest.TestCase):
         self.assertIn(("review-mode-boundary", "1"), review)
         self.assertIn(("implementer-reviewer-handoff", "2"), review)
         self.assertIn(("reviewer-integrator-identity", "1"), review)
-        self.assertIn(("task-worktree-review-procedure", "3"), review)
+        self.assertIn(("task-worktree-review-procedure", "4"), review)
 
     def test_review_preflight_fails_closed_before_substantive_inspection(self) -> None:
         review = (self.WORKFLOW / "docs/workflows/REVIEW.md").read_text(encoding="utf-8")
@@ -3571,6 +3574,16 @@ class CodexWorktreeAccessTest(unittest.TestCase):
         subprocess.run(["git", "-C", str(first), "worktree", "add", "-b", "task-054", str(path), "main"], check=True, capture_output=True)
         with self.assertRaisesRegex(meridian.MeridianError, "collision"):
             meridian.validate_worktree_collision(second, path, "054")
+
+    def test_namespaced_symlink_escape_is_rejected(self) -> None:
+        project = self.repository("safe", "git@github.com:acme/repo.git")
+        worktrees = self.root / "worktrees"
+        worktrees.mkdir()
+        outside = self.root / "outside"
+        outside.mkdir()
+        (worktrees / "github.com").symlink_to(outside, target_is_directory=True)
+        with self.assertRaisesRegex(meridian.MeridianError, "symlink"):
+            meridian.task_worktree_path(project, worktrees, "054")
 
     def test_config_apply_preserves_text_backs_up_and_is_idempotent(self) -> None:
         config = self.root / "config.toml"
@@ -4481,6 +4494,80 @@ class CapabilityProfileManifestTest(unittest.TestCase):
             self.assertIn("declaration/legacy-compatibility", output)
             self.assertIn("migration history is provenance only", output)
             self.assertIn("SUMMARY worst=UNVERIFIED", output)
+
+
+class WorktreeLifecycleCliTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory()
+        self.root = Path(self.temporary.name)
+        self.project = self.root / "project"
+        self.project.mkdir()
+        subprocess.run(["git", "init", "-b", "main"], cwd=self.project, check=True, capture_output=True)
+        subprocess.run(["git", "config", "user.name", "Meridian Test"], cwd=self.project, check=True)
+        subprocess.run(["git", "config", "user.email", "meridian@example.invalid"], cwd=self.project, check=True)
+        (self.project / "tasks").mkdir()
+        (self.project / "tasks/056-lifecycle.md").write_text(
+            "# Task 056\n\n> **ID**: `056`\n", encoding="utf-8"
+        )
+        (self.project / "tasks/QUEUE.md").write_text(
+            "| Status | ID | Title |\n|---|---|---|\n| `[ ]` | 056 | Lifecycle |\n",
+            encoding="utf-8",
+        )
+        subprocess.run(["git", "add", "."], cwd=self.project, check=True)
+        subprocess.run(["git", "commit", "-m", "initial"], cwd=self.project, check=True, capture_output=True)
+        self.worktree_root = self.root / "worktrees"
+        self.worktree_root.mkdir()
+
+    def tearDown(self) -> None:
+        self.temporary.cleanup()
+
+    def run_cli(self, *arguments: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [sys.executable, str(CLI), "--framework-root", str(ROOT), *arguments],
+            cwd=cwd or self.project,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+    def test_path_alias_is_equivalent_and_deprecated(self) -> None:
+        current = self.run_cli(
+            "worktree", "path", "056", "--project", str(self.project),
+            "--worktree-root", str(self.worktree_root),
+        )
+        alias = self.run_cli(
+            "codex", "worktree-path", "056", "--project", str(self.project),
+            "--worktree-root", str(self.worktree_root),
+        )
+        self.assertEqual(current.returncode, 0, current.stderr)
+        self.assertEqual(alias.returncode, 0, alias.stderr)
+        self.assertEqual(current.stdout, alias.stdout)
+        self.assertIn("DEPRECATED", alias.stderr)
+
+    def test_prepare_and_worker_check_json_exit_codes(self) -> None:
+        prepared = self.run_cli(
+            "worktree", "prepare", "056", "--project", str(self.project),
+            "--worktree-root", str(self.worktree_root), "--format", "json",
+        )
+        self.assertEqual(prepared.returncode, 0, prepared.stderr)
+        contract = json.loads(prepared.stdout)
+        wrong = self.run_cli(
+            "worktree", "check", "056", "--project", str(self.project),
+            "--worktree-root", str(self.worktree_root), "--format", "json",
+        )
+        self.assertEqual(wrong.returncode, 2)
+        self.assertIn("wrong-worktree", json.loads(wrong.stdout)["errors"])
+        correct = self.run_cli(
+            "worktree", "check", "056", "--project", str(self.project),
+            "--worktree-root", str(self.worktree_root), "--format", "json",
+            cwd=Path(contract["worktree"]),
+        )
+        self.assertEqual(correct.returncode, 0, correct.stderr)
+        self.assertEqual(json.loads(correct.stdout)["status"], "ready")
+
+    def test_usage_errors_exit_64(self) -> None:
+        result = self.run_cli("worktree", "prepare", "056")
+        self.assertEqual(result.returncode, 64)
 
 
 if __name__ == "__main__":

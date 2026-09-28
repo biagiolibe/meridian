@@ -6,6 +6,8 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import json
+import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -231,6 +233,231 @@ class TaskWorktreeIsolationTest(unittest.TestCase):
             current_commit, validated_task_commit=validated_commit
         )
         self.assertEqual(decision.outcome, meridian.IntegrationValidationOutcome.BLOCKED)
+
+
+class BoundedWorktreeLifecycleTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory()
+        self.root = Path(self.temporary.name)
+        self.primary = self.root / "project"
+        self.primary.mkdir()
+        self.git("init", "-b", "main")
+        self.git("config", "user.name", "Meridian Test")
+        self.git("config", "user.email", "meridian@example.invalid")
+        tasks = self.primary / "tasks"
+        tasks.mkdir()
+        (tasks / "056-lifecycle.md").write_text(
+            "# Task 056\n\n> **ID**: `056`\n", encoding="utf-8"
+        )
+        (tasks / "QUEUE.md").write_text(
+            "| Status | ID | Title |\n|---|---|---|\n| `[ ]` | 056 | Lifecycle |\n",
+            encoding="utf-8",
+        )
+        (self.primary / "QUEUE.md").write_text(
+            "Task 051: TODO\nshared context\nTask 052: TODO\n", encoding="utf-8"
+        )
+        (self.primary / "README.md").write_text("base\n", encoding="utf-8")
+        self.git("add", ".")
+        self.git("commit", "-m", "initial")
+        self.base = self.git("rev-parse", "HEAD").stdout.strip()
+        self.worktree_root = self.root / "worktrees"
+        self.worktree_root.mkdir()
+        self.previous_cwd = Path.cwd()
+        os.chdir(self.primary)
+
+    def tearDown(self) -> None:
+        os.chdir(self.previous_cwd)
+        self.temporary.cleanup()
+
+    def git(self, *arguments: str, cwd: Path | None = None, check: bool = True) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            ["git", *arguments],
+            cwd=cwd or self.primary,
+            text=True,
+            capture_output=True,
+            check=check,
+        )
+
+    def prepare(self) -> dict[str, object]:
+        return meridian.prepare_task_worktree("056", self.worktree_root, self.primary)
+
+    def create_task(self, task_id: str) -> Path:
+        worktree = self.root / f"project-{task_id}"
+        self.git("worktree", "add", "-b", task_id, str(worktree), "main")
+        return worktree
+
+    def commit_task(self, worktree: Path, task_id: str, queue_change: tuple[str, str]) -> str:
+        queue = worktree / "QUEUE.md"
+        queue.write_text(queue.read_text(encoding="utf-8").replace(*queue_change), encoding="utf-8")
+        (worktree / f"{task_id}.txt").write_text(f"isolated {task_id}\n", encoding="utf-8")
+        self.git("add", "QUEUE.md", f"{task_id}.txt", cwd=worktree)
+        self.git("commit", "-m", f"complete {task_id}", cwd=worktree)
+        return self.git("rev-parse", "HEAD", cwd=worktree).stdout.strip()
+
+    def validation_decision(
+        self,
+        task_commit: str,
+        *,
+        validated_task_commit: str | None = None,
+        current_main: str | None = None,
+        full_required: bool = False,
+        assessment_complete: bool = True,
+        task_paths: tuple[str, ...] = ("feature.txt",),
+        main_paths: tuple[str, ...] = (),
+        task_dependencies: tuple[str, ...] = (),
+        main_dependencies: tuple[str, ...] = (),
+        task_surfaces: tuple[str, ...] = (),
+        main_surfaces: tuple[str, ...] = (),
+    ) -> meridian.IntegrationValidationDecision:
+        return meridian.decide_integration_validation(
+            evidence_complete=True,
+            validated_task_commit=validated_task_commit or task_commit,
+            current_task_commit=task_commit,
+            validated_base_commit=self.base,
+            current_main_commit=current_main or self.git("rev-parse", "main").stdout.strip(),
+            validated_base_is_task_ancestor=True,
+            full_validation_required=full_required,
+            interaction_assessment_complete=assessment_complete,
+            task_paths=task_paths,
+            main_advanced_paths=main_paths,
+            task_dependencies=task_dependencies,
+            main_advanced_dependencies=main_dependencies,
+            task_behavioral_surfaces=task_surfaces,
+            main_advanced_behavioral_surfaces=main_surfaces,
+        )
+
+    def run_candidate_gate(
+        self,
+        branch: str,
+        decision: meridian.IntegrationValidationDecision,
+        *,
+        smoke_command: tuple[str, ...] | None = None,
+    ) -> tuple[bool, list[str]]:
+        invoked: list[str] = []
+        merged = self.git("merge", "--no-ff", "--no-commit", branch, check=False)
+        if merged.returncode != 0:
+            self.git("merge", "--abort")
+            return False, invoked
+        invoked.append("git diff --check")
+        passed = self.git("diff", "--check", check=False).returncode == 0
+        if passed and smoke_command is not None:
+            invoked.append("smoke")
+            passed = subprocess.run(smoke_command, cwd=self.primary, check=False).returncode == 0
+        if passed and decision.outcome == meridian.IntegrationValidationOutcome.FULL:
+            invoked.append("complete baseline")
+        if not passed:
+            self.git("merge", "--abort")
+        return passed, invoked
+
+    def test_prepare_is_idempotent_and_check_rejects_wrong_worker(self) -> None:
+        prepared = self.prepare()
+        self.assertTrue(prepared["created"])
+        repeated = self.prepare()
+        self.assertFalse(repeated["created"])
+        self.assertEqual(prepared["worktree"], repeated["worktree"])
+
+        wrong, ready = meridian.inspect_task_worktree("056", self.worktree_root, self.primary)
+        self.assertFalse(ready)
+        self.assertIn("wrong-worktree", wrong["errors"])
+
+        os.chdir(Path(str(prepared["worktree"])))
+        correct, ready = meridian.inspect_task_worktree("056", self.worktree_root, self.primary)
+        self.assertTrue(ready, correct)
+        self.assertEqual(correct["branch"], "task-056")
+        self.assertTrue(correct["clean"])
+
+    def test_stage_finalize_and_verified_cleanup(self) -> None:
+        prepared = self.prepare()
+        task_worktree = Path(str(prepared["worktree"]))
+        (task_worktree / "feature.txt").write_text("implemented\n", encoding="utf-8")
+        self.git("add", "feature.txt", cwd=task_worktree)
+        self.git("commit", "-m", "implement task", cwd=task_worktree)
+        task_commit = self.git("rev-parse", "HEAD", cwd=task_worktree).stdout.strip()
+        evidence_path = self.root / "integration-evidence.json"
+        evidence_path.write_text(
+            json.dumps({
+                "accepted": True,
+                "validation_passed": True,
+                "validated_task_commit": task_commit,
+                "validated_base_commit": self.base,
+                "full_validation_required": False,
+                "interaction_assessment_complete": True,
+                "task_paths": ["feature.txt"],
+                "task_dependencies": [],
+                "task_behavioral_surfaces": ["feature behavior"],
+                "main_advanced_dependencies": [],
+                "main_advanced_behavioral_surfaces": [],
+            }),
+            encoding="utf-8",
+        )
+        staged = meridian.stage_task_integration(
+            "056", self.worktree_root, evidence_path, self.primary
+        )
+        self.assertEqual(staged["decision"], "REUSE")
+        self.assertEqual(
+            meridian.stage_task_integration("056", self.worktree_root, evidence_path, self.primary),
+            staged,
+        )
+        validation_path = self.root / "candidate-validation.json"
+        validation_path.write_text(
+            json.dumps({
+                "candidate_tree": staged["candidate_tree"],
+                "passed": True,
+                "scope": "bounded",
+                "commands": ["git diff --check"],
+            }),
+            encoding="utf-8",
+        )
+        finalized = meridian.finalize_task_integration("056", validation_path, self.primary)
+        self.assertEqual(finalized["decision"], "REUSE")
+        self.assertTrue((self.primary / "feature.txt").is_file())
+        cleaned = meridian.cleanup_task_worktree("056", self.worktree_root, self.primary)
+        self.assertEqual(cleaned["status"], "cleaned")
+        self.assertFalse(task_worktree.exists())
+        self.assertNotEqual(self.git("show-ref", "--verify", "refs/heads/task-056", check=False).returncode, 0)
+        repeated = meridian.cleanup_task_worktree("056", self.worktree_root, self.primary)
+        self.assertTrue(repeated["already_cleaned"])
+
+    def test_abort_requires_owned_state_and_preserves_task(self) -> None:
+        prepared = self.prepare()
+        task_worktree = Path(str(prepared["worktree"]))
+        (task_worktree / "feature.txt").write_text("implemented\n", encoding="utf-8")
+        self.git("add", "feature.txt", cwd=task_worktree)
+        self.git("commit", "-m", "implement task", cwd=task_worktree)
+        task_commit = self.git("rev-parse", "HEAD", cwd=task_worktree).stdout.strip()
+        evidence_path = self.root / "integration-evidence.json"
+        evidence_path.write_text(json.dumps({
+            "accepted": True,
+            "validation_passed": True,
+            "validated_task_commit": task_commit,
+            "validated_base_commit": self.base,
+            "full_validation_required": False,
+            "interaction_assessment_complete": True,
+            "task_paths": ["feature.txt"],
+            "task_dependencies": [],
+            "task_behavioral_surfaces": [],
+            "main_advanced_dependencies": [],
+            "main_advanced_behavioral_surfaces": [],
+        }), encoding="utf-8")
+        meridian.stage_task_integration("056", self.worktree_root, evidence_path, self.primary)
+        aborted = meridian.abort_task_integration("056", self.primary)
+        self.assertEqual(aborted["status"], "aborted")
+        self.assertEqual(self.git("rev-parse", "HEAD").stdout.strip(), self.base)
+        self.assertEqual(self.git("rev-parse", "HEAD", cwd=task_worktree).stdout.strip(), task_commit)
+
+    def test_abort_recovers_an_owned_lease_before_merge_state_exists(self) -> None:
+        self.prepare()
+        identity = meridian.resolve_task_identity(self.primary, "056", "existing")
+        _task_state, lease_path, integration_path = meridian._lifecycle_paths(self.primary, identity)
+        meridian._write_json_atomic(
+            lease_path,
+            {"version": 1, "task_id": "056", "branch": "task-056", "project": str(self.primary)},
+            exclusive=True,
+        )
+        self.assertFalse(integration_path.exists())
+        recovered = meridian.abort_task_integration("056", self.primary)
+        self.assertEqual(recovered["status"], "aborted")
+        self.assertFalse(lease_path.exists())
         self.assertEqual(self.git("rev-parse", "HEAD").stdout.strip(), self.base)
 
     def test_missing_validation_evidence_is_blocked(self) -> None:

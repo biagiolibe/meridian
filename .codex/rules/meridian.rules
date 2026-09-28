@@ -13,6 +13,8 @@ prefix_rule(pattern=["git", "worktree", ["add", "remove", "prune"]], decision="p
 
 prefix_rule(pattern=["meridian", ["context", "locations", "adr", "budget", "audit"]], decision="allow")
 prefix_rule(pattern=["meridian", "codex", ["doctor", "worktree-path"]], decision="allow")
+prefix_rule(pattern=["meridian", "worktree", ["path", "prepare", "check", "cleanup"]], decision="allow")
+prefix_rule(pattern=["meridian", "worktree", "integrate", ["stage", "finalize", "abort"]], decision="allow")
 
 prefix_rule(pattern=["git", "push", ["--force", "-f", "--force-with-lease", "--delete", "--mirror"]], decision="forbidden")
 prefix_rule(pattern=["git", "branch", ["-D", "--delete", "--force", "-f"]], decision="prompt")

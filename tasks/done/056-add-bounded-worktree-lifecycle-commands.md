@@ -24,126 +24,126 @@ approval while destructive exceptional recovery remains explicit.
 
 ## 📋 Acceptance Criteria
 
-- [ ] The CLI exposes one stable lifecycle namespace with commands equivalent
+- [x] The CLI exposes one stable lifecycle namespace with commands equivalent
       to `meridian worktree path`, `meridian worktree prepare`,
       `meridian worktree check`,
       `meridian worktree integrate stage|finalize|abort`, and
       `meridian worktree cleanup`. Command names, positional arguments, exit
       codes, and machine-readable outputs are documented and tested.
-- [ ] `meridian codex worktree-path` remains a documented deprecated alias for
+- [x] `meridian codex worktree-path` remains a documented deprecated alias for
       `meridian worktree path` for one migration window. New templates,
       migrations, handoffs, and host instructions use only the host-neutral
       form, and equivalence tests prevent the alias from diverging.
-- [ ] Every mutating command resolves the canonical Meridian project from the
+- [x] Every mutating command resolves the canonical Meridian project from the
       current working directory, verifies that any supplied `--project` names
       that same project, and rejects arbitrary repositories, paths, symlink
       escapes, unknown task IDs, non-canonical task branches, and worktree
       roots that differ from the effective configured root.
-- [ ] `prepare` reuses Task 054's repository identity, namespaced path
+- [x] `prepare` reuses Task 054's repository identity, namespaced path
       derivation, and collision detection, and consumes the project-selected
       identity resolver implemented by Task 063. Its mandatory preflight is
       host-neutral; a Codex or Claude capability probe is supplementary and
       cannot redefine lifecycle validity. It creates exactly one
       branch/worktree pair from the permitted base commit and writes the
       required handoff identity without silently repairing partial state.
-- [ ] Lifecycle orchestration runs `prepare` before it creates an implementer,
+- [x] Lifecycle orchestration runs `prepare` before it creates an implementer,
       reviewer, or remediation worker session. The coordinator passes the
       returned absolute worktree path and branch as durable worker-launch
       inputs; a worker must not derive, choose, or create a second checkout.
-- [ ] Every worker starts with its effective working directory bound to the
+- [x] Every worker starts with its effective working directory bound to the
       exact existing worktree returned by `prepare` and immediately runs the
       read-only `check` before reading implementation files, computing a diff,
       changing task state, or writing files. `check` rejects the primary
       checkout and every other linked worktree even when the expected branch
       exists there or the checkout is clean.
-- [ ] Claude Code orchestration does not use Desktop automatic session
+- [x] Claude Code orchestration does not use Desktop automatic session
       isolation, CLI `--worktree`, an isolated-worktree subagent option, or any
       equivalent host facility that creates another checkout after Meridian
       preparation. A host-created checkout is acceptable only when its
       registered real path, configured root, repository identity, canonical
       task leaf, branch, and HEAD already equal the `prepare` result; otherwise
       the lifecycle is `BLOCKED` and preserves both checkouts.
-- [ ] If a host cannot launch or attach a fresh worker session with the exact
+- [x] If a host cannot launch or attach a fresh worker session with the exact
       prepared directory as its effective workspace, orchestration returns
       `BLOCKED` before implementation or review. It never falls back to
       `<project>/.claude/worktrees/`, the primary checkout, a sibling checkout,
       a new branch, or a host-selected path.
-- [ ] `check` is read-only and reports branch, worktree, Git common directory,
+- [x] `check` is read-only and reports branch, worktree, Git common directory,
       canonical prepared path, effective worker path, base commit, task commit,
       cleanliness, handoff consistency, active integration state, and the next
       permitted lifecycle action. Its machine-readable result distinguishes
       `wrong-worktree` from branch, HEAD, root, handoff, and cleanliness
       failures.
-- [ ] `integrate stage` acquires the Task 051 integration lease atomically,
+- [x] `integrate stage` acquires the Task 051 integration lease atomically,
       verifies the accepted handoff and recorded commits, checks a clean
       primary checkout on `main`, and performs only the prescribed
       `git merge --no-ff --no-commit`. Conflicts trigger a clean abort and do
       not create a merge commit.
-- [ ] `integrate stage` returns Task 055's deterministic validation decision
+- [x] `integrate stage` returns Task 055's deterministic validation decision
       (`REUSE`, `BOUNDED`, `FULL`, or `BLOCKED`) and the candidate tree identity.
       It never executes task-provided, project-provided, shell, validation, or
       hook commands while running under an execpolicy `allow` rule.
-- [ ] Required smoke or full validation runs separately inside the ordinary
+- [x] Required smoke or full validation runs separately inside the ordinary
       sandbox and records evidence bound to the staged candidate tree.
       `integrate finalize` creates the merge commit only when Task 055 evidence
       for that exact candidate is sufficient. Stale, missing, mismatched, or
       failed evidence is `BLOCKED`.
-- [ ] `integrate abort` aborts only a Meridian-owned staged integration whose
+- [x] `integrate abort` aborts only a Meridian-owned staged integration whose
       lease and merge state match the requested task. It releases that lease
       after a clean abort and preserves the task branch and worktree.
-- [ ] `cleanup` removes the task worktree and then deletes the non-force local
+- [x] `cleanup` removes the task worktree and then deletes the non-force local
       branch only after it proves that the recorded task commit is integrated,
       the required push is complete when applicable, no integration lease or
       merge is active, and both relevant checkouts are clean. Abandoned-state,
       stale-lease, force-delete, and mismatch cleanup remain unavailable or
       require explicit developer authorization outside the allowlisted path.
-- [ ] Mutating commands are idempotent where repeating a completed operation is
+- [x] Mutating commands are idempotent where repeating a completed operation is
       safe and otherwise fail closed with a diagnostic naming the retained
       state and recovery command. Interruptions between Git operations have a
       deterministic inspect/abort/resume path.
-- [ ] The canonical lifecycle executable form is defined by the host-neutral
+- [x] The canonical lifecycle executable form is defined by the host-neutral
       namespace and verified without reading host configuration. `meridian
       codex doctor` additionally checks whether Codex can execute the exact
       bounded prefixes without approval. Project instructions invoke the same
       argv form; source-checkout, installed CLI, Claude plugin, and Codex
       project contexts must not document a form that silently misses their
       applicable command policy.
-- [ ] Lean Delivery and Governed SDD install equivalent project rules that
+- [x] Lean Delivery and Governed SDD install equivalent project rules that
       allow only the bounded lifecycle prefixes and the established safe
       read-only/status commands. Raw `git worktree add|remove|prune`, raw
       integration merge/finalization, forced branch deletion, reset, rebase,
       cherry-pick, and force-push remain prompt-controlled or forbidden as
       appropriate.
-- [ ] `codex execpolicy check` decision-table tests prove that every canonical
+- [x] `codex execpolicy check` decision-table tests prove that every canonical
       lifecycle invocation is `allow`, malformed or non-canonical forms do not
       inherit the allow decision, cleanup escape hatches remain prompt or
       forbidden, and the most restrictive existing Git rules still win.
-- [ ] Real temporary-repository tests cover prepare/check, unchanged-base
+- [x] Real temporary-repository tests cover prepare/check, unchanged-base
       evidence reuse, advanced-main bounded/full decisions, conflict abort,
       stale evidence, interrupted staged integration, finalize, verified
       cleanup, cross-repository/path attacks, symlink escapes, and two tasks
       integrating serially without raw Git approval rules.
-- [ ] Worker-routing tests prepare one canonical task worktree, then simulate a
+- [x] Worker-routing tests prepare one canonical task worktree, then simulate a
       worker starting in the primary checkout, a sibling worktree, and
       `<project>/.claude/worktrees/task-<id>`. Every mismatch fails before task
       reads or writes; a worker rooted at the exact prepared path succeeds and
       implementation and review reuse that same registered checkout
       sequentially.
-- [ ] Managed templates, initialization, upgrade migrations, capability
+- [x] Managed templates, initialization, upgrade migrations, capability
       markers, baselines, host contract, and lifecycle documentation deliver
       the commands and rules consistently to new and existing Lean and
       Governed SDD adopters.
-- [ ] A profile-qualified Codex host probe demonstrates the canonical prepare,
+- [x] A profile-qualified Codex host probe demonstrates the canonical prepare,
       stage/finalize or abort, and cleanup flow without user command approvals;
       filesystem-profile activation, project trust, rule decision, Git result,
       and any remaining network/push approval are recorded separately.
-- [ ] A real Claude Code lifecycle probe starts from the primary project,
+- [x] A real Claude Code lifecycle probe starts from the primary project,
       prepares the repository-qualified Meridian worktree, launches a fresh
       worker bound to that existing path, and proves that no additional entry
       appears below `.claude/worktrees` or elsewhere. A host that only offers
       automatic new-worktree sessions is recorded as unsupported and returns
       `BLOCKED`, not as a successful advisory integration.
-- [ ] `python3 scripts/check_repository.py`,
+- [x] `python3 scripts/check_repository.py`,
       `python3 -m unittest discover -s tests -v`, and `git diff --check` pass.
 
 ## 📁 Relevant Files
@@ -264,11 +264,10 @@ Evidence plan:
   rule loading after restart, and remaining push/network behavior.
 
 Completion evidence:
-- Codex desktop / trusted project / active Meridian permission profile and project rules: unverified until the named end-to-end probe is recorded.
-- Codex CLI / trusted project / active Meridian permission profile and project rules: unverified until the named end-to-end probe is recorded.
-- Claude Code plugin session: unverified until the named existing-worktree
-  binding probe completes without creating a substitute checkout.
-- Host-neutral Meridian CLI: unverified until the real-Git lifecycle suite passes.
+- Codex desktop / trusted project / active Meridian permission profile and project rules: unverified; the CLI probe does not establish desktop profile activation.
+- Codex CLI / trusted project / active Meridian permission profile and project rules: verified for Codex CLI 0.157.1 by the prepare/check, actual execpolicy, stage/finalize, and cleanup evidence in `docs/TASK_056_HOST_PROBE.md`.
+- Claude Code plugin session: verified with Claude Code 2.1.283. An authenticated fresh session completed from the exact repository-qualified worktree returned by `prepare`; it reported that path and branch, the subsequent worker `check` returned `ready`, and Git enumeration showed no host-created substitute checkout. See `docs/TASK_056_HOST_PROBE.md`.
+- Host-neutral Meridian CLI: verified by the real-Git lifecycle suite and the temporary-repository end-to-end probe recorded in `docs/TASK_056_HOST_PROBE.md`.
 
 ## 🔗 Dependencies
 
