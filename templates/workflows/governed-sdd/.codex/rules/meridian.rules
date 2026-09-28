@@ -36,6 +36,8 @@ prefix_rule(pattern=["git", "worktree", ["add", "remove", "prune"]], decision="p
 # `execution reconcile`, intentionally retain Codex's normal approval flow.
 prefix_rule(pattern=["meridian", ["context", "locations", "adr", "budget", "audit"]], decision="allow")
 prefix_rule(pattern=["meridian", "codex", ["doctor", "worktree-path"]], decision="allow")
+prefix_rule(pattern=["meridian", "worktree", ["path", "prepare", "check", "cleanup"]], decision="allow")
+prefix_rule(pattern=["meridian", "worktree", "integrate", ["stage", "finalize", "abort"]], decision="allow")
 prefix_rule(pattern=["meridian", "execution", ["validate", "ready-check", "handoff-check", "preflight", "evidence", "contract", "investigate"]], decision="allow")
 
 # More restrictive matches override the broad Git rules above.

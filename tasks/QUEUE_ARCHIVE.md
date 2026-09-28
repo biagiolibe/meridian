@@ -179,4 +179,15 @@ non-rewriting final integration.
 |--------|----|-------|----------|-----------|-----------|
 | `[x]` | 051 | Enforce isolated worktrees for every task | 🔴 P1 | — | [051](done/051-enforce-isolated-task-worktrees.md) |
 
+### Phase 20 — Host-neutral bounded worktree lifecycle commands
+
+Replaces approval-prone raw Git worktree and integration mutations with
+validated, agent-agnostic Meridian state transitions. Codex may grant exact
+allow rules for those commands, while Claude and direct terminal users invoke
+the same lifecycle surface through their own host permission mechanisms.
+
+| Status | ID | Title | Priority | Depends on | Task File |
+|--------|----|-------|----------|------------|-----------|
+| `[x]` | 056 | Add bounded worktree lifecycle commands | 🔴 P1 | 054, 055, 059, 063 | [056](done/056-add-bounded-worktree-lifecycle-commands.md) |
+
 *Last updated: 2026-09-26*

@@ -18,6 +18,10 @@
     }
   },
   "templates/workflows/governed-sdd/PROJECT_WORKFLOW.md": {
+    "bounded-worktree-lifecycle": {
+      "sha256": "6b56fea5d3d7b057c3bb28b8fcba2bf5b4b3134f42ef72352159287872ff061e",
+      "version": 1
+    },
     "codex-worktree-access": {
       "sha256": "136e0803c4370368f0e35980e8e69eafb3ecce9f64d252c6b25b6d23cedda40f",
       "version": 1
@@ -35,8 +39,8 @@
       "version": 1
     },
     "git-workflow": {
-      "sha256": "54c7fd590c8699cb5039a307b46d569a089c98de4725a681bbcbff975aa30e1e",
-      "version": 5
+      "sha256": "ae8712de183f17851eb2d059a7dba0aceb04afd62ecad69006b465240fc6ddb1",
+      "version": 6
     },
     "review-policy": {
       "sha256": "129c502cf2a684ea1fedce822a7a4a39f507c2d66a1a9746f3055d0d71102a09",
@@ -81,8 +85,8 @@
       "version": 1
     },
     "task-worktree-review": {
-      "sha256": "8cbebb5c943289720f8bca5d59f63afa26a91d6a494ba40ce38605b5904203e5",
-      "version": 3
+      "sha256": "2ee89b0993f9cf922f1c4a82ba88accce2077280aa58f25163ea5a525ad0eb28",
+      "version": 4
     }
   },
   "templates/workflows/governed-sdd/docs/COMPLETION_REPORT_TEMPLATE.md": {
@@ -145,8 +149,8 @@
   },
   "templates/workflows/governed-sdd/docs/LIFECYCLE_ORCHESTRATION.md": {
     "lifecycle-orchestration": {
-      "sha256": "6f51e60012c491f0ceff5456b2e5e0a5f21c0e5510417435f09bb0ae06a350b1",
-      "version": 6
+      "sha256": "d7519a832de9ac94a9d01ae2f6bb942b31fe473fd21636ff79a641fb3a0e561f",
+      "version": 7
     },
     "rejected-attempt-restart": {
       "sha256": "ed9029375c608faafd84c29838281159d82436a3443566798e0b99856e8c2c6c",
@@ -191,8 +195,8 @@
       "version": 1
     },
     "task-worktree-boundary": {
-      "sha256": "6f2151c2325e0c423da1d6b5532e455740187e4abfa40e39b7e05aabe3e744e3",
-      "version": 2
+      "sha256": "a9d5853ff2d3bfa4f91f9222517a701597bb1f850faf639d90942ef04578095e",
+      "version": 3
     },
     "validation-scoping": {
       "sha256": "447faaddb875883d676be4c53abf218fc555325cbb591e411412249f7077012d",
@@ -227,8 +231,8 @@
       "version": 2
     },
     "task-worktree-remediation": {
-      "sha256": "d0a3100c48f9d19c58a7bc1db1fdc1b57cf5d5452a2f28a0155a650e0b55b069",
-      "version": 1
+      "sha256": "f76a32e3f7c9e24f1e6c16007e1945e0fe0c7d3181759cb808c2f0d480b40a22",
+      "version": 2
     }
   },
   "templates/workflows/governed-sdd/docs/workflows/REVIEW.md": {
@@ -245,8 +249,8 @@
       "version": 1
     },
     "task-worktree-review-procedure": {
-      "sha256": "d2729d54461da52c034e7c3fcf5207f9a9353698ad6fc7813eb57761709e45d1",
-      "version": 3
+      "sha256": "01ddc534e8986066e8798c0ac90652518fa14cc349210aa62fad28ce155ce83c",
+      "version": 4
     }
   },
   "templates/workflows/governed-sdd/tasks/TASK_BLUEPRINT.md": {
@@ -256,8 +260,12 @@
     }
   },
   "templates/workflows/lean-delivery/PROJECT_WORKFLOW.md": {
+    "bounded-worktree-lifecycle": {
+      "sha256": "73b6a01f64f3ce9260d45909f4b7a79e4d06b795ce4c29b9fe49fbf346a07e5d",
+      "version": 1
+    },
     "codex-worktree-access": {
-      "sha256": "e703132606e5ad9b34e8bedd2f2d3bd51aef62cb305e5caaa21383274daecd07",
+      "sha256": "585db7aee8973c955e936a8dfcad250f57e42caf475abb3c0637c1b48b75b4d8",
       "version": 1
     },
     "task-identity-policy": {

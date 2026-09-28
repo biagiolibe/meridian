@@ -87,6 +87,9 @@ CODEX_MANAGED_BEGIN = "# MERIDIAN:BEGIN worktree-permissions v1"
 CODEX_MANAGED_END = "# MERIDIAN:END worktree-permissions"
 SAFE_PATH_COMPONENT = re.compile(r"[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?")
 TASK_IDENTITY_PATH = Path(".meridian/task-identity.json")
+WORKTREE_STATE_DIRECTORY = "meridian-worktrees"
+INTEGRATION_LEASE_NAME = "meridian-integration.lock"
+INTEGRATION_STATE_NAME = "meridian-integration.json"
 STRUCTURED_TASK_ID = re.compile(
     r"M(?P<milestone>[1-9][0-9]*)-(?P<workstream>[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*)-"
     r"(?P<ordinal>00[1-9]|0[1-9][0-9]|[1-9][0-9]{2})"
@@ -332,16 +335,37 @@ def repository_identity(project_root: Path, remote_url: str | None = None) -> Re
     return RepositoryIdentity("local", "repositories", f"{repository}-{digest}")
 
 
-def task_worktree_path(project_root: Path, worktree_root: Path, task_id: str) -> Path:
+def _task_worktree_path_for_identity(
+    project_root: Path,
+    worktree_root: Path,
+    identity: ResolvedTaskIdentity,
+) -> Path:
     root = worktree_root.expanduser().resolve()
     if root == Path(root.anchor) or root == Path.home().resolve():
         raise MeridianError("worktree root must be a dedicated directory, not the filesystem root or home")
-    identity = repository_identity(project_root)
-    task = resolve_task_identity(project_root, task_id, "new").branch_name
-    result = root / identity.remote_host / identity.owner / identity.repository / task
+    repository = repository_identity(project_root)
+    result = (
+        root
+        / repository.remote_host
+        / repository.owner
+        / repository.repository
+        / identity.branch_name
+    )
     if root not in result.parents:
         raise MeridianError("derived worktree path escapes the configured root")
+    resolved_result = result.resolve()
+    if root not in resolved_result.parents:
+        raise MeridianError("derived worktree path escapes the configured root through a symlink")
     return result
+
+
+def task_worktree_path(project_root: Path, worktree_root: Path, task_id: str) -> Path:
+    """Compatibility derivation for callers that may be planning a new task."""
+    return _task_worktree_path_for_identity(
+        project_root,
+        worktree_root,
+        resolve_task_identity(project_root, task_id, "new"),
+    )
 
 
 def validate_worktree_collision(project_root: Path, path: Path, task_id: str) -> None:
@@ -354,12 +378,563 @@ def validate_worktree_collision(project_root: Path, path: Path, task_id: str) ->
         branch = git_output(path, "branch", "--show-current")
     except MeridianError as error:
         raise MeridianError(f"worktree path collision at {path}: {error}") from error
-    expected_branch = resolve_task_identity(project_root, task_id, "new").branch_name
+    try:
+        expected_branch = resolve_task_identity(project_root, task_id, "existing").branch_name
+    except MeridianError:
+        expected_branch = resolve_task_identity(project_root, task_id, "new").branch_name
     if actual_common != expected_common or branch != expected_branch:
         raise MeridianError(
             f"worktree path collision at {path}: expected {expected_common} on {expected_branch}, "
             f"found {actual_common} on {branch or 'detached HEAD'}"
         )
+
+
+def _run_git(project_root: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["git", "-C", str(project_root), *arguments],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+
+def _git_worktrees(project_root: Path) -> list[dict[str, str]]:
+    output = git_output(project_root, "worktree", "list", "--porcelain")
+    records: list[dict[str, str]] = []
+    current: dict[str, str] = {}
+    for line in output.splitlines() + [""]:
+        if not line:
+            if current:
+                records.append(current)
+                current = {}
+            continue
+        key, _, value = line.partition(" ")
+        current[key] = value
+    return records
+
+
+def canonical_project_root(path: Path) -> Path:
+    """Return the first registered worktree, which is Meridian's primary checkout."""
+    candidate = path.expanduser().resolve()
+    records = _git_worktrees(candidate)
+    if not records or "worktree" not in records[0]:
+        raise MeridianError(f"cannot identify the primary checkout from {candidate}")
+    return Path(records[0]["worktree"]).resolve()
+
+
+def _verified_lifecycle_project(supplied_project: Path | None = None) -> Path:
+    current_project = canonical_project_root(Path.cwd())
+    if supplied_project is not None:
+        supplied = supplied_project.expanduser().resolve()
+        supplied_primary = canonical_project_root(supplied)
+        if supplied != supplied_primary or supplied_primary != current_project:
+            raise MeridianError(
+                f"--project must name the canonical current project {current_project}, found {supplied}"
+            )
+    return current_project
+
+
+def _effective_worktree_root(worktree_root: Path) -> Path:
+    supplied = worktree_root.expanduser().resolve()
+    configured = os.environ.get("MERIDIAN_WORKTREE_ROOT")
+    if configured and Path(configured).expanduser().resolve() != supplied:
+        raise MeridianError(
+            f"worktree root differs from MERIDIAN_WORKTREE_ROOT: {supplied}"
+        )
+    if supplied in {Path(supplied.anchor), Path.home().resolve()}:
+        raise MeridianError("worktree root must be a dedicated directory, not the filesystem root or home")
+    return supplied
+
+
+def _lifecycle_paths(project_root: Path, identity: ResolvedTaskIdentity) -> tuple[Path, Path, Path]:
+    common = canonical_git_common_dir(project_root)
+    state = common / WORKTREE_STATE_DIRECTORY / f"{identity.artifact_stem}.json"
+    return state, common / INTEGRATION_LEASE_NAME, common / INTEGRATION_STATE_NAME
+
+
+def _merge_head_path(project_root: Path) -> Path:
+    return Path(git_output(project_root, "rev-parse", "--git-path", "MERGE_HEAD")).resolve()
+
+
+def _write_json_atomic(path: Path, value: dict[str, object], *, exclusive: bool = False) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    encoded = (json.dumps(value, indent=2, sort_keys=True) + "\n").encode()
+    if exclusive:
+        descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(descriptor, "wb") as stream:
+            stream.write(encoded)
+        return
+    descriptor, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    try:
+        with os.fdopen(descriptor, "wb") as stream:
+            stream.write(encoded)
+        os.replace(temporary, path)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+
+
+def _read_json_object(path: Path, label: str) -> dict[str, object]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise MeridianError(f"cannot read {label} at {path}: {error}") from error
+    if not isinstance(value, dict):
+        raise MeridianError(f"{label} must be a JSON object: {path}")
+    return value
+
+
+def _branch_commit(project_root: Path, branch: str) -> str | None:
+    result = _run_git(project_root, "rev-parse", "--verify", "--quiet", f"refs/heads/{branch}")
+    if result.returncode == 1:
+        return None
+    if result.returncode != 0:
+        raise MeridianError(result.stderr.strip() or f"cannot inspect branch {branch}")
+    return result.stdout.strip()
+
+
+def prepare_task_worktree(
+    task_id: str,
+    worktree_root: Path,
+    supplied_project: Path | None = None,
+    base: str = "main",
+) -> dict[str, object]:
+    if base != "main":
+        raise MeridianError("worktree prepare permits only the main base")
+    project_root = _verified_lifecycle_project(supplied_project)
+    root = _effective_worktree_root(worktree_root)
+    identity = resolve_task_identity(project_root, task_id, "existing")
+    path = _task_worktree_path_for_identity(project_root, root, identity)
+    state_path, _lease, _integration = _lifecycle_paths(project_root, identity)
+    records = _git_worktrees(project_root)
+    registered = next((item for item in records if Path(item["worktree"]).resolve() == path), None)
+    branch_commit = _branch_commit(project_root, identity.branch_name)
+    if (registered is None) != (branch_commit is None):
+        raise MeridianError(
+            f"partial task state retained for {identity.canonical_id}; branch and canonical worktree must both exist or both be absent"
+        )
+    base_commit = git_output(project_root, "rev-parse", "--verify", f"{base}^{{commit}}")
+    created = False
+    if registered is None:
+        if path.exists():
+            raise MeridianError(f"worktree path collision at {path}")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        added = _run_git(project_root, "worktree", "add", "-b", identity.branch_name, str(path), base_commit)
+        if added.returncode != 0:
+            raise MeridianError(added.stderr.strip() or "git worktree add failed")
+        branch_commit = base_commit
+        created = True
+    else:
+        expected_ref = f"refs/heads/{identity.branch_name}"
+        if registered.get("branch") != expected_ref or registered.get("HEAD") != branch_commit:
+            raise MeridianError(
+                f"canonical worktree mismatch retained at {path}: expected {expected_ref} at {branch_commit}"
+            )
+        if git_output(path, "status", "--porcelain"):
+            raise MeridianError(f"existing task worktree is dirty and was retained: {path}")
+        if state_path.is_file():
+            prior = _read_json_object(state_path, "worktree lifecycle state")
+            if prior.get("worktree") != str(path) or prior.get("branch") != identity.branch_name:
+                raise MeridianError(f"lifecycle state mismatch retained at {state_path}")
+            base_commit = str(prior.get("base_commit", base_commit))
+    state = {
+        "version": 1,
+        "task_id": identity.canonical_id,
+        "branch": identity.branch_name,
+        "worktree": str(path),
+        "worktree_root": str(root),
+        "project": str(project_root),
+        "git_common_dir": str(canonical_git_common_dir(project_root)),
+        "base_commit": base_commit,
+        "task_commit": branch_commit,
+        "handoff": str(identity.handoff_path),
+    }
+    _write_json_atomic(state_path, state)
+    return {**state, "created": created, "next_action": "check"}
+
+
+def inspect_task_worktree(
+    task_id: str,
+    worktree_root: Path,
+    supplied_project: Path | None = None,
+    *,
+    require_effective_worktree: bool = True,
+) -> tuple[dict[str, object], bool]:
+    project_root = _verified_lifecycle_project(supplied_project)
+    root = _effective_worktree_root(worktree_root)
+    identity = resolve_task_identity(project_root, task_id, "existing")
+    expected = _task_worktree_path_for_identity(project_root, root, identity)
+    state_path, lease_path, integration_path = _lifecycle_paths(project_root, identity)
+    errors: list[str] = []
+    state: dict[str, object] = {}
+    if state_path.is_file():
+        state = _read_json_object(state_path, "worktree lifecycle state")
+    else:
+        errors.append("missing-state")
+    records = _git_worktrees(project_root)
+    registered = next((item for item in records if Path(item["worktree"]).resolve() == expected), None)
+    current = Path.cwd().resolve()
+    if require_effective_worktree and current != expected:
+        errors.append("wrong-worktree")
+    if registered is None:
+        errors.append("unregistered-worktree")
+        head = ""
+        branch = ""
+        clean = False
+    else:
+        head = registered.get("HEAD", "")
+        branch = registered.get("branch", "").removeprefix("refs/heads/")
+        if branch != identity.branch_name:
+            errors.append("branch-mismatch")
+        status = _run_git(expected, "status", "--porcelain")
+        clean = status.returncode == 0 and not status.stdout
+        if not clean:
+            errors.append("dirty-worktree")
+    if state:
+        if state.get("task_id") != identity.canonical_id:
+            errors.append("state-task-mismatch")
+        if state.get("project") != str(project_root) or state.get("worktree") != str(expected):
+            errors.append("state-path-mismatch")
+        if state.get("branch") != identity.branch_name:
+            errors.append("state-branch-mismatch")
+        if state.get("worktree_root") != str(root):
+            errors.append("state-root-mismatch")
+        if state.get("git_common_dir") != str(canonical_git_common_dir(project_root)):
+            errors.append("state-common-dir-mismatch")
+        base_commit = state.get("base_commit")
+        if not isinstance(base_commit, str) or _run_git(
+            project_root, "cat-file", "-e", f"{base_commit}^{{commit}}"
+        ).returncode != 0:
+            errors.append("base-commit-mismatch")
+    handoff_consistent = bool(state) and not any(item.startswith("state-") for item in errors)
+    if identity.handoff_path.is_file():
+        handoff_text = identity.handoff_path.read_text(encoding="utf-8")
+        expected_fields = {
+            "Branch": identity.branch_name,
+            "Worktree": str(expected),
+            "Base `main` commit": str(state.get("base_commit", "")),
+        }
+        for label, value in expected_fields.items():
+            match = re.search(rf"^- {re.escape(label)}:\s*`([^`]+)`", handoff_text, re.MULTILINE)
+            if match is not None and match.group(1) != value:
+                errors.append("handoff-mismatch")
+                handoff_consistent = False
+                break
+    result = {
+        "version": 1,
+        "status": "ready" if not errors else "blocked",
+        "task_id": identity.canonical_id,
+        "branch": branch or identity.branch_name,
+        "worktree": str(expected),
+        "git_common_dir": str(canonical_git_common_dir(project_root)),
+        "canonical_prepared_path": str(expected),
+        "effective_worker_path": str(current),
+        "base_commit": state.get("base_commit", ""),
+        "task_commit": head,
+        "clean": clean,
+        "handoff_consistent": handoff_consistent,
+        "integration_active": lease_path.exists() or integration_path.exists(),
+        "errors": errors,
+        "next_action": "implement" if not errors else "repair-or-abort",
+    }
+    return result, not errors
+
+
+def _string_tuple(value: object, label: str) -> tuple[str, ...]:
+    if not isinstance(value, list) or not all(isinstance(item, str) and item for item in value):
+        raise MeridianError(f"integration evidence field {label!r} must be an array of non-empty strings")
+    return tuple(value)
+
+
+def _bool_field(value: object, label: str) -> bool:
+    if not isinstance(value, bool):
+        raise MeridianError(f"integration evidence field {label!r} must be boolean")
+    return value
+
+
+def _integration_evidence(path: Path) -> dict[str, object]:
+    evidence = _read_json_object(path.expanduser().resolve(), "integration evidence")
+    required = {
+        "accepted",
+        "validation_passed",
+        "validated_task_commit",
+        "validated_base_commit",
+        "full_validation_required",
+        "interaction_assessment_complete",
+        "task_paths",
+        "task_dependencies",
+        "task_behavioral_surfaces",
+        "main_advanced_dependencies",
+        "main_advanced_behavioral_surfaces",
+    }
+    missing = sorted(required - evidence.keys())
+    if missing:
+        raise MeridianError(f"integration evidence is incomplete; missing: {', '.join(missing)}")
+    for field in ("accepted", "validation_passed", "full_validation_required", "interaction_assessment_complete"):
+        _bool_field(evidence[field], field)
+    for field in (
+        "task_paths",
+        "task_dependencies",
+        "task_behavioral_surfaces",
+        "main_advanced_dependencies",
+        "main_advanced_behavioral_surfaces",
+    ):
+        _string_tuple(evidence[field], field)
+    for field in ("validated_task_commit", "validated_base_commit"):
+        if not isinstance(evidence[field], str) or not re.fullmatch(r"[0-9a-f]{40}", evidence[field]):
+            raise MeridianError(f"integration evidence field {field!r} must be a full Git object ID")
+    return evidence
+
+
+def _remove_owned_file(path: Path) -> None:
+    try:
+        path.unlink()
+    except FileNotFoundError:
+        pass
+
+
+def stage_task_integration(
+    task_id: str,
+    worktree_root: Path,
+    evidence_path: Path,
+    supplied_project: Path | None = None,
+) -> dict[str, object]:
+    project_root = _verified_lifecycle_project(supplied_project)
+    if Path.cwd().resolve() != project_root:
+        raise MeridianError("integration stage must run from the canonical primary checkout")
+    identity = resolve_task_identity(project_root, task_id, "existing")
+    _state_path, lease_path, integration_path = _lifecycle_paths(project_root, identity)
+    if integration_path.exists():
+        prior = _read_json_object(integration_path, "staged integration state")
+        lease_matches = lease_path.is_file() and _read_json_object(
+            lease_path, "integration lease"
+        ).get("task_id") == identity.canonical_id
+        candidate_matches = prior.get("candidate_tree") == git_output(project_root, "write-tree")
+        merge_matches = _merge_head_path(project_root).is_file() and git_output(
+            project_root, "rev-parse", "HEAD"
+        ) == prior.get("main_commit")
+        if (
+            prior.get("task_id") == identity.canonical_id
+            and lease_matches
+            and candidate_matches
+            and merge_matches
+        ):
+            return prior
+        raise MeridianError(f"staged integration state is mismatched or stale at {integration_path}")
+    if lease_path.exists():
+        raise MeridianError(
+            f"an interrupted integration lease is retained at {lease_path}; use `meridian worktree integrate abort`"
+        )
+    inspection, ready = inspect_task_worktree(
+        identity.canonical_id,
+        worktree_root,
+        project_root,
+        require_effective_worktree=False,
+    )
+    if not ready:
+        raise MeridianError(f"task worktree is not ready: {', '.join(inspection['errors'])}")
+    if git_output(project_root, "branch", "--show-current") != "main":
+        raise MeridianError("primary checkout must be on main")
+    if git_output(project_root, "status", "--porcelain"):
+        raise MeridianError("primary checkout must be clean")
+    evidence = _integration_evidence(evidence_path)
+    if not evidence["accepted"] or not evidence["validation_passed"]:
+        raise MeridianError("accepted, successful task validation evidence is required")
+    task_commit = str(inspection["task_commit"])
+    validated_task = str(evidence["validated_task_commit"])
+    validated_base = str(evidence["validated_base_commit"])
+    base_is_ancestor = _run_git(
+        project_root, "merge-base", "--is-ancestor", validated_base, validated_task
+    ).returncode == 0
+    validated_is_ancestor = _run_git(
+        project_root, "merge-base", "--is-ancestor", validated_task, task_commit
+    ).returncode == 0
+    relevant_unchanged = validated_task == task_commit
+    if validated_is_ancestor and not relevant_unchanged:
+        changed = set(git_output(project_root, "diff", "--name-only", validated_task, task_commit).splitlines())
+        allowed = {
+            str(identity.task_path.relative_to(project_root)),
+            str(identity.queue_path.relative_to(project_root)),
+            str(identity.handoff_path.relative_to(project_root)),
+            str(identity.review_path.relative_to(project_root)),
+            "PROJECT_PLAN.md",
+        }
+        relevant_unchanged = changed <= allowed
+    current_main = git_output(project_root, "rev-parse", "main")
+    main_paths = tuple(
+        filter(None, git_output(project_root, "diff", "--name-only", validated_base, current_main).splitlines())
+    ) if current_main != validated_base else ()
+    decision = decide_integration_validation(
+        evidence_complete=True,
+        validated_task_commit=validated_task,
+        current_task_commit=task_commit,
+        validated_base_commit=validated_base,
+        current_main_commit=current_main,
+        validated_base_is_task_ancestor=base_is_ancestor,
+        full_validation_required=bool(evidence["full_validation_required"]),
+        validated_task_is_current_ancestor=validated_is_ancestor,
+        relevant_tree_unchanged_after_validation=relevant_unchanged,
+        interaction_assessment_complete=bool(evidence["interaction_assessment_complete"]),
+        task_paths=_string_tuple(evidence["task_paths"], "task_paths"),
+        main_advanced_paths=main_paths,
+        task_dependencies=_string_tuple(evidence["task_dependencies"], "task_dependencies"),
+        main_advanced_dependencies=_string_tuple(evidence["main_advanced_dependencies"], "main_advanced_dependencies"),
+        task_behavioral_surfaces=_string_tuple(evidence["task_behavioral_surfaces"], "task_behavioral_surfaces"),
+        main_advanced_behavioral_surfaces=_string_tuple(
+            evidence["main_advanced_behavioral_surfaces"], "main_advanced_behavioral_surfaces"
+        ),
+    )
+    if decision.outcome == IntegrationValidationOutcome.BLOCKED:
+        raise MeridianError(decision.reason)
+    lease = {
+        "version": 1,
+        "task_id": identity.canonical_id,
+        "branch": identity.branch_name,
+        "project": str(project_root),
+        "main_commit": current_main,
+    }
+    try:
+        _write_json_atomic(lease_path, lease, exclusive=True)
+    except FileExistsError as error:
+        raise MeridianError(f"integration lease already exists: {lease_path}") from error
+    merged = _run_git(project_root, "merge", "--no-ff", "--no-commit", identity.branch_name)
+    if merged.returncode != 0:
+        aborted = _run_git(project_root, "merge", "--abort")
+        if aborted.returncode == 0:
+            _remove_owned_file(lease_path)
+        raise MeridianError("integration conflict was aborted; task branch and worktree were retained")
+    candidate_tree = git_output(project_root, "write-tree")
+    staged = {
+        **lease,
+        "task_commit": task_commit,
+        "validated_task_commit": validated_task,
+        "validated_base_commit": validated_base,
+        "decision": decision.outcome.value,
+        "reason": decision.reason,
+        "candidate_tree": candidate_tree,
+        "next_action": "validate-candidate",
+    }
+    _write_json_atomic(integration_path, staged, exclusive=True)
+    return staged
+
+
+def finalize_task_integration(
+    task_id: str,
+    validation_path: Path,
+    supplied_project: Path | None = None,
+) -> dict[str, object]:
+    project_root = _verified_lifecycle_project(supplied_project)
+    if Path.cwd().resolve() != project_root:
+        raise MeridianError("integration finalize must run from the canonical primary checkout")
+    identity = resolve_task_identity(project_root, task_id, "existing")
+    _task_state, lease_path, integration_path = _lifecycle_paths(project_root, identity)
+    lease = _read_json_object(lease_path, "integration lease")
+    staged = _read_json_object(integration_path, "staged integration state")
+    if lease.get("task_id") != identity.canonical_id or staged.get("task_id") != identity.canonical_id:
+        raise MeridianError("integration ownership does not match the requested task")
+    if not _merge_head_path(project_root).is_file() or git_output(
+        project_root, "rev-parse", "HEAD"
+    ) != staged.get("main_commit"):
+        raise MeridianError("the owned staged merge state is missing or its main commit changed")
+    if git_output(project_root, "write-tree") != staged.get("candidate_tree"):
+        raise MeridianError("staged candidate tree changed after integration stage")
+    validation = _read_json_object(validation_path.expanduser().resolve(), "candidate validation evidence")
+    if validation.get("candidate_tree") != staged.get("candidate_tree") or validation.get("passed") is not True:
+        raise MeridianError("candidate validation evidence is stale, mismatched, or failed")
+    required_scope = "full" if staged.get("decision") == "FULL" else "bounded"
+    if validation.get("scope") != required_scope:
+        raise MeridianError(f"candidate validation scope must be {required_scope!r}")
+    commands = validation.get("commands")
+    if not isinstance(commands, list) or not commands or not all(isinstance(item, str) and item for item in commands):
+        raise MeridianError("candidate validation evidence must name successful commands")
+    committed = _run_git(project_root, "commit", "-m", f"Integrate {identity.canonical_id}")
+    if committed.returncode != 0:
+        raise MeridianError(committed.stderr.strip() or "integration commit failed; staged state was retained")
+    merge_commit = git_output(project_root, "rev-parse", "HEAD")
+    _remove_owned_file(integration_path)
+    _remove_owned_file(lease_path)
+    return {
+        "version": 1,
+        "task_id": identity.canonical_id,
+        "merge_commit": merge_commit,
+        "candidate_tree": staged["candidate_tree"],
+        "decision": staged["decision"],
+        "next_action": "push-or-cleanup",
+    }
+
+
+def abort_task_integration(task_id: str, supplied_project: Path | None = None) -> dict[str, object]:
+    project_root = _verified_lifecycle_project(supplied_project)
+    if Path.cwd().resolve() != project_root:
+        raise MeridianError("integration abort must run from the canonical primary checkout")
+    identity = resolve_task_identity(project_root, task_id, "existing")
+    _task_state, lease_path, integration_path = _lifecycle_paths(project_root, identity)
+    lease = _read_json_object(lease_path, "integration lease")
+    staged = _read_json_object(integration_path, "staged integration state") if integration_path.is_file() else None
+    if lease.get("task_id") != identity.canonical_id or (
+        staged is not None and staged.get("task_id") != identity.canonical_id
+    ):
+        raise MeridianError("integration ownership does not match the requested task")
+    merge_head = _merge_head_path(project_root)
+    if merge_head.exists():
+        aborted = _run_git(project_root, "merge", "--abort")
+        if aborted.returncode != 0:
+            raise MeridianError(aborted.stderr.strip() or "cannot abort the owned staged integration")
+    _remove_owned_file(integration_path)
+    _remove_owned_file(lease_path)
+    return {"version": 1, "task_id": identity.canonical_id, "status": "aborted", "next_action": "inspect"}
+
+
+def cleanup_task_worktree(
+    task_id: str,
+    worktree_root: Path,
+    supplied_project: Path | None = None,
+) -> dict[str, object]:
+    project_root = _verified_lifecycle_project(supplied_project)
+    if Path.cwd().resolve() != project_root:
+        raise MeridianError("worktree cleanup must run from the canonical primary checkout")
+    identity = resolve_task_identity(project_root, task_id, "existing")
+    root = _effective_worktree_root(worktree_root)
+    expected = _task_worktree_path_for_identity(project_root, root, identity)
+    state_path, lease_path, integration_path = _lifecycle_paths(project_root, identity)
+    registered_paths = {Path(item["worktree"]).resolve() for item in _git_worktrees(project_root)}
+    if (
+        expected not in registered_paths
+        and not expected.exists()
+        and _branch_commit(project_root, identity.branch_name) is None
+        and not state_path.exists()
+    ):
+        return {"version": 1, "task_id": identity.canonical_id, "status": "cleaned", "already_cleaned": True}
+    inspection, ready = inspect_task_worktree(
+        identity.canonical_id,
+        worktree_root,
+        project_root,
+        require_effective_worktree=False,
+    )
+    if lease_path.exists() or integration_path.exists():
+        raise MeridianError("cleanup is blocked while an integration lease or staged merge is active")
+    if not ready:
+        raise MeridianError(f"cleanup preflight failed: {', '.join(inspection['errors'])}")
+    if git_output(project_root, "status", "--porcelain"):
+        raise MeridianError("primary checkout must be clean")
+    task_commit = str(inspection["task_commit"])
+    if _run_git(project_root, "merge-base", "--is-ancestor", task_commit, "main").returncode != 0:
+        raise MeridianError("task commit is not integrated into main")
+    origin = _run_git(project_root, "remote", "get-url", "origin")
+    if origin.returncode == 0:
+        remote_main = _run_git(project_root, "rev-parse", "--verify", "refs/remotes/origin/main")
+        if remote_main.returncode != 0 or _run_git(
+            project_root, "merge-base", "--is-ancestor", "main", "refs/remotes/origin/main"
+        ).returncode != 0:
+            raise MeridianError("local main is not proven pushed to origin/main")
+    removed = _run_git(project_root, "worktree", "remove", str(inspection["worktree"]))
+    if removed.returncode != 0:
+        raise MeridianError(removed.stderr.strip() or "worktree removal failed; branch was retained")
+    deleted = _run_git(project_root, "branch", "-d", identity.branch_name)
+    if deleted.returncode != 0:
+        raise MeridianError(deleted.stderr.strip() or "non-force branch deletion failed")
+    _remove_owned_file(state_path)
+    return {"version": 1, "task_id": identity.canonical_id, "status": "cleaned"}
 
 
 def _toml_quote(value: str) -> str:
@@ -525,6 +1100,34 @@ def codex_doctor(project_root: Path, config_path: Path, worktree_root: Path) -> 
     result["project-trust"] = "ready" if trusted else "approval-required"
     rules = project_root / ".codex/rules/meridian.rules"
     result["command-policy"] = "ready" if rules.is_file() and trusted else ("approval-required" if rules.is_file() else "blocked")
+    lifecycle_policy = "approval-required"
+    codex_executable = shutil.which("codex")
+    if result["command-policy"] == "ready" and codex_executable:
+        probes = (
+            ("path", "TASK-1", "--worktree-root", str(worktree_root)),
+            ("prepare", "TASK-1", "--worktree-root", str(worktree_root), "--format", "json"),
+            ("check", "TASK-1", "--worktree-root", str(worktree_root), "--format", "json"),
+            ("integrate", "stage", "TASK-1", "--worktree-root", str(worktree_root), "--evidence", "handoff.json", "--format", "json"),
+            ("integrate", "finalize", "TASK-1", "--evidence", "candidate.json", "--format", "json"),
+            ("integrate", "abort", "TASK-1", "--format", "json"),
+            ("cleanup", "TASK-1", "--worktree-root", str(worktree_root), "--format", "json"),
+        )
+        decisions: list[str | None] = []
+        for probe in probes:
+            checked = subprocess.run(
+                [codex_executable, "execpolicy", "check", "--rules", str(rules), "--", "meridian", "worktree", *probe],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            try:
+                decisions.append(json.loads(checked.stdout).get("decision") if checked.returncode == 0 else None)
+            except json.JSONDecodeError:
+                decisions.append(None)
+        lifecycle_policy = "ready" if decisions and all(item == "allow" for item in decisions) else "blocked"
+    elif result["command-policy"] == "blocked":
+        lifecycle_policy = "blocked"
+    result["lifecycle-command-policy"] = lifecycle_policy
     root_write = "approval-required"
     if result["permission-model"] == "ready" and worktree_root.is_dir():
         try:
@@ -535,7 +1138,7 @@ def codex_doctor(project_root: Path, config_path: Path, worktree_root: Path) -> 
         except OSError:
             root_write = "blocked"
     result["worktree-root-write"] = root_write
-    result["git-metadata"] = "approval-required"
+    result["git-metadata"] = "ready" if lifecycle_policy == "ready" else "approval-required"
     return result
 
 
@@ -4905,10 +5508,10 @@ CLAUDE_MD_SHARED_ANCHOR = {
 
 
 class MeridianArgumentParser(argparse.ArgumentParser):
-    """Use sysexits-style usage status for the task-identity diagnostic."""
+    """Use sysexits-style usage status for machine-oriented namespaces."""
 
     def error(self, message: str) -> None:
-        if " task identity" in self.prog:
+        if " task identity" in self.prog or " worktree" in self.prog:
             self.print_usage(sys.stderr)
             self.exit(64, f"{self.prog}: error: {message}\n")
         super().error(message)
@@ -5053,6 +5656,47 @@ def main() -> int:
     codex_doctor_parser.add_argument("--worktree-root", type=Path, required=True)
     codex_doctor_parser.add_argument("--config", type=Path, default=Path.home() / ".codex/config.toml", help=argparse.SUPPRESS)
 
+    worktree = subparsers.add_parser("worktree", help="run the bounded host-neutral task-worktree lifecycle")
+    worktree_sub = worktree.add_subparsers(dest="worktree_command", required=True)
+    worktree_path_parser = worktree_sub.add_parser("path", help="derive the canonical task-worktree path")
+    worktree_path_parser.add_argument("task_id")
+    worktree_path_parser.add_argument("--project", type=Path)
+    worktree_path_parser.add_argument("--worktree-root", type=Path, required=True)
+    worktree_path_parser.add_argument("--format", choices=("json",))
+    worktree_prepare = worktree_sub.add_parser("prepare", help="create or select exactly one canonical task worktree")
+    worktree_prepare.add_argument("task_id")
+    worktree_prepare.add_argument("--project", type=Path)
+    worktree_prepare.add_argument("--worktree-root", type=Path, required=True)
+    worktree_prepare.add_argument("--base", choices=("main",), default="main")
+    worktree_prepare.add_argument("--format", choices=("json",), required=True)
+    worktree_check = worktree_sub.add_parser("check", help="inspect the effective worker worktree without mutation")
+    worktree_check.add_argument("task_id")
+    worktree_check.add_argument("--project", type=Path)
+    worktree_check.add_argument("--worktree-root", type=Path, required=True)
+    worktree_check.add_argument("--format", choices=("json",), required=True)
+    worktree_integrate = worktree_sub.add_parser("integrate", help="stage, finalize, or abort one owned integration")
+    integrate_sub = worktree_integrate.add_subparsers(dest="integrate_command", required=True)
+    integrate_stage = integrate_sub.add_parser("stage", help="lease and stage the prescribed no-commit merge")
+    integrate_stage.add_argument("task_id")
+    integrate_stage.add_argument("--project", type=Path)
+    integrate_stage.add_argument("--worktree-root", type=Path, required=True)
+    integrate_stage.add_argument("--evidence", type=Path, required=True)
+    integrate_stage.add_argument("--format", choices=("json",), required=True)
+    integrate_finalize = integrate_sub.add_parser("finalize", help="commit an exactly validated staged candidate")
+    integrate_finalize.add_argument("task_id")
+    integrate_finalize.add_argument("--project", type=Path)
+    integrate_finalize.add_argument("--evidence", type=Path, required=True)
+    integrate_finalize.add_argument("--format", choices=("json",), required=True)
+    integrate_abort = integrate_sub.add_parser("abort", help="abort one Meridian-owned staged integration")
+    integrate_abort.add_argument("task_id")
+    integrate_abort.add_argument("--project", type=Path)
+    integrate_abort.add_argument("--format", choices=("json",), required=True)
+    worktree_cleanup = worktree_sub.add_parser("cleanup", help="remove an integrated worktree and its merged local branch")
+    worktree_cleanup.add_argument("task_id")
+    worktree_cleanup.add_argument("--project", type=Path)
+    worktree_cleanup.add_argument("--worktree-root", type=Path, required=True)
+    worktree_cleanup.add_argument("--format", choices=("json",), required=True)
+
     task = subparsers.add_parser("task", help="inspect task records and identities")
     task_sub = task.add_subparsers(dest="task_command", required=True)
     identity = task_sub.add_parser("identity", help="resolve the project-selected task identity policy")
@@ -5164,7 +5808,11 @@ def main() -> int:
 
     arguments = parser.parse_args()
     framework_root = arguments.framework_root.resolve()
-    project_root = arguments.project.resolve() if hasattr(arguments, "project") else None
+    project_root = (
+        arguments.project.resolve()
+        if hasattr(arguments, "project") and arguments.project is not None
+        else None
+    )
     try:
         if arguments.command == "lock":
             lock_project(project_root, framework_root, arguments.mode)
@@ -5218,11 +5866,67 @@ def main() -> int:
             elif arguments.codex_command == "worktree-path":
                 path = task_worktree_path(project_root, arguments.worktree_root, arguments.task_id)
                 validate_worktree_collision(project_root, path, arguments.task_id)
+                print("DEPRECATED: use `meridian worktree path`", file=sys.stderr)
                 print(path)
             else:
                 report = codex_doctor(project_root, arguments.config.expanduser().resolve(), arguments.worktree_root.expanduser().resolve())
                 for capability, status in report.items():
                     print(f"{capability}: {status}")
+        elif arguments.command == "worktree":
+            if arguments.worktree_command == "path":
+                canonical_project = _verified_lifecycle_project(project_root)
+                path_identity = resolve_task_identity(
+                    canonical_project, arguments.task_id, "existing"
+                )
+                path = _task_worktree_path_for_identity(
+                    canonical_project,
+                    _effective_worktree_root(arguments.worktree_root),
+                    path_identity,
+                )
+                validate_worktree_collision(canonical_project, path, arguments.task_id)
+                if arguments.format == "json":
+                    print(json.dumps({"version": 1, "path": str(path)}, sort_keys=True))
+                else:
+                    print(path)
+            elif arguments.worktree_command == "prepare":
+                print(json.dumps(prepare_task_worktree(
+                    arguments.task_id,
+                    arguments.worktree_root,
+                    project_root,
+                    arguments.base,
+                ), sort_keys=True))
+            elif arguments.worktree_command == "check":
+                report, ready = inspect_task_worktree(
+                    arguments.task_id,
+                    arguments.worktree_root,
+                    project_root,
+                )
+                print(json.dumps(report, sort_keys=True))
+                if not ready:
+                    return 2
+            elif arguments.worktree_command == "integrate":
+                if arguments.integrate_command == "stage":
+                    result = stage_task_integration(
+                        arguments.task_id,
+                        arguments.worktree_root,
+                        arguments.evidence,
+                        project_root,
+                    )
+                elif arguments.integrate_command == "finalize":
+                    result = finalize_task_integration(
+                        arguments.task_id,
+                        arguments.evidence,
+                        project_root,
+                    )
+                else:
+                    result = abort_task_integration(arguments.task_id, project_root)
+                print(json.dumps(result, sort_keys=True))
+            else:
+                print(json.dumps(cleanup_task_worktree(
+                    arguments.task_id,
+                    arguments.worktree_root,
+                    project_root,
+                ), sort_keys=True))
         elif arguments.command == "task":
             resolved = resolve_task_identity(project_root, arguments.task_id, "existing")
             print(json.dumps(task_identity_json(project_root, resolved), sort_keys=True))

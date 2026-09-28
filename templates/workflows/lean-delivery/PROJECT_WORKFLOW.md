@@ -55,8 +55,8 @@ do not provide a second identity policy or imply task semantics.
 <!-- MERIDIAN:BEGIN capability=codex-worktree-access v1 -->
 Every task uses exactly one branch and one linked worktree, with one writer at
 a time. Normalize the canonical task ID to lowercase `task-<number>` and use
-it as the branch name. Derive the worktree path with `meridian codex
-worktree-path <task-id> --project <primary-checkout> --worktree-root
+it as the branch name. Derive the worktree path with `meridian worktree path
+<task-id> --project <primary-checkout> --worktree-root
 <selected-root>`. The layout is
 `<root>/<remote-host>/<owner>/<repository>/<canonical-task-id>`; a repository
 without a usable remote uses a deterministic local name plus a canonical
@@ -70,17 +70,16 @@ the selected root. Static configuration is not proof of effective host access;
 resolve `approval-required` explicitly and treat `blocked` as `BLOCKED`.
 <!-- MERIDIAN:END -->
 
-`Proceed with <TASK-ID>` performs a read-only collision check, then creates the
-branch and linked worktree from the current `main` commit before changing task
-state or files. If both branch and worktree already exist and are linked to one
-another, it may select them after verifying the branch and clean worktree. If
-only one exists, either resolves to another task, or the branch/worktree/HEAD
-mapping differs, return `BLOCKED`; never silently reuse or repair it. Record
-the branch, absolute worktree path, base `main` commit, and current task commit
-in `tasks/handoffs/<TASK-ID>.md`. Implementation, validation, remediation, and
-task-local status changes run only in that worktree. The primary checkout is a
-coordination and final-integration surface, never an implementation or review
-surface.
+<!-- MERIDIAN:BEGIN capability=bounded-worktree-lifecycle v1 -->
+`Proceed with <TASK-ID>` runs `meridian worktree prepare <task-id> --project
+<primary-checkout> --worktree-root <selected-root> --format json` before
+starting a worker. The coordinator passes the returned branch and absolute
+path as durable launch inputs and does not use a host facility that creates a
+second checkout. The worker starts in that exact directory and, before any task
+read or write, runs `meridian worktree check <task-id> --project
+<primary-checkout> --worktree-root <selected-root> --format json`. Any path,
+branch, HEAD, root, state, or cleanliness mismatch is `BLOCKED`.
+<!-- MERIDIAN:END -->
 
 Reservation, completion, review, and archive edits are committed on the task
 branch. Concurrent tasks edit only their own task rows and records; they do
@@ -101,49 +100,17 @@ the queue and project plan together when they both record the task. Archive a
 completed task file and fully closed queue section only after successful
 verification.
 
-Final integration is serialized in the primary checkout. Acquire the lease by
-atomically creating `meridian-integration.lock` inside the absolute common Git
-directory; an existing lease is `BLOCKED`, and only its owner removes it.
-Stale-lease removal requires explicit developer authorization. If the checkout
-is missing, dirty, or cannot switch to `main`, return `BLOCKED` and retain the
-task branch and worktree. With an exclusive integration lease, verify the
-handoff commits and clean task worktree. Reject missing evidence, a validated
-base that is not an ancestor of the validated task commit, or a task HEAD whose
-diff from that commit changes anything except the permitted completion status,
-queue, plan, archive, or handoff records. The validated task commit must be an
-ancestor of task HEAD; any task-relevant tree change makes the evidence stale.
-
-If current `main` equals the validated base, reuse the task evidence. If it has
-advanced, compare `git diff --name-only <validated-base>..main` with the
-handoff's declared files, dependencies, generated or configuration inputs,
-schemas, shared-governance records, and behavioral surfaces. Equal or nested
-paths, a shared dependency/input/schema/configuration identity, or a shared
-behavioral surface are material interactions and require full combined-tree
-validation. An incomplete declaration or comparison is `BLOCKED`; a clean Git
-merge or disjoint filenames alone never establish independence. Record an
-independent comparison before using the bounded gate. Also use full validation
-when the task explicitly requires it. Stale task evidence is rejected rather
-than refreshed during integration.
-
-Run `git merge --no-ff --no-commit <task-branch>` on `main` and reject a
-conflict with `git merge --abort`. Every conflict-free candidate runs the
-bounded gate: `git diff --check` plus the project smoke command declared below
-when it is not `none`. A missing smoke command does not expand the gate to the
-complete baseline. Run the complete baseline only for the full-validation
-cases above, or after a bounded-gate failure when broader diagnosis is needed;
-a failed bounded or full gate still aborts the merge and cannot create a merge
-commit. Release the lease after success or a clean abort, and record the
-decision, comparison evidence, commands, and results. This preserves validated
-task commits and never uses rebase, amend, cherry-pick, or force-push.
+Final integration uses `meridian worktree integrate stage` with accepted JSON
+handoff evidence. The command owns the lease and prescribed no-commit merge and
+returns the deterministic validation decision and candidate tree. Run the
+selected validation separately in the ordinary sandbox, bind its JSON evidence
+to that tree, then use `integrate finalize`; use `integrate abort` after a
+failed gate. Lifecycle commands never execute validation or project code.
 
 Project integration smoke command: `none`.
 
-Remove the linked worktree and then delete its local branch only after the
-validated integration succeeds (and the required `main` push succeeds when
-the project requires one). Failure, review changes, cancellation, or blocked
-integration retains both. Any exceptional cleanup of abandoned task state
-requires explicit developer authorization and must name the exact branch and
-worktree.
+After any required `main` push, use `meridian worktree cleanup`; exceptional,
+forced, abandoned-state, or stale-lease cleanup remains outside this surface.
 
 ## Review
 

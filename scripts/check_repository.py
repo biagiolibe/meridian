@@ -162,10 +162,12 @@ def check_governed_review_worktree_contract(root: Path = ROOT) -> None:
                 )
 
     review = review_paths[-1].read_text(encoding="utf-8")
-    preflight = "<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v3 -->"
+    preflight = "<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v4 -->"
     boundary = "<!-- MERIDIAN:BEGIN capability=review-mode-boundary v1 -->"
     required = (
         "Before reading the assigned task",
+        "meridian worktree check <TASK-ID>",
+        "stops before any other read",
         "git worktree list\n   --porcelain",
         "git -C\n   <absolute-task-worktree>",
         "empty `git status --short`",
