@@ -11,7 +11,7 @@
 - `[x]` 051 — Enforce isolated worktrees for every task.
 - `[x]` 055 — Avoid duplicate full validation during worktree integration.
 - `[x]` 054 — Configure Codex access for isolated task worktrees.
-- `[/]` 056 — Add bounded worktree lifecycle commands.
+- `[x]` 056 — Add bounded worktree lifecycle commands.
 - `[x]` 057 — Design the Meridian self-hosting capability profile.
 - `[x]` 058 — Add self-hosting manifest and capability-catalog support.
 - `[x]` 059 — Implement cross-mode capability audit semantics.
