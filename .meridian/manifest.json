@@ -37,14 +37,307 @@
     "035-tech-design-alignment-prompt",
     "036-explicit-claude-agents-pointer",
     "037-additive-role-procedures",
-    "038-compact-entry-point-routers"
+    "038-compact-entry-point-routers",
+    "039-authority-excerpt-command",
+    "040-pretooluse-read-guard",
+    "041-codex-command-approval-rules",
+    "042-codex-read-guard-hook",
+    "043-host-impact-task-declaration",
+    "044-rejected-attempt-restart",
+    "045-isolated-task-worktrees",
+    "046-integration-validation-evidence-reuse",
+    "047-codex-worktree-access",
+    "048-manifest-capability-profile-schema",
+    "049-task-identity-policy",
+    "050-review-worktree-preflight",
+    "051-bounded-worktree-lifecycle",
+    "052-install-meridian-self-hosting-surfaces"
   ],
-  "frameworkVersion": "1.1.35",
-  "managedFiles": {
-    "AGENTS.md": "2d37a01467466853e2e6ca329955575d604fc5cc8327b6e3dd8fa6227898d735",
-    "CLAUDE.md": "6aea7945d2c89705dcb137ddba2f53088b004bbbe4960d92a02ef58b00b71783",
-    "PROJECT_WORKFLOW.md": "dc8db049dff368204b00e843fbff5c1933195f75ebdac5b0c0c44e9723ff36c6"
+  "capabilityProfiles": {
+    "meridian-self-hosting": {
+      "capabilities": {
+        "context-budgeting": {
+          "hostActivation": {},
+          "installation": {
+            "evidence": [
+              "sha256:c3e309045276a64762e8687e3b1569b681989eeacba1c0790054bc8e8563d821"
+            ],
+            "notApplicableRationale": null,
+            "state": "INSTALLED"
+          },
+          "managedSurface": [
+            {
+              "form": "managed-copy",
+              "path": "docs/CONTEXT_BUDGET_POLICY.md"
+            }
+          ],
+          "requiredVersion": 1,
+          "verification": {
+            "evidence": [],
+            "notApplicableRationale": null,
+            "state": "UNVERIFIED",
+            "verifiedAt": null,
+            "verifierVersion": null
+          }
+        },
+        "execution-evidence": {
+          "hostActivation": {},
+          "installation": {
+            "evidence": [
+              "sha256:6f97fbd7ca7e7888f06fc8daf115a94605a707192f407cf3a5f54b9bce99a584",
+              "sha256:c3e309045276a64762e8687e3b1569b681989eeacba1c0790054bc8e8563d821"
+            ],
+            "notApplicableRationale": null,
+            "state": "INSTALLED"
+          },
+          "managedSurface": [
+            {
+              "form": "managed-copy",
+              "path": "docs/CONTEXT_BUDGET_POLICY.md"
+            },
+            {
+              "form": "managed-copy",
+              "path": "docs/EXECUTION_EVIDENCE_PROFILE.md"
+            }
+          ],
+          "requiredVersion": 1,
+          "verification": {
+            "evidence": [],
+            "notApplicableRationale": null,
+            "state": "UNVERIFIED",
+            "verifiedAt": null,
+            "verifierVersion": null
+          }
+        },
+        "language-policy": {
+          "hostActivation": {
+            "claude-project": {
+              "evidence": [],
+              "notApplicableRationale": null,
+              "state": "UNVERIFIED"
+            },
+            "codex-project": {
+              "evidence": [],
+              "notApplicableRationale": null,
+              "state": "UNVERIFIED"
+            }
+          },
+          "installation": {
+            "evidence": [
+              "sha256:65fc7654c6d37865fae03290b4c21304efee616bbb8615fa298c3e55abfdf558"
+            ],
+            "notApplicableRationale": null,
+            "state": "INSTALLED"
+          },
+          "managedSurface": [
+            {
+              "form": "managed-copy",
+              "path": "LANGUAGE_POLICY.md"
+            }
+          ],
+          "requiredVersion": 1,
+          "verification": {
+            "evidence": [],
+            "notApplicableRationale": null,
+            "state": "UNVERIFIED",
+            "verifiedAt": null,
+            "verifierVersion": null
+          }
+        },
+        "minimal-read-only-status": {
+          "hostActivation": {},
+          "installation": {
+            "evidence": [
+              "sha256:c3e309045276a64762e8687e3b1569b681989eeacba1c0790054bc8e8563d821"
+            ],
+            "notApplicableRationale": null,
+            "state": "INSTALLED"
+          },
+          "managedSurface": [
+            {
+              "form": "managed-copy",
+              "path": "docs/CONTEXT_BUDGET_POLICY.md"
+            }
+          ],
+          "requiredVersion": 1,
+          "verification": {
+            "evidence": [],
+            "notApplicableRationale": null,
+            "state": "UNVERIFIED",
+            "verifiedAt": null,
+            "verifierVersion": null
+          }
+        },
+        "queue-briefing": {
+          "hostActivation": {
+            "claude-project": {
+              "evidence": [],
+              "notApplicableRationale": null,
+              "state": "UNVERIFIED"
+            }
+          },
+          "installation": {
+            "evidence": [
+              "sha256:651f7c5a0ef19653a636934cc1cf262f51008f807e1cc0bc65685773468124a0",
+              "sha256:ea9348fc6be62246eb9b9ee4e8859e58440b4c46b1275d37d56b4a22ac399624"
+            ],
+            "notApplicableRationale": null,
+            "state": "INSTALLED"
+          },
+          "managedSurface": [
+            {
+              "form": "shared-source",
+              "path": "hooks/queue-briefing.sh"
+            },
+            {
+              "form": "shared-source",
+              "path": "hooks/hooks.json"
+            }
+          ],
+          "requiredVersion": 1,
+          "verification": {
+            "evidence": [],
+            "notApplicableRationale": null,
+            "state": "UNVERIFIED",
+            "verifiedAt": null,
+            "verifierVersion": null
+          }
+        },
+        "read-guard": {
+          "hostActivation": {
+            "claude-project": {
+              "evidence": [],
+              "notApplicableRationale": null,
+              "state": "UNVERIFIED"
+            },
+            "codex-project": {
+              "evidence": [],
+              "notApplicableRationale": null,
+              "state": "UNVERIFIED"
+            }
+          },
+          "installation": {
+            "evidence": [
+              "sha256:b427ae75d05f8d193e2e12367db24fae6687b3ca0aa192a06c23cb8f488cc7dd",
+              "sha256:dec4865f46f836c65b0ed4dd9723ae50550ac4c621062342fbaaaa0105a207f7",
+              "sha256:ea9348fc6be62246eb9b9ee4e8859e58440b4c46b1275d37d56b4a22ac399624"
+            ],
+            "notApplicableRationale": null,
+            "state": "INSTALLED"
+          },
+          "managedSurface": [
+            {
+              "form": "shared-source",
+              "path": "hooks/read-guard.sh"
+            },
+            {
+              "form": "shared-source",
+              "path": "hooks/hooks.json"
+            },
+            {
+              "form": "managed-copy",
+              "path": ".codex/hooks.json"
+            }
+          ],
+          "requiredVersion": 1,
+          "verification": {
+            "evidence": [],
+            "notApplicableRationale": null,
+            "state": "UNVERIFIED",
+            "verifiedAt": null,
+            "verifierVersion": null
+          }
+        },
+        "validation-scoping": {
+          "hostActivation": {},
+          "installation": {
+            "evidence": [
+              "sha256:45b406a9a6f4823ad6e13b1eb8552de5ec09a67de1401a32f9b1844f6ab065d9",
+              "sha256:c3e309045276a64762e8687e3b1569b681989eeacba1c0790054bc8e8563d821"
+            ],
+            "notApplicableRationale": null,
+            "state": "INSTALLED"
+          },
+          "managedSurface": [
+            {
+              "form": "managed-copy",
+              "path": "docs/CONTEXT_BUDGET_POLICY.md"
+            },
+            {
+              "form": "managed-copy",
+              "path": "PROJECT_WORKFLOW.md"
+            }
+          ],
+          "requiredVersion": 1,
+          "verification": {
+            "evidence": [],
+            "notApplicableRationale": null,
+            "state": "UNVERIFIED",
+            "verifiedAt": null,
+            "verifierVersion": null
+          }
+        },
+        "worktree-safety": {
+          "hostActivation": {
+            "codex-project": {
+              "evidence": [],
+              "notApplicableRationale": null,
+              "state": "UNVERIFIED"
+            }
+          },
+          "installation": {
+            "evidence": [
+              "sha256:45b406a9a6f4823ad6e13b1eb8552de5ec09a67de1401a32f9b1844f6ab065d9",
+              "sha256:54c4cf4e218e7a7c6e6fd764a584c1863c14234cd29c7414588e9e06b5d5ec18",
+              "sha256:a6ac45e832ad048fb13aa72e264383f39ed8ebf4a35958130fc533883bcf687a",
+              "sha256:e390fd40cf9eb1ce8dc5f90eaac7073123701134edb35c66307f01c062069834"
+            ],
+            "notApplicableRationale": null,
+            "state": "INSTALLED"
+          },
+          "managedSurface": [
+            {
+              "form": "managed-copy",
+              "path": "PROJECT_WORKFLOW.md"
+            },
+            {
+              "form": "managed-copy",
+              "path": "AGENTS.md"
+            },
+            {
+              "form": "managed-copy",
+              "path": "CLAUDE.md"
+            },
+            {
+              "form": "managed-copy",
+              "path": ".codex/rules/meridian.rules"
+            }
+          ],
+          "requiredVersion": 1,
+          "verification": {
+            "evidence": [],
+            "notApplicableRationale": null,
+            "state": "UNVERIFIED",
+            "verifiedAt": null,
+            "verifierVersion": null
+          }
+        }
+      },
+      "profileVersion": 1
+    }
   },
-  "mode": "lean-delivery",
-  "protocolVersion": 1
+  "frameworkVersion": "1.1.49",
+  "managedFiles": {
+    ".codex/hooks.json": "b427ae75d05f8d193e2e12367db24fae6687b3ca0aa192a06c23cb8f488cc7dd",
+    ".codex/rules/meridian.rules": "e390fd40cf9eb1ce8dc5f90eaac7073123701134edb35c66307f01c062069834",
+    "AGENTS.md": "a6ac45e832ad048fb13aa72e264383f39ed8ebf4a35958130fc533883bcf687a",
+    "CLAUDE.md": "54c4cf4e218e7a7c6e6fd764a584c1863c14234cd29c7414588e9e06b5d5ec18",
+    "LANGUAGE_POLICY.md": "65fc7654c6d37865fae03290b4c21304efee616bbb8615fa298c3e55abfdf558",
+    "PROJECT_WORKFLOW.md": "45b406a9a6f4823ad6e13b1eb8552de5ec09a67de1401a32f9b1844f6ab065d9",
+    "docs/CONTEXT_BUDGET_POLICY.md": "c3e309045276a64762e8687e3b1569b681989eeacba1c0790054bc8e8563d821",
+    "docs/EXECUTION_EVIDENCE_PROFILE.md": "6f97fbd7ca7e7888f06fc8daf115a94605a707192f407cf3a5f54b9bce99a584"
+  },
+  "protocolVersion": 2,
+  "workflowBaselineVersion": "1.1.49",
+  "workflowMode": "lean-delivery"
 }

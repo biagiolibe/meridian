@@ -4615,6 +4615,85 @@ class CapabilityProfileManifestTest(unittest.TestCase):
             self.assertIn("migration history is provenance only", output)
             self.assertIn("SUMMARY worst=UNVERIFIED", output)
 
+    def test_lean_managed_files_deliver_only_neutral_profile_surfaces(self) -> None:
+        lean_paths = {
+            item.target.as_posix()
+            for item in meridian.managed_files(ROOT, "lean-delivery")
+        }
+        self.assertTrue(
+            {
+                "LANGUAGE_POLICY.md",
+                "docs/CONTEXT_BUDGET_POLICY.md",
+                "docs/EXECUTION_EVIDENCE_PROFILE.md",
+                ".codex/hooks.json",
+                ".codex/rules/meridian.rules",
+            }
+            <= lean_paths
+        )
+        policy = (
+            ROOT / "templates/workflows/lean-delivery/docs/CONTEXT_BUDGET_POLICY.md"
+        ).read_text(encoding="utf-8")
+        for governed_only in (
+            "READY_FOR_REVIEW",
+            "ACCEPTED",
+            "owner acceptance",
+            "reviewer-integrator",
+            "Authority entries",
+        ):
+            self.assertNotIn(governed_only, policy)
+
+    def test_bootstrap_observes_installation_without_promoting_host_state(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            manifest = {
+                "protocolVersion": meridian.PROTOCOL_VERSION,
+                "frameworkVersion": meridian.read_version(ROOT),
+                "workflowMode": "lean-delivery",
+                "managedFiles": {},
+                "appliedMigrations": [],
+            }
+            meridian.write_manifest(project, manifest, ROOT)
+            profile = self.catalog.profile("meridian-self-hosting")
+            self.assertIsNotNone(profile)
+            for capability_id, _version in profile.capabilities:
+                capability = self.catalog.capability(capability_id)
+                self.assertIsNotNone(capability)
+                for surface in capability.managed_surfaces:
+                    source = ROOT / surface.path
+                    destination = project / surface.path
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copyfile(source, destination)
+
+            observed = meridian.bootstrap_capability_profile(
+                project, ROOT, "meridian-self-hosting", apply=True
+            )
+            declarations = observed["capabilityProfiles"]["meridian-self-hosting"][
+                "capabilities"
+            ]
+            self.assertTrue(declarations)
+            for declaration in declarations.values():
+                self.assertEqual(declaration["installation"]["state"], "INSTALLED")
+                self.assertEqual(declaration["verification"]["state"], "UNVERIFIED")
+                self.assertTrue(
+                    all(
+                        host["state"] == "UNVERIFIED"
+                        for host in declaration["hostActivation"].values()
+                    )
+                )
+
+            return_code, output = self.audit(project)
+            self.assertEqual(return_code, 1, output)
+            self.assertNotRegex(output, r"(?m)^FAIL\s")
+            self.assertIn("SUMMARY worst=UNVERIFIED", output)
+
+    def test_live_execution_profile_has_no_unresolved_configuration_placeholder(self) -> None:
+        profile = (ROOT / "docs/EXECUTION_EVIDENCE_PROFILE.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertNotRegex(profile, r"\[[^]]*(?:describe|command|method|bound|policy|tool)[^]]*\]")
+        self.assertIn("python3 scripts/check_repository.py", profile)
+        self.assertIn("python3 -m unittest discover -s tests -v", profile)
+
 
 class WorktreeLifecycleCliTest(unittest.TestCase):
     def setUp(self) -> None:

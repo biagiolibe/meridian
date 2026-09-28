@@ -2,7 +2,7 @@
 
 ## Persistent conversation language
 
-**Conversation language:** `Italian`
+**Conversation language:** `[Conversation language]`
 
 <!-- MERIDIAN:BEGIN capability=language-policy v2 -->
 Use this language for every message to the developer. Do not infer or change it from the language of an individual prompt: a prompt written in another language is not a request to switch languages.

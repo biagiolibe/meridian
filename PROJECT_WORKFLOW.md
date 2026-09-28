@@ -60,6 +60,14 @@ abort and return `BLOCKED` without choosing or recreating either task's state.
 
 ## Completion and integration
 
+<!-- MERIDIAN:BEGIN capability=validation-scoping v1 -->
+Classify the changed surface before validation. Documentation-only changes may
+skip unrelated build, test, or lint commands when the task does not require
+them, and the completion evidence records that skip. Source, build, runtime,
+or CI changes run every task-required check plus the applicable project
+baseline. Validation scope never weakens an explicit acceptance criterion.
+<!-- MERIDIAN:END -->
+
 Before marking a task `[x]`, verify its acceptance criteria and run its stated validation plus the project's applicable baseline checks. The handoff records the validated task commit, validated base `main` commit, exact commands and successful results, whether full combined-tree validation is required, and the task's declared files, dependencies, and behavioral surfaces. If evidence is incomplete or a check fails, keep the task `[/]` and report the blocker. Update the queue and project plan together when they both record the task. Archive a completed task file and fully closed queue section only after successful verification.
 
 Final integration is serialized in the primary checkout. Write the accepted
