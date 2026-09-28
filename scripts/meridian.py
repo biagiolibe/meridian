@@ -41,6 +41,11 @@ INSTALLATION_FORMS = ("managed-copy", "shared-source", "declaration-only")
 INSTALLATION_STATES = ("INSTALLED", "MISSING", "DRIFTED", "NOT_APPLICABLE")
 HOST_ACTIVATION_STATES = ("ENFORCED", "ADVISORY", "UNSUPPORTED", "UNVERIFIED", "NOT_APPLICABLE")
 VERIFICATION_STATES = ("PASS", "ADVISORY", "UNVERIFIED", "NOT_APPLICABLE", "FAIL")
+AUDIT_STATES = VERIFICATION_STATES
+# Protocol v2 introduces capability declarations but keeps them optional for
+# legacy locked projects. A future protocol can make the declaration explicit
+# by advancing this boundary without changing the compatibility result below.
+CAPABILITY_DECLARATION_REQUIRED_PROTOCOL = 3
 ADOPTION_VERDICTS = ("APPROVE", "CHANGES_REQUESTED", "BLOCKED")
 ADOPTION_RETRY_LIMIT = 2
 CAPABILITY_MARKER = re.compile(r"<!-- MERIDIAN:BEGIN capability=([a-z0-9-]+) v(\d+) -->")
@@ -228,6 +233,13 @@ class CapabilityProfileDeclaration:
     profile_id: str
     profile_version: int
     capabilities: tuple[CapabilityDeclaration, ...]
+
+
+@dataclass(frozen=True)
+class AuditResult:
+    status: str
+    identity: str
+    detail: str
 
 
 def _safe_component(value: str, label: str) -> str:
@@ -2401,22 +2413,323 @@ def audit_entry_router(project_root: Path) -> list[tuple[str, str]]:
     return results
 
 
+def _audit_evidence_reference(
+    project_root: Path, reference: str, surface_digests: set[str]
+) -> str | None:
+    """Return a diagnostic when a persisted evidence reference is not current."""
+    if reference.startswith("sha256:"):
+        digest = reference.removeprefix("sha256:")
+        if not re.fullmatch(r"[0-9a-f]{64}", digest):
+            return f"invalid digest evidence {reference!r}"
+        if digest not in surface_digests:
+            return f"stale digest evidence {reference}"
+        return None
+    if reference.startswith("path:"):
+        raw_path = reference.removeprefix("path:")
+        try:
+            relative_path = _repository_relative_path(raw_path, "audit evidence path")
+        except MeridianError as error:
+            return str(error)
+        if not (project_root / relative_path).is_file():
+            return f"missing evidence artifact {relative_path}"
+        return None
+    return f"unresolvable evidence reference {reference!r}; expected path:<path> or sha256:<digest>"
+
+
+def _audit_snapshot_evidence(
+    project_root: Path, snapshot: EvidenceSnapshot, surface_digests: set[str]
+) -> list[str]:
+    return [
+        diagnostic
+        for reference in snapshot.evidence
+        if (diagnostic := _audit_evidence_reference(project_root, reference, surface_digests))
+        is not None
+    ]
+
+
+def _audit_probe_evidence(project_root: Path, snapshot: EvidenceSnapshot) -> list[str]:
+    """Require runtime/behavior claims to name concrete probe artifacts."""
+    diagnostics: list[str] = []
+    for reference in snapshot.evidence:
+        if not reference.startswith("probe:"):
+            diagnostics.append(
+                f"invalid positive evidence {reference!r}; expected probe:<path>"
+            )
+            continue
+        raw_path = reference.removeprefix("probe:")
+        try:
+            relative_path = _repository_relative_path(raw_path, "audit probe path")
+        except MeridianError as error:
+            diagnostics.append(str(error))
+            continue
+        if not (project_root / relative_path).is_file():
+            diagnostics.append(f"missing probe artifact {relative_path}")
+    return diagnostics
+
+
+def audit_declared_capabilities(
+    project_root: Path, framework_root: Path, requested_mode: str
+) -> tuple[list[AuditResult], str]:
+    """Audit effective declarations without projecting migration provenance."""
+    try:
+        manifest = load_manifest(project_root, framework_root)
+    except MeridianError as error:
+        # Preserve the CLI's protocol-compatibility diagnostic: callers must
+        # update the framework before this version can interpret the manifest.
+        if "newer than this Meridian CLI supports" in str(error):
+            raise
+        return [AuditResult("FAIL", "declaration/manifest", str(error))], requested_mode
+
+    workflow_mode = manifest_workflow_mode(manifest)
+    if requested_mode != workflow_mode:
+        return [
+            AuditResult(
+                "FAIL",
+                "declaration/workflow-mode",
+                f"requested {requested_mode}, but the locked manifest declares {workflow_mode}",
+            )
+        ], workflow_mode
+
+    protocol_version = check_protocol_compatibility(manifest)
+    if "capabilityProfiles" not in manifest or not manifest.get("capabilityProfiles"):
+        status = (
+            "FAIL"
+            if protocol_version >= CAPABILITY_DECLARATION_REQUIRED_PROTOCOL
+            else "UNVERIFIED"
+        )
+        rationale = (
+            f"protocol v{protocol_version} requires explicit capabilityProfiles"
+            if status == "FAIL"
+            else f"legacy protocol v{protocol_version} manifest has no capabilityProfiles; "
+            "migration history is provenance only"
+        )
+        return [AuditResult(status, "declaration/legacy-compatibility", rationale)], workflow_mode
+
+    catalog = load_capability_catalog(framework_root)
+    try:
+        profiles = parse_capability_profiles(manifest, catalog)
+    except MeridianError as error:
+        return [AuditResult("FAIL", "declaration/capabilityProfiles", str(error))], workflow_mode
+
+    managed_files = manifest.get("managedFiles", {})
+    assert isinstance(managed_files, dict)
+    framework_version = read_version(framework_root)
+    results: list[AuditResult] = []
+    for profile in profiles:
+        for declaration in profile.capabilities:
+            capability = catalog.capability(declaration.capability_id)
+            assert capability is not None
+            prefix = f"{profile.profile_id}/{declaration.capability_id}"
+            exclusions: list[str] = []
+            if workflow_mode not in capability.workflow_modes:
+                exclusions.append("workflow-mode-excluded")
+            if profile.profile_id == "meridian-self-hosting" and not capability.self_hosting_eligible:
+                exclusions.append("self-hosting-ineligible")
+            if exclusions:
+                rationale = ", ".join(exclusions)
+                results.append(
+                    AuditResult(
+                        "NOT_APPLICABLE",
+                        f"{prefix}/installation",
+                        f"catalog exclusion: {rationale}",
+                    )
+                )
+                for host_id, _snapshot in declaration.host_activation:
+                    host_rationale = (
+                        "host-profile-unsupported"
+                        if host_id not in dict(capability.host_profiles)
+                        else rationale
+                    )
+                    results.append(
+                        AuditResult(
+                            "NOT_APPLICABLE",
+                            f"{prefix}/host/{host_id}",
+                            f"catalog exclusion: {host_rationale}",
+                        )
+                    )
+                results.append(
+                    AuditResult(
+                        "NOT_APPLICABLE",
+                        f"{prefix}/verification",
+                        f"catalog exclusion: {rationale}",
+                    )
+                )
+                continue
+
+            surface_failures: list[str] = []
+            surface_digests: set[str] = set()
+            surface_identities: list[str] = []
+            for surface in declaration.managed_surface:
+                surface_identities.append(f"{surface.form}:{surface.path}")
+                path = project_root / surface.path
+                if surface.form == "declaration-only":
+                    continue
+                if not path.is_file():
+                    surface_failures.append(f"missing {surface.form} surface {surface.path}")
+                    continue
+                digest = sha256(path)
+                surface_digests.add(digest)
+                if f"sha256:{digest}" not in declaration.installation.evidence:
+                    surface_failures.append(
+                        f"{surface.form} surface {surface.path} lacks matching digest evidence"
+                    )
+                if surface.form == "managed-copy":
+                    expected_digest = managed_files.get(surface.path)
+                    if expected_digest is None:
+                        surface_failures.append(
+                            f"managed-copy surface {surface.path} has no managedFiles digest"
+                        )
+                    elif expected_digest != digest:
+                        surface_failures.append(
+                            f"drifted managed-copy surface {surface.path}: expected {expected_digest}, got {digest}"
+                        )
+
+            installation_evidence_failures = _audit_snapshot_evidence(
+                project_root, declaration.installation, surface_digests
+            )
+            if declaration.installation.state != "INSTALLED":
+                surface_failures.append(
+                    f"declared installation state is {declaration.installation.state}"
+                )
+            surface_failures.extend(installation_evidence_failures)
+            installation_status = "FAIL" if surface_failures else "PASS"
+            results.append(
+                AuditResult(
+                    installation_status,
+                    f"{prefix}/installation",
+                    "verified surfaces: "
+                    + ", ".join(surface_identities)
+                    + "; "
+                    + "; ".join(surface_failures)
+                    if surface_failures
+                    else "verified surfaces: " + ", ".join(surface_identities),
+                )
+            )
+
+            supported_hosts = dict(capability.host_profiles)
+            for host_id, snapshot in declaration.host_activation:
+                identity = f"{prefix}/host/{host_id}"
+                if host_id not in supported_hosts:
+                    results.append(
+                        AuditResult(
+                            "NOT_APPLICABLE",
+                            identity,
+                            "catalog exclusion: host-profile-unsupported",
+                        )
+                    )
+                    continue
+                evidence_failures = _audit_probe_evidence(project_root, snapshot)
+                if snapshot.state == "NOT_APPLICABLE":
+                    results.append(
+                        AuditResult(
+                            "FAIL",
+                            identity,
+                            "host is catalog-supported, so NOT_APPLICABLE is contradictory",
+                        )
+                    )
+                elif snapshot.state in {"ENFORCED", "ADVISORY"}:
+                    failures = list(evidence_failures)
+                    if installation_status != "PASS":
+                        failures.append("positive activation claim depends on failed installation")
+                    results.append(
+                        AuditResult(
+                            "FAIL" if failures else ("PASS" if snapshot.state == "ENFORCED" else "ADVISORY"),
+                            identity,
+                            "; ".join(failures)
+                            if failures
+                            else f"{snapshot.state.lower()} with {supported_hosts[host_id]} evidence",
+                        )
+                    )
+                elif snapshot.state == "UNSUPPORTED":
+                    results.append(
+                        AuditResult(
+                            "ADVISORY",
+                            identity,
+                            "declared UNSUPPORTED for a catalog-supported host",
+                        )
+                    )
+                else:
+                    results.append(
+                        AuditResult(
+                            "UNVERIFIED",
+                            identity,
+                            "applicable host activation has no effective probe evidence",
+                        )
+                    )
+
+            verification = declaration.verification
+            verification_failures = _audit_probe_evidence(project_root, verification)
+            if verification.state in {"PASS", "ADVISORY"}:
+                if verification.verified_at is None:
+                    verification_failures.append("positive verification has no verifiedAt value")
+                if verification.verifier_version != framework_version:
+                    verification_failures.append(
+                        "stale verifierVersion "
+                        f"{verification.verifier_version!r}; expected {framework_version!r}"
+                    )
+                if installation_status != "PASS":
+                    verification_failures.append("positive verification depends on failed installation")
+                verification_status = (
+                    "FAIL" if verification_failures else verification.state
+                )
+                detail = (
+                    "; ".join(verification_failures)
+                    if verification_failures
+                    else f"verified at {verification.verified_at} by Meridian {verification.verifier_version}"
+                )
+            elif verification.state == "NOT_APPLICABLE":
+                verification_status = "FAIL"
+                detail = "capability is catalog-applicable, so NOT_APPLICABLE is contradictory"
+            elif verification.state == "FAIL":
+                verification_status = "FAIL"
+                detail = "persisted verification state is FAIL"
+            else:
+                verification_status = "UNVERIFIED"
+                detail = "applicable capability lacks current verification evidence"
+            results.append(
+                AuditResult(verification_status, f"{prefix}/verification", detail)
+            )
+    return results, workflow_mode
+
+
 def run_audit(project_root: Path, framework_root: Path, mode: str) -> int:
-    results = audit_capability_markers(project_root, framework_root, mode)
-    results += audit_duplicate_headings(project_root, framework_root, mode)
-    results += audit_capability_moves(project_root, framework_root, mode)
-    results += audit_entry_router(project_root)
-    results = sorted(results, key=lambda pair: pair[1])
-    if not results:
-        print("No capability markers found to audit.")
-        return 0
-    for status, message in results:
-        print(f"{status:4} {message}")
-    failures = sum(1 for status, _ in results if status == "FAIL")
-    if failures:
-        print(f"BLOCKED: {failures} protected-region integrity failure(s).")
-        return 2
-    return 0
+    results, locked_mode = audit_declared_capabilities(project_root, framework_root, mode)
+    legacy_checks = (
+        ("marker-integrity", audit_capability_markers),
+        ("duplicate-heading", audit_duplicate_headings),
+        ("capability-move", audit_capability_moves),
+    )
+    for check_name, check in legacy_checks:
+        try:
+            check_results = check(project_root, framework_root, locked_mode)
+        except MeridianError as error:
+            results.append(AuditResult("FAIL", check_name, str(error)))
+            continue
+        for status, detail in check_results:
+            normalized_status = "UNVERIFIED" if status == "SKIP" else status
+            results.append(AuditResult(normalized_status, check_name, detail))
+    for status, detail in audit_entry_router(project_root):
+        results.append(AuditResult(status, "entry-router", detail))
+
+    results.sort(key=lambda result: (result.identity, result.detail))
+    for result in results:
+        print(f"{result.status:14} {result.identity} — {result.detail}")
+
+    counts = {state: 0 for state in AUDIT_STATES}
+    for result in results:
+        counts[result.status] += 1
+    if counts["FAIL"]:
+        aggregate = "FAIL"
+        exit_code = 2
+    elif counts["ADVISORY"] or counts["UNVERIFIED"]:
+        aggregate = "UNVERIFIED" if counts["UNVERIFIED"] else "ADVISORY"
+        exit_code = 1
+    else:
+        aggregate = "PASS"
+        exit_code = 0
+    summary = " ".join(f"{state}={counts[state]}" for state in AUDIT_STATES)
+    print(f"SUMMARY worst={aggregate} {summary}")
+    return exit_code
 
 
 def detect_capabilities(project_root: Path, mode: str, framework_root: Path) -> list[Capability]:
