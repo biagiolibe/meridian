@@ -4,8 +4,8 @@
 > **Category**: Host Integration / CI
 > **Priority**: 🔴 P1
 > **Estimate**: ~4–6h
-> **Assigned to**: unassigned
-> **Session**: unassigned
+> **Assigned to**: Codex, Claude
+> **Session**: 2026-09-28 implementation
 
 ## 🎯 Objective
 
@@ -18,35 +18,35 @@ satisfies `docs/HOST_CAPABILITY_CONTRACT.md` for that exact profile.
 
 ## 📋 Acceptance Criteria
 
-- [ ] A read-only profile doctor resolves every declared capability, managed
+- [x] A read-only profile doctor resolves every declared capability, managed
       copy, shared source, adapter, host profile, evidence record, and required
       probe from the repository root.
-- [ ] Versioned probes exist for each host/profile combination that the catalog
+- [x] Versioned probes exist for each host/profile combination that the catalog
       claims can reach `ENFORCED`; each records host/version, invocation mode,
       trust/configuration layer, evidence artifact, observation time, and exact
       behavior tested.
-- [ ] Codex probes distinguish hook configuration, project trust, filesystem
+- [x] Codex probes distinguish hook configuration, project trust, filesystem
       access, execpolicy decision, command result, and read-guard behavior.
-- [ ] Claude probes distinguish shared-source integrity, plugin activation,
+- [x] Claude probes distinguish shared-source integrity, plugin activation,
       permission behavior, queue briefing, and read-guard behavior.
-- [ ] Unsupported or unavailable host behavior remains `UNSUPPORTED`,
+- [x] Unsupported or unavailable host behavior remains `UNSUPPORTED`,
       `ADVISORY`, or `UNVERIFIED` with a usable fallback. No static fixture or
       CI-only test promotes host activation to `ENFORCED`.
-- [ ] CI runs the profile doctor and profile-aware audit in a clean checkout and
+- [x] CI runs the profile doctor and profile-aware audit in a clean checkout and
       rejects aggregate exit 1 or 2 for every capability whose profile contract
       requires CI-verifiable `PASS`.
-- [ ] Host-dependent evidence that cannot exist in generic CI is evaluated
+- [x] Host-dependent evidence that cannot exist in generic CI is evaluated
       against its declared support/fallback contract rather than fabricated or
       silently omitted.
-- [ ] Negative tests remove a managed policy file, Codex hook declaration, and
+- [x] Negative tests remove a managed policy file, Codex hook declaration, and
       shared hook source independently and prove each produces `FAIL` rather
       than an empty successful audit.
-- [ ] Tests prove that installed adapters without matching probe evidence remain
+- [x] Tests prove that installed adapters without matching probe evidence remain
       `UNVERIFIED` and that catalog-backed exclusions produce visible
       `NOT_APPLICABLE` results.
-- [ ] The live Meridian manifest records only evidence actually produced by
+- [x] The live Meridian manifest records only evidence actually produced by
       completed probes and contains no machine-specific absolute path.
-- [ ] `python3 scripts/check_repository.py`,
+- [x] `python3 scripts/check_repository.py`,
       `python3 -m unittest discover -s tests -v`, and `git diff --check` pass.
 
 ## 📁 Relevant Files

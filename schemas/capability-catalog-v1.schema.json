@@ -155,14 +155,27 @@
             "minProperties": 1,
             "type": "object"
           },
+          "hostProbes": {
+            "additionalProperties": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "object"
+          },
           "version": {
             "minimum": 1,
             "type": "integer"
+          },
+          "verificationProbe": {
+            "minLength": 1,
+            "type": "string"
           }
         },
         "required": [
           "version",
-          "capabilities"
+          "capabilities",
+          "hostProbes",
+          "verificationProbe"
         ],
         "type": "object"
       },
