@@ -21,7 +21,7 @@
 - `[x]` 015 — Split `workflowBaselineVersion` from `frameworkVersion` in manifest and upgrade planner.
 - `[x]` 016 — Propagate `workflowBaselineVersion` to `adopt`/`finalize-adoption`.
 - `[x]` 017 — Relax `check_migrations()`'s VERSION equality to `<=`.
-- `[/]` 018 — Persist-time SemVer guard for prerelease `frameworkVersion`.
+- `[x]` 018 — Persist-time SemVer guard for prerelease `frameworkVersion`.
 - `[ ]` 019 — `releases/<version>.json` immutable release ledger + `check_releases()`.
 - `[ ]` 020 — Update docs for the version split.
 - `[ ]` 021 — Ship the first CLI-only release as end-to-end proof.
