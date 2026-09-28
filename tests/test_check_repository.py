@@ -220,5 +220,74 @@ class GovernedReviewWorktreeContractTest(unittest.TestCase):
             cr.check_governed_review_worktree_contract(self.root)
 
 
+class CheckMigrationsVersionGateTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory()
+        self.root = Path(self.temporary.name)
+        shutil.copytree(ROOT / "templates", self.root / "templates")
+        shutil.copytree(ROOT / "capabilities", self.root / "capabilities")
+        (self.root / "migrations").mkdir()
+
+    def tearDown(self) -> None:
+        self.temporary.cleanup()
+
+    def write_chain(self, *steps: tuple[str, str], version: str) -> None:
+        for index, (source, target) in enumerate(steps, start=1):
+            migration_id = f"{index:03d}-step"
+            (self.root / "migrations" / f"{migration_id}.json").write_text(
+                json.dumps(
+                    {
+                        "id": migration_id,
+                        "from": source,
+                        "to": target,
+                        "description": "test-only",
+                        "managedPaths": ["AGENTS.md"],
+                        "verification": ["test-only"],
+                    }
+                ),
+                encoding="utf-8",
+            )
+        (self.root / "VERSION").write_text(f"{version}\n", encoding="utf-8")
+
+    def run_check(self) -> str:
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            cr.check_migrations(self.root)
+        return output.getvalue()
+
+    def test_version_equal_to_last_migration_passes(self) -> None:
+        self.write_chain(("1.0.0", "1.0.1"), ("1.0.1", "1.0.2"), version="1.0.2")
+
+        self.run_check()
+
+    def test_version_ahead_of_last_migration_passes_for_cli_only_release(self) -> None:
+        self.write_chain(("1.0.0", "1.0.1"), version="1.0.3")
+
+        self.run_check()
+
+    def test_version_compares_numerically_not_lexically(self) -> None:
+        self.write_chain(("1.0.0", "1.0.9"), version="1.0.10")
+
+        self.run_check()
+
+    def test_last_migration_ahead_of_version_fails(self) -> None:
+        self.write_chain(("1.0.0", "1.0.1"), ("1.0.1", "1.0.4"), version="1.0.3")
+        output = io.StringIO()
+
+        with contextlib.redirect_stdout(output), self.assertRaises(SystemExit):
+            cr.check_migrations(self.root)
+
+        self.assertIn("ahead of the current release", output.getvalue())
+
+    def test_non_contiguous_migration_chain_still_fails(self) -> None:
+        self.write_chain(("1.0.0", "1.0.1"), ("1.0.5", "1.0.6"), version="1.0.6")
+        output = io.StringIO()
+
+        with contextlib.redirect_stdout(output), self.assertRaises(SystemExit):
+            cr.check_migrations(self.root)
+
+        self.assertIn("not contiguous", output.getvalue())
+
+
 if __name__ == "__main__":
     unittest.main()

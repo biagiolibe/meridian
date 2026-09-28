@@ -236,8 +236,8 @@ def check_capability_catalog(root: Path = ROOT) -> None:
         fail("manifest capability-profile schema transition does not match the parser")
 
 
-def check_migrations() -> None:
-    migration_paths = sorted((ROOT / "migrations").glob("[0-9][0-9][0-9]-*.json"))
+def check_migrations(root: Path = ROOT) -> None:
+    migration_paths = sorted((root / "migrations").glob("[0-9][0-9][0-9]-*.json"))
     if not migration_paths:
         fail("no framework migrations are defined")
     previous_to = None
@@ -246,16 +246,18 @@ def check_migrations() -> None:
         expected_prefix = f"{index:03d}-"
         required = ("id", "from", "to", "description", "managedPaths", "verification")
         if not path.name.startswith(expected_prefix) or not str(data.get("id", "")).startswith(expected_prefix):
-            fail(f"migration sequence is invalid: {path.relative_to(ROOT)}")
+            fail(f"migration sequence is invalid: {path.relative_to(root)}")
         if any(key not in data for key in required):
-            fail(f"migration is incomplete: {path.relative_to(ROOT)}")
+            fail(f"migration is incomplete: {path.relative_to(root)}")
         if previous_to is not None and data["from"] != previous_to:
-            fail(f"migration versions are not contiguous: {path.relative_to(ROOT)}")
+            fail(f"migration versions are not contiguous: {path.relative_to(root)}")
         previous_to = data["to"]
-    current_version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
-    if previous_to != current_version:
-        fail("latest migration does not match VERSION")
-    for error in meridian.validate_capability_moves(ROOT, "governed-sdd"):
+    current_version = (root / "VERSION").read_text(encoding="utf-8").strip()
+    # A CLI-only release bumps VERSION without a migration, so the last
+    # migration may lag behind VERSION but must never be ahead of it.
+    if meridian.version_key(previous_to) > meridian.version_key(current_version):
+        fail("a migration must never target a version ahead of the current release")
+    for error in meridian.validate_capability_moves(root, "governed-sdd"):
         fail(f"invalid capability move: {error}")
 
 
