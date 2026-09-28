@@ -190,4 +190,18 @@ the same lifecycle surface through their own host permission mechanisms.
 |--------|----|-------|----------|------------|-----------|
 | `[x]` | 056 | Add bounded worktree lifecycle commands | 🔴 P1 | 054, 055, 059, 063 | [056](done/056-add-bounded-worktree-lifecycle-commands.md) |
 
-*Last updated: 2026-09-26*
+### Phase 21 — Meridian self-hosting profile
+
+Separates workflow lifecycle from workflow-neutral operational capabilities so
+Meridian can retain Lean Delivery while consuming and verifying the safeguards
+it distributes to consumer projects.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 057 | Design the Meridian self-hosting capability profile | 🔴 P1 | 054 | [057](done/057-design-meridian-self-hosting-profile.md) |
+| `[x]` | 058 | Add self-hosting manifest and capability-catalog support | 🔴 P1 | 057, 048 | [058](done/058-add-self-hosting-manifest-and-capability-catalog.md) |
+| `[x]` | 059 | Implement cross-mode capability audit semantics | 🔴 P1 | 058 | [059](done/059-implement-cross-mode-capability-audit.md) |
+| `[x]` | 060 | Install Meridian self-hosting capability surfaces | 🔴 P1 | 059, 056, 052 | [060](done/060-install-meridian-self-hosting-surfaces.md) |
+| `[x]` | 061 | Add self-hosting host probes and CI dogfooding gate | 🔴 P1 | 060, 047 | [061](done/061-add-self-hosting-host-probes-and-ci-gate.md) |
+
+*Last updated: 2026-09-28*
