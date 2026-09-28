@@ -18,16 +18,16 @@ contiguity.
 
 ## 📋 Acceptance Criteria
 
-- [ ] `check_migrations()` accepts `version_key(previous_to) <=
+- [x] `check_migrations()` accepts `version_key(previous_to) <=
       version_key(VERSION)` instead of requiring equality.
-- [ ] `check_migrations()` still fails when a migration's `from` does not
+- [x] `check_migrations()` still fails when a migration's `from` does not
       equal the previous migration's `to` (contiguity untouched).
-- [ ] `check_migrations()` still fails if the last migration's `to` is
+- [x] `check_migrations()` still fails if the last migration's `to` is
       *greater* than `VERSION` (a migration must never be ahead of the
       release it ships in).
-- [ ] A new passing fixture/test case: repository `VERSION` ahead of the
+- [x] A new passing fixture/test case: repository `VERSION` ahead of the
       last migration's `to` (the CLI-only scenario).
-- [ ] `python3 scripts/check_repository.py` passes on the real repository
+- [x] `python3 scripts/check_repository.py` passes on the real repository
       state at the time this task lands (i.e. do not merge this without
       `VERSION` and `migrations/` staying mutually consistent under the new
       rule).
