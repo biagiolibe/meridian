@@ -1824,12 +1824,66 @@ worktree before the branch only after validated integration succeeds.
         self.assertTrue((self.project / "docs/LIFECYCLE_ORCHESTRATION.md").is_file())
         manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
         self.assertEqual(manifest["frameworkVersion"], "1.1.0")
+        self.assertEqual(manifest["workflowBaselineVersion"], "1.1.0")
         baselines = sorted(path.name for path in (self.project / ".meridian/baselines").iterdir())
         self.assertEqual(
             baselines,
             ["1.1.0"],
             "the intermediate 1.0.0 adoption baseline should be pruned once the target baseline lands",
         )
+
+    def seed_unlocked_project_from_baseline(self) -> None:
+        shutil.rmtree(self.project)
+        self.project.mkdir()
+        source = self.framework / "release-baselines/1.0.0/templates/workflows/governed-sdd"
+        for path in source.rglob("*"):
+            if path.is_file():
+                destination = self.project / path.relative_to(source)
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(path, destination)
+
+    def test_adopt_writes_independent_framework_and_baseline_versions(self) -> None:
+        self.seed_unlocked_project_from_baseline()
+        for path in (self.framework / "migrations").glob("*.json"):
+            path.unlink()
+        (self.framework / "migrations/001-initial-baseline.json").write_text(
+            json.dumps(
+                {
+                    "id": "001-initial-baseline",
+                    "from": "1.0.0",
+                    "to": "1.1.0",
+                    "description": "test-only initial baseline",
+                    "managedPaths": ["PROJECT_WORKFLOW.md"],
+                    "verification": ["test-only"],
+                }
+            ),
+            encoding="utf-8",
+        )
+        (self.framework / "VERSION").write_text("1.1.1\n", encoding="utf-8")
+
+        applied = self.run_cli("adopt", "--mode", "governed-sdd", "--from", "1.0.0", "--apply")
+        self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+        manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual(manifest["frameworkVersion"], "1.1.1")
+        self.assertEqual(manifest["workflowBaselineVersion"], "1.1.0")
+        self.assertEqual(
+            sorted(path.name for path in (self.project / ".meridian/baselines").iterdir()),
+            ["1.1.0"],
+        )
+
+    def test_finalize_adoption_writes_independent_framework_and_baseline_versions(self) -> None:
+        (self.framework / "VERSION").write_text("1.1.1\n", encoding="utf-8")
+        for path in (self.framework / "migrations").glob("*.json"):
+            if json.loads(path.read_text(encoding="utf-8"))["to"] != "1.1.0":
+                path.unlink()
+        shutil.rmtree(self.project)
+        shutil.copytree(self.framework / "templates/workflows/governed-sdd", self.project)
+
+        finalized = self.run_cli("finalize-adoption", "--mode", "governed-sdd", "--owner-accepted")
+        self.assertEqual(finalized.returncode, 0, finalized.stdout + finalized.stderr)
+        manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual(manifest["frameworkVersion"], "1.1.1")
+        self.assertEqual(manifest["workflowBaselineVersion"], "1.1.0")
 
     def test_pre_marker_project_is_not_regressed_to_missing(self) -> None:
         """A project adopted before migration 006 has no MERIDIAN markers at

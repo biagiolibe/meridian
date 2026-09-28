@@ -4069,7 +4069,6 @@ def lock_project(
     project_root: Path,
     framework_root: Path,
     mode: str,
-    write_workflow_baseline: bool = True,
 ) -> None:
     version = read_version(framework_root)
     baseline_version = latest_migration_to(framework_root, version)
@@ -4086,8 +4085,7 @@ def lock_project(
         "managedFiles": {str(item.target): sha256(item.source) for item in files},
         "appliedMigrations": migration_ids(framework_root, "0.0.0", baseline_version),
     }
-    if write_workflow_baseline:
-        manifest["workflowBaselineVersion"] = baseline_version
+    manifest["workflowBaselineVersion"] = baseline_version
     write_manifest(project_root, manifest, framework_root)
     print(f"Locked {project_root} to Meridian {version} ({mode}).")
 
@@ -4546,7 +4544,6 @@ def apply_plan(
     owner_reconciled: bool = False,
     target_version_override: str | None = None,
     managed_files_override: list[ManagedFile] | None = None,
-    write_workflow_baseline: bool = True,
 ) -> None:
     print_plan(manifest, framework_root, plan, target_version_override=target_version_override)
     if plan_has_blockers(plan, owner_reconciled=owner_reconciled):
@@ -4685,10 +4682,7 @@ def apply_plan(
         )
         prune_stale_baselines(project_root, target_baseline_version)
     manifest["frameworkVersion"] = target_version
-    if write_workflow_baseline:
-        manifest["workflowBaselineVersion"] = target_baseline_version
-    else:
-        manifest.pop("workflowBaselineVersion", None)
+    manifest["workflowBaselineVersion"] = target_baseline_version
     manifest["protocolVersion"] = PROTOCOL_VERSION
     manifest["managedFiles"] = {}
     for item in managed_files_override or managed_files(framework_root, manifest_workflow_mode(manifest)):
@@ -4784,14 +4778,7 @@ def adopt_project(
     if any(item.action == "conflict" for item in plan):
         raise MeridianError("adoption has conflicts")
     copy_adoption_baseline(project_root, snapshot_workflow, mode, source_version)
-    apply_plan(
-        project_root,
-        framework_root,
-        manifest,
-        plan,
-        baseline_root,
-        write_workflow_baseline=False,
-    )
+    apply_plan(project_root, framework_root, manifest, plan, baseline_root)
     return 0
 
 
@@ -4822,7 +4809,7 @@ def finalize_adoption(
                 f"(verdict={review.verdict}, unchecked findings={review.unchecked})"
             )
 
-    lock_project(project_root, framework_root, mode, write_workflow_baseline=False)
+    lock_project(project_root, framework_root, mode)
     if owner_accepted:
         print("Owner-accepted finalize: skipped the independent-review gate.")
     print("Adoption finalized. Review the migration diff and commit the project baseline.")
