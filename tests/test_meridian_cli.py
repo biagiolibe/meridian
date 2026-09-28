@@ -437,6 +437,63 @@ class MeridianCliTest(unittest.TestCase):
         self.assertEqual(plain.returncode, 0, plain.stdout + plain.stderr)
         self.assertEqual(plain.stdout, capped.stdout)
 
+    def test_lock_rejects_a_prerelease_framework_version_without_writing(self) -> None:
+        (self.framework / "VERSION").write_text("1.2.0-rc.1\n", encoding="utf-8")
+
+        locked = self.run_cli("lock", "--mode", "governed-sdd")
+
+        self.assertNotEqual(locked.returncode, 0)
+        self.assertIn("prerelease", locked.stderr)
+        self.assertIn("1.2.0-rc.1", locked.stderr)
+        self.assertFalse((self.project / ".meridian").exists())
+
+    def test_upgrade_apply_rejects_a_prerelease_target_before_touching_files(self) -> None:
+        self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
+        manifest_path = self.project / ".meridian/manifest.json"
+        manifest_before = manifest_path.read_bytes()
+        workflow = self.framework / "templates/workflows/governed-sdd/PROJECT_WORKFLOW.md"
+        workflow.write_text(workflow.read_text(encoding="utf-8") + "\nPrerelease marker.\n", encoding="utf-8")
+        project_workflow = self.project / "PROJECT_WORKFLOW.md"
+        workflow_before = project_workflow.read_bytes()
+        (self.framework / "VERSION").write_text("1.2.0-rc.1\n", encoding="utf-8")
+
+        applied = self.run_cli("upgrade", "--apply")
+
+        self.assertNotEqual(applied.returncode, 0)
+        self.assertIn("prerelease", applied.stderr)
+        self.assertEqual(manifest_path.read_bytes(), manifest_before)
+        self.assertEqual(project_workflow.read_bytes(), workflow_before)
+
+    def test_build_metadata_is_accepted_but_never_persisted(self) -> None:
+        (self.framework / "VERSION").write_text("1.1.0+dev.5\n", encoding="utf-8")
+
+        locked = self.run_cli("lock", "--mode", "governed-sdd")
+
+        self.assertEqual(locked.returncode, 0, locked.stderr)
+        manifest_text = (self.project / ".meridian/manifest.json").read_text(encoding="utf-8")
+        self.assertEqual(json.loads(manifest_text)["frameworkVersion"], "1.1.0")
+        self.assertNotIn("+dev", manifest_text)
+
+    def test_version_flag_prints_full_semver(self) -> None:
+        for raw in ("1.2.0", "1.2.0-rc.1", "1.2.0-rc.1+build.7", "1.2.0+build.7"):
+            (self.framework / "VERSION").write_text(raw + "\n", encoding="utf-8")
+            shown = subprocess.run(
+                [sys.executable, str(CLI), "--framework-root", str(self.framework), "--version"],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(shown.returncode, 0, shown.stderr)
+            self.assertEqual(shown.stdout.strip(), raw)
+
+    def test_parse_semver_separates_prerelease_and_build(self) -> None:
+        parsed = meridian.parse_semver("1.2.3-rc.1+build.9")
+        self.assertEqual((parsed.major, parsed.minor, parsed.patch), (1, 2, 3))
+        self.assertEqual((parsed.prerelease, parsed.build), ("rc.1", "build.9"))
+        for invalid in ("1.2", "1.2.3-", "01.2.3", "v1.2.3", "1.2.3+"):
+            with self.assertRaises(meridian.MeridianError):
+                meridian.parse_semver(invalid)
+
     def test_lock_and_apply_clean_template_upgrade(self) -> None:
         locked = self.run_cli("lock", "--mode", "governed-sdd")
         self.assertEqual(locked.returncode, 0, locked.stderr)
