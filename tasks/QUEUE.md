@@ -90,7 +90,7 @@ the same lifecycle surface through their own host permission mechanisms.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[ ]` | 056 | Add bounded worktree lifecycle commands | 🔴 P1 | 054, 055, 059, 063 | [056](056-add-bounded-worktree-lifecycle-commands.md) |
+| `[/]` | 056 | Add bounded worktree lifecycle commands | 🔴 P1 | 054, 055, 059, 063 | [056](056-add-bounded-worktree-lifecycle-commands.md) |
 
 ### Phase 19 — Proportional integration validation
 
