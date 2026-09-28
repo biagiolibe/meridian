@@ -93,7 +93,7 @@ protected Git metadata and command policy.
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
 | `[ ]` | 016 | Propagate `workflowBaselineVersion` to `adopt`/`finalize-adoption` | 🔴 P1 | 015 | [016](016-adopt-workflow-baseline-version.md) |
-| `[x]` | 017 | Relax `check_migrations()`'s VERSION equality to `<=` | 🔴 P1 | 015 | [017](done/017-relax-check-migrations-version-gate.md) |
+| `[x]` | 017 | Relax `check_migrations()`'s VERSION equality to `<=` | 🔴 P1 | 015 | [017](017-relax-check-migrations-version-gate.md) |
 | `[ ]` | 018 | Persist-time SemVer guard for prerelease `frameworkVersion` | 🟡 P2 | 015 | [018](018-prerelease-version-guard.md) |
 | `[ ]` | 019 | `releases/<version>.json` immutable release ledger + `check_releases()` | 🟡 P2 | 017 | [019](019-releases-ledger.md) |
 | `[ ]` | 020 | Update docs for the version split | 🟢 P3 | 015, 017, 019 | [020](020-docs-version-split.md) |
