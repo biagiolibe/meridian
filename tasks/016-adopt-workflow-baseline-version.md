@@ -19,14 +19,19 @@ number the moment adoption runs against a newer CLI.
 
 ## 📋 Acceptance Criteria
 
-- [ ] `meridian adopt --mode governed-sdd --from 1.0.0 --check`/`--apply`
-      writes a manifest with `workflowBaselineVersion: "1.0.0"` and
-      `frameworkVersion` equal to the current `VERSION` of the framework
-      source used to adopt — independent values, not the same field reused.
-- [ ] `finalize_adoption` writes both fields the same way.
-- [ ] A test where the adopting framework's `VERSION` is ahead of `1.0.0`
+- [x] `meridian adopt --mode governed-sdd --from 1.0.0 --apply` writes a
+      manifest with `frameworkVersion` equal to the current `VERSION` of the
+      framework source used to adopt and `workflowBaselineVersion` equal to the
+      baseline the migrated project now sits at (the latest migration baseline
+      at or below that `VERSION`, matching `lock`) — independent values, not
+      the same field reused. Scope note: the original text named the `--from`
+      version (`1.0.0`), but adoption applies pending migrations and prunes to
+      the target baseline, so `.meridian/baselines/<v>/` and the planner key on
+      the migrated baseline, not the source snapshot.
+- [x] `finalize_adoption` writes both fields the same way.
+- [x] A test where the adopting framework's `VERSION` is ahead of `1.0.0`
       confirms the two fields differ in the resulting manifest.
-- [ ] `python3 scripts/check_repository.py` and
+- [x] `python3 scripts/check_repository.py` and
       `python3 -m unittest discover -s tests -v` pass.
 
 ## 📁 Relevant Files
