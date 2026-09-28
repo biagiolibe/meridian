@@ -3,7 +3,7 @@
 > **ID**: `056`
 > **Category**: Architecture / Host Integration
 > **Priority**: 🔴 P1
-> **Estimate**: ~6–8h
+> **Estimate**: ~8–12h
 > **Assigned to**: unassigned
 > **Session**: 2026-09-27 command-approval alignment design
 
@@ -46,9 +46,34 @@ approval while destructive exceptional recovery remains explicit.
       cannot redefine lifecycle validity. It creates exactly one
       branch/worktree pair from the permitted base commit and writes the
       required handoff identity without silently repairing partial state.
+- [ ] Lifecycle orchestration runs `prepare` before it creates an implementer,
+      reviewer, or remediation worker session. The coordinator passes the
+      returned absolute worktree path and branch as durable worker-launch
+      inputs; a worker must not derive, choose, or create a second checkout.
+- [ ] Every worker starts with its effective working directory bound to the
+      exact existing worktree returned by `prepare` and immediately runs the
+      read-only `check` before reading implementation files, computing a diff,
+      changing task state, or writing files. `check` rejects the primary
+      checkout and every other linked worktree even when the expected branch
+      exists there or the checkout is clean.
+- [ ] Claude Code orchestration does not use Desktop automatic session
+      isolation, CLI `--worktree`, an isolated-worktree subagent option, or any
+      equivalent host facility that creates another checkout after Meridian
+      preparation. A host-created checkout is acceptable only when its
+      registered real path, configured root, repository identity, canonical
+      task leaf, branch, and HEAD already equal the `prepare` result; otherwise
+      the lifecycle is `BLOCKED` and preserves both checkouts.
+- [ ] If a host cannot launch or attach a fresh worker session with the exact
+      prepared directory as its effective workspace, orchestration returns
+      `BLOCKED` before implementation or review. It never falls back to
+      `<project>/.claude/worktrees/`, the primary checkout, a sibling checkout,
+      a new branch, or a host-selected path.
 - [ ] `check` is read-only and reports branch, worktree, Git common directory,
-      base commit, task commit, cleanliness, handoff consistency, active
-      integration state, and the next permitted lifecycle action.
+      canonical prepared path, effective worker path, base commit, task commit,
+      cleanliness, handoff consistency, active integration state, and the next
+      permitted lifecycle action. Its machine-readable result distinguishes
+      `wrong-worktree` from branch, HEAD, root, handoff, and cleanliness
+      failures.
 - [ ] `integrate stage` acquires the Task 051 integration lease atomically,
       verifies the accepted handoff and recorded commits, checks a clean
       primary checkout on `main`, and performs only the prescribed
@@ -98,6 +123,12 @@ approval while destructive exceptional recovery remains explicit.
       stale evidence, interrupted staged integration, finalize, verified
       cleanup, cross-repository/path attacks, symlink escapes, and two tasks
       integrating serially without raw Git approval rules.
+- [ ] Worker-routing tests prepare one canonical task worktree, then simulate a
+      worker starting in the primary checkout, a sibling worktree, and
+      `<project>/.claude/worktrees/task-<id>`. Every mismatch fails before task
+      reads or writes; a worker rooted at the exact prepared path succeeds and
+      implementation and review reuse that same registered checkout
+      sequentially.
 - [ ] Managed templates, initialization, upgrade migrations, capability
       markers, baselines, host contract, and lifecycle documentation deliver
       the commands and rules consistently to new and existing Lean and
@@ -106,6 +137,12 @@ approval while destructive exceptional recovery remains explicit.
       stage/finalize or abort, and cleanup flow without user command approvals;
       filesystem-profile activation, project trust, rule decision, Git result,
       and any remaining network/push approval are recorded separately.
+- [ ] A real Claude Code lifecycle probe starts from the primary project,
+      prepares the repository-qualified Meridian worktree, launches a fresh
+      worker bound to that existing path, and proves that no additional entry
+      appears below `.claude/worktrees` or elsewhere. A host that only offers
+      automatic new-worktree sessions is recorded as unsupported and returns
+      `BLOCKED`, not as a successful advisory integration.
 - [ ] `python3 scripts/check_repository.py`,
       `python3 -m unittest discover -s tests -v`, and `git diff --check` pass.
 
@@ -120,6 +157,8 @@ approval while destructive exceptional recovery remains explicit.
 | `PROJECT_WORKFLOW.md`, `AGENTS.md`, `CLAUDE.md` | Local canonical invocation and lifecycle contract. |
 | `templates/workflows/lean-delivery/` | Lean preparation, integration, evidence, and cleanup instructions. |
 | `templates/workflows/governed-sdd/` | Governed implementation, review, integration, and cleanup instructions. |
+| `templates/workflows/governed-sdd/docs/LIFECYCLE_ORCHESTRATION.md` | Prepare-before-spawn ordering and exact worker-worktree binding. |
+| `.claude-plugin/`, `hooks/` | Claude-facing routing or guard surfaces needed to prevent host-created substitute worktrees. |
 | `docs/HOST_CAPABILITY_CONTRACT.md` | Trust, permission, execpolicy, sandbox, and host-evidence boundary. |
 | `tests/test_codex_rules.py` | Canonical and adversarial execpolicy decision table. |
 | `tests/test_task_worktree_isolation.py` | Real Git lifecycle and interruption scenarios. |
@@ -142,6 +181,15 @@ approval while destructive exceptional recovery remains explicit.
   Meridian state machine. Project code and validation continue to run inside
   the ordinary sandbox; only validated Git metadata transitions use the
   allowlisted lifecycle commands.
+- **Observed Claude routing failure**: a Palimpsest `Run lifecycle
+  M35-EXEC-001` prepared no bound worker workspace before starting the fresh
+  implementation session. Claude Desktop applied its own session isolation and
+  registered `<project>/.claude/worktrees/task-m35-exec-001`, while Meridian's
+  resolver returned the repository-qualified shared-root path ending in
+  `palimpsest/m35-exec-001`. The alternate checkout was clean and on the
+  expected branch, but its path and root were non-canonical. This proves that
+  instructions to "use the dedicated worktree" are insufficient without a
+  prepare-before-spawn contract and worker-side path verification.
 
 ## 🔨 Suggested Implementation
 
@@ -150,16 +198,21 @@ approval while destructive exceptional recovery remains explicit.
 2. Define durable staged-integration state bound to repository identity, task,
    lease owner, base/task/current-main commits, candidate tree, and validation
    decision. Specify recovery before adding mutations.
-3. Implement prepare/check first, then staged integration and guarded cleanup.
-   Execute Git with argument arrays, never shell strings, and reject unknown or
-   repeated options rather than forwarding them.
-4. Add exact Codex project rules for the host-neutral executable and
+3. Implement prepare/check first, including the machine-readable launch
+   contract and wrong-worktree diagnostics. Execute Git with argument arrays,
+   never shell strings, and reject unknown or repeated options rather than
+   forwarding them.
+4. Update lifecycle orchestration so preparation completes before delegation,
+   every worker is launched against the returned existing directory, and the
+   worker proves that binding with `check` before substantive work.
+5. Add exact Codex project rules for the host-neutral executable and
    subcommands, and route Claude instructions through the same CLI surface.
    Keep raw Git mutation policy restrictive and verify rule precedence with
    the real Codex execpolicy evaluator when available.
-5. Update both workflow modes and ship the managed changes through the normal
+6. Update both workflow modes and ship the managed changes through the normal
    migration/capability-baseline mechanism.
-6. Record static, real-Git, and actual Codex activation evidence separately.
+7. Record static, real-Git, actual Codex activation, and actual Claude
+   existing-worktree binding evidence separately.
 
 ## ⚠️ Constraints and Considerations
 
@@ -173,6 +226,12 @@ approval while destructive exceptional recovery remains explicit.
   project trust, command success, or host activation evidence.
 - Do not auto-remove stale leases, abandoned branches, unintegrated worktrees,
   or remote branches.
+- Do not move, rename, delete, or silently adopt a host-created substitute
+  worktree when its path differs from the canonical prepared path. Report both
+  paths and retain state for explicit recovery.
+- Do not treat a fresh context as requiring a fresh Git worktree. Implementer,
+  reviewer, and remediation contexts are distinct, but reuse one task worktree
+  sequentially under the one-writer rule.
 - Keep push/network behavior separate from local Git lifecycle authorization.
 - Preserve Task 055's proportional validation policy, Task 054's
   repository-qualified shared worktree root, and Task 063's implemented task
@@ -192,18 +251,23 @@ second lifecycle vocabulary.
 |---|---|---|---|---|
 | Codex desktop / trusted project / active Meridian permission profile and project rules | advisory | enforced | Canonical Meridian executable resolves on PATH, project trust and permission profile are active, migrated rules load at startup, and the lifecycle host probe passes. | Report `approval-required` or `blocked`; retain raw Git prompts and all task state. |
 | Codex CLI / trusted project / active Meridian permission profile and project rules | advisory | enforced | Supported CLI version loads the same project rule and the real execpolicy/lifecycle probe passes. | Use interactive approvals; do not widen raw Git rules. |
-| Claude Code plugin session | advisory | enforced by CLI, host authorization remains advisory | The bounded CLI commands are installed and workflow instructions route through the host-neutral namespace. | Use Claude's host permission mechanism without claiming Codex rule enforcement; do not use Claude-managed worktree creation as a substitute for Meridian preparation. |
+| Claude Code plugin session | automatic session worktrees can bypass the Meridian path | enforced by CLI and verified existing-worktree session binding; host authorization remains host-owned | The bounded CLI commands are installed, orchestration prepares before spawning, the host can launch a fresh context in the returned existing directory, and worker `check` passes. | Return `BLOCKED` when Claude can only create a new automatic worktree; never accept `.claude/worktrees` as a substitute unless it is the exact canonical prepared path. |
 | Host-neutral Meridian CLI | unverified | enforced | Real-Git state-machine tests pass independently of any host approval system. | Fail closed and print the retained/recovery state. |
 
 Evidence plan:
-- Static: parser, state-transition, argument-rejection, rule decision-table, migration, and marker tests.
-- Host execution: real temporary repositories plus one supported Codex desktop/CLI lifecycle probe.
-- Manual activation: record executable resolution, project trust, permission-profile selection, rule loading after restart, and remaining push/network behavior.
+- Static: parser, state-transition, argument-rejection, worker-routing,
+  rule decision-table, migration, and marker tests.
+- Host execution: real temporary repositories, one supported Codex desktop/CLI
+  lifecycle probe, and one Claude prepare-before-spawn/existing-worktree probe.
+- Manual activation: record executable resolution, prepared and effective
+  worker paths, Git registration, project trust, permission-profile selection,
+  rule loading after restart, and remaining push/network behavior.
 
 Completion evidence:
 - Codex desktop / trusted project / active Meridian permission profile and project rules: unverified until the named end-to-end probe is recorded.
 - Codex CLI / trusted project / active Meridian permission profile and project rules: unverified until the named end-to-end probe is recorded.
-- Claude Code plugin session: retained advisory.
+- Claude Code plugin session: unverified until the named existing-worktree
+  binding probe completes without creating a substitute checkout.
 - Host-neutral Meridian CLI: unverified until the real-Git lifecycle suite passes.
 
 ## 🔗 Dependencies
