@@ -1254,6 +1254,7 @@ class PlanItem:
     file: ManagedFile
     action: str
     detail: str
+    problems: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -2974,6 +2975,84 @@ def entry_router_outputs(project_root: Path) -> dict[Path, str]:
     return result
 
 
+def project_uses_entry_router(project_root: Path) -> bool:
+    """Whether the project's top-level agent files are generated outputs."""
+    return (project_root / ENTRY_ROUTER_PATH).is_file()
+
+
+def entry_router_trigger_requirements(
+    project_root: Path,
+    framework_root: Path,
+    pending_migrations: list[str],
+    planned_files: list[ManagedFile],
+) -> tuple[str, ...]:
+    """Report command triggers a pending migration requires in the router.
+
+    The framework template remains the authority for the exact command text
+    and routed document, while ENTRY_ROUTER.md remains the only editable input
+    in an opted-in consumer. Only literal command triggers are checked here;
+    prose routes such as status and audit continue to be governed by the
+    explicit entry-router route map.
+    """
+    if not project_uses_entry_router(project_root):
+        return ()
+    command_trigger_versions = []
+    for path in migration_record_paths(framework_root, pending_migrations):
+        data = json.loads(path.read_text(encoding="utf-8"))
+        command_trigger_versions.extend(
+            version
+            for capability, version in migration_capability_entries(data)
+            if capability == "command-triggers"
+        )
+    if not command_trigger_versions:
+        return ()
+
+    version = max(command_trigger_versions)
+    templates = {
+        item.target: item.source
+        for item in planned_files
+        if item.target in {Path("AGENTS.md"), Path("CLAUDE.md")}
+    }
+    source = templates.get(Path("AGENTS.md")) or templates.get(Path("CLAUDE.md"))
+    if source is None:
+        raise MeridianError("upgrade plan has no managed entry-point template for command-triggers")
+    block = extract_marker_block(source.read_text(encoding="utf-8"), "command-triggers", version)
+    if block is None:
+        raise MeridianError(
+            f"entry-point template lacks capability=command-triggers v{version} required by the migration ledger"
+        )
+
+    router_text = (project_root / ENTRY_ROUTER_PATH).read_text(encoding="utf-8")
+    router_lines = router_text.splitlines()
+    problems = []
+    for line in block.splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("- ") or "—" not in stripped:
+            continue
+        label, route = stripped[2:].split("—", 1)
+        triggers = re.findall(r"`([^`]+)`", label)
+        if not triggers:
+            continue
+        targets = [value for value in re.findall(r"`([^`]+)`", route) if value.endswith(".md")]
+        if not targets:
+            raise MeridianError(f"command trigger has no routed Markdown target: {stripped}")
+        target = targets[-1]
+        for trigger in triggers:
+            if any(trigger in router_line and target in router_line for router_line in router_lines):
+                continue
+            if router_text.count(target) == 1:
+                guidance = (
+                    f"add `{trigger}` to the existing route line for `{target}`; do not add another "
+                    "line because the entry-router audit requires each route target exactly once"
+                )
+            else:
+                guidance = f"add `{trigger}` and route it to `{target}`"
+            problems.append(
+                f"{ENTRY_ROUTER_PATH}: missing trigger `{trigger}` for `{target}`; {guidance}"
+            )
+    return tuple(problems)
+
+
 def audit_entry_router(project_root: Path) -> list[tuple[str, str]]:
     """Audit an opting-in consumer's generated files and explicit route map."""
     if not (project_root / ENTRY_ROUTER_PATH).is_file():
@@ -3786,6 +3865,9 @@ def apply_additive_move_checks(
     retained only if it is the exact released marker block.
     """
     by_target = {item.file.target: index for index, item in enumerate(plan)}
+    derived_entry_points = {
+        item.file.target for item in plan if item.action == "router"
+    }
 
     def conflict(target: Path, detail: str) -> None:
         index = by_target[target]
@@ -3793,6 +3875,8 @@ def apply_additive_move_checks(
 
     for move in declared_capability_moves(framework_root, pending_migrations):
         if move.stage not in ("additive", "retirement"):
+            continue
+        if move.source_path in derived_entry_points or move.target_path in derived_entry_points:
             continue
         source_base = baseline_root / move.source_path
         source_local = project_root / move.source_path
@@ -3892,8 +3976,25 @@ def plan_from_baseline(
         if migration not in applied
     ]
 
+    planned_files = managed_files_override or managed_files(framework_root, mode)
+    router_project = project_uses_entry_router(project_root)
+    router_problems = entry_router_trigger_requirements(
+        project_root, framework_root, pending_migrations, planned_files
+    )
+    router_problem_owner = Path("AGENTS.md")
+
     plan = []
-    for item in managed_files_override or managed_files(framework_root, mode):
+    for item in planned_files:
+        if router_project and item.target in {Path("AGENTS.md"), Path("CLAUDE.md")}:
+            plan.append(
+                PlanItem(
+                    item,
+                    "router",
+                    f"generated from {ENTRY_ROUTER_PATH}; template merge is disabled",
+                    router_problems if item.target == router_problem_owner else (),
+                )
+            )
+            continue
         local = project_root / item.target
         base = baseline_root / item.target
         if not base.is_file():
@@ -4159,9 +4260,19 @@ def print_plan(
         print(f"MIGRATION {migration}")
     for item in plan:
         print(f"{item.action.upper():8} {item.file.target} — {item.detail}")
+        for problem in item.problems:
+            print(f"MISSING-ROUTER {problem}")
     conflicts = sum(item.action == "conflict" for item in plan)
+    router_blockers = sum(bool(item.problems) for item in plan)
     if conflicts:
         print(f"BLOCKED: {conflicts} conflict(s); no files were changed.")
+    if router_blockers:
+        print(f"BLOCKED: {router_blockers} router requirement(s); no files were changed.")
+
+
+def plan_has_blockers(plan: list[PlanItem], owner_reconciled: bool = False) -> bool:
+    """Whether apply/check must stop before writing any project file."""
+    return any(item.problems or (item.action == "conflict" and not owner_reconciled) for item in plan)
 
 
 def apply_plan(
@@ -4176,9 +4287,8 @@ def apply_plan(
     write_workflow_baseline: bool = True,
 ) -> None:
     print_plan(manifest, framework_root, plan, target_version_override=target_version_override)
-    conflicts = any(item.action == "conflict" for item in plan)
-    if conflicts and not owner_reconciled:
-        raise MeridianError("upgrade has conflicts")
+    if plan_has_blockers(plan, owner_reconciled=owner_reconciled):
+        raise MeridianError("upgrade has blocking plan items")
 
     installed_version = manifest_baseline_version(manifest)
     target_version = target_version_override or read_version(framework_root)
@@ -4292,6 +4402,17 @@ def apply_plan(
                     )
                 local.write_text(retired, encoding="utf-8")
 
+    if project_uses_entry_router(project_root):
+        for target, output in entry_router_outputs(project_root).items():
+            (project_root / target).write_text(output, encoding="utf-8")
+        router_failures = [
+            detail for status, detail in audit_entry_router(project_root) if status == "FAIL"
+        ]
+        if router_failures:
+            raise MeridianError(
+                "entry-router audit failed after regeneration: " + "; ".join(router_failures)
+            )
+
     if target_baseline_version != installed_version:
         copy_baseline(
             project_root,
@@ -4307,11 +4428,15 @@ def apply_plan(
     else:
         manifest.pop("workflowBaselineVersion", None)
     manifest["protocolVersion"] = PROTOCOL_VERSION
-    manifest["managedFiles"] = {
-        str(item.target): sha256(item.source)
-        for item in managed_files_override
-        or managed_files(framework_root, manifest_workflow_mode(manifest))
-    }
+    manifest["managedFiles"] = {}
+    for item in managed_files_override or managed_files(framework_root, manifest_workflow_mode(manifest)):
+        digest_source = item.source
+        if project_uses_entry_router(project_root) and item.target in {
+            Path("AGENTS.md"),
+            Path("CLAUDE.md"),
+        }:
+            digest_source = project_root / item.target
+        manifest["managedFiles"][str(item.target)] = sha256(digest_source)
     prior = {str(item) for item in manifest.get("appliedMigrations", [])}
     prior.update(migration_ids(framework_root, installed_version, target_baseline_version))
     manifest["appliedMigrations"] = sorted(prior)
@@ -6016,7 +6141,7 @@ def main() -> int:
                 capability_profiles=base_manifest.get("capabilityProfiles"),
             )
             print_plan(manifest, framework_root, plan, target_version_override=target_override)
-            if any(item.action == "conflict" for item in plan):
+            if plan_has_blockers(plan):
                 return 2
         else:
             apply_upgrade(

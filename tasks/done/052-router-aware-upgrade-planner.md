@@ -24,33 +24,33 @@ generated entry routers as derived files so this cannot recur on the next
 
 ## 📋 Acceptance Criteria
 
-- [ ] When `docs/workflows/ENTRY_ROUTER.md` exists in the project,
+- [x] When `docs/workflows/ENTRY_ROUTER.md` exists in the project,
       `upgrade --check` and `--apply` never three-way-merge template content
       into `AGENTS.md` or `CLAUDE.md`. The plan reports them with a distinct
       action (for example `ROUTER`) instead of `KEEP`/`UPDATE`/`MERGE`.
-- [ ] If a migration in the plan changes a capability that the entry router
+- [x] If a migration in the plan changes a capability that the entry router
       must expose (at minimum `command-triggers`), `upgrade --check` reports
       each trigger missing from `ENTRY_ROUTER.md` with its target document,
       and `upgrade --apply` returns `BLOCKED` before touching any file until
       the router source covers it (or the operator passes the existing
       owner-reconciled path, if that path fits).
-- [ ] The report tells the operator to add a trigger whose target the router
+- [x] The report tells the operator to add a trigger whose target the router
       already names to that route's existing line, not as a new line, because
       `audit_entry_router()` requires each route target to appear exactly
       once in `ENTRY_ROUTER.md`.
-- [ ] After a successful `--apply`, the CLI regenerates `AGENTS.md` and
+- [x] After a successful `--apply`, the CLI regenerates `AGENTS.md` and
       `CLAUDE.md` from the router (the same output as
       `generate-entry-routers --write`) and runs the entry-router audit;
       a failure is reported as an apply failure, not left for a later audit.
-- [ ] The manifest hashes recorded for `AGENTS.md` and `CLAUDE.md` after apply
+- [x] The manifest hashes recorded for `AGENTS.md` and `CLAUDE.md` after apply
       are those of the regenerated files, so the next `upgrade --check` is a
       true no-op.
-- [ ] Fixture tests in `tests/test_meridian_cli.py` reproduce the 1.1.40 ->
+- [x] Fixture tests in `tests/test_meridian_cli.py` reproduce the 1.1.40 ->
       1.1.41 case: a router project on 1.1.40 upgrades without drift; a
       router source missing `Restart rejected` blocks apply with the
       same-line guidance; a project without `ENTRY_ROUTER.md` keeps today's
       merge behavior unchanged.
-- [ ] `python3 scripts/check_repository.py` and
+- [x] `python3 scripts/check_repository.py` and
       `python3 -m unittest discover -s tests -v` pass.
 
 ## 📁 Relevant Files
