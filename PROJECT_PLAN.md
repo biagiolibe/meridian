@@ -15,7 +15,7 @@
 - `[x]` 057 — Design the Meridian self-hosting capability profile.
 - `[x]` 058 — Add self-hosting manifest and capability-catalog support.
 - `[x]` 059 — Implement cross-mode capability audit semantics.
-- `[ ]` 060 — Install Meridian self-hosting capability surfaces.
+- `[x]` 060 — Install Meridian self-hosting capability surfaces.
 - `[ ]` 061 — Add self-hosting host probes and CI dogfooding gate.
 - `[ ]` 062 — Make Codex permission-profile repair resilient.
 - `[x]` 015 — Split `workflowBaselineVersion` from `frameworkVersion` in manifest and upgrade planner.

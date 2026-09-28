@@ -4,8 +4,8 @@
 > **Category**: Architecture / Workflow Distribution
 > **Priority**: 🔴 P1
 > **Estimate**: ~5–7h
-> **Assigned to**: unassigned
-> **Session**: unassigned
+> **Assigned to**: Codex
+> **Session**: 2026-09-28 implementation
 
 ## 🎯 Objective
 
@@ -20,39 +20,39 @@ probed.
 
 ## 📋 Acceptance Criteria
 
-- [ ] The live Meridian manifest retains `workflowMode: lean-delivery`, enables
+- [x] The live Meridian manifest retains `workflowMode: lean-delivery`, enables
       the versioned `meridian-self-hosting` profile, and declares the exact
       required versions and surfaces of every included capability.
-- [ ] `LANGUAGE_POLICY.md` is a managed local copy whose project-owned language
+- [x] `LANGUAGE_POLICY.md` is a managed local copy whose project-owned language
       value remains upgrade-safe and whose protected canonical policy is
       integrity-checked.
-- [ ] A local `docs/CONTEXT_BUDGET_POLICY.md` contains only the selected neutral
+- [x] A local `docs/CONTEXT_BUDGET_POLICY.md` contains only the selected neutral
       minimal-status, task-first context, bounded-exploration, evidence-tier,
       validation-scoping, and communication rules; it contains no Governed-only
       lifecycle or role requirements.
-- [ ] A configured local `docs/EXECUTION_EVIDENCE_PROFILE.md` contains no
+- [x] A configured local `docs/EXECUTION_EVIDENCE_PROFILE.md` contains no
       unresolved placeholder that could receive `PASS`.
-- [ ] Queue briefing and read guard use the declared repository-owned shared
+- [x] Queue briefing and read guard use the declared repository-owned shared
       sources. `.codex/hooks.json` installs only the supported Codex adapter;
       Claude hook configuration remains represented separately.
-- [ ] Worktree-safety policy and command rules reflect Task 056's final bounded
+- [x] Worktree-safety policy and command rules reflect Task 056's final bounded
       lifecycle surface and remain distinct from proof of sandbox access,
       project trust, or command success.
-- [ ] Canonical shared policy text has one authoritative source. Generated or
+- [x] Canonical shared policy text has one authoritative source. Generated or
       managed copies use capability markers and migrations without duplicating
       competing policy ownership.
-- [ ] Migrations name the exact managed paths they add, move, update, or retire;
+- [x] Migrations name the exact managed paths they add, move, update, or retire;
       shared sources receive integrity records without duplicate marker blocks.
-- [ ] Bootstrap records observed installation state and leaves every unprobed
+- [x] Bootstrap records observed installation state and leaves every unprobed
       host-dependent capability `UNVERIFIED`, `ADVISORY`, or `UNSUPPORTED` as
       required by the catalog.
-- [ ] Lean and Governed initialization, adoption, and upgrade fixtures preserve
+- [x] Lean and Governed initialization, adoption, and upgrade fixtures preserve
       existing consumers while delivering only their applicable capability
       surfaces.
-- [ ] Profile-aware audit reports no missing, empty, drifted, or contradictory
+- [x] Profile-aware audit reports no missing, empty, drifted, or contradictory
       installation surface for Meridian. It does not need to return aggregate
       `PASS` until Task 061 supplies host evidence.
-- [ ] `python3 scripts/check_repository.py`,
+- [x] `python3 scripts/check_repository.py`,
       `python3 -m unittest discover -s tests -v`, and `git diff --check` pass.
 
 ## 📁 Relevant Files
