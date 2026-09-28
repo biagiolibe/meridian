@@ -79,7 +79,7 @@ it distributes to consumer projects.
 | `[x]` | 058 | Add self-hosting manifest and capability-catalog support | 🔴 P1 | 057, 048 | [058](done/058-add-self-hosting-manifest-and-capability-catalog.md) |
 | `[x]` | 059 | Implement cross-mode capability audit semantics | 🔴 P1 | 058 | [059](done/059-implement-cross-mode-capability-audit.md) |
 | `[x]` | 060 | Install Meridian self-hosting capability surfaces | 🔴 P1 | 059, 056, 052 | [060](done/060-install-meridian-self-hosting-surfaces.md) |
-| `[/]` | 061 | Add self-hosting host probes and CI dogfooding gate | 🔴 P1 | 060, 047 | [061](061-add-self-hosting-host-probes-and-ci-gate.md) |
+| `[x]` | 061 | Add self-hosting host probes and CI dogfooding gate | 🔴 P1 | 060, 047 | [061](done/061-add-self-hosting-host-probes-and-ci-gate.md) |
 
 ### Phase 19 — Proportional integration validation
 
