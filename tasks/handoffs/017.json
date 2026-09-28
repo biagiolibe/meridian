@@ -1,0 +1,18 @@
+{
+  "accepted": true,
+  "validation_passed": true,
+  "validated_task_commit": "3f3b6449f5f6d245d2b0a74dc72e459df6ed04b4",
+  "validated_base_commit": "35a9bc2b7cf93d56977d25fa09adfcbd10231afc",
+  "full_validation_required": false,
+  "interaction_assessment_complete": true,
+  "task_paths": [
+    "scripts/check_repository.py",
+    "tests/test_check_repository.py"
+  ],
+  "task_dependencies": ["015"],
+  "task_behavioral_surfaces": [
+    "check_migrations version gate"
+  ],
+  "main_advanced_dependencies": [],
+  "main_advanced_behavioral_surfaces": []
+}
