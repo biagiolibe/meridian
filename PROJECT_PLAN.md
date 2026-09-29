@@ -23,7 +23,7 @@
 - `[x]` 017 — Relax `check_migrations()`'s VERSION equality to `<=`.
 - `[x]` 018 — Persist-time SemVer guard for prerelease `frameworkVersion`.
 - `[x]` 019 — `releases/<version>.json` immutable release ledger + `check_releases()`.
-- `[/]` 020 — Update docs for the version split.
+- `[x]` 020 — Update docs for the version split.
 - `[ ]` 021 — Ship the first CLI-only release as end-to-end proof.
 - `[x]` 039 — Design an opt-in structured task-identity policy.
 - `[x]` 063 — Implement the task-identity declaration and resolver.
