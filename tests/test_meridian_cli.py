@@ -1059,6 +1059,58 @@ worktree before the branch only after validated integration succeeds.
         self.assertEqual(manifest["frameworkVersion"], "1.1.48")
         self.assertEqual(manifest["appliedMigrations"][-1], "051-bounded-worktree-lifecycle")
 
+    def test_upgrade_installs_codex_profile_recovery_across_a_cli_only_release(self) -> None:
+        """Migration 053 reaches a baseline-1.1.49 project locked under CLI-only release 1.1.50."""
+        recovery = re.compile(
+            r"\n\nIf `meridian codex configure --check` reports `repair-required`.*?(?=<!-- MERIDIAN:END -->)",
+            re.DOTALL,
+        )
+        for mode in ("governed-sdd", "lean-delivery"):
+            with self.subTest(mode):
+                shutil.rmtree(self.project)
+                self.project.mkdir()
+                workflow = self.framework / "templates/workflows" / mode
+                for path in workflow.rglob("*"):
+                    if path.is_file():
+                        destination = self.project / path.relative_to(workflow)
+                        destination.parent.mkdir(parents=True, exist_ok=True)
+                        shutil.copyfile(path, destination)
+                template = workflow / "PROJECT_WORKFLOW.md"
+                current = template.read_text(encoding="utf-8")
+                previous = recovery.sub("\n", current, count=1).replace(
+                    "capability=codex-worktree-access v2", "capability=codex-worktree-access v1"
+                )
+                self.assertNotEqual(previous, current)
+                template.write_text(previous, encoding="utf-8")
+                (self.project / "PROJECT_WORKFLOW.md").write_text(previous, encoding="utf-8")
+                (self.framework / "VERSION").write_text("1.1.50\n", encoding="utf-8")
+                locked = self.run_cli("lock", "--mode", mode)
+                self.assertEqual(locked.returncode, 0, locked.stdout + locked.stderr)
+                manifest_path = self.project / ".meridian/manifest.json"
+                locked_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                self.assertEqual(locked_manifest["frameworkVersion"], "1.1.50")
+                self.assertEqual(locked_manifest["workflowBaselineVersion"], "1.1.49")
+                project_workflow = self.project / "PROJECT_WORKFLOW.md"
+                project_workflow.write_text(
+                    project_workflow.read_text(encoding="utf-8") + "\nConsumer-owned note.\n", encoding="utf-8"
+                )
+
+                template.write_text(current, encoding="utf-8")
+                (self.framework / "VERSION").write_text("1.1.51\n", encoding="utf-8")
+                checked = self.run_cli("upgrade", "--check")
+                self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+                self.assertIn("MIGRATION 053-codex-profile-repair-guidance", checked.stdout)
+                applied = self.run_cli("upgrade", "--apply")
+                self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+                upgraded = project_workflow.read_text(encoding="utf-8")
+                self.assertIn("capability=codex-worktree-access v2", upgraded)
+                self.assertIn("reports `repair-required`", upgraded)
+                self.assertIn("Consumer-owned note.", upgraded)
+                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                self.assertEqual(manifest["frameworkVersion"], "1.1.51")
+                self.assertEqual(manifest["workflowBaselineVersion"], "1.1.51")
+                self.assertEqual(manifest["appliedMigrations"][-1], "053-codex-profile-repair-guidance")
+
     def test_upgrade_downgrades_cosmetic_conflict_to_verified(self) -> None:
         """Phase 3 of migrations/CAPABILITY_MARKERS.md: a conflict outside a
         satisfied capability marker is cosmetic and should be left untouched,
@@ -3999,6 +4051,16 @@ class CodexProfileRepairTest(unittest.TestCase):
             "end-only": self.rewritten().replace(begin + "\n", "") + end + "\n",
             "reversed": end + "\n" + self.rewritten() + begin + "\n",
             "not-enclosing": self.rewritten().replace(tables, "") + f"{end}\n\n{tables}",
+            # The trailing marker survived or was restored by hand, but the selection moved above the span.
+            "selection-outside-span": self.rewritten().replace(
+                "\n[projects.example]", f"{end}\n\n[projects.example]", 1
+            ),
+            # Markers wrap only the parent table; the workspace_roots table sits outside.
+            "roots-outside-span": self.rewritten().replace(
+                "\n[permissions.meridian-worktrees.workspace_roots]",
+                f"{end}\n\n[permissions.meridian-worktrees.workspace_roots]",
+                1,
+            ),
         }
         for name, text in shapes.items():
             with self.subTest(name):
