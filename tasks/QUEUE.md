@@ -97,7 +97,7 @@ protected Git metadata and command policy.
 | `[x]` | 018 | Persist-time SemVer guard for prerelease `frameworkVersion` | 🟡 P2 | 015 | [018](done/018-prerelease-version-guard.md) |
 | `[x]` | 019 | `releases/<version>.json` immutable release ledger + `check_releases()` | 🟡 P2 | 017 | [019](019-releases-ledger.md) |
 | `[x]` | 020 | Update docs for the version split | 🟢 P3 | 015, 017, 019 | [020](020-docs-version-split.md) |
-| `[ ]` | 021 | Ship the first CLI-only release as end-to-end proof | 🟢 P3 | 016, 018, 019, 020, 046 | [021](021-first-cli-only-release.md) |
+| `[/]` | 021 | Ship the first CLI-only release as end-to-end proof | 🟢 P3 | 016, 018, 019, 020, 046 | [021](021-first-cli-only-release.md) |
 
 ### Phase 16 — Release distribution and adopter updates
 
