@@ -87,8 +87,25 @@ or `tasks/QUEUE.md`.
 
 Meridian-generated projects lock their installed workflow baseline in
 `.meridian/manifest.json`. This makes framework changes deterministic rather
-than dependent on a manual prompt. Check an upgrade from the installed Meridian
-source:
+than dependent on a manual prompt.
+
+The manifest tracks three independent version axes:
+
+- `frameworkVersion` is the Meridian release version (the CLI and plugin). It
+  moves with every release.
+- `workflowBaselineVersion` is the version of the governed template baseline a
+  project has installed. It is derived from the migrations and moves only when
+  a release ships one, so it may lag behind `frameworkVersion`.
+- `protocolVersion` is the manifest shape the CLI reads and writes. It moves
+  only when an older CLI could not safely read the manifest.
+
+A CLI-only release changes `frameworkVersion` but ships no migration: the
+baseline stays where it was, and `upgrade --check` reports no managed-file
+changes. A template-changing release adds a migration, which advances
+`workflowBaselineVersion` to that release's version and produces the plan that
+`upgrade --apply` performs. Each release is recorded in `releases/<version>.json`.
+
+Check an upgrade from the installed Meridian source:
 
 ```bash
 ${MERIDIAN_ROOT}/bin/meridian upgrade --project /path/to/project --check
