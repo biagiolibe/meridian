@@ -16,22 +16,22 @@ proven, automate it so every later release is produced the same way from a
 
 ## 📋 Acceptance Criteria
 
-- [ ] A new workflow `.github/workflows/release.yml` runs on push of tags
+- [x] A new workflow `.github/workflows/release.yml` runs on push of tags
       matching `v*`.
-- [ ] Before publishing, the workflow fails if any of these is false:
+- [x] Before publishing, the workflow fails if any of these is false:
       - the tag equals `v` + the content of `VERSION` at the tagged commit;
       - `releases/<VERSION>.json` exists (task 019);
       - `.claude-plugin/plugin.json`'s `version` equals `VERSION` (task 046);
       - `python3 scripts/check_repository.py` and the unittest suite pass;
       - `CHANGELOG.md` has a `## [<VERSION>]` section.
-- [ ] On success, it creates a GitHub Release for the tag whose body is that
+- [x] On success, it creates a GitHub Release for the tag whose body is that
       `CHANGELOG.md` section plus a link to `releases/<VERSION>.json`.
-- [ ] The extraction logic (changelog section, consistency checks) lives in a
+- [x] The extraction logic (changelog section, consistency checks) lives in a
       small stdlib script under `scripts/` with unit tests, not inline shell
       in the workflow.
-- [ ] `CONTRIBUTING.md`'s release procedure is updated: the maintainer
+- [x] `CONTRIBUTING.md`'s release procedure is updated: the maintainer
       pushes the tag; CI publishes the release.
-- [ ] `python3 scripts/check_repository.py` and
+- [x] `python3 scripts/check_repository.py` and
       `python3 -m unittest discover -s tests -v` pass.
 
 ## 📁 Relevant Files
