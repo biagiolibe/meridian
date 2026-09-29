@@ -215,4 +215,14 @@ it distributes to consumer projects.
 | `[x]` | 020 | Update docs for the version split | 🟢 P3 | 015, 017, 019 | [020](done/020-docs-version-split.md) |
 | `[x]` | 021 | Ship the first CLI-only release as end-to-end proof | 🟢 P3 | 016, 018, 019, 020, 046 | [021](done/021-first-cli-only-release.md) |
 
-*Last updated: 2026-09-29*
+### Phase 22 — Codex configuration resilience
+
+Keeps Meridian's least-privilege task-worktree permission profile recoverable
+when Codex app updates or settings rewrites preserve effective TOML semantics
+but normalize or remove Meridian's ownership comments.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 062 | Make Codex permission-profile repair resilient | 🟡 P2 | 054 | [062](done/062-make-codex-profile-repair-resilient.md) |
+
+*Last updated: 2026-09-30*

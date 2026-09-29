@@ -29,7 +29,7 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 
 ## 🏃 Active Queue
 
-Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, and 15
+Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, and 22
 are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 
 ### Phase 24 — Review worktree routing correction
@@ -52,16 +52,6 @@ budget identities for the worktree lifecycle to consume.
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
 | `[x]` | 063 | Implement the task-identity declaration and resolver | 🔴 P1 | 039 | [063](done/063-implement-task-identity-resolver.md) |
-
-### Phase 22 — Codex configuration resilience
-
-Keeps Meridian's least-privilege task-worktree permission profile recoverable
-when Codex app updates or settings rewrites preserve effective TOML semantics
-but normalize or remove Meridian's ownership comments.
-
-| Status | ID | Title | Priority | Depends on | File |
-|--------|----|-------|----------|------------|------|
-| `[x]` | 062 | Make Codex permission-profile repair resilient | 🟡 P2 | 054 | [062](done/062-make-codex-profile-repair-resilient.md) |
 
 ### Phase 19 — Proportional integration validation
 
