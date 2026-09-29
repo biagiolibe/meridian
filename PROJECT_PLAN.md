@@ -31,8 +31,13 @@
 - `[x]` 046 — Keep `.claude-plugin/plugin.json` version in sync with `VERSION`.
 - `[x]` 047 — Run the unit test suite in CI.
 - `[x]` 048 — Enforce `protocolVersion` compatibility in the CLI.
-- `[ ]` 049 — Design the distribution and update channel for adopters.
+- `[/]` 049 — Design the distribution and update channel for adopters.
 - `[ ]` 050 — Automate the GitHub Release from a version tag.
+- `[ ]` 065 — Rename the marketplace and document the pinned install.
+- `[ ]` 066 — Add `meridian self-check --check-latest`.
+- `[ ]` 067 — Enforce the adopter-facing release-notes contract.
+- `[ ]` 068 — Document and test the upgrade support policy.
+- `[ ]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.
 - `[ ]` 053 — Remove machine-specific absolute paths from tracked records.
 
