@@ -261,6 +261,66 @@ def check_migrations(root: Path = ROOT) -> None:
         fail(f"invalid capability move: {error}")
 
 
+RELEASE_FIELDS = (
+    "version",
+    "releaseDate",
+    "gitTag",
+    "protocolVersion",
+    "workflowBaselineVersion",
+    "baselineChanged",
+    "migrations",
+)
+
+
+def check_releases(root: Path = ROOT) -> None:
+    current_version = (root / "VERSION").read_text(encoding="utf-8").strip()
+    release_dir = root / "releases"
+    paths = list(release_dir.glob("*.json")) if release_dir.is_dir() else []
+    # Numeric order, so 1.1.10 follows 1.1.9; duplicates cannot occur per filename.
+    paths.sort(key=lambda path: meridian.version_key(re.split(r"[-+]", path.stem)[0]))
+    if not any(path.stem == current_version for path in paths):
+        fail(f"releases/{current_version}.json is missing for the current VERSION")
+    migration_targets = {}
+    for path in (root / "migrations").glob("[0-9][0-9][0-9]-*.json"):
+        data = json.loads(path.read_text(encoding="utf-8"))
+        migration_targets[str(data.get("id", path.stem))] = str(data["to"])
+    records = []
+    for path in paths:
+        relative = path.relative_to(root)
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if set(data) != set(RELEASE_FIELDS):
+            fail(f"{relative}: fields must be exactly {', '.join(RELEASE_FIELDS)}")
+        if data["version"] != path.stem:
+            fail(f"{relative}: version {data['version']!r} does not match the filename")
+        if not re.fullmatch(r"\d+\.\d+\.\d+", str(data["version"])):
+            fail(f"{relative}: version must not carry a prerelease or build suffix")
+        migrations = data["migrations"]
+        if not isinstance(migrations, list):
+            fail(f"{relative}: migrations must be a list")
+        if data["baselineChanged"] is not bool(migrations):
+            fail(f"{relative}: baselineChanged must be true iff migrations is non-empty")
+        for migration_id in migrations:
+            if migration_targets.get(migration_id) != data["workflowBaselineVersion"]:
+                fail(
+                    f"{relative}: migration {migration_id!r} does not target "
+                    "workflowBaselineVersion"
+                )
+        records.append(data)
+    versions = [meridian.version_key(record["version"]) for record in records]
+    if any(a >= b for a, b in zip(versions, versions[1:])):
+        fail("release versions are not monotonically increasing across files")
+    latest = max(records, key=lambda record: meridian.version_key(record["version"]))
+    try:
+        expected_baseline = meridian.latest_migration_to(root, latest["version"])
+    except meridian.MeridianError as error:
+        fail(f"cannot derive workflowBaselineVersion: {error}")
+    if latest["workflowBaselineVersion"] != expected_baseline:
+        fail(
+            f"releases/{latest['version']}.json workflowBaselineVersion does not match "
+            f"the migration-derived baseline {expected_baseline}"
+        )
+
+
 def check_bash() -> None:
     for path in ROOT.rglob("*.sh"):
         result = subprocess.run(
@@ -392,6 +452,7 @@ def main() -> None:
     check_plugin_version()
     check_capability_catalog()
     check_migrations()
+    check_releases()
     check_bash()
     check_local_markdown_links()
     check_capability_marker_baselines()
