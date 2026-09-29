@@ -25,7 +25,9 @@ why: presence-only, phrase-based detection cannot tell a modified capability
 from an unmodified one, and breaks on a project whose wording predates the
 exact phrase or has diverged from the template. A migration that never
 introduces or changes a capability (framework-CLI-only changes, for example)
-does not need these fields.
+does not need these fields. Do not add a migration merely to justify a version
+bump: a release that changes only the CLI is a CLI-only release (see
+[Release procedure](#release-procedure)) and ships no migration.
 
 Retrofit markers into an older migration's content opportunistically, on its
 next real change, rather than as a dedicated migration with no other
@@ -62,6 +64,21 @@ For a change to a template or workflow rule, also manually trace the affected pa
 When changing the release version, update both `VERSION` and the `version`
 field in `.claude-plugin/plugin.json`; the repository check requires them to
 match.
+
+Every release adds a `releases/<version>.json` record (see
+[releases/README.md](releases/README.md)); `python3 scripts/check_repository.py`
+requires one for the current `VERSION`. Then choose the release kind:
+
+- **CLI-only release**: no template, workflow rule, or managed file changed.
+  Bump `VERSION` and add the ledger record with `baselineChanged: false` and an
+  empty `migrations` list. Add no migration; `workflowBaselineVersion` stays at
+  the newest existing migration's target.
+- **Template-changing release**: add a migration whose `to` equals the new
+  `VERSION`, and list its id in the ledger record with `baselineChanged: true`.
+  This is what advances `workflowBaselineVersion`.
+
+The last migration may lag behind `VERSION` but must never target a version
+ahead of it.
 
 Before releasing, compare the manifest written by the new CLI with the prior
 release. Bump `PROTOCOL_VERSION` only when the manifest shape or semantics
