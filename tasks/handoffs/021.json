@@ -12,12 +12,12 @@
     "VERSION",
     "releases/1.1.50.json",
     "tasks/021-first-cli-only-release.md",
-    "tasks/QUEUE.md",
-    "tasks/handoffs/021.md",
-    "tasks/handoffs/021.json"
+    "tasks/QUEUE.md"
   ],
   "task_dependencies": [],
-  "task_behavioral_surfaces": ["release version metadata"],
+  "task_behavioral_surfaces": [
+    "release version metadata"
+  ],
   "main_advanced_dependencies": [],
   "main_advanced_behavioral_surfaces": []
 }
