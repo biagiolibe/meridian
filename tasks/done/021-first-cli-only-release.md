@@ -23,7 +23,7 @@ project sees a non-trivial framework delta with zero baseline changes.
       `baselineChanged: false` and `migrations: []`.
 - [x] `python3 scripts/check_repository.py` and
       `python3 -m unittest discover -s tests -v` pass.
-- [ ] Git tag `v<version>` created; GitHub Release published from the tag
+- [x] Git tag `v<version>` created; GitHub Release published from the tag
       with the `CHANGELOG.md` section as its body, linking
       `releases/<version>.json`.
 - [x] Manual end-to-end verification against a locked test project (fixture

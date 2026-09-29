@@ -204,4 +204,15 @@ it distributes to consumer projects.
 | `[x]` | 060 | Install Meridian self-hosting capability surfaces | 🔴 P1 | 059, 056, 052 | [060](done/060-install-meridian-self-hosting-surfaces.md) |
 | `[x]` | 061 | Add self-hosting host probes and CI dogfooding gate | 🔴 P1 | 060, 047 | [061](done/061-add-self-hosting-host-probes-and-ci-gate.md) |
 
-*Last updated: 2026-09-28*
+### Phase 5 — SemVer version split
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 016 | Propagate `workflowBaselineVersion` to `adopt`/`finalize-adoption` | 🔴 P1 | 015 | [016](done/016-adopt-workflow-baseline-version.md) |
+| `[x]` | 017 | Relax `check_migrations()`'s VERSION equality to `<=` | 🔴 P1 | 015 | [017](done/017-relax-check-migrations-version-gate.md) |
+| `[x]` | 018 | Persist-time SemVer guard for prerelease `frameworkVersion` | 🟡 P2 | 015 | [018](done/018-prerelease-version-guard.md) |
+| `[x]` | 019 | `releases/<version>.json` immutable release ledger + `check_releases()` | 🟡 P2 | 017 | [019](done/019-releases-ledger.md) |
+| `[x]` | 020 | Update docs for the version split | 🟢 P3 | 015, 017, 019 | [020](done/020-docs-version-split.md) |
+| `[x]` | 021 | Ship the first CLI-only release as end-to-end proof | 🟢 P3 | 016, 018, 019, 020, 046 | [021](done/021-first-cli-only-release.md) |
+
+*Last updated: 2026-09-29*
