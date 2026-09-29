@@ -18,21 +18,21 @@ display purposes (`meridian --version`).
 
 ## 📋 Acceptance Criteria
 
-- [ ] `meridian lock --project <path> --mode <mode>` fails with a clear
+- [x] `meridian lock --project <path> --mode <mode>` fails with a clear
       error when the framework source's `VERSION` carries a `-PRERELEASE`
       suffix.
-- [ ] `meridian upgrade --apply` fails the same way when the target
+- [x] `meridian upgrade --apply` fails the same way when the target
       framework `VERSION` carries a `-PRERELEASE` suffix (before any file is
       touched).
-- [ ] `version_key()` itself is unchanged — the rejection is a separate,
+- [x] `version_key()` itself is unchanged — the rejection is a separate,
       isolated check at the two call sites above, not a rewrite of the
       shared comparator.
-- [ ] `meridian --version` (or equivalent CLI surface) parses and displays
+- [x] `meridian --version` (or equivalent CLI surface) parses and displays
       full SemVer, including prerelease and build metadata when present.
-- [ ] Build metadata (`+BUILD`) is accepted in `VERSION` for local/dev use,
+- [x] Build metadata (`+BUILD`) is accepted in `VERSION` for local/dev use,
       ignored for precedence, and never propagated into a manifest,
       migration record, or release record.
-- [ ] `python3 scripts/check_repository.py` and
+- [x] `python3 scripts/check_repository.py` and
       `python3 -m unittest discover -s tests -v` pass, including new tests
       for the rejection paths.
 
