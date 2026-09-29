@@ -13,6 +13,24 @@ separate, slower cadence: it advances only in releases that ship a migration, so
 a CLI-only release appears here without moving it. `releases/<version>.json`
 records which release moved it.
 
+## [1.1.51]
+
+Template-changing release: migration `053-codex-profile-repair-guidance`
+advances `workflowBaselineVersion` to `1.1.51`.
+
+### Fixed
+
+- `meridian codex configure` no longer strands an otherwise identical
+  permission profile when a Codex app rewrite drops or moves Meridian's
+  ownership comments. `--check` reports a named `repair-required` state with a
+  unified diff of the exact bounded change; only explicit `--apply` writes it,
+  after a new exclusive owner-only backup, and repeating it is a no-op.
+  Divergent, partial, duplicated, or unusually serialized profiles stay
+  `BLOCKED` with the diverging fields named. `meridian codex doctor` reports
+  the condition as `profile-ownership`, separately from root access.
+- Both workflows carry the same bounded recovery procedure
+  (`codex-worktree-access` v2).
+
 ## [1.1.50]
 
 CLI-only release: no template, workflow rule, or managed file changed, so it

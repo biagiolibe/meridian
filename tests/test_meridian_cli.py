@@ -908,7 +908,7 @@ class MeridianCliTest(unittest.TestCase):
         for relative, text in current.items():
             previous = text
             previous = re.sub(
-                r"<!-- MERIDIAN:BEGIN capability=codex-worktree-access v1 -->.*?<!-- MERIDIAN:END -->\n?",
+                r"<!-- MERIDIAN:BEGIN capability=codex-worktree-access v\d+ -->.*?<!-- MERIDIAN:END -->\n?",
                 "",
                 previous,
                 flags=re.DOTALL,
@@ -3507,7 +3507,7 @@ class CapabilityMarkerTest(unittest.TestCase):
         expected["roles"] = "2"
         expected["git-workflow"] = "6"
         expected["bounded-worktree-lifecycle"] = "1"
-        expected["codex-worktree-access"] = "1"
+        expected["codex-worktree-access"] = "2"
         expected["task-identity-policy"] = "1"
         expected["task-lifecycle"] = "2"
         expected["review-policy"] = "2"
@@ -4144,6 +4144,16 @@ class CodexProfileRepairTest(unittest.TestCase):
         self.assertIn("BLOCKED", blocked.stderr)
         self.assertIn("extends", blocked.stderr)
         self.assertEqual(self.config.read_text(encoding="utf-8"), text)
+
+    def test_contract_and_both_workflows_document_the_bounded_recovery(self) -> None:
+        contract = (ROOT / "docs/HOST_CAPABILITY_CONTRACT.md").read_text(encoding="utf-8")
+        for fragment in ("repair-required", "Explicit `--apply`", "does not prove", "profile-ownership"):
+            self.assertIn(fragment, contract)
+        for mode in ("lean-delivery", "governed-sdd"):
+            workflow = (ROOT / f"templates/workflows/{mode}/PROJECT_WORKFLOW.md").read_text(encoding="utf-8")
+            region = workflow.split("capability=codex-worktree-access v2 -->", 1)[1].split("<!-- MERIDIAN:END -->", 1)[0]
+            for fragment in ("repair-required", "`--apply` only", "BLOCKED", "fresh session"):
+                self.assertIn(fragment, region, mode)
 
     def test_doctor_reports_ownership_separately_from_root_access(self) -> None:
         self.config.write_text(self.rewritten(), encoding="utf-8")

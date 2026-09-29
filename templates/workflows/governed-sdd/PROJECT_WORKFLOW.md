@@ -134,13 +134,20 @@ committed deliverable does not self-evidently answer `Question`, record
 `INCONCLUSIVE` rather than `ANSWERED` on the strength of author judgment.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=codex-worktree-access v1 -->
+<!-- MERIDIAN:BEGIN capability=codex-worktree-access v2 -->
 Codex task worktrees live below a user-selected shared root, namespaced as
 `<root>/<remote-host>/<owner>/<repository>/<canonical-task-id>`. Use `meridian
 codex worktree-path` for derivation and collision checks and `meridian codex
 doctor` for separate trust, permission-model, root-write, command-policy, and
 Git-metadata status. Configuration requires explicit `meridian codex configure
 --apply`; static configuration alone never proves effective host access.
+
+If `meridian codex configure --check` reports `repair-required`, the effective
+profile is identical and only Meridian's ownership markers were damaged, for
+example by a Codex app rewrite. Review the printed diff and run `--apply` only
+after explicit confirmation. A `BLOCKED` result names the diverging fields and
+requires manual reconciliation. Repair never proves that a running session
+loaded the profile; start a fresh session and probe it.
 <!-- MERIDIAN:END -->
 
 <!-- MERIDIAN:BEGIN capability=bounded-worktree-lifecycle v1 -->
