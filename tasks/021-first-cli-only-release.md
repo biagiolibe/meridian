@@ -16,17 +16,17 @@ project sees a non-trivial framework delta with zero baseline changes.
 
 ## 📋 Acceptance Criteria
 
-- [ ] `[Unreleased]` in `CHANGELOG.md` moved to a new `## [X.Y.Z]` heading
+- [x] `[Unreleased]` in `CHANGELOG.md` moved to a new `## [X.Y.Z]` heading
       describing the CLI-only fix/change.
-- [ ] `VERSION` bumped; no new migration record added.
-- [ ] `releases/<version>.json` written per task 019's schema, with
+- [x] `VERSION` bumped; no new migration record added.
+- [x] `releases/<version>.json` written per task 019's schema, with
       `baselineChanged: false` and `migrations: []`.
-- [ ] `python3 scripts/check_repository.py` and
+- [x] `python3 scripts/check_repository.py` and
       `python3 -m unittest discover -s tests -v` pass.
 - [ ] Git tag `v<version>` created; GitHub Release published from the tag
       with the `CHANGELOG.md` section as its body, linking
       `releases/<version>.json`.
-- [ ] Manual end-to-end verification against a locked test project (fixture
+- [x] Manual end-to-end verification against a locked test project (fixture
       or scratch project): `meridian upgrade --check` before this release
       reports `<old> -> <old>`; after pulling the new framework source, it
       reports a non-trivial framework delta and an unchanged, zero-conflict

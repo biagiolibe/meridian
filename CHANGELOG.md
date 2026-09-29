@@ -13,9 +13,64 @@ separate, slower cadence: it advances only in releases that ship a migration, so
 a CLI-only release appears here without moving it. `releases/<version>.json`
 records which release moved it.
 
-## [Unreleased]
+## [1.1.50]
+
+CLI-only release: no template, workflow rule, or managed file changed, so it
+ships no migration and `workflowBaselineVersion` stays at `1.1.49`
+(`releases/1.1.50.json` records `baselineChanged: false`).
 
 ### Added
+
+- `releases/<version>.json`, an append-only release ledger recording the
+  release date, tag, protocol version, `workflowBaselineVersion`, and the
+  migrations a release introduced. `scripts/check_repository.py` validates it
+  and requires a record for the current `VERSION`.
+- `meridian lock` and `meridian upgrade --apply` now reject a prerelease
+  framework `VERSION` before it can become durable in a manifest, and
+  `meridian --version` reports the framework version.
+- Self-hosting host probes and a CI dogfooding gate that rejects missing,
+  drifted, or unverified required capability state.
+
+### Changed
+
+- `meridian adopt` and `finalize-adoption` write `workflowBaselineVersion`
+  alongside `frameworkVersion`, so an adopted project records the template
+  baseline separately from the CLI release.
+- `check_migrations()` now rejects only a migration that targets a version
+  ahead of `VERSION`; the last migration may lag behind it, which is what lets
+  a CLI-only release bump `VERSION` without a migration.
+- The documentation describes the `frameworkVersion` /
+  `workflowBaselineVersion` / `protocolVersion` split and the release
+  procedure for CLI-only and template-changing releases.
+
+## [1.1.49]
+
+This section collects every release from 1.1.34 through 1.1.49, which were
+never given individual headings; `migrations/*.json` records the exact
+migration for each version and remains the authoritative detail.
+
+### Added
+
+- Migration `045-isolated-task-worktrees` makes a deterministic linked
+  worktree the execution boundary for every task and adds parallel-safe
+  serialized integration.
+
+- Migration `046-integration-validation-evidence-reuse` reuses commit-bound
+  task validation evidence during serialized worktree integration and replaces
+  unconditional complete combined-tree validation with a deterministic bounded
+  gate and conservative escalation rules.
+
+- Migration `048-manifest-capability-profile-schema` introduces manifest
+  protocol v2 with canonical `workflowMode` and validated capability-profile
+  declarations backed by the versioned capability catalog.
+
+- Migration `051-bounded-worktree-lifecycle` installs the host-neutral bounded
+  worktree lifecycle, prepare-before-worker routing, candidate-bound
+  integration evidence, and exact Codex command rules.
+
+- Migration `052-install-meridian-self-hosting-surfaces` installs the
+  workflow-neutral policy, evidence, Codex read-guard, and worktree-safety
+  surfaces used by the Meridian self-hosting profile.
 
 - Migration `049-task-identity-policy` adds the optional, closed
   `.meridian/task-identity.json` declaration and one host-neutral resolver for
