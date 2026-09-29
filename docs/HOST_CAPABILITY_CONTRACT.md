@@ -146,9 +146,42 @@ inputs to merge. See the official Codex permission-profile and sandbox
 documentation: <https://learn.chatgpt.com/docs/permissions> and
 <https://learn.chatgpt.com/docs/agent-approvals-security>.
 
+### Recovery when ownership comments are lost
+
+The comment markers around the managed block are ownership metadata, not the
+source of truth: a conforming TOML writer, including a Codex app update, may
+move, normalize, or drop them. Meridian therefore classifies the profile from
+the parsed configuration. The state is `repair-required` only when
+`default_permissions` selects `meridian-worktrees` and that profile is exactly
+`description`, `extends = ":workspace"`, and a `workspace_roots` table holding
+only the requested root set to `true`. The Meridian-specific description plus
+the exact root, parent, and selection are the semantic evidence; no comment is
+required.
+
+`--check` prints a unified diff of the bounded change and writes nothing.
+Explicit `--apply` is the only write path: it verifies the file is unchanged
+since planning, writes a new exclusive owner-only backup
+(`config.toml.meridian-repair.bak`, then `.1`, `.2`, ...), and replaces the file
+atomically. The repaired file must parse to exactly the same configuration as
+before, so unrelated keys, comments, tables, and application settings are
+preserved, and repeating the repair is a no-op. Because the profile tables
+move into the managed block, a repair may reorder them relative to unrelated
+tables; comments inside those two tables are not carried over.
+
+Anything else stays `BLOCKED`, is never adopted or overwritten, and names the
+diverging fields: a different root, parent, description, or default selection;
+extra grants or roots; a partial match; duplicate tables; inline or dotted
+serializations Meridian cannot edit exactly; and legacy sandbox settings.
+Intact markers around a profile for another root keep the ordinary managed
+replacement path.
+
+Repair proves only that the configuration file is effective. It does not prove
+that a running session reloaded the profile or that the host enforces it; start
+a fresh session and probe before relying on it.
+
 `meridian codex doctor` reports project trust, the selected permission model,
 effective worktree-root write access, command-policy availability, and Git
-metadata separately. Static configuration is not host-execution evidence.
+metadata separately. It also reports `profile-ownership` (`ready`, `repair-required`, `blocked`, or `not-applicable`) as its own line, independent of root access. Static configuration is not host-execution evidence.
 `.git` and the resolved common Git directory remain protected independently;
 project execpolicy rules control approval decisions but cannot widen the
 filesystem sandbox.

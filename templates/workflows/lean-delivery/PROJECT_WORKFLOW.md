@@ -52,7 +52,7 @@ do not provide a second identity policy or imply task semantics.
 
 ## Task worktree boundary
 
-<!-- MERIDIAN:BEGIN capability=codex-worktree-access v1 -->
+<!-- MERIDIAN:BEGIN capability=codex-worktree-access v2 -->
 Every task uses exactly one branch and one linked worktree, with one writer at
 a time. Normalize the canonical task ID to lowercase `task-<number>` and use
 it as the branch name. Derive the worktree path with `meridian worktree path
@@ -68,6 +68,13 @@ entry identifies the primary checkout.
 Before creating or editing a task worktree, run `meridian codex doctor` for
 the selected root. Static configuration is not proof of effective host access;
 resolve `approval-required` explicitly and treat `blocked` as `BLOCKED`.
+
+If `meridian codex configure --check` reports `repair-required`, the effective
+profile is identical and only Meridian's ownership markers were damaged, for
+example by a Codex app rewrite. Review the printed diff and run `--apply` only
+after explicit confirmation. A `BLOCKED` result names the diverging fields and
+requires manual reconciliation. Repair never proves that a running session
+loaded the profile; start a fresh session and probe it.
 <!-- MERIDIAN:END -->
 
 <!-- MERIDIAN:BEGIN capability=bounded-worktree-lifecycle v1 -->
