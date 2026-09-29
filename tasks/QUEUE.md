@@ -86,7 +86,7 @@ for adopters, and a manual-only release procedure.
 | `[x]` | 047 | Run the unit test suite in CI | 🔴 P1 | 054 | [047](done/047-run-unit-tests-in-ci.md) |
 | `[x]` | 048 | Enforce `protocolVersion` compatibility in the CLI | 🟡 P2 | 015 | [048](done/048-enforce-protocol-version-compatibility.md) |
 | `[x]` | 049 | Design the distribution and update channel for adopters | 🟡 P2 | 019 | [049](done/049-design-distribution-and-update-channel.md) |
-| `[ ]` | 050 | Automate the GitHub Release from a version tag | 🟢 P3 | 021, 046, 047 | [050](050-automate-github-release-from-tag.md) |
+| `[x]` | 050 | Automate the GitHub Release from a version tag | 🟢 P3 | 021, 046, 047 | [050](done/050-automate-github-release-from-tag.md) |
 | `[ ]` | 065 | Rename the marketplace and document the pinned install | 🟡 P2 | 049 | [065](065-rename-marketplace-and-document-pinned-install.md) |
 | `[ ]` | 066 | Add `meridian self-check --check-latest` | 🟢 P3 | 049, 050, 065 | [066](066-add-self-check-latest-command.md) |
 | `[ ]` | 067 | Enforce the adopter-facing release-notes contract | 🟢 P3 | 049, 050 | [067](067-enforce-release-notes-contract.md) |
