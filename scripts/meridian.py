@@ -1012,13 +1012,45 @@ def _codex_profile_divergence(parsed: dict[str, object], root: Path) -> list[str
     return differences
 
 
+def _codex_header_patterns() -> tuple[re.Pattern[str], re.Pattern[str]]:
+    name = re.escape(CODEX_PERMISSION_PROFILE)
+    quoted = rf'(?:{name}|"{name}")'
+    return (
+        re.compile(rf"^\s*\[\s*permissions\s*\.\s*{quoted}\s*\]\s*(?:#.*)?$"),
+        re.compile(rf"^\s*\[\s*permissions\s*\.\s*{quoted}\s*\.\s*workspace_roots\s*\]\s*(?:#.*)?$"),
+    )
+
+
 def _codex_markers_intact(text: str) -> bool:
-    """Return whether one ordered marker pair still encloses the managed profile tables."""
+    """Return whether one ordered marker pair encloses every managed piece present.
+
+    The root selection, the profile table, and its workspace_roots table must each
+    be inside the span or absent; a piece left outside means the host moved part of
+    the block and ownership can only be recovered semantically.
+    """
     if text.count(CODEX_MANAGED_BEGIN) != 1 or text.count(CODEX_MANAGED_END) != 1:
         return False
     start = text.index(CODEX_MANAGED_BEGIN)
     end = text.index(CODEX_MANAGED_END)
-    return start < end and f"[permissions.{CODEX_PERMISSION_PROFILE}]" in text[start:end]
+    if start >= end:
+        return False
+    profile_header, roots_header = _codex_header_patterns()
+    selection = re.compile(r"^\s*default_permissions\s*=")
+    offset = 0
+    in_table = False
+    inside_profile = False
+    for line in text.splitlines(keepends=True):
+        bare = line.rstrip("\r\n")
+        within = start <= offset < end
+        if bare.lstrip().startswith("["):
+            in_table = True
+            if (profile_header.match(bare) or roots_header.match(bare)) and not within:
+                return False
+            inside_profile = inside_profile or (within and bool(profile_header.match(bare)))
+        elif not in_table and selection.match(bare) and not within:
+            return False
+        offset += len(line)
+    return inside_profile
 
 
 def _without_codex_profile_text(text: str) -> str:
@@ -1027,10 +1059,7 @@ def _without_codex_profile_text(text: str) -> str:
     Raises MeridianError unless each managed table header appears exactly once as a
     plain table header, so unusual serializations are never edited heuristically.
     """
-    name = re.escape(CODEX_PERMISSION_PROFILE)
-    quoted = rf'(?:{name}|"{name}")'
-    profile_header = re.compile(rf"^\s*\[\s*permissions\s*\.\s*{quoted}\s*\]\s*(?:#.*)?$")
-    roots_header = re.compile(rf"^\s*\[\s*permissions\s*\.\s*{quoted}\s*\.\s*workspace_roots\s*\]\s*(?:#.*)?$")
+    profile_header, roots_header = _codex_header_patterns()
     marker = re.compile(r"^\s*#\s*MERIDIAN:(?:BEGIN|END)\s+worktree-permissions\b.*$")
     lines = text.splitlines(keepends=True)
     if sum(1 for line in lines if profile_header.match(line.rstrip("\r\n"))) != 1 or sum(
