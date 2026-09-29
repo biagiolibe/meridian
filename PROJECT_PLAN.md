@@ -17,7 +17,7 @@
 - `[x]` 059 — Implement cross-mode capability audit semantics.
 - `[x]` 060 — Install Meridian self-hosting capability surfaces.
 - `[x]` 061 — Add self-hosting host probes and CI dogfooding gate.
-- `[ ]` 062 — Make Codex permission-profile repair resilient.
+- `[x]` 062 — Make Codex permission-profile repair resilient.
 - `[x]` 015 — Split `workflowBaselineVersion` from `frameworkVersion` in manifest and upgrade planner.
 - `[x]` 016 — Propagate `workflowBaselineVersion` to `adopt`/`finalize-adoption`.
 - `[x]` 017 — Relax `check_migrations()`'s VERSION equality to `<=`.
