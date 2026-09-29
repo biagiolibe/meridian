@@ -377,6 +377,7 @@ CONTRIBUTING.md                   Contribution guidance and validation
 - [Governed-SDD operator prompts](templates/workflows/governed-sdd/docs/OPERATOR_PROMPTS.md)
 - [Consumer router-adoption playbook](docs/CONSUMER_ROUTER_ADOPTION_PLAYBOOK.md)
 - [Framework upgrade CLI](commands/meridian-upgrade.md)
+- [Distribution and update channel design](docs/DISTRIBUTION_AND_UPDATE_DESIGN.md)
 - [Capability-marker integrity audit](commands/meridian-audit.md)
 
 ## Development and contributions
