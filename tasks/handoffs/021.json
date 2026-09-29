@@ -1,0 +1,23 @@
+{
+  "accepted": true,
+  "validation_passed": true,
+  "validated_task_commit": "32bea7d875679abbf8dfd7ddab3ad04ceb86b711",
+  "validated_base_commit": "d7c094e8260c0f61aa8fc41eac6d094e54e3d6d9",
+  "full_validation_required": false,
+  "interaction_assessment_complete": true,
+  "task_paths": [
+    ".claude-plugin/plugin.json",
+    "CHANGELOG.md",
+    "PROJECT_PLAN.md",
+    "VERSION",
+    "releases/1.1.50.json",
+    "tasks/021-first-cli-only-release.md",
+    "tasks/QUEUE.md",
+    "tasks/handoffs/021.md",
+    "tasks/handoffs/021.json"
+  ],
+  "task_dependencies": [],
+  "task_behavioral_surfaces": ["release version metadata"],
+  "main_advanced_dependencies": [],
+  "main_advanced_behavioral_surfaces": []
+}
