@@ -7,8 +7,11 @@ verifies the migration sequence is contiguous and ends at `VERSION`). This file
 adds human-readable context on top of that record; it does not replace it.
 
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/); version
-numbers follow the `frameworkVersion` tracked in generated projects'
-`.meridian/manifest.json`, not a separate release cadence.
+numbers are release versions, the `frameworkVersion` tracked in generated
+projects' `.meridian/manifest.json`. The `workflowBaselineVersion` follows a
+separate, slower cadence: it advances only in releases that ship a migration, so
+a CLI-only release appears here without moving it. `releases/<version>.json`
+records which release moved it.
 
 ## [Unreleased]
 

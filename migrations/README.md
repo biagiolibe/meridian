@@ -32,7 +32,7 @@ regions still match the framework's released text.
 `.meridian/baselines/<version>/` in a generated project is a snapshot of the
 templates installed at that version — the merge base for the next upgrade's
 three-way merge. Only the snapshot matching the manifest's current
-`frameworkVersion` is ever read again, so a completed `upgrade --apply` or
+`workflowBaselineVersion` is ever read again, so a completed `upgrade --apply` or
 generic `adopt --apply` prunes every other baseline snapshot automatically.
 Do not rely on an old snapshot surviving past its upgrade; keep a Git tag or
 branch instead if a project needs to inspect a historical baseline.
