@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import difflib
 import hashlib
 import json
 import os
@@ -162,6 +163,7 @@ class CodexConfigurationPlan:
     current_model: str
     proposed_text: str | None
     detail: str
+    current_text: str | None = None
 
 
 @dataclass(frozen=True)
@@ -987,6 +989,104 @@ def _without_top_level_default_permissions(text: str) -> str:
     return "".join(lines)
 
 
+def _codex_expected_profile(root: Path) -> dict[str, object]:
+    return {
+        "description": "Workspace access plus Meridian-managed task worktrees.",
+        "extends": ":workspace",
+        "workspace_roots": {str(root): True},
+    }
+
+
+def _codex_profile_divergence(parsed: dict[str, object], root: Path) -> list[str]:
+    """Name every field where the parsed profile differs from the one expected profile."""
+    permissions = parsed.get("permissions")
+    profile = permissions.get(CODEX_PERMISSION_PROFILE) if isinstance(permissions, dict) else None
+    if not isinstance(profile, dict):
+        return ["profile shape"]
+    expected = _codex_expected_profile(root)
+    differences = [
+        key for key in sorted(set(profile) | set(expected)) if profile.get(key) != expected.get(key)
+    ]
+    if parsed.get("default_permissions") != CODEX_PERMISSION_PROFILE:
+        differences.append("default_permissions")
+    return differences
+
+
+def _codex_markers_intact(text: str) -> bool:
+    """Return whether one ordered marker pair still encloses the managed profile tables."""
+    if text.count(CODEX_MANAGED_BEGIN) != 1 or text.count(CODEX_MANAGED_END) != 1:
+        return False
+    start = text.index(CODEX_MANAGED_BEGIN)
+    end = text.index(CODEX_MANAGED_END)
+    return start < end and f"[permissions.{CODEX_PERMISSION_PROFILE}]" in text[start:end]
+
+
+def _without_codex_profile_text(text: str) -> str:
+    """Remove ownership markers, the root selection, and the managed profile tables.
+
+    Raises MeridianError unless each managed table header appears exactly once as a
+    plain table header, so unusual serializations are never edited heuristically.
+    """
+    name = re.escape(CODEX_PERMISSION_PROFILE)
+    quoted = rf'(?:{name}|"{name}")'
+    profile_header = re.compile(rf"^\s*\[\s*permissions\s*\.\s*{quoted}\s*\]\s*(?:#.*)?$")
+    roots_header = re.compile(rf"^\s*\[\s*permissions\s*\.\s*{quoted}\s*\.\s*workspace_roots\s*\]\s*(?:#.*)?$")
+    marker = re.compile(r"^\s*#\s*MERIDIAN:(?:BEGIN|END)\s+worktree-permissions\b.*$")
+    lines = text.splitlines(keepends=True)
+    if sum(1 for line in lines if profile_header.match(line.rstrip("\r\n"))) != 1 or sum(
+        1 for line in lines if roots_header.match(line.rstrip("\r\n"))
+    ) != 1:
+        raise MeridianError(
+            f"Codex permission profile {CODEX_PERMISSION_PROFILE!r} is not serialized as exactly one plain "
+            "profile table and one workspace_roots table; reconcile it manually"
+        )
+    kept: list[str] = []
+    skipping = False
+    for line in lines:
+        bare = line.rstrip("\r\n")
+        if bare.lstrip().startswith("["):
+            skipping = bool(profile_header.match(bare) or roots_header.match(bare))
+            if skipping:
+                continue
+        if skipping or marker.match(bare):
+            continue
+        kept.append(line)
+    return _without_top_level_default_permissions("".join(kept))
+
+
+def _plan_codex_ownership_repair(
+    config_path: Path, text: str, parsed: dict[str, object], root: Path
+) -> CodexConfigurationPlan:
+    """Plan an ownership-metadata repair, or raise unless the profile is an exact semantic match."""
+    differences = _codex_profile_divergence(parsed, root)
+    if differences:
+        raise MeridianError(
+            f"Codex permission profile {CODEX_PERMISSION_PROFILE!r} exists without intact Meridian ownership "
+            f"markers and differs from the expected profile in: {', '.join(differences)}; reconcile it manually"
+        )
+    stripped = _without_codex_profile_text(text)
+    proposed = _replace_codex_managed_block(stripped, _codex_managed_block(root))
+    try:
+        reparsed = tomllib.loads(proposed)
+    except tomllib.TOMLDecodeError as error:
+        raise MeridianError(f"proposed Codex ownership repair would be invalid: {error}") from error
+    if reparsed != parsed:
+        raise MeridianError(
+            "Codex ownership repair would change effective configuration beyond Meridian's markers; "
+            "reconcile it manually"
+        )
+    return CodexConfigurationPlan(
+        "repair-required",
+        config_path,
+        root,
+        "permission-profile",
+        proposed,
+        "ownership-metadata-repair: the effective profile is identical; explicit --apply restores only "
+        "Meridian's ownership markers and block position",
+        text,
+    )
+
+
 def plan_codex_configuration(
     config_path: Path,
     worktree_root: Path,
@@ -1014,10 +1114,10 @@ def plan_codex_configuration(
             )
     existing_profile = parsed.get("permissions", {}).get(CODEX_PERMISSION_PROFILE)
     managed_present = CODEX_MANAGED_BEGIN in text or CODEX_MANAGED_END in text
-    if existing_profile is not None and not managed_present:
-        raise MeridianError(f"Codex permission profile {CODEX_PERMISSION_PROFILE!r} already exists outside Meridian's managed block")
-    if bool(CODEX_MANAGED_BEGIN in text) != bool(CODEX_MANAGED_END in text):
-        raise MeridianError("Codex configuration contains an incomplete Meridian-managed block")
+    if existing_profile is not None and not _codex_markers_intact(text):
+        return _plan_codex_ownership_repair(config_path, text, parsed, root)
+    if managed_present and not _codex_markers_intact(text):
+        raise MeridianError("Codex configuration contains an incomplete or damaged Meridian-managed block")
     base_text = text
     if "default_permissions" in parsed and not managed_present:
         base_text = _without_top_level_default_permissions(text)
@@ -1029,7 +1129,7 @@ def plan_codex_configuration(
     current_model = "permission-profile" if "default_permissions" in parsed or "permissions" in parsed else "unconfigured"
     if proposed == text:
         return CodexConfigurationPlan("ready", config_path, root, current_model, None, "requested profile is already effective")
-    return CodexConfigurationPlan("approval-required", config_path, root, current_model, proposed, "explicit --apply is required")
+    return CodexConfigurationPlan("approval-required", config_path, root, current_model, proposed, "explicit --apply is required", text)
 
 
 def print_codex_configuration_plan(plan: CodexConfigurationPlan) -> None:
@@ -1038,9 +1138,47 @@ def print_codex_configuration_plan(plan: CodexConfigurationPlan) -> None:
     print(f"permission-model: {plan.current_model}")
     print(f"worktree-root: {plan.worktree_root}")
     print(f"detail: {plan.detail}")
-    if plan.proposed_text is not None:
+    if plan.status == "repair-required" and plan.proposed_text is not None and plan.current_text is not None:
+        print("proposed-change (unified diff; effective configuration is unchanged):")
+        print(
+            "".join(
+                difflib.unified_diff(
+                    plan.current_text.splitlines(keepends=True),
+                    plan.proposed_text.splitlines(keepends=True),
+                    fromfile=f"{plan.config_path.name} (current)",
+                    tofile=f"{plan.config_path.name} (repaired)",
+                )
+            ),
+            end="",
+        )
+    elif plan.proposed_text is not None:
         print("proposed-change:")
         print(_codex_managed_block(plan.worktree_root))
+
+
+def _write_exclusive_backup(path: Path, backup: Path) -> None:
+    """Copy the current bytes to a new owner-only file, never replacing an existing backup."""
+    descriptor = os.open(backup, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        with os.fdopen(descriptor, "wb") as stream:
+            stream.write(path.read_bytes())
+            stream.flush()
+            os.fsync(stream.fileno())
+    except Exception:
+        try:
+            backup.unlink()
+        except OSError:
+            pass
+        raise
+
+
+def _unused_repair_backup(path: Path) -> Path:
+    candidate = path.with_name(path.name + ".meridian-repair.bak")
+    index = 0
+    while candidate.exists() or candidate.is_symlink():
+        index += 1
+        candidate = path.with_name(f"{path.name}.meridian-repair.{index}.bak")
+    return candidate
 
 
 def apply_codex_configuration(plan: CodexConfigurationPlan) -> bool:
@@ -1048,21 +1186,14 @@ def apply_codex_configuration(plan: CodexConfigurationPlan) -> bool:
         return False
     path = plan.config_path
     path.parent.mkdir(parents=True, exist_ok=True)
-    backup = path.with_name(path.name + ".meridian.bak")
-    if path.exists() and not backup.exists():
-        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
-        descriptor = os.open(backup, flags, 0o600)
-        try:
-            with os.fdopen(descriptor, "wb") as stream:
-                stream.write(path.read_bytes())
-                stream.flush()
-                os.fsync(stream.fileno())
-        except Exception:
-            try:
-                backup.unlink()
-            except OSError:
-                pass
-            raise
+    if plan.status == "repair-required":
+        if not path.is_file() or path.read_text(encoding="utf-8") != plan.current_text:
+            raise MeridianError("Codex configuration changed since it was planned; rerun --check")
+        _write_exclusive_backup(path, _unused_repair_backup(path))
+    else:
+        backup = path.with_name(path.name + ".meridian.bak")
+        if path.exists() and not backup.exists():
+            _write_exclusive_backup(path, backup)
     descriptor, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
     temporary = Path(temporary_name)
     try:
@@ -1086,8 +1217,12 @@ def codex_doctor(project_root: Path, config_path: Path, worktree_root: Path) -> 
     try:
         plan = plan_codex_configuration(config_path, worktree_root)
         result["permission-model"] = plan.status
+        result["profile-ownership"] = (
+            "ready" if plan.status == "ready" else "repair-required" if plan.status == "repair-required" else "not-applicable"
+        )
     except MeridianError:
         result["permission-model"] = "blocked"
+        result["profile-ownership"] = "blocked"
     text = config_path.read_text(encoding="utf-8") if config_path.is_file() else ""
     try:
         parsed = tomllib.loads(text)
@@ -1131,7 +1266,7 @@ def codex_doctor(project_root: Path, config_path: Path, worktree_root: Path) -> 
         lifecycle_policy = "blocked"
     result["lifecycle-command-policy"] = lifecycle_policy
     root_write = "approval-required"
-    if result["permission-model"] == "ready" and worktree_root.is_dir():
+    if result["permission-model"] in ("ready", "repair-required") and worktree_root.is_dir():
         try:
             descriptor, probe_name = tempfile.mkstemp(prefix=".meridian-codex-probe-", dir=worktree_root)
             os.close(descriptor)
@@ -6341,7 +6476,13 @@ def main() -> int:
                 print_codex_configuration_plan(plan)
                 if arguments.apply:
                     changed = apply_codex_configuration(plan)
-                    print("result: updated; restart Codex and select the profile" if changed else "result: no-op")
+                    if changed and plan.status == "repair-required":
+                        print(
+                            "result: ownership metadata repaired; this does not prove the running session loaded "
+                            "the profile, so start a fresh Codex session and probe it"
+                        )
+                    else:
+                        print("result: updated; restart Codex and select the profile" if changed else "result: no-op")
             elif arguments.codex_command == "worktree-path":
                 path = task_worktree_path(project_root, arguments.worktree_root, arguments.task_id)
                 validate_worktree_collision(project_root, path, arguments.task_id)
