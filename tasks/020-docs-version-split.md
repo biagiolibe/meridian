@@ -16,21 +16,21 @@ and the governed template baseline are the same number, now that tasks
 
 ## 📋 Acceptance Criteria
 
-- [ ] `README.md`'s "Framework upgrades" section describes the three axes
+- [x] `README.md`'s "Framework upgrades" section describes the three axes
       and how a CLI-only release differs from a template-changing release.
-- [ ] `CONTRIBUTING.md` reflects the new release procedure (see below) and
+- [x] `CONTRIBUTING.md` reflects the new release procedure (see below) and
       the "no fake migrations" rule now has a concrete alternative to point
       to (a CLI-only release).
-- [ ] `migrations/README.md`'s line "Only the snapshot matching the
+- [x] `migrations/README.md`'s line "Only the snapshot matching the
       manifest's current `frameworkVersion` is ever read again" is corrected
       to say `workflowBaselineVersion`.
-- [ ] `CHANGELOG.md`'s header note ("version numbers follow the
+- [x] `CHANGELOG.md`'s header note ("version numbers follow the
       `frameworkVersion` tracked in generated projects' `.meridian/manifest.json`,
       not a separate release cadence") is rewritten — under the new design
       this is exactly backwards: `frameworkVersion` now *is* the release
       cadence, and it is `workflowBaselineVersion` that follows a separate,
       slower cadence.
-- [ ] `python3 scripts/check_repository.py` passes (in particular
+- [x] `python3 scripts/check_repository.py` passes (in particular
       `check_local_markdown_links()` — verify no links break from any
       rewording).
 
