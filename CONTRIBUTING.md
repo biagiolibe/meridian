@@ -80,6 +80,17 @@ requires one for the current `VERSION`. Then choose the release kind:
 The last migration may lag behind `VERSION` but must never target a version
 ahead of it.
 
+Once the release commit is on `main` and the checks pass, the maintainer pushes
+the tag `v<VERSION>`; CI publishes the release. The
+`.github/workflows/release.yml` workflow runs `scripts/prepare_release.py`, which
+fails unless the tag equals `v` plus `VERSION`, `releases/<VERSION>.json` exists
+with a matching `gitTag`, `.claude-plugin/plugin.json` matches `VERSION`, and
+`CHANGELOG.md` has a `## [<VERSION>]` section. It then runs the repository check
+and the unit tests, and creates the GitHub Release whose body is that changelog
+section plus a link to `releases/<VERSION>.json`. Do not create the release by
+hand. A failed run publishes nothing; fix the cause, then move the tag only if
+no release exists for it.
+
 Before releasing, compare the manifest written by the new CLI with the prior
 release. Bump `PROTOCOL_VERSION` only when the manifest shape or semantics
 change in a way that an older CLI cannot safely read. Backward-compatible
