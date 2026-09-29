@@ -23,8 +23,8 @@
       "version": 1
     },
     "codex-worktree-access": {
-      "sha256": "136e0803c4370368f0e35980e8e69eafb3ecce9f64d252c6b25b6d23cedda40f",
-      "version": 1
+      "sha256": "5345a2fecbc9e9eaeff515bd1b16b7fdfd8dfc775e9c76ef68deb46154e24c5d",
+      "version": 2
     },
     "document-precedence": {
       "sha256": "2a4f6b7a1a8afcf116aa94e193be6256804f621e451a22df368fba4ccda176c9",
@@ -271,8 +271,8 @@
       "version": 1
     },
     "codex-worktree-access": {
-      "sha256": "585db7aee8973c955e936a8dfcad250f57e42caf475abb3c0637c1b48b75b4d8",
-      "version": 1
+      "sha256": "3c44eb88acc366eedda1ee95c3da2d0df094630de5955dc9d70b97a3dca1a2fd",
+      "version": 2
     },
     "task-identity-policy": {
       "sha256": "78df2cd565b113a06771de7572bd260667aa8a687aa3b6066d12b4578d510221",
