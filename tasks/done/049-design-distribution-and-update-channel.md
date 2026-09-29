@@ -19,7 +19,7 @@ follow-up tasks. This is a design task: no CLI or packaging code changes.
 
 ## 📋 Acceptance Criteria
 
-- [ ] `docs/DISTRIBUTION_AND_UPDATE_DESIGN.md` exists and decides, with
+- [x] `docs/DISTRIBUTION_AND_UPDATE_DESIGN.md` exists and decides, with
       rationale and rejected alternatives, each of:
       - **Distribution channel(s)**: for example a public Git-hosted Claude
         Code marketplace, Codex skill installation, a Python package, or a
@@ -40,10 +40,10 @@ follow-up tasks. This is a design task: no CLI or packaging code changes.
         template-changing release must say beyond a CLI-only one.
       - **Support policy**: which older releases are still upgradable from,
         consistent with `release-baselines/` and `migrations/`.
-- [ ] The document lists the follow-up implementation tasks it implies, each
+- [x] The document lists the follow-up implementation tasks it implies, each
       with an objective and dependencies, and those tasks are added to
       `tasks/QUEUE.md` and `PROJECT_PLAN.md` as `[ ]`.
-- [ ] `python3 scripts/check_repository.py` passes (including
+- [x] `python3 scripts/check_repository.py` passes (including
       `check_local_markdown_links()`).
 
 ## 📁 Relevant Files
