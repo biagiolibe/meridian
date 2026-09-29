@@ -19,37 +19,37 @@ foreign, divergent, ambiguous, or partially overlapping configuration.
 
 ## 📋 Acceptance Criteria
 
-- [ ] `meridian codex configure --check` distinguishes a semantically identical
+- [x] `meridian codex configure --check` distinguishes a semantically identical
       profile with damaged or missing Meridian ownership comments from a
       genuinely incomplete or conflicting profile.
-- [ ] The diagnostic reports a named repairable state and prints the exact
+- [x] The diagnostic reports a named repairable state and prints the exact
       bounded change. It does not report the permission model as generically
       blocked when the expected profile name, inheritance, workspace root, and
       selected default are all semantically identical.
-- [ ] `--apply` can repair ownership metadata only after explicit invocation,
+- [x] `--apply` can repair ownership metadata only after explicit invocation,
       while preserving unrelated keys, comments, tables, ordering where
       practical, and application-managed settings.
-- [ ] Repair creates a restrictive backup and uses the existing atomic write
+- [x] Repair creates a restrictive backup and uses the existing atomic write
       path. Repeating the repair is idempotent.
-- [ ] A profile with a different root, parent, description, default selection,
+- [x] A profile with a different root, parent, description, default selection,
       extra permission grants, ambiguous duplicate tables, legacy sandbox
       settings, or only a partial semantic match remains `BLOCKED` and is never
       adopted or overwritten automatically.
-- [ ] The ownership strategy does not rely exclusively on a paired trailing
+- [x] The ownership strategy does not rely exclusively on a paired trailing
       comment that a conforming TOML reserializer may discard. If comments
       remain part of the strategy, exact semantic recovery and future rewrite
       behavior are documented and tested.
-- [ ] A regression fixture reproduces the observed Codex app rewrite: top-level
+- [x] A regression fixture reproduces the observed Codex app rewrite: top-level
       keys move, unrelated app/plugin settings change, the managed profile stays
       equivalent, and the trailing Meridian marker disappears.
-- [ ] `meridian codex doctor` reports the repairable condition separately from
+- [x] `meridian codex doctor` reports the repairable condition separately from
       effective worktree-root access and Git-metadata approval behavior.
-- [ ] `docs/HOST_CAPABILITY_CONTRACT.md` documents the recovery boundary and
+- [x] `docs/HOST_CAPABILITY_CONTRACT.md` documents the recovery boundary and
       makes clear that config repair does not prove session reload or host
       enforcement.
-- [ ] Lean and Governed generated instructions expose the same bounded recovery
+- [x] Lean and Governed generated instructions expose the same bounded recovery
       procedure where they reference Codex worktree configuration.
-- [ ] `python3 scripts/check_repository.py`,
+- [x] `python3 scripts/check_repository.py`,
       `python3 -m unittest discover -s tests -v`, and `git diff --check` pass.
 
 ## 📁 Relevant Files
