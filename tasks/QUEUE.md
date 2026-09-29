@@ -61,7 +61,7 @@ but normalize or remove Meridian's ownership comments.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[ ]` | 062 | Make Codex permission-profile repair resilient | 🟡 P2 | 054 | [062](062-make-codex-profile-repair-resilient.md) |
+| `[/]` | 062 | Make Codex permission-profile repair resilient | 🟡 P2 | 054 | [062](062-make-codex-profile-repair-resilient.md) |
 
 ### Phase 19 — Proportional integration validation
 
