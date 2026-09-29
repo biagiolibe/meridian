@@ -289,5 +289,94 @@ class CheckMigrationsVersionGateTest(unittest.TestCase):
         self.assertIn("not contiguous", output.getvalue())
 
 
+class CheckReleasesTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory()
+        self.root = Path(self.temporary.name)
+        (self.root / "migrations").mkdir()
+        (self.root / "releases").mkdir()
+        (self.root / "VERSION").write_text("1.0.2\n", encoding="utf-8")
+        (self.root / "migrations" / "001-step.json").write_text(
+            json.dumps({"id": "001-step", "from": "1.0.0", "to": "1.0.1"}),
+            encoding="utf-8",
+        )
+
+    def tearDown(self) -> None:
+        self.temporary.cleanup()
+
+    def write_release(self, version: str, filename: str | None = None, **overrides: object) -> None:
+        record = {
+            "version": version,
+            "releaseDate": "2026-01-01",
+            "gitTag": f"v{version}",
+            "protocolVersion": 2,
+            "workflowBaselineVersion": "1.0.1",
+            "baselineChanged": False,
+            "migrations": [],
+        }
+        record.update(overrides)
+        (self.root / "releases" / f"{filename or version}.json").write_text(
+            json.dumps(record), encoding="utf-8"
+        )
+
+    def assert_fails(self, message: str) -> None:
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output), self.assertRaises(SystemExit):
+            cr.check_releases(self.root)
+        self.assertIn(message, output.getvalue())
+
+    def test_valid_ledger_passes(self) -> None:
+        self.write_release("1.0.1", baselineChanged=True, migrations=["001-step"])
+        self.write_release("1.0.2")
+
+        cr.check_releases(self.root)
+
+    def test_numeric_ordering_passes(self) -> None:
+        (self.root / "VERSION").write_text("1.0.10\n", encoding="utf-8")
+        self.write_release("1.0.9")
+        self.write_release("1.0.10")
+
+        cr.check_releases(self.root)
+
+    def test_missing_record_for_current_version_fails(self) -> None:
+        self.write_release("1.0.1", baselineChanged=True, migrations=["001-step"])
+
+        self.assert_fails("is missing for the current VERSION")
+
+    def test_filename_version_mismatch_fails(self) -> None:
+        self.write_release("1.0.1", filename="1.0.2")
+
+        self.assert_fails("does not match the filename")
+
+    def test_non_monotonic_versions_fail(self) -> None:
+        self.write_release("1.0.2")
+        self.write_release("1.0.02")
+
+        self.assert_fails("monotonically increasing")
+
+    def test_baseline_changed_inconsistent_with_migrations_fails(self) -> None:
+        self.write_release("1.0.1", baselineChanged=False, migrations=["001-step"])
+        self.write_release("1.0.2")
+
+        self.assert_fails("baselineChanged")
+
+    def test_prerelease_suffix_fails(self) -> None:
+        (self.root / "VERSION").write_text("1.0.2-rc.1\n", encoding="utf-8")
+        self.write_release("1.0.2-rc.1")
+
+        self.assert_fails("prerelease or build suffix")
+
+    def test_build_suffix_fails(self) -> None:
+        (self.root / "VERSION").write_text("1.0.2+dev\n", encoding="utf-8")
+        self.write_release("1.0.2+dev")
+
+        self.assert_fails("prerelease or build suffix")
+
+    def test_latest_baseline_mismatch_fails(self) -> None:
+        self.write_release("1.0.2", workflowBaselineVersion="1.0.0")
+
+        self.assert_fails("migration-derived baseline")
+
+
 if __name__ == "__main__":
     unittest.main()
