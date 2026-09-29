@@ -18,12 +18,12 @@ CLI-only release otherwise leaves nowhere but changelog prose. Add
 
 ## 📋 Acceptance Criteria
 
-- [ ] `releases/<version>.json` schema implemented with exactly these
+- [x] `releases/<version>.json` schema implemented with exactly these
       fields: `version`, `releaseDate`, `gitTag`, `protocolVersion`,
       `workflowBaselineVersion`, `baselineChanged`, `migrations` (no
       `summary` field — it would duplicate `CHANGELOG.md` and rot
       independently).
-- [ ] `check_releases()` in `scripts/check_repository.py` validates:
+- [x] `check_releases()` in `scripts/check_repository.py` validates:
       - a record exists for the current `VERSION`;
       - each record's `version` field matches its filename;
       - release versions are monotonically increasing across files;
@@ -33,14 +33,14 @@ CLI-only release otherwise leaves nowhere but changelog prose. Add
         from task 015);
       - `baselineChanged` is `true` iff `migrations` is non-empty, and each
         listed migration's `to` equals the record's `workflowBaselineVersion`.
-- [ ] `check_releases()` is called from `main()` in `check_repository.py`
+- [x] `check_releases()` is called from `main()` in `check_repository.py`
       alongside the existing checks.
-- [ ] Test fixtures in `tests/test_check_repository.py`: missing record for
+- [x] Test fixtures in `tests/test_check_repository.py`: missing record for
       current `VERSION`, filename/version mismatch, non-monotonic version,
       `baselineChanged` inconsistent with `migrations`, prerelease/build
       suffix present (one failing case each), plus a passing baseline
       fixture.
-- [ ] `python3 scripts/check_repository.py` and
+- [x] `python3 scripts/check_repository.py` and
       `python3 -m unittest discover -s tests -v` pass.
 
 ## 📁 Relevant Files
