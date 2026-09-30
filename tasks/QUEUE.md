@@ -29,8 +29,19 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 
 ## 🏃 Active Queue
 
-Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, 25, and 26
+Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, and 25
 are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
+
+### Phase 26 — Project console presentation
+
+Align the local console with the approved compact shell design while keeping
+its project-state sources local.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 071 | Apply the compact dark shell design to the project console | 🟡 P2 | 070 | [071](done/071-apply-compact-console-design.md) |
+| `[x]` | 072 | Match the approved console mockup in the terminal renderer | 🟡 P2 | 071 | [072](done/072-match-console-mockup.md) |
+| `[ ]` | 073 | Make directives copyable and restore All filter navigation | 🟡 P2 | 072 | [073](073-copy-directive-and-filter-navigation.md) |
 
 ### Phase 24 — Review worktree routing correction
 
