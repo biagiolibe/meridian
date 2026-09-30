@@ -102,7 +102,9 @@ class ProjectConsoleTest(unittest.TestCase):
             capture_output=True, text=True, check=False,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("070 [IN PROGRESS]", result.stdout)
+        self.assertIn("MERIDIAN |", result.stdout)
+        self.assertIn("Updated:", result.stdout)
+        self.assertIn("Open:", result.stdout)
         self.assertIn("Agent activity: unavailable", result.stdout)
 
 
