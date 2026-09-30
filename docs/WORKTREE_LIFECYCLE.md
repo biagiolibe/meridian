@@ -45,6 +45,15 @@ the current repository's primary checkout. `--worktree-root` must equal
 path` for one migration window. It prints a deprecation notice to standard
 error; new automation must use the host-neutral form.
 
+The absolute worktree path is a runtime value and is never written to a tracked
+file. `path`, `prepare`, and `check` also return `handoff_worktree`, the path
+relative to the worktree root (for example `github.com/<owner>/<repository>/task-<n>`),
+which is the value completion handoffs record. Resolving it against the worktree
+root yields the same path on every machine. A repository without a usable remote
+uses a local name plus a Git-common-directory hash, so its value is stable only
+on the machines that share that hash. `check` also accepts a legacy absolute
+`Worktree:` value in an existing handoff.
+
 ## Evidence boundary
 
 Stage evidence is a JSON object with these required fields:

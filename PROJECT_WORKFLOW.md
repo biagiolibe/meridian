@@ -49,7 +49,10 @@ does not ask the host to create another checkout. Before any task read or
 write, the worker starts in that exact directory and runs `meridian worktree
 check <task-id> --project <primary-checkout> --worktree-root <selected-root>
 --format json`. Any mismatch is `BLOCKED`; the primary checkout and every host-
-created substitute remain coordination surfaces only.
+created substitute remain coordination surfaces only. Absolute paths are
+runtime launch inputs only: a handoff or other tracked record that names the
+worktree uses the `handoff_worktree` value returned by `meridian worktree
+prepare`, the path relative to the worktree root, never an absolute path.
 
 Reservation, completion, review, and archive edits are committed on the task
 branch. Concurrent tasks edit only their own task rows and records; they do
