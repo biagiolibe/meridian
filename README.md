@@ -70,6 +70,13 @@ a CLI at least as new as its `protocolVersion`.
 1. Read the release notes on the Releases page or in `CHANGELOG.md`. The first
    line of each section says whether the release is CLI-only or
    template-changing.
+   Optionally run `meridian self-check --check-latest` to compare the installed
+   framework with the latest public GitHub Release. This is the only Meridian
+   command that performs an update-discovery network request; it uses no
+   credentials and writes no cache or state. Exit `0` means `UP_TO_DATE`, exit
+   `10` means `UPDATE_AVAILABLE`, and exit `11` means `UNKNOWN` because the
+   request was offline, rate-limited, or malformed. These informational results
+   never block `upgrade` or other Meridian work.
 2. Move the pin. Re-adding a marketplace at a different ref is refused, and
    removing a marketplace also uninstalls its plugins, so reinstall afterwards:
 

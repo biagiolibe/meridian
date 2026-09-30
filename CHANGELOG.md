@@ -15,6 +15,13 @@ records which release moved it.
 
 ## [Unreleased]
 
+### Added
+
+- `meridian self-check --check-latest` performs an opt-in, read-only comparison
+  with the latest public GitHub Release. It uses the standard library, a short
+  timeout, no credentials, and no persistent state, and reports distinct exit
+  codes for up-to-date, update-available, and unknown results.
+
 ### Changed
 
 - **Breaking for existing Claude Code installs:** the marketplace is renamed

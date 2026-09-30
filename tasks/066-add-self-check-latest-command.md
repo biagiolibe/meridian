@@ -13,12 +13,14 @@ Implement the opt-in update-discovery command specified in Decision 3 of `docs/D
 
 ## 📋 Acceptance Criteria
 
-- [ ] Network access happens only with `--check-latest`; no other command gains a network dependency.
-- [ ] Standard library only, short timeout, no credentials, no state or cache file.
-- [ ] Offline, rate-limited, or malformed responses report `UNKNOWN` with a reason and a documented exit code distinct from update-available.
-- [ ] Unit tests cover up-to-date, update-available, offline, and malformed-response paths without real network access.
-- [ ] Governed SDD is used for this task (new network dependency and public CLI surface).
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
+- [x] Network access happens only with `--check-latest`; no other command gains a network dependency.
+- [x] Standard library only, short timeout, no credentials, no state or cache file.
+- [x] Offline, rate-limited, or malformed responses report `UNKNOWN` with a reason and a documented exit code distinct from update-available.
+- [x] Unit tests cover up-to-date, update-available, offline, and malformed-response paths without real network access.
+- [ ] After implementation and validation, a fresh-session read-only
+      `Review 066` returns `APPROVE` before the normal Lean completion and
+      integration steps; the task remains `[/]` until approval.
+- [x] `python3 scripts/check_repository.py` and the unit tests pass.
 
 ## 📁 Relevant Files
 
@@ -27,6 +29,11 @@ Implement the opt-in update-discovery command specified in Decision 3 of `docs/D
 ## 🧩 Technical Context
 
 Authority: `docs/DISTRIBUTION_AND_UPDATE_DESIGN.md`. Do not publish tags, releases, or marketplace listings unless the developer authorizes it separately.
+
+The repository remains on Lean Delivery. The required independent review is a
+risk-proportionate gate for the new network dependency and public CLI contract;
+it does not introduce Governed SDD lifecycle states, roles, or acceptance
+commits.
 
 ## 🔗 Dependencies
 
