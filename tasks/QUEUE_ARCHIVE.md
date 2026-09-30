@@ -236,4 +236,13 @@ records carry machine-specific absolute paths.
 | `[x]` | 052 | Make the upgrade planner aware of generated entry routers | 🔴 P1 | 015 | [052](done/052-router-aware-upgrade-planner.md) |
 | `[x]` | 053 | Remove machine-specific absolute paths from tracked records | 🟡 P2 | 054 | [053](done/053-remove-machine-specific-absolute-paths.md) |
 
-*Last updated: 2026-09-30*
+### Phase 25 — Local project console
+
+Provides an interactive, read-only terminal view of the current project's
+queue, task descriptions, dependencies, and local Git state.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 070 | Build a read-only project console with automatic local refresh | 🟡 P2 | 063 | [070](done/070-build-project-console.md) |
+
+*Last updated: 2026-10-01*
