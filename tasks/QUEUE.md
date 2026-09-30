@@ -29,7 +29,7 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 
 ## 🏃 Active Queue
 
-Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, and 22
+Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, and 22
 are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 
 ### Phase 24 — Review worktree routing correction
@@ -92,17 +92,6 @@ for adopters, and a manual-only release procedure.
 | `[ ]` | 067 | Enforce the adopter-facing release-notes contract | 🟢 P3 | 049, 050 | [067](067-enforce-release-notes-contract.md) |
 | `[ ]` | 068 | Document and test the upgrade support policy | 🟢 P3 | 049 | [068](068-document-and-test-support-policy.md) |
 | `[ ]` | 069 | Document Codex install from a tagged checkout | 🟢 P3 | 049 | [069](069-document-codex-install-from-tagged-checkout.md) |
-
-### Phase 17 — Consumer workflow integrity
-
-Fixes found while repairing a consumer's generated entry routers: the upgrade
-planner merges templates into generated `AGENTS.md`/`CLAUDE.md`, and tracked
-records carry machine-specific absolute paths.
-
-| Status | ID | Title | Priority | Depends on | File |
-|--------|----|-------|----------|------------|------|
-| `[x]` | 052 | Make the upgrade planner aware of generated entry routers | 🔴 P1 | 015 | [052](done/052-router-aware-upgrade-planner.md) |
-| `[x]` | 053 | Remove machine-specific absolute paths from tracked records | 🟡 P2 | 054 | [053](done/053-remove-machine-specific-absolute-paths.md) |
 
 ## 🧪 Quick Tasks (No File)
 
