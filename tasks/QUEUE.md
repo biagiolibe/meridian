@@ -40,7 +40,7 @@ its read-only behavior and project-state sources.
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
 | `[x]` | 071 | Apply the compact dark shell design to the project console | 🟡 P2 | 070 | [071](done/071-apply-compact-console-design.md) |
-| `[ ]` | 072 | Match the approved console mockup in the terminal renderer | 🟡 P2 | 071 | [072](072-match-console-mockup.md) |
+| `[x]` | 072 | Match the approved console mockup in the terminal renderer | 🟡 P2 | 071 | [072](done/072-match-console-mockup.md) |
 
 ### Phase 24 — Review worktree routing correction
 
