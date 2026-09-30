@@ -129,8 +129,12 @@ violates the offline default), and a polling background job (persistence and a
 new trust surface).
 
 Risk flag: `--check-latest` adds a network dependency and a new public CLI
-surface. Its implementation task should use Governed SDD, per
-`PROJECT_WORKFLOW.md`.
+surface. Meridian remains on its repository-local Lean Delivery lifecycle.
+Task 066 therefore requires a fresh-session, read-only review after
+implementation and validation and before the normal Lean completion and
+integration steps. The task stays in progress until that review returns
+`APPROVE`; this adds a risk-proportionate gate without importing Governed SDD
+states, roles, or acceptance commits.
 
 ## Decision 4 — Update procedure
 
@@ -216,7 +220,7 @@ All are added to `tasks/QUEUE.md` and `PROJECT_PLAN.md` as `[ ]`.
 | ID | Objective | Depends on | Notes |
 |----|-----------|------------|-------|
 | 065 | Rename the marketplace to `meridian`, rewrite the README install and update sections around `#v<version>`, verify pinned add, plugin update, and CLI path resolution from an installed plugin, and document the `meridian-local` migration. | 049 | Outward-facing docs; first published tag needed to fully verify. |
-| 066 | Add `meridian self-check --check-latest` per Decision 3. | 049, 050, 065 | Network dependency and public CLI surface: use Governed SDD. |
+| 066 | Add `meridian self-check --check-latest` per Decision 3. | 049, 050, 065 | Network dependency and public CLI surface: require an independent read-only review before Lean completion and integration. |
 | 067 | Enforce the release-notes contract: `CHANGELOG.md` kind line agrees with the ledger and a template-changing section has Upgrade notes; feed the same into the GitHub Release body. | 049, 050 | Extends the task 050 script. |
 | 068 | Document and test the support policy: one upgrade test spanning the oldest packaged baseline to current, and README/CONTRIBUTING statements of the window. | 049 | No CLI behavior change expected. |
 | 069 | Document Codex install from a tagged checkout, verify the user skills directory and `MERIDIAN_ROOT` resolution, and record the result in the host capability contract. | 049 | Keeps Codex plugin distribution deferred. |
