@@ -71,6 +71,30 @@ This verifies the existing Claude read guard for this direct-plugin CLI profile.
 It does not by itself prove that a marketplace-installed plugin, another Claude
 runtime, or a different tool path loads the same hook definition.
 
+## Verified Claude Code marketplace install probe
+
+On 2026-09-30, Claude Code `2.1.285` was run with an isolated
+`CLAUDE_CONFIG_DIR` against the real tags `v1.1.49` and `v1.1.50` of
+`biagiolibe/meridian`. Both tags predate the marketplace rename, so the
+marketplace in this probe was named `meridian-local`; the name `meridian`
+(`meridian@meridian`) has not been exercised against a published tag.
+
+| Question | Result |
+|---|---|
+| Does `claude plugin marketplace add biagiolibe/meridian#v1.1.49` pin to the tag? | Yes. The marketplace source was recorded as `biagiolibe/meridian@v1.1.49`. |
+| Does `claude plugin install` from the pinned marketplace install that tag? | Yes. The plugin reported version `1.1.49`, with the tagged commit in `installed_plugins.json`. |
+| Can the marketplace be re-added at a different tag? | No. Claude Code refused: the source differs from the one declared in settings. |
+| Does `claude plugin marketplace remove` keep the installed plugin? | No. The plugin was uninstalled with it. |
+| Does remove, add at `#v1.1.50`, then install move the plugin? | Yes. The plugin reported version `1.1.50`; the `1.1.49` cache entry remained on disk. |
+| Does `claude plugin update` move a pinned plugin to a newer tag? | No. It reported the plugin already at the latest version for the pinned tag. |
+| Does `bin/meridian` exist in the installed plugin cache and run? | Yes. The cached `bin/meridian` of `1.1.50` ran and printed its usage. |
+
+Still unverified: the `meridian@meridian` name against a published tag, and
+`/plugin marketplace update meridian` for an unpinned marketplace moving to a
+newer release. `${CLAUDE_PLUGIN_ROOT}` expansion inside a live Claude session
+was not exercised; only the file at `<installPath>/bin/meridian` was. The probe
+does not cover Codex.
+
 ## Verified Codex hook probe
 
 On 2026-09-20, a scratch Git repository was used with Codex CLI 0.155.1 and a
