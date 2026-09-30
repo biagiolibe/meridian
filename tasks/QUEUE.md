@@ -88,7 +88,7 @@ for adopters, and a manual-only release procedure.
 | `[x]` | 049 | Design the distribution and update channel for adopters | 🟡 P2 | 019 | [049](done/049-design-distribution-and-update-channel.md) |
 | `[x]` | 050 | Automate the GitHub Release from a version tag | 🟢 P3 | 021, 046, 047 | [050](done/050-automate-github-release-from-tag.md) |
 | `[x]` | 065 | Rename the marketplace and document the pinned install | 🟡 P2 | 049 | [065](done/065-rename-marketplace-and-document-pinned-install.md) |
-| `[/]` | 066 | Add `meridian self-check --check-latest` | 🟢 P3 | 049, 050, 065 | [066](066-add-self-check-latest-command.md) |
+| `[x]` | 066 | Add `meridian self-check --check-latest` | 🟢 P3 | 049, 050, 065 | [066](done/066-add-self-check-latest-command.md) |
 | `[ ]` | 067 | Enforce the adopter-facing release-notes contract | 🟢 P3 | 049, 050 | [067](067-enforce-release-notes-contract.md) |
 | `[ ]` | 068 | Document and test the upgrade support policy | 🟢 P3 | 049 | [068](068-document-and-test-support-policy.md) |
 | `[ ]` | 069 | Document Codex install from a tagged checkout | 🟢 P3 | 049 | [069](069-document-codex-install-from-tagged-checkout.md) |

@@ -17,7 +17,7 @@ Implement the opt-in update-discovery command specified in Decision 3 of `docs/D
 - [x] Standard library only, short timeout, no credentials, no state or cache file.
 - [x] Offline, rate-limited, or malformed responses report `UNKNOWN` with a reason and a documented exit code distinct from update-available.
 - [x] Unit tests cover up-to-date, update-available, offline, and malformed-response paths without real network access.
-- [ ] After implementation and validation, a fresh-session read-only
+- [x] After implementation and validation, a fresh-session read-only
       `Review 066` returns `APPROVE` before the normal Lean completion and
       integration steps; the task remains `[/]` until approval.
 - [x] `python3 scripts/check_repository.py` and the unit tests pass.

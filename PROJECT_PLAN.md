@@ -34,7 +34,7 @@
 - `[x]` 049 — Design the distribution and update channel for adopters.
 - `[x]` 050 — Automate the GitHub Release from a version tag.
 - `[x]` 065 — Rename the marketplace and document the pinned install.
-- `[/]` 066 — Add `meridian self-check --check-latest`.
+- `[x]` 066 — Add `meridian self-check --check-latest`.
 - `[ ]` 067 — Enforce the adopter-facing release-notes contract.
 - `[ ]` 068 — Document and test the upgrade support policy.
 - `[ ]` 069 — Document Codex install from a tagged checkout.
