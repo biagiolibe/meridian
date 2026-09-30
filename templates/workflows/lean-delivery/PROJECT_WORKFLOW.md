@@ -77,7 +77,7 @@ requires manual reconciliation. Repair never proves that a running session
 loaded the profile; start a fresh session and probe it.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=bounded-worktree-lifecycle v1 -->
+<!-- MERIDIAN:BEGIN capability=bounded-worktree-lifecycle v2 -->
 `Proceed with <TASK-ID>` runs `meridian worktree prepare <task-id> --project
 <primary-checkout> --worktree-root <selected-root> --format json` before
 starting a worker. The coordinator passes the returned branch and absolute
@@ -86,6 +86,10 @@ second checkout. The worker starts in that exact directory and, before any task
 read or write, runs `meridian worktree check <task-id> --project
 <primary-checkout> --worktree-root <selected-root> --format json`. Any path,
 branch, HEAD, root, state, or cleanliness mismatch is `BLOCKED`.
+Absolute paths are runtime launch inputs only. A handoff or other tracked
+record that names the worktree uses the `handoff_worktree` value returned by
+`meridian worktree prepare`, the path relative to the worktree root, never an
+absolute path.
 <!-- MERIDIAN:END -->
 
 Reservation, completion, review, and archive edits are committed on the task

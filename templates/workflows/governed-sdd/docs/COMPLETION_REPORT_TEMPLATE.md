@@ -8,9 +8,9 @@ and `ready-check` use that canonical path when no report path is supplied.
 ## Completion Report — <TASK-ID>
 
 - Files changed: `<paths>`
-<!-- MERIDIAN:BEGIN capability=task-worktree-handoff v2 -->
+<!-- MERIDIAN:BEGIN capability=task-worktree-handoff v3 -->
 - Branch: `<task-branch>`
-- Worktree: `<absolute dedicated task-worktree path>`
+- Worktree: `<task-worktree path relative to the worktree root, as returned in handoff_worktree; never an absolute path>`
 - Implementation commit: `<commit SHA>`
 - Validated task commit: `<commit SHA covered by all validation evidence>`
 - Validated base `main` commit: `<commit SHA from which the task worktree was created>`
