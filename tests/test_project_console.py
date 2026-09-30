@@ -6,6 +6,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from datetime import datetime
 from pathlib import Path
 from unittest import mock
 
@@ -106,6 +107,39 @@ class ProjectConsoleTest(unittest.TestCase):
         self.assertIn("Updated:", result.stdout)
         self.assertIn("Open:", result.stdout)
         self.assertIn("Agent activity: unavailable", result.stdout)
+
+    def test_detail_pane_keeps_the_approved_content_hierarchy(self) -> None:
+        self.write_queue()
+        task = self.snapshot().tasks[0]
+        palette = {name: 0 for name in (
+            "base", "text", "title", "ready", "muted", "line", "action"
+        )}
+        lines = [value for value, _ in console._detail_lines(task, 40, palette)]
+        self.assertEqual(lines[0], "Task details")
+        self.assertLess(lines.index("Objective"), lines.index("Dependencies"))
+        self.assertLess(lines.index("Dependencies"), lines.index("Next directive"))
+        self.assertNotIn("Acceptance criteria", lines)
+        self.assertNotIn("- [ ] Second check.", lines)
+
+    def test_header_right_aligns_git_and_underlines_active_all_tab(self) -> None:
+        self.write_queue()
+        state = console.ConsoleState(self.project)
+        state.snapshot = self.snapshot()
+        state.last_success = datetime.now().astimezone()
+        screen = mock.Mock()
+        screen.getmaxyx.return_value = (35, 140)
+        palette = {name: 0 for name in (
+            "text", "blocked", "stale", "tab", "ready", "working",
+            "unknown", "muted", "line", "tab_underline"
+        )}
+        console._draw_header(screen, state, palette, "All", 140)
+        writes = [call.args for call in screen.addnstr.call_args_list]
+        self.assertTrue(any(y == 0 and x > 70 and "refreshed" in value
+                            for y, x, value, *_ in writes))
+        self.assertTrue(any(y == 1 and "All 1" in value
+                            for y, x, value, *_ in writes))
+        self.assertTrue(any(y == 2 and "━" in value
+                            for y, x, value, *_ in writes))
 
 
 if __name__ == "__main__":

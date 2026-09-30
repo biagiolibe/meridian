@@ -293,7 +293,9 @@ def _palette(screen) -> dict[str, int]:
             "blocked": curses.A_BOLD, "unknown": curses.A_BOLD,
             "stale": curses.A_REVERSE | curses.A_BOLD,
             "selected": curses.A_REVERSE | curses.A_BOLD,
-            "tab": curses.A_REVERSE, "title": curses.A_BOLD,
+            "tab": curses.A_REVERSE | curses.A_BOLD,
+            "tab_underline": curses.A_BOLD,
+            "title": curses.A_BOLD,
             "action": curses.A_BOLD,
         }
     curses.start_color()
@@ -302,6 +304,7 @@ def _palette(screen) -> dict[str, int]:
             (253, 233), (253, 233), (245, 233), (240, 233),
             (80, 233), (141, 233), (221, 233), (203, 233),
             (231, 52), (16, 75), (253, 238), (181, 233), (150, 233),
+            (117, 233),
         )
     else:
         colors = (
@@ -318,9 +321,11 @@ def _palette(screen) -> dict[str, int]:
             (curses.COLOR_WHITE, curses.COLOR_BLUE),
             (curses.COLOR_MAGENTA, curses.COLOR_BLACK),
             (curses.COLOR_GREEN, curses.COLOR_BLACK),
+            (curses.COLOR_CYAN, curses.COLOR_BLACK),
         )
     names = ("base", "text", "muted", "line", "ready", "working",
-             "blocked", "unknown", "stale", "selected", "tab", "title", "action")
+             "blocked", "unknown", "stale", "selected", "tab", "title", "action",
+             "tab_underline")
     palette = {}
     for index, (name, (foreground, background)) in enumerate(zip(names, colors), 1):
         curses.init_pair(index, foreground, background)
@@ -365,7 +370,8 @@ def _clip(value: str, width: int) -> str:
     return value if len(value) <= width else value[:max(0, width - 1)] + "…"
 
 
-def _detail_lines(task: Task, width: int, palette: dict[str, int]) -> list[tuple[str, int]]:
+def _detail_lines(task: Task, width: int, palette: dict[str, int],
+                  compact: bool = False) -> list[tuple[str, int]]:
     lines: list[tuple[str, int]] = []
 
     def add(value: str, style: str = "base") -> None:
@@ -375,25 +381,25 @@ def _detail_lines(task: Task, width: int, palette: dict[str, int]) -> list[tuple
     label, color = _state_label(task)
     add("Task details", "text")
     add("")
-    add(f"{task.task_id}  {task.title}", "title")
+    if not compact:
+        add("")
+    add(task.title, "title")
     add(f"○ {label}", color)
     add("")
-    add("Phase", "muted")
-    add(task.phase)
     add("Objective", "muted")
     for value in task.objective or ("Unavailable",):
         add(value)
+    if not compact:
+        add("")
     add("Dependencies", "muted")
     add(", ".join(task.dependencies) or "none")
+    if not compact:
+        add("")
+    add("─" * min(20, width), "line")
+    if not compact:
+        add("")
     add("Next directive", "muted")
     add(task.next_action, "action")
-    add("Worktree", "muted")
-    add(task.worktree or "none")
-    add("Acceptance criteria", "muted")
-    for value in task.criteria or ("Unavailable",):
-        add(value)
-    add("Project path", "muted")
-    add(str(task.path.parent.parent))
     return lines
 
 
@@ -410,14 +416,19 @@ def _draw_header(screen, state: ConsoleState, palette: dict[str, int],
                  status_filter: str, width: int) -> None:
     snapshot = state.snapshot
     project_name = snapshot.project.name if snapshot else state.project.name
-    _put(screen, 0, 1, "Meridian project console", width - 2, palette["text"])
-    _put(screen, 0, 27, f"Project: {project_name}", width - 28, palette["muted"])
-    branch = snapshot.branch if snapshot else "unavailable"
+    branch = snapshot.branch.split("...", 1)[0] if snapshot else "unavailable"
     summary = snapshot.git_summary if snapshot else "unknown"
-    stamp = state.last_success.strftime("%H:%M:%S") if state.last_success else "never"
-    _put(screen, 1, 1, f"{branch} · {summary} · updated {stamp}", width - 2, palette["muted"])
+    left = f"Project command center  {project_name}  {branch}"
+    _put(screen, 0, 1, left, width - 2, palette["text"])
+    ahead = re.search(r"\[ahead (\d+)", snapshot.branch) if snapshot else None
+    local = f"↑ {ahead.group(1)} local · " if ahead else ""
+    age = _age(int(state.last_success.timestamp())) if state.last_success else "never"
+    right = f"{local}{summary} · refreshed {age}"
+    right_x = width - len(right) - 2
+    if right_x > len(left) + 2:
+        _put(screen, 0, right_x, right, len(right), palette["blocked"])
     if state.error:
-        _put(screen, 1, max(1, width - 16), "STALE", 7, palette["stale"])
+        _put(screen, 1, max(1, width - 9), "STALE", 7, palette["stale"])
     counts = {name: 0 for name in ("Ready", "Working", "Blocked", "Unknown")}
     for task in snapshot.tasks if snapshot else ():
         counts[_state_label(task)[0]] += 1
@@ -429,11 +440,22 @@ def _draw_header(screen, state: ConsoleState, palette: dict[str, int],
             {"All": "text", "Ready": "ready", "Working": "working",
              "Blocked": "blocked", "Unknown": "unknown"}[name]
         ]
-        _put(screen, 3, x, label, len(label), attr)
+        _put(screen, 1, x, label, len(label), attr)
         x += len(label) + 1
     if snapshot and x + 9 < width:
-        _put(screen, 3, x + 1, f"Done {snapshot.done_count}", width - x - 2, palette["muted"])
-    _put(screen, 4, 0, "─" * max(0, width - 1), width - 1, palette["line"])
+        _put(screen, 1, x + 1, f"Done {snapshot.done_count}", width - x - 2, palette["muted"])
+    hint = "tab/shift+tab filter"
+    if width - len(hint) - 2 > x + 9:
+        _put(screen, 1, width - len(hint) - 2, hint, len(hint), palette["muted"])
+    _put(screen, 2, 0, "─" * max(0, width - 1), width - 1, palette["line"])
+    selected_x = 1
+    for name, count in tabs:
+        label_width = len(f" {name} {count} ")
+        if name == status_filter:
+            _put(screen, 2, selected_x + 1, "━" * max(1, label_width - 2),
+                 label_width - 2, palette["tab_underline"])
+            break
+        selected_x += label_width + 1
 
 
 def _draw_list(screen, tasks: list[Task], selected_id: str | None,
@@ -443,9 +465,9 @@ def _draw_list(screen, tasks: list[Task], selected_id: str | None,
     age_width = 9
     # The title starts at column 9 and leaves two columns before status.
     title_width = max(8, left_width - status_width - age_width - 13)
-    _put(screen, 5, 2, "Tasks", title_width, palette["muted"])
-    _put(screen, 5, left_width - status_width - age_width - 2, "Status", status_width, palette["muted"])
-    _put(screen, 5, left_width - age_width - 1, "Updated", age_width, palette["muted"])
+    _put(screen, 3, 2, "Tasks", title_width, palette["muted"])
+    _put(screen, 3, left_width - status_width - age_width - 2, "Status", status_width, palette["muted"])
+    _put(screen, 3, left_width - age_width - 1, "Updated", age_width, palette["muted"])
     entries: list[tuple[str, Task | None]] = []
     phase = None
     for task in tasks:
@@ -453,8 +475,8 @@ def _draw_list(screen, tasks: list[Task], selected_id: str | None,
             phase = task.phase
             entries.append((phase, None))
         entries.append(("", task))
-    body_top = 6
-    body_lines = max(1, height - body_top - 1)
+    body_top = 5
+    body_lines = max(1, height - body_top - 2)
     selected_line = next((i for i, (_, task) in enumerate(entries)
                           if task and task.task_id == selected_id), 0)
     if selected_line < offset:
@@ -488,8 +510,8 @@ def _draw_detail(screen, task: Task | None, x: int, top: int, width: int,
     if task is None:
         _put(screen, top, x, "No task selected", width, palette["muted"])
         return
-    lines = _detail_lines(task, width - 2, palette)
-    body_lines = max(1, height - top - 1)
+    lines = _detail_lines(task, width - 2, palette, compact=height < 30)
+    body_lines = max(1, height - top - 2)
     offset = min(offset, max(0, len(lines) - body_lines))
     for y, (value, attr) in enumerate(lines[offset:offset + body_lines], top):
         _put(screen, y, x, value, width - 1, attr)
@@ -542,20 +564,20 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
                     "Agent activity is unavailable without a verified source.",
                     "It does not control agents or fetch from the network.",
                 )
-                for y, line in enumerate(help_lines, 6):
-                    _put(screen, y, 2, line, width - 4, palette["text"] if y == 6 else palette["base"])
+                for y, line in enumerate(help_lines, 4):
+                    _put(screen, y, 2, line, width - 4, palette["text"] if y == 4 else palette["base"])
             elif detail_open:
-                _draw_detail(screen, selected_task, 2, 6, width - 4, height,
+                _draw_detail(screen, selected_task, 2, 4, width - 4, height,
                              detail_offset, palette)
             else:
-                left_width = int(width * .72) if wide else width
+                left_width = int(width * .68) if wide else width
                 offset = _draw_list(screen, visible, selected_id, offset, left_width,
                                     height, palette)
                 if wide:
                     divider = left_width - 1
-                    for y in range(5, height - 1):
+                    for y in range(3, height - 2):
                         _put(screen, y, divider, "│", 1, palette["line"])
-                    _draw_detail(screen, selected_task, left_width + 1, 6,
+                    _draw_detail(screen, selected_task, left_width + 1, 4,
                                  width - left_width - 2, height, detail_offset, palette)
             if state.error:
                 footer = f"STALE: {state.error}"
@@ -565,6 +587,8 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
                 footer = "Esc back   [/] scroll   r refresh   q quit"
             else:
                 footer = "? help   ↑/↓ move   tab filter   enter details   / search   r refresh   q quit"
+            _put(screen, height - 2, 0, "─" * max(0, width - 1),
+                 width - 1, palette["line"])
             _put(screen, height - 1, 1, footer, width - 2,
                  palette["stale"] if state.error else palette["muted"])
         screen.refresh()
