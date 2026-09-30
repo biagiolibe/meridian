@@ -39,7 +39,7 @@ its read-only behavior and project-state sources.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[ ]` | 071 | Apply the compact dark shell design to the project console | 🟡 P2 | 070 | [071](071-apply-compact-console-design.md) |
+| `[x]` | 071 | Apply the compact dark shell design to the project console | 🟡 P2 | 070 | [071](done/071-apply-compact-console-design.md) |
 
 ### Phase 24 — Review worktree routing correction
 

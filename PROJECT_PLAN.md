@@ -36,7 +36,7 @@
 - `[x]` 065 — Rename the marketplace and document the pinned install.
 - `[x]` 066 — Add `meridian self-check --check-latest`.
 - `[x]` 070 — Build a read-only project console with automatic local refresh.
-- `[ ]` 071 — Apply the compact dark shell design to the project console.
+- `[x]` 071 — Apply the compact dark shell design to the project console.
 - `[ ]` 067 — Enforce the adopter-facing release-notes contract.
 - `[ ]` 068 — Document and test the upgrade support policy.
 - `[ ]` 069 — Document Codex install from a tagged checkout.
