@@ -13,11 +13,11 @@ Rename the marketplace from `meridian-local` to `meridian`, rewrite the README i
 
 ## 📋 Acceptance Criteria
 
-- [ ] `.claude-plugin/marketplace.json` `name` is `meridian`; `claude plugin validate .` passes.
-- [ ] README installation documents pinned add at `#v<version>`, plugin install as `meridian@meridian`, and the ordered update procedure from `docs/DISTRIBUTION_AND_UPDATE_DESIGN.md`.
-- [ ] The one-time migration for `meridian@meridian-local` installs is documented in README and CHANGELOG.
-- [ ] Pinned add, plugin update to a newer tag, and `${CLAUDE_PLUGIN_ROOT}/bin/meridian` resolution from an installed plugin are verified against a real tag and recorded in `docs/HOST_CAPABILITY_CONTRACT.md`; anything unverified stays labelled unverified.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
+- [x] `.claude-plugin/marketplace.json` `name` is `meridian`; `claude plugin validate .` passes.
+- [x] README installation documents pinned add at `#v<version>`, plugin install as `meridian@meridian`, and the ordered update procedure from `docs/DISTRIBUTION_AND_UPDATE_DESIGN.md`.
+- [x] The one-time migration for `meridian@meridian-local` installs is documented in README and CHANGELOG.
+- [x] Pinned add, plugin update to a newer tag, and `${CLAUDE_PLUGIN_ROOT}/bin/meridian` resolution from an installed plugin are verified against a real tag and recorded in `docs/HOST_CAPABILITY_CONTRACT.md`; anything unverified stays labelled unverified.
+- [x] `python3 scripts/check_repository.py` and the unit tests pass.
 
 ## 📁 Relevant Files
 
