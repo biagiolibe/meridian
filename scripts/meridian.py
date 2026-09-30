@@ -18,7 +18,9 @@ import unicodedata
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
+from urllib.request import Request, urlopen
 
 
 # `bin/meridian` dispatches this file through runpy, which retains bin/ rather
@@ -43,6 +45,11 @@ INSTALLATION_STATES = ("INSTALLED", "MISSING", "DRIFTED", "NOT_APPLICABLE")
 HOST_ACTIVATION_STATES = ("ENFORCED", "ADVISORY", "UNSUPPORTED", "UNVERIFIED", "NOT_APPLICABLE")
 VERIFICATION_STATES = ("PASS", "ADVISORY", "UNVERIFIED", "NOT_APPLICABLE", "FAIL")
 AUDIT_STATES = VERIFICATION_STATES
+LATEST_RELEASE_URL = "https://api.github.com/repos/biagiolibe/meridian/releases/latest"
+LATEST_RELEASE_TIMEOUT_SECONDS = 3.0
+LATEST_RELEASE_RESPONSE_LIMIT = 1024 * 1024
+SELF_CHECK_UPDATE_AVAILABLE = 10
+SELF_CHECK_UNKNOWN = 11
 # Protocol v2 introduces capability declarations but keeps them optional for
 # legacy locked projects. A future protocol can make the declaration explicit
 # by advancing this boundary without changing the compatibility result below.
@@ -1554,6 +1561,99 @@ def version_key(value: str) -> tuple[int, ...]:
         return tuple(int(part) for part in value.split("."))
     except ValueError as error:
         raise MeridianError(f"invalid framework version: {value}") from error
+
+
+def semver_precedence_key(version: SemVer) -> tuple[object, ...]:
+    """Return a SemVer precedence key; build metadata is intentionally ignored."""
+    prerelease: tuple[tuple[int, object], ...]
+    if version.prerelease:
+        prerelease = tuple(
+            (0, int(identifier)) if identifier.isdigit() else (1, identifier)
+            for identifier in version.prerelease.split(".")
+        )
+        release_rank = 0
+    else:
+        prerelease = ()
+        release_rank = 1
+    return (version.major, version.minor, version.patch, release_rank, prerelease)
+
+
+def release_kind_from_body(body: str) -> str:
+    first_line = next((line.strip() for line in body.splitlines() if line.strip()), "")
+    if first_line.startswith("CLI-only release:"):
+        return "CLI-only"
+    if first_line.startswith("Template-changing release:"):
+        return "template-changing"
+    raise ValueError("release body has no recognized kind line")
+
+
+def fetch_latest_release(
+    installed_version: str,
+    *,
+    urlopen_fn=None,
+) -> tuple[str, str]:
+    """Return the latest release version and kind from GitHub's public API."""
+    request = Request(
+        LATEST_RELEASE_URL,
+        headers={
+            "Accept": "application/vnd.github+json",
+            "User-Agent": f"meridian/{installed_version}",
+        },
+    )
+    opener = urlopen if urlopen_fn is None else urlopen_fn
+    with opener(request, timeout=LATEST_RELEASE_TIMEOUT_SECONDS) as response:
+        payload = response.read(LATEST_RELEASE_RESPONSE_LIMIT + 1)
+    if len(payload) > LATEST_RELEASE_RESPONSE_LIMIT:
+        raise ValueError("response exceeds 1 MiB")
+    try:
+        document = json.loads(payload.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValueError("response is not valid UTF-8 JSON") from error
+    if not isinstance(document, dict):
+        raise ValueError("response root is not an object")
+    tag_name = document.get("tag_name")
+    body = document.get("body")
+    if not isinstance(tag_name, str) or not tag_name.startswith("v"):
+        raise ValueError("response has no valid v-prefixed tag_name")
+    if not isinstance(body, str):
+        raise ValueError("response has no release body")
+    latest_version = tag_name[1:]
+    parse_semver(latest_version)
+    return latest_version, release_kind_from_body(body)
+
+
+def run_self_check(framework_root: Path, *, urlopen_fn=None) -> int:
+    """Print the installed/latest comparison without mutating local state."""
+    installed_version = read_raw_version(framework_root)
+    installed = parse_semver(installed_version)
+    print(f"Installed: {installed_version}")
+    try:
+        latest_version, release_kind = fetch_latest_release(
+            installed_version,
+            urlopen_fn=urlopen_fn,
+        )
+        latest = parse_semver(latest_version)
+    except HTTPError as error:
+        print("Status: UNKNOWN")
+        print(f"Reason: GitHub returned HTTP {error.code}")
+        return SELF_CHECK_UNKNOWN
+    except (URLError, TimeoutError, OSError) as error:
+        reason = getattr(error, "reason", error)
+        print("Status: UNKNOWN")
+        print(f"Reason: network error: {reason}")
+        return SELF_CHECK_UNKNOWN
+    except (MeridianError, ValueError) as error:
+        print("Status: UNKNOWN")
+        print(f"Reason: malformed response: {error}")
+        return SELF_CHECK_UNKNOWN
+
+    print(f"Latest: {latest_version}")
+    print(f"Kind: {release_kind}")
+    if semver_precedence_key(latest) > semver_precedence_key(installed):
+        print("Status: UPDATE_AVAILABLE")
+        return SELF_CHECK_UPDATE_AVAILABLE
+    print("Status: UP_TO_DATE")
+    return 0
 
 
 def latest_migration_to(framework_root: Path, upto: str | None = None) -> str:
@@ -6178,6 +6278,16 @@ def main() -> int:
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
+    self_check = subparsers.add_parser(
+        "self-check", help="inspect this Meridian installation"
+    )
+    self_check.add_argument(
+        "--check-latest",
+        action="store_true",
+        required=True,
+        help="query the latest public GitHub Release",
+    )
+
     lock = subparsers.add_parser("lock", help="register a newly initialized project for deterministic upgrades")
     lock.add_argument("--project", type=Path, default=Path.cwd())
     lock.add_argument("--mode", choices=("lean-delivery", "governed-sdd"), required=True)
@@ -6458,6 +6568,8 @@ def main() -> int:
         else None
     )
     try:
+        if arguments.command == "self-check":
+            return run_self_check(framework_root)
         if arguments.command == "lock":
             lock_project(project_root, framework_root, arguments.mode)
         elif arguments.command == "adopt":

@@ -11,9 +11,10 @@ import sys
 import tempfile
 import tomllib
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest import mock
+from urllib.error import HTTPError, URLError
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -23,6 +24,139 @@ MARKER_END = "<!-- MERIDIAN:END -->"
 
 sys.path.insert(0, str(ROOT / "scripts"))
 import meridian  # noqa: E402
+
+
+class FakeLatestReleaseResponse:
+    def __init__(self, payload: bytes):
+        self.payload = payload
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        return False
+
+    def read(self, limit: int) -> bytes:
+        return self.payload[:limit]
+
+
+class SelfCheckLatestTest(unittest.TestCase):
+    def run_check(
+        self, payload: dict[str, object] | bytes
+    ) -> tuple[int, str, mock.Mock]:
+        encoded = payload if isinstance(payload, bytes) else json.dumps(payload).encode("utf-8")
+        opener = mock.Mock(return_value=FakeLatestReleaseResponse(encoded))
+        output = io.StringIO()
+        with redirect_stdout(output):
+            result = meridian.run_self_check(ROOT, urlopen_fn=opener)
+        return result, output.getvalue(), opener
+
+    def test_up_to_date_release(self) -> None:
+        installed = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
+        result, output, opener = self.run_check(
+            {
+                "tag_name": f"v{installed}",
+                "body": "CLI-only release: no managed files changed.\n",
+            }
+        )
+
+        self.assertEqual(result, 0)
+        self.assertIn("Status: UP_TO_DATE", output)
+        request = opener.call_args.args[0]
+        self.assertEqual(opener.call_args.kwargs["timeout"], 3.0)
+        self.assertEqual(request.full_url, meridian.LATEST_RELEASE_URL)
+        self.assertIsNone(request.get_header("Authorization"))
+
+    def test_update_available_release(self) -> None:
+        result, output, _ = self.run_check(
+            {
+                "tag_name": "v999.0.0",
+                "body": "Template-changing release: migration 999.\n",
+            }
+        )
+
+        self.assertEqual(result, meridian.SELF_CHECK_UPDATE_AVAILABLE)
+        self.assertIn("Kind: template-changing", output)
+        self.assertIn("Status: UPDATE_AVAILABLE", output)
+
+    def test_offline_is_unknown(self) -> None:
+        opener = mock.Mock(side_effect=URLError("offline"))
+        output = io.StringIO()
+        with redirect_stdout(output):
+            result = meridian.run_self_check(ROOT, urlopen_fn=opener)
+
+        self.assertEqual(result, meridian.SELF_CHECK_UNKNOWN)
+        self.assertIn("Status: UNKNOWN", output.getvalue())
+        self.assertIn("network error: offline", output.getvalue())
+
+    def test_rate_limited_is_unknown(self) -> None:
+        opener = mock.Mock(
+            side_effect=HTTPError(
+                meridian.LATEST_RELEASE_URL,
+                403,
+                "rate limit exceeded",
+                hdrs=None,
+                fp=None,
+            )
+        )
+        output = io.StringIO()
+        with redirect_stdout(output):
+            result = meridian.run_self_check(ROOT, urlopen_fn=opener)
+
+        self.assertEqual(result, meridian.SELF_CHECK_UNKNOWN)
+        self.assertIn("Status: UNKNOWN", output.getvalue())
+        self.assertIn("GitHub returned HTTP 403", output.getvalue())
+
+    def test_malformed_response_is_unknown(self) -> None:
+        result, output, _ = self.run_check(b"not-json")
+
+        self.assertEqual(result, meridian.SELF_CHECK_UNKNOWN)
+        self.assertIn("Status: UNKNOWN", output)
+        self.assertIn("malformed response", output)
+
+    def test_cli_dispatches_check_latest_without_real_network(self) -> None:
+        installed = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
+        response = FakeLatestReleaseResponse(
+            json.dumps(
+                {
+                    "tag_name": f"v{installed}",
+                    "body": "CLI-only release: no managed files changed.\n",
+                }
+            ).encode("utf-8")
+        )
+        output = io.StringIO()
+        with (
+            mock.patch.object(
+                sys,
+                "argv",
+                [
+                    "meridian",
+                    "--framework-root",
+                    str(ROOT),
+                    "self-check",
+                    "--check-latest",
+                ],
+            ),
+            mock.patch.object(meridian, "urlopen", return_value=response) as opener,
+            redirect_stdout(output),
+        ):
+            result = meridian.main()
+
+        self.assertEqual(result, 0)
+        self.assertIn("Status: UP_TO_DATE", output.getvalue())
+        opener.assert_called_once()
+
+    def test_self_check_without_opt_in_flag_never_opens_network(self) -> None:
+        with (
+            mock.patch.object(sys, "argv", ["meridian", "self-check"]),
+            mock.patch.object(meridian, "urlopen") as opener,
+            redirect_stderr(io.StringIO()),
+            self.assertRaises(SystemExit) as raised,
+        ):
+            meridian.main()
+
+        self.assertEqual(raised.exception.code, 2)
+        opener.assert_not_called()
 
 
 class MeridianCliTest(unittest.TestCase):
