@@ -139,10 +139,11 @@ framework is always updated **before** the project, because the project's
 manifest is only readable by a CLI at least as new as its `protocolVersion`.
 
 1. Read the release notes (Decision 5) and note the release kind.
-2. Move the pin: for Claude Code, remove the marketplace and add it again at
-   the new tag (or `/plugin marketplace update meridian` when it was added
-   without a pin), then update the plugin; for Codex, fetch and check out the
-   new tag.
+2. Move the pin: for Claude Code, remove the marketplace, add it again at
+   the new tag, and reinstall the plugin (removal uninstalls it, and re-adding
+   at a different ref is refused; verified in task 065), or use
+   `/plugin marketplace update meridian` when it was added without a pin; for
+   Codex, fetch and check out the new tag.
 3. From the project, run `meridian upgrade --check`.
 4. On a clean plan, apply it on a dedicated branch with
    `meridian upgrade --apply`, validate the project, and commit the diff.
