@@ -6,6 +6,7 @@ import contextlib
 import io
 import json
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -376,6 +377,69 @@ class CheckReleasesTest(unittest.TestCase):
         self.write_release("1.0.2", workflowBaselineVersion="1.0.0")
 
         self.assert_fails("migration-derived baseline")
+
+
+class MachinePathTest(unittest.TestCase):
+    """The guard rejects home-directory paths in tracked text files."""
+
+    # Built at runtime so this file does not contain a forbidden path itself.
+    FORBIDDEN = {
+        "macos": "/Us" + "ers/alice/dev/project",
+        "linux": "/ho" + "me/alice/project",
+        "windows": "C:\\Us" + "ers\\alice\\project",
+    }
+
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory()
+        self.root = Path(self.temporary.name)
+        subprocess.run(["git", "init", "-q", str(self.root)], check=True)
+
+    def tearDown(self) -> None:
+        self.temporary.cleanup()
+
+    def track(self, name: str, content: bytes) -> None:
+        path = self.root / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(content)
+        subprocess.run(["git", "-C", str(self.root), "add", name], check=True)
+
+    def assert_fails(self, fragment: str, **kwargs: object) -> None:
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output), self.assertRaises(SystemExit):
+            cr.check_no_machine_paths(self.root, **kwargs)
+        self.assertIn(fragment, output.getvalue())
+
+    def test_clean_tree_passes(self) -> None:
+        self.track("README.md", b"Use <checkout>/scripts and ../meridian-task-1.\n")
+        self.track("docs/a.md", b"path `/Us" + b"ers/<name>/x` placeholder\n")
+        self.track("image.bin", b"\xff\xfe" + self.FORBIDDEN["macos"].encode())
+
+        cr.check_no_machine_paths(self.root)
+
+    def test_each_forbidden_form_fails_naming_file_and_line(self) -> None:
+        for label, value in self.FORBIDDEN.items():
+            with self.subTest(label):
+                self.track(f"docs/{label}.md", f"ok\nsee {value} here\n".encode())
+                self.assert_fails(f"docs/{label}.md:2")
+                subprocess.run(
+                    ["git", "-C", str(self.root), "rm", "-q", "-f", f"docs/{label}.md"],
+                    check=True,
+                )
+
+    def test_untracked_file_is_ignored(self) -> None:
+        (self.root / "scratch.md").write_text(self.FORBIDDEN["macos"], encoding="utf-8")
+
+        cr.check_no_machine_paths(self.root)
+
+    def test_allowed_exception_passes_only_for_that_file(self) -> None:
+        self.track("frozen.md", self.FORBIDDEN["linux"].encode())
+        cr.check_no_machine_paths(self.root, allowed=frozenset({"frozen.md"}))
+
+        self.track("other.md", self.FORBIDDEN["linux"].encode())
+        self.assert_fails("other.md:1", allowed=frozenset({"frozen.md"}))
+
+    def test_repository_has_no_machine_paths(self) -> None:
+        cr.check_no_machine_paths()
 
 
 if __name__ == "__main__":

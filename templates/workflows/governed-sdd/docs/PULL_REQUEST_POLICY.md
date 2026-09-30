@@ -2,10 +2,10 @@
 
 Task context loading, reasoning selection, task shape, and completion handoffs are governed by `docs/CONTEXT_BUDGET_POLICY.md`, `tasks/TASK_BLUEPRINT.md`, and `docs/COMPLETION_REPORT_TEMPLATE.md`; this document defines review and forge integration only.
 
-<!-- MERIDIAN:BEGIN capability=task-worktree-integration v2 -->
+<!-- MERIDIAN:BEGIN capability=task-worktree-integration v3 -->
 For `Review: REQUIRED`, the implementer pushes the task branch once after
 validation for each review attempt and records its deterministic branch,
-absolute dedicated-worktree path, implementation commit, validated task and
+machine-independent dedicated-worktree value (relative to the worktree root, never an absolute path), implementation commit, validated task and
 base `main` commits, exact successful validation evidence, declared integration
 surface, full-validation requirement, and current task commit in the completion handoff. The reviewer-integrator
 uses that same task worktree in a fresh session after the implementer stops. It
@@ -41,7 +41,7 @@ review-and-status `ACCEPTED` commit.
 
 Final integration is serialized in the primary checkout under one exclusive
 integration lease, acquired by atomically creating
-`meridian-integration.lock` in the absolute common Git directory. An existing
+`meridian-integration.lock` in the absolute common Git directory, which is computed at runtime and never written to a tracked file. An existing
 lease is `BLOCKED`; only its owner removes it, and stale-lease removal requires
 explicit developer authorization. If the primary checkout is missing, dirty,
 cannot switch to `main`, or another integration owns the lease, return

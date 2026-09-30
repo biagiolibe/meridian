@@ -838,7 +838,7 @@ class MeridianCliTest(unittest.TestCase):
                 "capability=lifecycle-orchestration v3",
             )
             previous = re.sub(
-                r"<!-- MERIDIAN:BEGIN capability=task-worktree-handoff v2 -->.*?<!-- MERIDIAN:END -->",
+                r"<!-- MERIDIAN:BEGIN capability=task-worktree-handoff v3 -->.*?<!-- MERIDIAN:END -->",
                 "- Branch: `<task-branch>`\n"
                 "- Implementation commit: `<commit SHA>`\n"
                 "- Base `main` commit: `<commit SHA>`",
@@ -867,14 +867,14 @@ class MeridianCliTest(unittest.TestCase):
         self.assertIn("MIGRATION 047-codex-worktree-access", checked.stdout)
         applied = self.run_cli("upgrade", "--apply")
         self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
-        self.assertIn("capability=git-workflow v6", project_workflow.read_text(encoding="utf-8"))
+        self.assertIn("capability=git-workflow v7", project_workflow.read_text(encoding="utf-8"))
         self.assertIn("Consumer-owned note.", project_workflow.read_text(encoding="utf-8"))
         self.assertIn(
             "capability=task-worktree-boundary v3",
             (self.project / "docs/workflows/IMPLEMENTATION.md").read_text(encoding="utf-8"),
         )
         report = (self.project / "docs/COMPLETION_REPORT_TEMPLATE.md").read_text(encoding="utf-8")
-        self.assertIn("Worktree: `<absolute dedicated task-worktree path>`", report)
+        self.assertIn("never an absolute path", report)
         manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
         self.assertEqual(manifest["frameworkVersion"], "1.1.48")
         self.assertEqual(manifest["appliedMigrations"][-1], "051-bounded-worktree-lifecycle")
@@ -898,12 +898,12 @@ class MeridianCliTest(unittest.TestCase):
             for relative in changed_paths
         }
         previous_versions = {
-            "git-workflow": (6, 2),
+            "git-workflow": (7, 2),
             "lifecycle-orchestration": (7, 4),
             "task-worktree-review": (4, 1),
-            "task-worktree-integration": (2, 1),
-            "task-worktree-review-procedure": (4, 1),
-            "task-worktree-handoff": (2, 1),
+            "task-worktree-integration": (3, 1),
+            "task-worktree-review-procedure": (5, 1),
+            "task-worktree-handoff": (3, 1),
         }
         for relative, text in current.items():
             previous = text
@@ -939,10 +939,10 @@ class MeridianCliTest(unittest.TestCase):
         self.assertIn("MIGRATION 047-codex-worktree-access", checked.stdout)
         applied = self.run_cli("upgrade", "--apply")
         self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
-        self.assertIn("capability=git-workflow v6", project_workflow.read_text(encoding="utf-8"))
+        self.assertIn("capability=git-workflow v7", project_workflow.read_text(encoding="utf-8"))
         self.assertIn("Consumer-owned note.", project_workflow.read_text(encoding="utf-8"))
         self.assertIn(
-            "capability=task-worktree-handoff v2",
+            "capability=task-worktree-handoff v3",
             (self.project / "docs/COMPLETION_REPORT_TEMPLATE.md").read_text(encoding="utf-8"),
         )
         manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
@@ -1004,7 +1004,7 @@ worktree before the branch only after validated integration succeeds.
 
         previous = current.copy()
         previous["docs/workflows/REVIEW.md"] = re.sub(
-            r"<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v4 -->.*?<!-- MERIDIAN:END -->",
+            r"<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v5 -->.*?<!-- MERIDIAN:END -->",
             legacy_preflight,
             previous["docs/workflows/REVIEW.md"],
             count=1,
@@ -1021,7 +1021,7 @@ worktree before the branch only after validated integration succeeds.
             "capability=task-worktree-review v4", "capability=task-worktree-review v2"
         )
         previous["PROJECT_WORKFLOW.md"] = previous["PROJECT_WORKFLOW.md"].replace(
-            "capability=git-workflow v6", "capability=git-workflow v4"
+            "capability=git-workflow v7", "capability=git-workflow v4"
         )
         previous["docs/LIFECYCLE_ORCHESTRATION.md"] = previous[
             "docs/LIFECYCLE_ORCHESTRATION.md"
@@ -1050,8 +1050,8 @@ worktree before the branch only after validated integration succeeds.
         self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
 
         upgraded = review.read_text(encoding="utf-8")
-        self.assertIn("capability=implementer-reviewer-handoff v2", upgraded)
-        self.assertIn("capability=task-worktree-review-procedure v4", upgraded)
+        self.assertIn("capability=implementer-reviewer-handoff v3", upgraded)
+        self.assertIn("capability=task-worktree-review-procedure v5", upgraded)
         self.assertIn("Consumer-owned review note.", upgraded)
         self.assertNotIn("uses that same primary checkout", upgraded)
         self.assertNotIn("git switch <task-branch>", upgraded)
@@ -3491,7 +3491,7 @@ class CapabilityMarkerTest(unittest.TestCase):
         pull_request_policy = (self.WORKFLOW / "docs/PULL_REQUEST_POLICY.md").read_text(encoding="utf-8")
         self.assertEqual(
             self.marker_pairs(pull_request_policy),
-            [("task-worktree-integration", "2"), ("ci-verified-validation", "1")],
+            [("task-worktree-integration", "3"), ("ci-verified-validation", "1")],
         )
 
         code_review_prompt = (self.WORKFLOW / "docs/CODE_REVIEW_PROMPT.md").read_text(encoding="utf-8")
@@ -3508,7 +3508,7 @@ class CapabilityMarkerTest(unittest.TestCase):
         self.assertEqual(
             self.marker_pairs(completion_report),
             [
-                ("task-worktree-handoff", "2"),
+                ("task-worktree-handoff", "3"),
                 ("manual-verification-record", "1"),
                 ("ci-verified-validation", "1"),
             ],
@@ -3557,8 +3557,8 @@ class CapabilityMarkerTest(unittest.TestCase):
         }
         expected["execution-assets"] = "2"
         expected["roles"] = "2"
-        expected["git-workflow"] = "6"
-        expected["bounded-worktree-lifecycle"] = "1"
+        expected["git-workflow"] = "7"
+        expected["bounded-worktree-lifecycle"] = "2"
         expected["codex-worktree-access"] = "2"
         expected["task-identity-policy"] = "1"
         expected["task-lifecycle"] = "2"
@@ -3595,9 +3595,9 @@ class CapabilityMarkerTest(unittest.TestCase):
         self.assertIn(("command-triggers", "3"), self.marker_pairs((self.WORKFLOW / "AGENTS.md").read_text(encoding="utf-8")))
         review = self.marker_pairs((self.WORKFLOW / "docs/workflows/REVIEW.md").read_text(encoding="utf-8"))
         self.assertIn(("review-mode-boundary", "1"), review)
-        self.assertIn(("implementer-reviewer-handoff", "2"), review)
+        self.assertIn(("implementer-reviewer-handoff", "3"), review)
         self.assertIn(("reviewer-integrator-identity", "1"), review)
-        self.assertIn(("task-worktree-review-procedure", "4"), review)
+        self.assertIn(("task-worktree-review-procedure", "5"), review)
 
     def test_review_preflight_fails_closed_before_substantive_inspection(self) -> None:
         review = (self.WORKFLOW / "docs/workflows/REVIEW.md").read_text(encoding="utf-8")
@@ -5321,6 +5321,45 @@ class WorktreeLifecycleCliTest(unittest.TestCase):
         )
         self.assertEqual(correct.returncode, 0, correct.stderr)
         self.assertEqual(json.loads(correct.stdout)["status"], "ready")
+
+    def test_handoff_worktree_value_is_root_relative_and_legacy_absolute_is_accepted(self) -> None:
+        prepared = self.run_cli(
+            "worktree", "prepare", "056", "--project", str(self.project),
+            "--worktree-root", str(self.worktree_root), "--format", "json",
+        )
+        self.assertEqual(prepared.returncode, 0, prepared.stderr)
+        contract = json.loads(prepared.stdout)
+        relative = contract["handoff_worktree"]
+        self.assertFalse(Path(relative).is_absolute())
+        self.assertEqual(self.worktree_root.resolve() / relative, Path(contract["worktree"]))
+        printed = self.run_cli(
+            "worktree", "path", "056", "--project", str(self.project),
+            "--worktree-root", str(self.worktree_root), "--format", "json",
+        )
+        self.assertEqual(json.loads(printed.stdout)["handoff_worktree"], relative)
+        handoff = Path(contract["handoff"])
+        handoff.parent.mkdir(parents=True, exist_ok=True)
+
+        for value, expected in (
+            (relative, True),
+            (contract["worktree"], True),
+            ("elsewhere/task-056", False),
+        ):
+            with self.subTest(value=value):
+                handoff.write_text(f"- Worktree: `{value}`\n", encoding="utf-8")
+                result = self.run_cli(
+                    "worktree", "check", "056", "--project", str(self.project),
+                    "--worktree-root", str(self.worktree_root), "--format", "json",
+                    cwd=Path(contract["worktree"]),
+                )
+                report = json.loads(result.stdout)
+                self.assertEqual(report["handoff_worktree"], relative)
+                self.assertEqual(report["handoff_consistent"], expected)
+                if expected:
+                    self.assertEqual(result.returncode, 0, result.stdout)
+                else:
+                    self.assertEqual(result.returncode, 2)
+                    self.assertIn("handoff-mismatch", report["errors"])
 
     def test_usage_errors_exit_64(self) -> None:
         result = self.run_cli("worktree", "prepare", "056")

@@ -37,7 +37,7 @@ its evidence probe had already failed.
 |------|------|
 | `templates/workflows/governed-sdd/AGENTS.md` | `manual-verification-precondition` block. |
 | `templates/workflows/governed-sdd/CLAUDE.md` | Same block, second copy. |
-| `/Users/biagioliberto/dev/src/palimpsest/AGENTS.md` | Source wording to promote upward (`## Palimpsest manual-evidence extension`). Read-only reference. |
+| `<palimpsest-checkout>/AGENTS.md` | Source wording to promote upward (`## Palimpsest manual-evidence extension`). Read-only reference. |
 | `migrations/023-*.json` | New migration record. |
 
 ## 🧩 Technical Context

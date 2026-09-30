@@ -150,7 +150,7 @@ requires manual reconciliation. Repair never proves that a running session
 loaded the profile; start a fresh session and probe it.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=bounded-worktree-lifecycle v1 -->
+<!-- MERIDIAN:BEGIN capability=bounded-worktree-lifecycle v2 -->
 The coordinator runs `meridian worktree prepare` before creating an
 implementer, reviewer, or remediation session and passes the returned existing
 path, branch, primary checkout, and worktree root as durable launch inputs.
@@ -160,15 +160,19 @@ must not create a substitute checkout. Integration uses `meridian worktree
 integrate stage`, separately recorded candidate validation, and `integrate
 finalize` or `integrate abort`; verified post-push cleanup uses `meridian
 worktree cleanup`. See `docs/WORKTREE_LIFECYCLE.md`.
+Absolute paths are runtime launch inputs only. A handoff or other tracked
+record that names the worktree uses the `handoff_worktree` value returned by
+`meridian worktree prepare`, the path relative to the worktree root, never an
+absolute path.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=git-workflow v6 -->
+<!-- MERIDIAN:BEGIN capability=git-workflow v7 -->
 ## Git workflow
 
 - One writer at a time owns each task worktree. `meridian worktree prepare` consumes the shared task-identity resolver and repository-qualified path derivation, rejects partial or mismatched state, and returns the only branch and path workers may use.
 - Before any task read or mutation, the worker runs `meridian worktree check` from the exact prepared path. A host-created checkout, the primary checkout, or any sibling path is `BLOCKED` even when its branch and HEAD appear correct.
-- After validation, the implementer creates the task commit and pushes the task branch once for each review attempt. Its completion handoff records the task branch, absolute worktree path, implementation commit, validated task commit, validated base `main` commit, exact successful validation commands or CI evidence, the declared integration surface, and whether full combined-tree validation is required. It stops writing before review and leaves the dedicated worktree clean.
-- The reviewer-integrator's first review action in a fresh session is a fail-closed preflight against the completion handoff: before reading the task, implementation files, or diff, locate the recorded absolute path and branch in `git worktree list --porcelain`, confirm the implementer has stopped, and verify the registered path, branch, HEAD, cleanliness, validated task commit, and validated base commit. Any missing or mismatched evidence is `BLOCKED` and preserves all state. A session launched from the primary checkout roots every review read and Git command in the verified task worktree; it never switches or treats the primary checkout as the task checkout.
+- After validation, the implementer creates the task commit and pushes the task branch once for each review attempt. Its completion handoff records the task branch, the machine-independent worktree value (the `handoff_worktree` field returned by `meridian worktree prepare`: the path relative to the worktree root, never an absolute path), implementation commit, validated task commit, validated base `main` commit, exact successful validation commands or CI evidence, the declared integration surface, and whether full combined-tree validation is required. It stops writing before review and leaves the dedicated worktree clean.
+- The reviewer-integrator's first review action in a fresh session is a fail-closed preflight against the completion handoff: before reading the task, implementation files, or diff, resolve the recorded worktree value against the worktree root, then locate the resulting absolute path and the recorded branch in `git worktree list --porcelain`, confirm the implementer has stopped, and verify the registered path, branch, HEAD, cleanliness, validated task commit, and validated base commit. Any missing or mismatched evidence is `BLOCKED` and preserves all state. A session launched from the primary checkout roots every review read and Git command in the verified task worktree; it never switches or treats the primary checkout as the task checkout.
 - For `Review: REQUIRED`, the reviewer-integrator must never push the task branch. On `CHANGES_REQUESTED`, it creates a local review-handoff commit containing only the review record and the matching task/queue transition to `IN_PROGRESS`; it does not edit implementation artifacts. The implementer resolves that record, creates the next implementation commit, and pushes the branch once for the next review attempt. After `APPROVE`, create the local review-and-status `ACCEPTED` commit on the task branch.
 - For `Review: NOT_REQUIRED`, the implementer creates the same `ACCEPTED` status commit after validation. Neither path rebases, amends, cherry-picks, or force-pushes reviewed task commits.
 - Final integration is serialized in the primary checkout through `meridian worktree integrate stage`. That command verifies accepted evidence, owns the lease and prescribed no-commit merge, and returns the deterministic decision and candidate tree without running project code. Run the selected bounded or full gate separately in the ordinary sandbox, bind successful evidence to that tree, and call `integrate finalize`; call `integrate abort` after failure. Stale, incomplete, or mismatched evidence is `BLOCKED`.

@@ -363,6 +363,11 @@ def _task_worktree_path_for_identity(
     return result
 
 
+def handoff_worktree_value(worktree_root: Path, path: Path) -> str:
+    """Machine-independent handoff value: the path relative to the worktree root."""
+    return path.relative_to(worktree_root.expanduser().resolve()).as_posix()
+
+
 def task_worktree_path(project_root: Path, worktree_root: Path, task_id: str) -> Path:
     """Compatibility derivation for callers that may be planning a new task."""
     return _task_worktree_path_for_identity(
@@ -554,7 +559,12 @@ def prepare_task_worktree(
         "handoff": str(identity.handoff_path),
     }
     _write_json_atomic(state_path, state)
-    return {**state, "created": created, "next_action": "check"}
+    return {
+        **state,
+        "handoff_worktree": handoff_worktree_value(root, path),
+        "created": created,
+        "next_action": "check",
+    }
 
 
 def inspect_task_worktree(
@@ -615,12 +625,12 @@ def inspect_task_worktree(
         handoff_text = identity.handoff_path.read_text(encoding="utf-8")
         expected_fields = {
             "Branch": identity.branch_name,
-            "Worktree": str(expected),
-            "Base `main` commit": str(state.get("base_commit", "")),
+            "Worktree": (handoff_worktree_value(root, expected), str(expected)),
+            "Base `main` commit": (str(state.get("base_commit", "")),),
         }
-        for label, value in expected_fields.items():
+        for label, accepted in expected_fields.items():
             match = re.search(rf"^- {re.escape(label)}:\s*`([^`]+)`", handoff_text, re.MULTILINE)
-            if match is not None and match.group(1) != value:
+            if match is not None and match.group(1) not in accepted:
                 errors.append("handoff-mismatch")
                 handoff_consistent = False
                 break
@@ -632,6 +642,7 @@ def inspect_task_worktree(
         "worktree": str(expected),
         "git_common_dir": str(canonical_git_common_dir(project_root)),
         "canonical_prepared_path": str(expected),
+        "handoff_worktree": handoff_worktree_value(root, expected),
         "effective_worker_path": str(current),
         "base_commit": state.get("base_commit", ""),
         "task_commit": head,
@@ -6534,7 +6545,13 @@ def main() -> int:
                 )
                 validate_worktree_collision(canonical_project, path, arguments.task_id)
                 if arguments.format == "json":
-                    print(json.dumps({"version": 1, "path": str(path)}, sort_keys=True))
+                    print(json.dumps({
+                        "version": 1,
+                        "path": str(path),
+                        "handoff_worktree": handoff_worktree_value(
+                            _effective_worktree_root(arguments.worktree_root), path
+                        ),
+                    }, sort_keys=True))
                 else:
                     print(path)
             elif arguments.worktree_command == "prepare":

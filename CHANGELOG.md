@@ -13,6 +13,22 @@ separate, slower cadence: it advances only in releases that ship a migration, so
 a CLI-only release appears here without moving it. `releases/<version>.json`
 records which release moved it.
 
+## [1.1.52]
+
+Template-changing release: migration `054-machine-independent-worktree-handoff`
+advances `workflowBaselineVersion` to `1.1.52`.
+
+### Changed
+
+- Completion handoffs no longer record an absolute task-worktree path, so
+  tracked records resolve on every machine. They record `handoff_worktree`, the
+  path relative to the worktree root, which `meridian worktree path`, `prepare`,
+  and `check` now return. `check` accepts both that value and a legacy absolute
+  value, so handoffs already written are not rewritten. Runtime uses of the
+  absolute path are unchanged.
+- `scripts/check_repository.py` rejects machine-specific home-directory paths
+  in tracked text files.
+
 ## [1.1.51]
 
 Template-changing release: migration `053-codex-profile-repair-guidance`

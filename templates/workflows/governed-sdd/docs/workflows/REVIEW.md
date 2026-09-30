@@ -2,7 +2,7 @@
 
 Use this procedure only for `Review <TASK-ID>` after the entry-point router has applied its always-loaded invariants.
 
-<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v4 -->
+<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v5 -->
 ## Mandatory task-worktree preflight
 
 This is the first review action. Before reading the assigned task,
@@ -13,7 +13,7 @@ implementation files, or any implementation diff:
    <primary-checkout> --worktree-root <root> --format json`. A blocked result
    stops before any other read; never use host automatic worktree isolation.
 2. Resolve the canonical completion-handoff location and read only that
-   handoff. Obtain its absolute task-worktree path, task branch, current task
+   handoff. Obtain its task-worktree value (relative to the worktree root), task branch, current task
    commit, validated task commit, and validated base `main` commit. Confirm
    that the implementer session has stopped. A missing field, missing handoff,
    or active or unconfirmed implementer is `BLOCKED`.
@@ -21,7 +21,7 @@ implementation files, or any implementation diff:
    branch, HEAD, base, clean state, and repository. As an additional bounded
    check, run `git worktree list
    --porcelain` and locate exactly one registered entry whose normalized
-   absolute path is the handoff path. The entry must record the handoff branch
+   absolute path equals the handoff value resolved against the worktree root. The entry must record the handoff branch
    as `refs/heads/<task-branch>` and the handoff current task commit as its
    `HEAD`. Do not infer the task worktree from the session's initial current
    directory. If the path is absent, unregistered, duplicated, or disagrees
@@ -74,12 +74,12 @@ the review record, make the two `ACCEPTED` status edits, and commit those three
 artifacts with the required reviewer-integrator author override.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=implementer-reviewer-handoff v2 -->
+<!-- MERIDIAN:BEGIN capability=implementer-reviewer-handoff v3 -->
 ## Implementer-to-reviewer handoff
 
 After validation, create the task commit and push the task branch once for each
 review attempt. The completion handoff must record the branch name,
-absolute linked-worktree path, implementation and current task commits,
+linked-worktree value (relative to the worktree root, never an absolute path), implementation and current task commits,
 validated task and base `main` commits, successful validation evidence, and
 declared integration surface. Stop the implementer and leave the registered
 task worktree clean before starting the fresh reviewer session. This durable
