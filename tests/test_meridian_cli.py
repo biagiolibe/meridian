@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import json
 import io
+import json
 import re
 import shutil
 import subprocess
@@ -12,6 +12,7 @@ import tempfile
 import tomllib
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
+from http.client import IncompleteRead
 from pathlib import Path
 from unittest import mock
 from urllib.error import HTTPError, URLError
@@ -88,6 +89,21 @@ class SelfCheckLatestTest(unittest.TestCase):
         self.assertEqual(result, meridian.SELF_CHECK_UNKNOWN)
         self.assertIn("Status: UNKNOWN", output.getvalue())
         self.assertIn("network error: offline", output.getvalue())
+
+    def test_interrupted_response_is_unknown(self) -> None:
+        response = mock.MagicMock()
+        response.__enter__.return_value.read.side_effect = IncompleteRead(
+            b'{"tag_name": "v999.0.0"',
+            10,
+        )
+        opener = mock.Mock(return_value=response)
+        output = io.StringIO()
+        with redirect_stdout(output):
+            result = meridian.run_self_check(ROOT, urlopen_fn=opener)
+
+        self.assertEqual(result, meridian.SELF_CHECK_UNKNOWN)
+        self.assertIn("Status: UNKNOWN", output.getvalue())
+        self.assertIn("network error:", output.getvalue())
 
     def test_rate_limited_is_unknown(self) -> None:
         opener = mock.Mock(
