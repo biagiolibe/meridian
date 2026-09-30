@@ -171,7 +171,7 @@ def check_governed_review_worktree_contract(root: Path = ROOT) -> None:
                 )
 
     review = review_paths[-1].read_text(encoding="utf-8")
-    preflight = "<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v4 -->"
+    preflight = "<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v5 -->"
     boundary = "<!-- MERIDIAN:BEGIN capability=review-mode-boundary v1 -->"
     required = (
         "Before reading the assigned task",
@@ -440,6 +440,40 @@ def check_capability_marker_baselines(root: Path = ROOT) -> None:
                 fail(f"{relative}: recorded capability={capability} baseline no longer present in the template")
 
 
+# Tracked records identify checkouts and worktrees by names or paths relative
+# to a root, so they resolve on every machine. Absolute home-directory paths
+# exist only at runtime. Files listed here are frozen exceptions; none today.
+MACHINE_PATH_ALLOWED_FILES: frozenset[str] = frozenset()
+MACHINE_PATH_PATTERN = re.compile(
+    r"/Users/[A-Za-z0-9_.-]+/"
+    r"|/home/[A-Za-z0-9_.-]+/"
+    r"|[A-Za-z]:[\\/]Users[\\/][A-Za-z0-9_.-]+[\\/]"
+)
+
+
+def check_no_machine_paths(
+    root: Path = ROOT, allowed: frozenset[str] = MACHINE_PATH_ALLOWED_FILES
+) -> None:
+    listed = subprocess.run(
+        ["git", "-C", str(root), "ls-files", "-z"],
+        capture_output=True,
+        check=False,
+    )
+    if listed.returncode != 0:
+        fail("cannot list tracked files to check for machine-specific paths")
+    for name in listed.stdout.decode("utf-8").split("\0"):
+        path = root / name
+        if not name or name in allowed or not path.is_file():
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            continue
+        for number, line in enumerate(text.splitlines(), start=1):
+            if MACHINE_PATH_PATTERN.search(line):
+                fail(f"machine-specific absolute path in {name}:{number}")
+
+
 def main() -> None:
     if "--write-marker-baselines" in sys.argv[1:]:
         write_marker_baselines()
@@ -456,6 +490,7 @@ def main() -> None:
     check_bash()
     check_local_markdown_links()
     check_capability_marker_baselines()
+    check_no_machine_paths()
     print("Meridian repository checks passed.")
 
 

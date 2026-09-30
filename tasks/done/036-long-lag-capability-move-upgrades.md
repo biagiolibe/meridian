@@ -45,7 +45,7 @@ when planning to the current framework release.
 
 - Fusa's manifest is locked at `1.1.23`; its entry points carry legitimate
   project-owned text and the installed baseline contains older marker forms.
-- A current `meridian upgrade --project /Users/biagioliberto/dev/src/fusa --check`
+- A current `meridian upgrade --project <fusa-checkout> --check`
   reports `CONFLICT AGENTS.md` and `CONFLICT CLAUDE.md` for migration 038's
   source checks before any write.
 - The safety invariant is not negotiable: a real local protected-marker edit

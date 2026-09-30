@@ -40,7 +40,7 @@ loading a universal monolith.
 
 ## Execution record
 
-2026-09-13 — `meridian upgrade --project /Users/biagioliberto/dev/src/palimpsest --check`
+2026-09-13 — `meridian upgrade --project <palimpsest-checkout> --check`
 reported `CONFLICT AGENTS.md — capability move
 038-compact-entry-point-routers source file differs from the installed
 baseline`. The plan also identified a safe `APPEND-MARKERS` action for the
@@ -82,12 +82,12 @@ mapping are recorded in
 
 Final validation on 2026-09-14:
 
-- `bin/meridian upgrade --project /Users/biagioliberto/dev/src/palimpsest --check`
+- `bin/meridian upgrade --project <palimpsest-checkout> --check`
   — exit 0; version 1.1.35 to 1.1.35, all managed files `KEEP`.
-- `bin/meridian audit --project /Users/biagioliberto/dev/src/palimpsest --mode governed-sdd`
+- `bin/meridian audit --project <palimpsest-checkout> --mode governed-sdd`
   — exit 0; all reported checks pass.
-- `bin/meridian generate-entry-routers --project /Users/biagioliberto/dev/src/palimpsest --check`
+- `bin/meridian generate-entry-routers --project <palimpsest-checkout> --check`
   — exit 0; generated routers match the canonical source.
-- `git -C /Users/biagioliberto/dev/src/palimpsest diff --check` — exit 0.
+- `git -C <palimpsest-checkout> diff --check` — exit 0.
 - `python3 scripts/check_repository.py` — exit 0.
 - `git diff --check` — exit 0.

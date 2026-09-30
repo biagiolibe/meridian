@@ -4,7 +4,7 @@
 > **Category**: Architecture
 > **Priority**: 🟡 P2
 > **Estimate**: ~2-3h
-> **Assigned to**: unassigned
+> **Assigned to**: Claude (Lean Delivery, worktree `task-053`)
 > **Session**: 2026-09-26 consumer entry-router drift investigation
 
 ## 🎯 Objective
@@ -20,13 +20,13 @@ existing occurrences, and add a repository guard.
 
 ## 📋 Acceptance Criteria
 
-- [ ] Meridian's `PROJECT_WORKFLOW.md` and both workflow templates record the
+- [x] Meridian's `PROJECT_WORKFLOW.md` and both workflow templates record the
       task worktree by a machine-independent value instead of an absolute
       path: the deterministic sibling name `<primary-checkout-name>-task-<n>`
       (or a path relative to the primary checkout, such as
       `../<name>-task-<n>`). The runtime mapping check resolves it against
       `git worktree list --porcelain`, so verification strength is unchanged.
-- [ ] Every template passage that asks for an absolute worktree path is
+- [x] Every template passage that asks for an absolute worktree path is
       updated: `governed-sdd/PROJECT_WORKFLOW.md` (git-workflow),
       `governed-sdd/docs/PULL_REQUEST_POLICY.md`,
       `governed-sdd/docs/COMPLETION_REPORT_TEMPLATE.md` (task-worktree-handoff),
@@ -34,23 +34,23 @@ existing occurrences, and add a repository guard.
       `lean-delivery/PROJECT_WORKFLOW.md`. Each changed protected region gets
       a capability version bump and a new migration record, with marker
       baselines rewritten deliberately.
-- [ ] The "absolute common Git directory" used for
+- [x] The "absolute common Git directory" used for
       `meridian-integration.lock` is left as is: it is computed at runtime and
       never written to a tracked file. The text says so explicitly.
-- [ ] Existing occurrences in live documents are replaced by
+- [x] Existing occurrences in live documents are replaced by
       machine-independent wording (for example `<palimpsest-checkout>` or
       `--project ../palimpsest`): `docs/PALIMPSEST_ROUTING_EVOLUTION_EVIDENCE.md`
       and `tasks/handoffs/051.md`. The task decides and records whether
       archived records in `tasks/done/` are rewritten or listed as a
       documented, frozen exception.
-- [ ] A new `check_no_machine_paths()` in `scripts/check_repository.py`
+- [x] A new `check_no_machine_paths()` in `scripts/check_repository.py`
       fails on `/Users/<name>/` and `/home/<name>/` (and a Windows
       `C:\Users\<name>\` form) in tracked text files, honoring only the
       exceptions recorded above; it is called from `main()`.
-- [ ] Fixtures in `tests/test_check_repository.py`: a clean tree passes; a
+- [x] Fixtures in `tests/test_check_repository.py`: a clean tree passes; a
       tracked file with each forbidden form fails and names the file and
       line; an allowed exception passes.
-- [ ] `python3 scripts/check_repository.py` and
+- [x] `python3 scripts/check_repository.py` and
       `python3 -m unittest discover -s tests -v` pass.
 
 ## 📁 Relevant Files
@@ -92,6 +92,26 @@ existing occurrences, and add a repository guard.
   in queue order and re-check `check_migrations()` after each merge.
 - Consumer handoffs already written with absolute paths are not rewritten by
   the migration; document this in the migration description.
+
+## ✅ Completion Notes
+
+- **Recorded value**: task 054 moved worktrees to
+  `<root>/<host>/<owner>/<repo>/task-<n>`, so the sibling name in the first
+  criterion no longer names anything, and a path relative to the primary
+  checkout would change whenever the checkout moves. Handoffs record
+  `handoff_worktree`, the path relative to the worktree root, returned by
+  `meridian worktree path`, `prepare`, and `check`. `check` also accepts a
+  legacy absolute value. A repository without a usable remote has a
+  hash-based name, so its value is portable only across machines sharing that
+  hash.
+- **Existing occurrences**: every occurrence in tracked files, including
+  `tasks/done/` and `tasks/handoffs/`, was rewritten; the guard has no frozen
+  exceptions (`MACHINE_PATH_ALLOWED_FILES` is empty).
+- **Governed lifecycle region**: migration 054 also bumps
+  `bounded-worktree-lifecycle` to v2 in both workflows.
+- **Self-hosting manifest**: the root `PROJECT_WORKFLOW.md` changed, so its
+  digest in `.meridian/manifest.json` was refreshed.
+- **Review**: protected-template change; a review is recommended.
 
 ## 🔗 Dependencies
 

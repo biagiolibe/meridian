@@ -252,7 +252,7 @@
           "hostActivation": {},
           "installation": {
             "evidence": [
-              "sha256:45b406a9a6f4823ad6e13b1eb8552de5ec09a67de1401a32f9b1844f6ab065d9",
+              "sha256:e7511808fac7678dce63d409ba333cd088dca8a4002af1da3c047018c07d5563",
               "sha256:c3e309045276a64762e8687e3b1569b681989eeacba1c0790054bc8e8563d821"
             ],
             "notApplicableRationale": null,
@@ -287,7 +287,7 @@
           },
           "installation": {
             "evidence": [
-              "sha256:45b406a9a6f4823ad6e13b1eb8552de5ec09a67de1401a32f9b1844f6ab065d9",
+              "sha256:e7511808fac7678dce63d409ba333cd088dca8a4002af1da3c047018c07d5563",
               "sha256:54c4cf4e218e7a7c6e6fd764a584c1863c14234cd29c7414588e9e06b5d5ec18",
               "sha256:a6ac45e832ad048fb13aa72e264383f39ed8ebf4a35958130fc533883bcf687a",
               "sha256:e390fd40cf9eb1ce8dc5f90eaac7073123701134edb35c66307f01c062069834"
@@ -333,7 +333,7 @@
     "AGENTS.md": "a6ac45e832ad048fb13aa72e264383f39ed8ebf4a35958130fc533883bcf687a",
     "CLAUDE.md": "54c4cf4e218e7a7c6e6fd764a584c1863c14234cd29c7414588e9e06b5d5ec18",
     "LANGUAGE_POLICY.md": "65fc7654c6d37865fae03290b4c21304efee616bbb8615fa298c3e55abfdf558",
-    "PROJECT_WORKFLOW.md": "45b406a9a6f4823ad6e13b1eb8552de5ec09a67de1401a32f9b1844f6ab065d9",
+    "PROJECT_WORKFLOW.md": "e7511808fac7678dce63d409ba333cd088dca8a4002af1da3c047018c07d5563",
     "docs/CONTEXT_BUDGET_POLICY.md": "c3e309045276a64762e8687e3b1569b681989eeacba1c0790054bc8e8563d821",
     "docs/EXECUTION_EVIDENCE_PROFILE.md": "6f97fbd7ca7e7888f06fc8daf115a94605a707192f407cf3a5f54b9bce99a584"
   },

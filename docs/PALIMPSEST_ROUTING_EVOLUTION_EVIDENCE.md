@@ -130,13 +130,13 @@ classified as insufficient and was not used as task 026 evidence.
 The task 026 validation was repeated against the current Palimpsest checkout
 after the routed-session evidence was collected:
 
-- `meridian upgrade --project /Users/biagioliberto/dev/src/palimpsest --check`
+- `meridian upgrade --project <palimpsest-checkout> --check`
   — exit 0; `1.1.35 -> 1.1.35`, all managed files `KEEP`.
-- `meridian audit --project /Users/biagioliberto/dev/src/palimpsest --mode governed-sdd`
+- `meridian audit --project <palimpsest-checkout> --mode governed-sdd`
   — exit 0; all reported capability checks pass.
-- `meridian generate-entry-routers --project /Users/biagioliberto/dev/src/palimpsest --check`
+- `meridian generate-entry-routers --project <palimpsest-checkout> --check`
   — exit 0; generated entry routers match their canonical source.
-- `git -C /Users/biagioliberto/dev/src/palimpsest diff --check` — exit 0.
+- `git -C <palimpsest-checkout> diff --check` — exit 0.
 
 The current Palimpsest checkout is clean on `main`. The accepted WFLOW-004,
 WFLOW-005, and WFLOW-006 commits are all ancestors of the current checkout.

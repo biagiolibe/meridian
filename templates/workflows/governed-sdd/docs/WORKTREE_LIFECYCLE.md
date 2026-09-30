@@ -31,3 +31,12 @@ executes project-provided commands.
 
 `meridian codex worktree-path` is deprecated for one migration window. New
 instructions and automation use `meridian worktree path`.
+
+The absolute worktree path is a runtime value and is never written to a tracked
+file. `path`, `prepare`, and `check` also return `handoff_worktree`, the path
+relative to the worktree root (for example `github.com/<owner>/<repository>/task-<n>`),
+which is the value completion handoffs record. Resolving it against the worktree
+root yields the same path on every machine. A repository without a usable remote
+uses a local name plus a Git-common-directory hash, so its value is stable only
+on the machines that share that hash. `check` also accepts a legacy absolute
+`Worktree:` value in an existing handoff.
