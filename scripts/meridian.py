@@ -17,7 +17,7 @@ import tomllib
 import unicodedata
 from dataclasses import dataclass
 from enum import Enum
-from http.client import IncompleteRead
+from http.client import HTTPException
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
@@ -1638,7 +1638,7 @@ def run_self_check(framework_root: Path, *, urlopen_fn=None) -> int:
         print("Status: UNKNOWN")
         print(f"Reason: GitHub returned HTTP {error.code}")
         return SELF_CHECK_UNKNOWN
-    except (IncompleteRead, URLError, TimeoutError, OSError) as error:
+    except (HTTPException, URLError, TimeoutError, OSError) as error:
         reason = getattr(error, "reason", error)
         print("Status: UNKNOWN")
         print(f"Reason: network error: {reason}")
