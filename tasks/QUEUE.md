@@ -39,7 +39,7 @@ queue, task descriptions, dependencies, and local Git state.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[ ]` | 070 | Build a read-only project console with automatic local refresh | 🟡 P2 | 063 | [070](070-build-project-console.md) |
+| `[/]` | 070 | Build a read-only project console with automatic local refresh | 🟡 P2 | 063 | [070](070-build-project-console.md) |
 
 ### Phase 24 — Review worktree routing correction
 
