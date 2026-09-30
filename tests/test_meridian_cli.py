@@ -12,7 +12,7 @@ import tempfile
 import tomllib
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
-from http.client import IncompleteRead
+from http.client import BadStatusLine, IncompleteRead
 from pathlib import Path
 from unittest import mock
 from urllib.error import HTTPError, URLError
@@ -104,6 +104,16 @@ class SelfCheckLatestTest(unittest.TestCase):
         self.assertEqual(result, meridian.SELF_CHECK_UNKNOWN)
         self.assertIn("Status: UNKNOWN", output.getvalue())
         self.assertIn("network error:", output.getvalue())
+
+    def test_malformed_http_status_line_is_unknown(self) -> None:
+        opener = mock.Mock(side_effect=BadStatusLine("garbled status"))
+        output = io.StringIO()
+        with redirect_stdout(output):
+            result = meridian.run_self_check(ROOT, urlopen_fn=opener)
+
+        self.assertEqual(result, meridian.SELF_CHECK_UNKNOWN)
+        self.assertIn("Status: UNKNOWN", output.getvalue())
+        self.assertIn("network error: garbled status", output.getvalue())
 
     def test_rate_limited_is_unknown(self) -> None:
         opener = mock.Mock(
