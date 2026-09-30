@@ -32,6 +32,15 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, and 25
 are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 
+### Phase 26 — Project console presentation
+
+Align the local console with the approved compact shell design while keeping
+its read-only behavior and project-state sources.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 071 | Apply the compact dark shell design to the project console | 🟡 P2 | 070 | [071](071-apply-compact-console-design.md) |
+
 ### Phase 24 — Review worktree routing correction
 
 Removes contradictory Governed SDD instructions that can send a fresh
