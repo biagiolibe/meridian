@@ -39,7 +39,7 @@
 - `[ ]` 068 — Document and test the upgrade support policy.
 - `[ ]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.
-- `[ ]` 053 — Remove machine-specific absolute paths from tracked records.
+- `[/]` 053 — Remove machine-specific absolute paths from tracked records.
 
 `tasks/QUEUE.md` is the operational source for ordering, dependencies, and
 phase status. Completed delivery records are archived in
