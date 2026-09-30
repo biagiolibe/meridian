@@ -40,6 +40,7 @@ class Task:
     criteria: tuple[str, ...]
     worktree: str | None = None
     readiness: str = ""
+    updated_at: int | None = None
 
     @property
     def next_action(self) -> str:
@@ -147,6 +148,16 @@ def _worktrees(project: Path) -> dict[str, str]:
     return records
 
 
+def _committed_update(project: Path, path: Path) -> int | None:
+    """Return the last committed change to a task record, when Git knows it."""
+    relative = path.relative_to(project).as_posix()
+    try:
+        value = _git(project, "log", "-1", "--format=%ct", "--", relative).strip()
+        return int(value) if value else None
+    except (ConsoleError, ValueError):
+        return None
+
+
 def load_snapshot(project: Path) -> Snapshot:
     project = project.expanduser().resolve()
     workflow = project / "PROJECT_WORKFLOW.md"
@@ -205,6 +216,7 @@ def load_snapshot(project: Path) -> Snapshot:
             objective=_section(task_text, "Objective"),
             criteria=_section(task_text, "Acceptance Criteria"),
             worktree=worktrees.get(branch_name), readiness=readiness,
+            updated_at=_committed_update(project, path),
         ))
     return Snapshot(
         project=project, queue=queue, branch=branch_line,
@@ -260,7 +272,63 @@ def _put(screen, y: int, x: int, value: str, width: int, attr: int = 0) -> None:
     height, screen_width = screen.getmaxyx()
     if y < 0 or y >= height or x >= screen_width or width <= 0:
         return
-    screen.addnstr(y, x, value, min(width, screen_width - x - 1), attr)
+    try:
+        screen.addnstr(y, x, value, min(width, screen_width - x - 1), attr)
+    except curses.error:
+        pass
+
+
+def _fill(screen, y: int, x: int, width: int, attr: int) -> None:
+    _put(screen, y, x, " " * max(0, width), width, attr)
+
+
+def _palette(screen) -> dict[str, int]:
+    """Paint the entire terminal with a dark surface, even under a light theme."""
+    if not curses.has_colors():
+        screen.bkgd(" ", curses.A_NORMAL)
+        return {
+            "base": curses.A_NORMAL, "text": curses.A_BOLD,
+            "muted": curses.A_DIM, "line": curses.A_DIM,
+            "ready": curses.A_BOLD, "working": curses.A_BOLD,
+            "blocked": curses.A_BOLD, "unknown": curses.A_BOLD,
+            "stale": curses.A_REVERSE | curses.A_BOLD,
+            "selected": curses.A_REVERSE | curses.A_BOLD,
+            "tab": curses.A_REVERSE, "title": curses.A_BOLD,
+            "action": curses.A_BOLD,
+        }
+    curses.start_color()
+    if curses.COLORS >= 256:
+        colors = (
+            (253, 233), (253, 233), (245, 233), (240, 233),
+            (80, 233), (141, 233), (221, 233), (203, 233),
+            (231, 52), (16, 75), (253, 238), (181, 233), (150, 233),
+        )
+    else:
+        colors = (
+            (curses.COLOR_WHITE, curses.COLOR_BLACK),
+            (curses.COLOR_WHITE, curses.COLOR_BLACK),
+            (curses.COLOR_WHITE, curses.COLOR_BLACK),
+            (curses.COLOR_WHITE, curses.COLOR_BLACK),
+            (curses.COLOR_CYAN, curses.COLOR_BLACK),
+            (curses.COLOR_MAGENTA, curses.COLOR_BLACK),
+            (curses.COLOR_YELLOW, curses.COLOR_BLACK),
+            (curses.COLOR_RED, curses.COLOR_BLACK),
+            (curses.COLOR_WHITE, curses.COLOR_RED),
+            (curses.COLOR_BLACK, curses.COLOR_CYAN),
+            (curses.COLOR_WHITE, curses.COLOR_BLUE),
+            (curses.COLOR_MAGENTA, curses.COLOR_BLACK),
+            (curses.COLOR_GREEN, curses.COLOR_BLACK),
+        )
+    names = ("base", "text", "muted", "line", "ready", "working",
+             "blocked", "unknown", "stale", "selected", "tab", "title", "action")
+    palette = {}
+    for index, (name, (foreground, background)) in enumerate(zip(names, colors), 1):
+        curses.init_pair(index, foreground, background)
+        palette[name] = curses.color_pair(index)
+    palette["text"] |= curses.A_BOLD
+    palette["title"] |= curses.A_BOLD
+    screen.bkgd(" ", palette["base"])
+    return palette
 
 
 def _wrapped(lines: tuple[str, ...] | list[str], width: int) -> list[str]:
@@ -270,15 +338,179 @@ def _wrapped(lines: tuple[str, ...] | list[str], width: int) -> list[str]:
     return output
 
 
+def _state_label(task: Task) -> tuple[str, str]:
+    if task.readiness == "READY":
+        return "Ready", "ready"
+    if task.readiness == "IN PROGRESS":
+        return "Working", "working"
+    if task.readiness.startswith("BLOCKED"):
+        return "Blocked", "blocked"
+    return "Unknown", "unknown"
+
+
+def _age(timestamp: int | None) -> str:
+    if timestamp is None:
+        return "—"
+    seconds = max(0, int(time.time()) - timestamp)
+    if seconds < 60:
+        return "now"
+    if seconds < 3600:
+        return f"{seconds // 60}m ago"
+    if seconds < 86400:
+        return f"{seconds // 3600}h ago"
+    return f"{seconds // 86400}d ago"
+
+
+def _clip(value: str, width: int) -> str:
+    return value if len(value) <= width else value[:max(0, width - 1)] + "…"
+
+
+def _detail_lines(task: Task, width: int, palette: dict[str, int]) -> list[tuple[str, int]]:
+    lines: list[tuple[str, int]] = []
+
+    def add(value: str, style: str = "base") -> None:
+        for part in _wrapped([value], width):
+            lines.append((part, palette[style]))
+
+    label, color = _state_label(task)
+    add("Task details", "text")
+    add("")
+    add(f"{task.task_id}  {task.title}", "title")
+    add(f"○ {label}", color)
+    add("")
+    add("Phase", "muted")
+    add(task.phase)
+    add("Objective", "muted")
+    for value in task.objective or ("Unavailable",):
+        add(value)
+    add("Dependencies", "muted")
+    add(", ".join(task.dependencies) or "none")
+    add("Next directive", "muted")
+    add(task.next_action, "action")
+    add("Worktree", "muted")
+    add(task.worktree or "none")
+    add("Acceptance criteria", "muted")
+    for value in task.criteria or ("Unavailable",):
+        add(value)
+    add("Project path", "muted")
+    add(str(task.path.parent.parent))
+    return lines
+
+
+def _visible_tasks(snapshot: Snapshot | None, status_filter: str, search: str) -> list[Task]:
+    tasks = snapshot.tasks if snapshot else ()
+    return [
+        task for task in tasks
+        if (status_filter == "All" or _state_label(task)[0] == status_filter)
+        and search.casefold() in f"{task.task_id} {task.title}".casefold()
+    ]
+
+
+def _draw_header(screen, state: ConsoleState, palette: dict[str, int],
+                 status_filter: str, width: int) -> None:
+    snapshot = state.snapshot
+    project_name = snapshot.project.name if snapshot else state.project.name
+    _put(screen, 0, 1, "Meridian project console", width - 2, palette["text"])
+    _put(screen, 0, 27, f"Project: {project_name}", width - 28, palette["muted"])
+    branch = snapshot.branch if snapshot else "unavailable"
+    summary = snapshot.git_summary if snapshot else "unknown"
+    stamp = state.last_success.strftime("%H:%M:%S") if state.last_success else "never"
+    _put(screen, 1, 1, f"{branch} · {summary} · updated {stamp}", width - 2, palette["muted"])
+    if state.error:
+        _put(screen, 1, max(1, width - 16), "STALE", 7, palette["stale"])
+    counts = {name: 0 for name in ("Ready", "Working", "Blocked", "Unknown")}
+    for task in snapshot.tasks if snapshot else ():
+        counts[_state_label(task)[0]] += 1
+    tabs = (("All", sum(counts.values())), *((name, count) for name, count in counts.items()))
+    x = 1
+    for name, count in tabs:
+        label = f" {name} {count} "
+        attr = palette["tab"] if name == status_filter else palette[
+            {"All": "text", "Ready": "ready", "Working": "working",
+             "Blocked": "blocked", "Unknown": "unknown"}[name]
+        ]
+        _put(screen, 3, x, label, len(label), attr)
+        x += len(label) + 1
+    if snapshot and x + 9 < width:
+        _put(screen, 3, x + 1, f"Done {snapshot.done_count}", width - x - 2, palette["muted"])
+    _put(screen, 4, 0, "─" * max(0, width - 1), width - 1, palette["line"])
+
+
+def _draw_list(screen, tasks: list[Task], selected_id: str | None,
+               offset: int, left_width: int, height: int,
+               palette: dict[str, int]) -> int:
+    status_width = 11
+    age_width = 9
+    # The title starts at column 9 and leaves two columns before status.
+    title_width = max(8, left_width - status_width - age_width - 13)
+    _put(screen, 5, 2, "Tasks", title_width, palette["muted"])
+    _put(screen, 5, left_width - status_width - age_width - 2, "Status", status_width, palette["muted"])
+    _put(screen, 5, left_width - age_width - 1, "Updated", age_width, palette["muted"])
+    entries: list[tuple[str, Task | None]] = []
+    phase = None
+    for task in tasks:
+        if task.phase != phase:
+            phase = task.phase
+            entries.append((phase, None))
+        entries.append(("", task))
+    body_top = 6
+    body_lines = max(1, height - body_top - 1)
+    selected_line = next((i for i, (_, task) in enumerate(entries)
+                          if task and task.task_id == selected_id), 0)
+    if selected_line < offset:
+        offset = selected_line
+    if selected_line >= offset + body_lines:
+        offset = selected_line - body_lines + 1
+    offset = min(offset, max(0, len(entries) - body_lines))
+    for line_number, (heading, task) in enumerate(entries[offset:offset + body_lines], body_top):
+        if task is None:
+            _put(screen, line_number, 1, heading, left_width - 3, palette["muted"])
+            continue
+        selected = task.task_id == selected_id
+        row_attr = palette["selected"] if selected else palette["base"]
+        _fill(screen, line_number, 0, left_width - 1, row_attr)
+        _put(screen, line_number, 1, "›" if selected else " ", 1, row_attr)
+        _put(screen, line_number, 3, task.task_id, 5, row_attr if selected else palette["muted"])
+        _put(screen, line_number, 9, _clip(f"○ {task.title}", title_width),
+             title_width, row_attr)
+        label, color = _state_label(task)
+        _put(screen, line_number, left_width - status_width - age_width - 2,
+             label, status_width, row_attr if selected else palette[color])
+        _put(screen, line_number, left_width - age_width - 1,
+             _age(task.updated_at), age_width, row_attr if selected else palette["muted"])
+    if not tasks:
+        _put(screen, body_top + 1, 2, "No matching open tasks", left_width - 4, palette["muted"])
+    return offset
+
+
+def _draw_detail(screen, task: Task | None, x: int, top: int, width: int,
+                 height: int, offset: int, palette: dict[str, int]) -> None:
+    if task is None:
+        _put(screen, top, x, "No task selected", width, palette["muted"])
+        return
+    lines = _detail_lines(task, width - 2, palette)
+    body_lines = max(1, height - top - 1)
+    offset = min(offset, max(0, len(lines) - body_lines))
+    for y, (value, attr) in enumerate(lines[offset:offset + body_lines], top):
+        _put(screen, y, x, value, width - 1, attr)
+
+
 def run_terminal(screen, state: ConsoleState, interval: float) -> None:
-    curses.curs_set(0)
+    try:
+        curses.curs_set(0)
+    except curses.error:
+        pass
+    palette = _palette(screen)
     screen.timeout(100)
-    selected = 0
+    selected_id: str | None = None
     offset = 0
     detail_offset = 0
     search = ""
     searching = False
     help_visible = False
+    detail_open = False
+    filters = ("All", "Ready", "Working", "Blocked", "Unknown")
+    status_filter = "All"
     last_poll = 0.0
     while True:
         now = time.monotonic()
@@ -286,52 +518,55 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
             state.refresh()
             last_poll = now
         snapshot = state.snapshot
-        tasks = list(snapshot.tasks) if snapshot else []
-        visible = [task for task in tasks if search.casefold() in f"{task.task_id} {task.title}".casefold()]
-        selected = min(selected, max(0, len(visible) - 1))
+        visible = _visible_tasks(snapshot, status_filter, search)
+        if selected_id not in {task.task_id for task in visible}:
+            selected_id = visible[0].task_id if visible else None
+            detail_offset = 0
+        selected_task = next((task for task in visible if task.task_id == selected_id), None)
         height, width = screen.getmaxyx()
         screen.erase()
-        if height < 10 or width < 65:
-            _put(screen, 0, 0, "Terminal too small (minimum 65x10). Press q to quit.", width)
+        if height < 12 or width < 50:
+            _put(screen, 0, 0, "Terminal too small (minimum 50x12). Press q to quit.", width,
+                 palette["text"])
         else:
-            heading = f"MERIDIAN | {snapshot.branch if snapshot else 'unavailable'} | {snapshot.git_summary if snapshot else 'unknown'}"
-            _put(screen, 0, 0, heading, width, curses.A_BOLD)
-            stamp = state.last_success.strftime("%H:%M:%S") if state.last_success else "never"
-            status = f"Updated {stamp} | {len(tasks)} open | {snapshot.done_count if snapshot else 0} done"
-            if state.error:
-                status += f" | STALE: {state.error}"
-            _put(screen, 1, 0, status, width, curses.A_REVERSE if state.error else 0)
-            left = min(48, max(27, width // 2))
-            _put(screen, 2, 0, "TASKS", left, curses.A_BOLD)
-            _put(screen, 2, left + 1, "DETAIL", width - left - 2, curses.A_BOLD)
-            body_height = height - 5
-            if selected < offset:
-                offset = selected
-            if selected >= offset + body_height:
-                offset = selected - body_height + 1
-            for y, task in enumerate(visible[offset:offset + body_height], 3):
-                label = f"{task.task_id} {task.readiness:<11} {task.title}"
-                _put(screen, y, 0, label, left, curses.A_REVERSE if offset + y - 3 == selected else 0)
-            if visible:
-                task = visible[selected]
-                detail = [task.phase, f"{task.task_id} - {task.title}",
-                          f"State: {task.status}; {task.readiness}",
-                          f"Dependencies: {', '.join(task.dependencies) or 'none'}",
-                          f"Next action: {task.next_action}",
-                          f"Worktree: {task.worktree or 'none'}", "", "Objective:"]
-                detail.extend(task.objective or ("Unavailable",))
-                detail.extend(("", "Acceptance criteria:"))
-                detail.extend(task.criteria or ("Unavailable",))
-                rendered = _wrapped(detail, width - left - 3)
-                for y, line in enumerate(rendered[detail_offset:detail_offset + body_height], 3):
-                    _put(screen, y, left + 1, line, width - left - 2)
-            else:
-                _put(screen, 3, 0, "No matching open tasks", left)
-            _put(screen, height - 2, 0, "Agent activity: unavailable (no verified local source)", width)
-            footer = "Search: " + search if searching else "/ search  j/k move  [/] detail  r refresh  ? help  q quit"
+            _draw_header(screen, state, palette, status_filter, width)
+            wide = width >= 110
             if help_visible:
-                footer = "Read-only local view. No fetch, agent control, or writes. Press ? to close help."
-            _put(screen, height - 1, 0, footer, width, curses.A_REVERSE)
+                help_lines = (
+                    "Navigation", "↑/↓ or j/k  Select task", "Tab/Shift+Tab  Filter by status",
+                    "Enter  Open full task details", "Esc  Return to task list",
+                    "/  Search task ID or title", "[ / ]  Scroll task details",
+                    "r  Refresh now", "q  Quit", "",
+                    "This console reads local files and Git state only.",
+                    "Updated is the last committed change to the task file.",
+                    "Agent activity is unavailable without a verified source.",
+                    "It does not control agents or fetch from the network.",
+                )
+                for y, line in enumerate(help_lines, 6):
+                    _put(screen, y, 2, line, width - 4, palette["text"] if y == 6 else palette["base"])
+            elif detail_open:
+                _draw_detail(screen, selected_task, 2, 6, width - 4, height,
+                             detail_offset, palette)
+            else:
+                left_width = int(width * .72) if wide else width
+                offset = _draw_list(screen, visible, selected_id, offset, left_width,
+                                    height, palette)
+                if wide:
+                    divider = left_width - 1
+                    for y in range(5, height - 1):
+                        _put(screen, y, divider, "│", 1, palette["line"])
+                    _draw_detail(screen, selected_task, left_width + 1, 6,
+                                 width - left_width - 2, height, detail_offset, palette)
+            if state.error:
+                footer = f"STALE: {state.error}"
+            elif searching:
+                footer = f"Search: {search}"
+            elif detail_open or help_visible:
+                footer = "Esc back   [/] scroll   r refresh   q quit"
+            else:
+                footer = "? help   ↑/↓ move   tab filter   enter details   / search   r refresh   q quit"
+            _put(screen, height - 1, 1, footer, width - 2,
+                 palette["stale"] if state.error else palette["muted"])
         screen.refresh()
         key = screen.getch()
         if key == -1:
@@ -341,23 +576,41 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
                 searching = False
             elif key in (curses.KEY_BACKSPACE, 127, 8):
                 search = search[:-1]
-                selected = detail_offset = 0
+                detail_offset = offset = 0
             elif 32 <= key <= 126:
                 search += chr(key)
-                selected = detail_offset = 0
+                detail_offset = offset = 0
+            continue
+        if key == 27:
+            detail_open = help_visible = False
             continue
         if key in (ord("q"), ord("Q")):
             return
-        if key in (ord("j"), curses.KEY_DOWN):
-            selected = min(selected + 1, max(0, len(visible) - 1))
+        if key in (ord("j"), curses.KEY_DOWN) and not detail_open and not help_visible:
+            if visible:
+                index = next((i for i, task in enumerate(visible)
+                              if task.task_id == selected_id), 0)
+                selected_id = visible[min(index + 1, len(visible) - 1)].task_id
             detail_offset = 0
-        elif key in (ord("k"), curses.KEY_UP):
-            selected = max(0, selected - 1)
+        elif key in (ord("k"), curses.KEY_UP) and not detail_open and not help_visible:
+            if visible:
+                index = next((i for i, task in enumerate(visible)
+                              if task.task_id == selected_id), 0)
+                selected_id = visible[max(0, index - 1)].task_id
             detail_offset = 0
         elif key == ord("["):
             detail_offset = max(0, detail_offset - 1)
-        elif key == ord("]"):
+        elif key == ord("]") or key == curses.KEY_NPAGE:
             detail_offset += 1
+        elif key == curses.KEY_PPAGE:
+            detail_offset = max(0, detail_offset - 1)
+        elif key in (9, curses.KEY_BTAB) and not detail_open and not help_visible:
+            direction = -1 if key == curses.KEY_BTAB else 1
+            status_filter = filters[(filters.index(status_filter) + direction) % len(filters)]
+            offset = detail_offset = 0
+        elif key in (10, 13) and selected_task and not help_visible:
+            detail_open = True
+            detail_offset = 0
         elif key == ord("/"):
             searching = True
             search = ""
