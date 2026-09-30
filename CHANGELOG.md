@@ -13,6 +13,21 @@ separate, slower cadence: it advances only in releases that ship a migration, so
 a CLI-only release appears here without moving it. `releases/<version>.json`
 records which release moved it.
 
+## [Unreleased]
+
+### Changed
+
+- **Breaking for existing Claude Code installs:** the marketplace is renamed
+  from `meridian-local` to `meridian`, so the plugin id is now
+  `meridian@meridian`. One-time migration: run
+  `/plugin uninstall meridian@meridian-local`,
+  `/plugin marketplace remove meridian-local`,
+  `/plugin marketplace add biagiolibe/meridian#v<version>`, and
+  `/plugin install meridian@meridian`.
+- The README documents the pinned install (`#v<version>`) and the ordered
+  update procedure. Moving a pin requires removing the marketplace, adding it
+  at the new tag, and reinstalling the plugin.
+
 ## [1.1.52]
 
 Template-changing release: migration `054-machine-independent-worktree-handoff`

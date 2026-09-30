@@ -40,19 +40,19 @@ Only an `ACCEPTED` task satisfies another task's dependency.
 
 ## Quick start with Claude Code
 
-Clone Meridian and register it as a local Claude Code marketplace:
-
-```bash
-git clone https://github.com/biagiolibe/meridian.git
-cd meridian
-```
-
-In Claude Code, register and install the plugin:
+Meridian is distributed as a GitHub-hosted Claude Code marketplace. Pin it to a
+release tag so you stay on a known release until you choose to move. Replace
+`<version>` with a release listed on the
+[Releases page](https://github.com/biagiolibe/meridian/releases), for example
+`1.1.50`:
 
 ```text
-/plugin marketplace add /path/to/meridian
-/plugin install meridian@meridian-local
+/plugin marketplace add biagiolibe/meridian#v<version>
+/plugin install meridian@meridian
 ```
+
+The plugin cache holds the tagged tree, so `${CLAUDE_PLUGIN_ROOT}/bin/meridian`
+is the CLI for that release. Nothing moves the pin automatically.
 
 Then open the project you want to initialize and run:
 
@@ -61,6 +61,47 @@ Then open the project you want to initialize and run:
 ```
 
 Choose `lean-delivery` for lightweight delivery or `governed-sdd` for controlled integration. `classic` remains a backwards-compatible alias for `lean-delivery`. The initializer creates the relevant planning, design, queue, task, and agent-instruction files in the target project. It does not overwrite existing workflow documents without showing a diff and obtaining a migration decision.
+
+### Updating Meridian
+
+Update the framework before the project: a project manifest can only be read by
+a CLI at least as new as its `protocolVersion`.
+
+1. Read the release notes on the Releases page or in `CHANGELOG.md`. The first
+   line of each section says whether the release is CLI-only or
+   template-changing.
+2. Move the pin. Re-adding a marketplace at a different ref is refused, and
+   removing a marketplace also uninstalls its plugins, so reinstall afterwards:
+
+   ```text
+   /plugin marketplace remove meridian
+   /plugin marketplace add biagiolibe/meridian#v<new-version>
+   /plugin install meridian@meridian
+   ```
+
+   A marketplace added without a pin can instead be refreshed with
+   `/plugin marketplace update meridian`.
+3. From the project, run `meridian upgrade --check`.
+4. On a clean plan, apply it in a dedicated branch, validate the project, and
+   commit the diff (see [Framework upgrades](#framework-upgrades)). Never
+   hand-edit `.meridian/manifest.json`.
+
+Confirm the move by comparing the installed framework version with the
+project's `frameworkVersion` in `.meridian/manifest.json` after
+`upgrade --apply`, rather than trusting the plugin manager alone.
+
+### Migrating from `meridian-local`
+
+Earlier instructions registered a local clone as the `meridian-local`
+marketplace. The marketplace is now named `meridian`, so the install id changes
+from `meridian@meridian-local` to `meridian@meridian`. Migrate once:
+
+```text
+/plugin uninstall meridian@meridian-local
+/plugin marketplace remove meridian-local
+/plugin marketplace add biagiolibe/meridian#v<version>
+/plugin install meridian@meridian
+```
 
 ### Language behavior
 
