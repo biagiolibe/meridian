@@ -17,8 +17,9 @@ never issues agent instructions or mutates the project.
 - [ ] A standalone Python standard-library console starts from a supplied
   project path without adding a public `meridian` command or dependency.
 - [ ] It shows every non-terminal canonical queue task, its title, dependency
-  readiness, and the selected task's objective, acceptance criteria, and task
-  worktree when available. It shows the current checkout and Git status.
+  readiness, and the selected task's objective, acceptance criteria, worktree,
+  and permitted next directive when available. It shows the current checkout
+  and Git status. It does not autonomously select or start a task.
 - [ ] It refreshes local state automatically every two seconds by default,
   supports a configurable interval and manual refresh, and shows the last
   successful refresh time. Failed refreshes keep the last valid snapshot and
