@@ -14,20 +14,21 @@ never issues agent instructions or mutates the project.
 
 ## Acceptance Criteria
 
-- [ ] A standalone Python standard-library console starts from a supplied
+- [x] A standalone Python standard-library console starts from a supplied
   project path without adding a public `meridian` command or dependency.
-- [ ] It shows every non-terminal canonical queue task, its title, dependency
-  readiness, and the selected task's objective, acceptance criteria, and task
-  worktree when available. It shows the current checkout and Git status.
-- [ ] It refreshes local state automatically every two seconds by default,
+- [x] It shows every non-terminal canonical queue task, its title, dependency
+  readiness, and the selected task's objective, acceptance criteria, worktree,
+  and permitted next directive when available. It shows the current checkout
+  and Git status. It does not autonomously select or start a task.
+- [x] It refreshes local state automatically every two seconds by default,
   supports a configurable interval and manual refresh, and shows the last
   successful refresh time. Failed refreshes keep the last valid snapshot and
   visibly mark it stale.
-- [ ] Keyboard navigation, search, help, and quit work in a terminal. A
+- [x] Keyboard navigation, search, help, and quit work in a terminal. A
   non-interactive one-shot view is available for accessibility and automation.
-- [ ] The console performs no Git mutations, network requests, agent control,
+- [x] The console performs no Git mutations, network requests, agent control,
   or persistent writes. It does not claim to know agent activity.
-- [ ] Tests cover queue/dependency parsing, snapshot error behavior, and the
+- [x] Tests cover queue/dependency parsing, snapshot error behavior, and the
   one-shot output. `python3 scripts/check_repository.py` and the unit test
   suite pass; an interactive smoke check is recorded.
 
