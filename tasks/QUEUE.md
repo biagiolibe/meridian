@@ -32,6 +32,16 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, 25, 26, 27, 28, 31, 32, 34, and 36
 are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 
+### Phase 40 — Release publish wait
+
+Makes `release.py publish` wait for the workflow run to appear, identifies it by
+commit, and adds a read-only `verify` to resume verification after the tag is
+pushed.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 096 | Retry the workflow lookup in `release.py publish` and add `verify` | 🟡 P2 | 094, 095 | [096](096-release-publish-wait-retry.md) |
+
 ### Phase 38 — Release command
 
 Replaces the manual release steps with a maintainer script: a local `prepare`
