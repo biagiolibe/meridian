@@ -61,6 +61,14 @@ For a change to a template or workflow rule, also manually trace the affected pa
 
 ## Release procedure
 
+`python3 scripts/release.py prepare --bump patch` (or `--bump minor`,
+`--bump major`, or `--version X.Y.Z`) is the repeatable local preparation
+command. It derives the release kind from migrations, writes the version,
+ledger, and changelog files, runs the release checks, and makes one local
+release commit. It never fetches, pushes, creates a tag, or compares manifests.
+Use `--dry-run` to inspect its derived result first. The manual procedure below
+remains valid; in particular, the manifest comparison remains a manual step.
+
 When changing the release version, update both `VERSION` and the `version`
 field in `.claude-plugin/plugin.json`; the repository check requires them to
 match.

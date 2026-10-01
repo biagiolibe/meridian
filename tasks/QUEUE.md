@@ -40,7 +40,7 @@ a `publish` that pushes `main` and the tag only after a typed confirmation.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[ ]` | 093 | Add `scripts/release.py prepare` | 🟡 P2 | 067, 089 | [093](093-release-script-prepare.md) |
+| `[x]` | 093 | Add `scripts/release.py prepare` | 🟡 P2 | 067, 089 | [093](done/093-release-script-prepare.md) |
 | `[ ]` | 094 | Add `scripts/release.py publish` | 🟡 P2 | 093 | [094](094-release-script-publish.md) |
 
 ### Phase 37 — Codex machine setup completeness
