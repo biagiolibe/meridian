@@ -108,5 +108,138 @@ class ReleasePrepareTest(unittest.TestCase):
         self.assertEqual(files, [".claude-plugin/plugin.json", "CHANGELOG.md", "VERSION", "releases/1.0.1.json"])
 
 
+class ReleasePublishTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name) / "project"
+        self.root.mkdir()
+        self.remote = Path(self.temporary.name) / "origin.git"
+        subprocess.run(["git", "init", "--bare", "-q", str(self.remote)], check=True)
+        for directory in (".claude-plugin", "releases", "scripts", "bin"):
+            (self.root / directory).mkdir()
+        (self.root / "VERSION").write_text("1.0.0\n", encoding="utf-8")
+        (self.root / ".claude-plugin/plugin.json").write_text('{"version": "1.0.0"}\n', encoding="utf-8")
+        (self.root / "CHANGELOG.md").write_text("# Changelog\n", encoding="utf-8")
+        (self.root / "releases/1.0.0.json").write_text(json.dumps({"version": "1.0.0", "baselineChanged": False}), encoding="utf-8")
+        (self.root / "scripts/check_repository.py").write_text("", encoding="utf-8")
+        (self.root / "scripts/prepare_release.py").write_text("", encoding="utf-8")
+        (self.root / "bin/meridian").write_text("#!/bin/sh\necho UP_TO_DATE\n", encoding="utf-8")
+        (self.root / "bin/meridian").chmod(0o755)
+        self.git("init", "-q", "-b", "main")
+        self.git("config", "user.name", "Meridian Test")
+        self.git("config", "user.email", "meridian@example.invalid")
+        self.git("add", ".")
+        self.git("commit", "-qm", "initial")
+        self.git("remote", "add", "origin", str(self.remote))
+        self.git("push", "-qu", "origin", "main")
+        self.prepare_release()
+
+    def git(self, *args: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(["git", *args], cwd=self.root, text=True, capture_output=True, check=True)
+
+    def prepare_release(self) -> None:
+        (self.root / "VERSION").write_text("1.0.1\n", encoding="utf-8")
+        (self.root / ".claude-plugin/plugin.json").write_text('{"version": "1.0.1"}\n', encoding="utf-8")
+        (self.root / "CHANGELOG.md").write_text("# Changelog\n\n## [1.0.1]\n", encoding="utf-8")
+        (self.root / "releases/1.0.1.json").write_text(json.dumps({"version": "1.0.1", "baselineChanged": False}), encoding="utf-8")
+        self.git("add", ".")
+        self.git("commit", "-qm", "Release 1.0.1")
+
+    def invoke(self, *args: str) -> int:
+        return release.main(["publish", *args, "--root", str(self.root)])
+
+    def test_confirmation_is_required_and_exact(self) -> None:
+        for confirm in ([], ["--confirm", "v1.0.2"]):
+            with self.subTest(confirm=confirm), mock.patch.object(release, "validate") as validate:
+                self.assertEqual(self.invoke(*confirm), 1)
+                validate.assert_not_called()
+                self.assertEqual(self.git("ls-remote", "--tags", "origin").stdout, "")
+
+    def test_preconditions_refuse_without_push(self) -> None:
+        cases = [
+            ("branch", lambda: self.git("checkout", "-qb", "feature"), "current branch"),
+            ("dirty", lambda: (self.root / "dirty").write_text("x", encoding="utf-8"), "working tree"),
+            ("head", lambda: self.git("commit", "--allow-empty", "-qm", "not release"), "HEAD must"),
+            ("files", lambda: ((self.root / "other").write_text("x", encoding="utf-8"), self.git("add", "other"), self.git("commit", "--amend", "--no-edit")), "touch only"),
+            ("local-tag", lambda: self.git("tag", "v1.0.1"), "local tag"),
+            ("remote-tag", lambda: (self.git("tag", "v1.0.1"), self.git("push", "origin", "v1.0.1"), self.git("tag", "-d", "v1.0.1")), "origin tag"),
+        ]
+        for name, mutate, expected in cases:
+            with self.subTest(name=name), mock.patch("sys.stderr") as stderr:
+                mutate()
+                self.assertEqual(self.invoke("--confirm", "v1.0.1"), 1)
+                self.assertIn(expected, "".join(str(call) for call in stderr.write.call_args_list))
+            self.tearDown()
+            self.setUp()
+
+    def test_origin_must_be_parent_of_release_commit(self) -> None:
+        self.git("checkout", "-qb", "other", "origin/main")
+        self.git("commit", "--allow-empty", "-qm", "ahead")
+        self.git("push", "-q", "origin", "HEAD:main")
+        self.git("checkout", "-q", "main")
+        self.git("fetch", "-q", "origin")
+        self.assertEqual(self.invoke("--confirm", "v1.0.1"), 1)
+
+    def test_push_order_and_no_forbidden_git_flags(self) -> None:
+        commands: list[list[str]] = []
+        original_run_command = release.run_command
+        original_run_git = release.run_git
+
+        def record_command(root: Path, command: list[str]) -> subprocess.CompletedProcess[str]:
+            commands.append(command)
+            return original_run_command(root, command)
+
+        def record_git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
+            commands.append(["git", *args])
+            return original_run_git(root, *args)
+
+        with mock.patch.object(release, "validate", return_value=(0, [])), mock.patch.object(release, "run_command", side_effect=record_command), mock.patch.object(release, "run_git", side_effect=record_git):
+            self.assertEqual(self.invoke("--confirm", "v1.0.1", "--no-wait"), 0)
+        pushes = [command for command in commands if command[:2] == ["git", "push"]]
+        self.assertEqual(pushes, [["git", "push", "origin", "main"], ["git", "push", "origin", "v1.0.1"]])
+        self.assertFalse(any(flag in command for command in commands for flag in ("--force", "--force-with-lease", "--delete")))
+
+    def test_rejected_main_push_stops_before_tag(self) -> None:
+        original = release.run_command
+
+        def reject_main(root: Path, command: list[str]) -> subprocess.CompletedProcess[str]:
+            if command == ["git", "push", "origin", "main"]:
+                return subprocess.CompletedProcess(command, 1, "", "rejected")
+            return original(root, command)
+
+        with mock.patch.object(release, "validate", return_value=(0, [])), mock.patch.object(release, "run_command", side_effect=reject_main):
+            self.assertEqual(self.invoke("--confirm", "v1.0.1", "--no-wait"), 1)
+        self.assertEqual(self.git("tag", "--list", "v1.0.1").stdout, "")
+
+    def test_validation_failure_stops_before_push(self) -> None:
+        with mock.patch.object(release, "validate", return_value=(9, ["validation", "failed"])):
+            self.assertEqual(self.invoke("--confirm", "v1.0.1", "--no-wait"), 1)
+        self.assertEqual(self.git("ls-remote", "--heads", "origin", "main").stdout.count("refs/heads/main"), 1)
+        self.assertEqual(self.git("tag", "--list", "v1.0.1").stdout, "")
+
+    def test_no_wait_and_missing_gh_paths(self) -> None:
+        with mock.patch.object(release, "validate", return_value=(0, [])):
+            self.assertEqual(self.invoke("--confirm", "v1.0.1", "--no-wait"), 0)
+        self.tearDown()
+        self.setUp()
+        with mock.patch.object(release, "validate", return_value=(0, [])), mock.patch.object(release.shutil, "which", return_value=None):
+            self.assertEqual(self.invoke("--confirm", "v1.0.1"), 0)
+
+    def test_workflow_failure_does_not_move_tag(self) -> None:
+        original = release.run_command
+
+        def gh(root: Path, command: list[str]) -> subprocess.CompletedProcess[str]:
+            if command[:3] == ["gh", "run", "list"]:
+                return subprocess.CompletedProcess(command, 0, '[{"databaseId": "4", "url": "https://example.invalid/run/4"}]', "")
+            if command[:3] == ["gh", "run", "watch"]:
+                return subprocess.CompletedProcess(command, 1, "", "failed")
+            return original(root, command)
+
+        with mock.patch.object(release, "validate", return_value=(0, [])), mock.patch.object(release.shutil, "which", return_value="gh"), mock.patch.object(release, "run_command", side_effect=gh):
+            self.assertEqual(self.invoke("--confirm", "v1.0.1"), 1)
+        self.assertEqual(self.git("rev-parse", "v1.0.1").stdout.strip(), self.git("rev-parse", "HEAD").stdout.strip())
+
+
 if __name__ == "__main__":
     unittest.main()

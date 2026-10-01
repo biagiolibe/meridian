@@ -61,7 +61,7 @@
 - `[x]` 091 — Record the 1.2.0 marketplace install evidence.
 - `[x]` 092 — Link the Codex skills in `meridian setup` and check them in `codex doctor`.
 - `[x]` 093 — Add `scripts/release.py prepare`.
-- `[ ]` 094 — Add `scripts/release.py publish`.
+- `[/]` 094 — Add `scripts/release.py publish`.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.
 - `[x]` 053 — Remove machine-specific absolute paths from tracked records.
