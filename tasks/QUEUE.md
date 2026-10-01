@@ -32,6 +32,16 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, 25, 26, 27, 28, 31, 32, 34, 36, and 42
 are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 
+### Phase 44 — Hands-off task closure design
+
+Designs how an assigned task runs through implementation, validation,
+integration, the required `main` push, and cleanup without stopping for avoidable
+reasons, and creates the implementation follow-ups.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 100 | Design hands-off task closure | 🔴 P1 | 088, 097, 099 | [100](100-design-hands-off-task-closure.md) |
+
 ### Phase 43 — Agent-sandbox test reliability
 
 Stops the full test suite from failing in the Codex sandbox because the macOS
