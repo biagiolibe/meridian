@@ -12,6 +12,7 @@ ID_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 LINK_PATTERN = re.compile(r"\[[^]]+\]\(([^)#]+)(?:#[^)]*)?\)")
 HANDOFF_STATUS = re.compile(r"^[-*\s]*Status:\s*`?([A-Z_]+)`?\s*$", re.MULTILINE)
 RECORD_STATUS = re.compile(r"^Status:\s*`?([A-Z_]+)`?\s*$", re.MULTILINE)
+RECORD_REVIEW = re.compile(r"^Review:\s*(.*?)\s*$", re.MULTILINE)
 REVIEW_ATTEMPT = re.compile(
     r"^## Attempt (\d+) — (CHANGES_REQUESTED|APPROVE|BLOCKED)\s*$", re.MULTILINE
 )
@@ -166,6 +167,13 @@ def record_status(text: str | None) -> str | None:
     return match.group(1) if match else None
 
 
+def record_review(text: str | None) -> str | None:
+    """Return a declared task-record review policy, if it is recognized."""
+    match = RECORD_REVIEW.search(text or "")
+    value = match.group(1).strip() if match else None
+    return value if value in ("REQUIRED", "NOT REQUIRED") else None
+
+
 def handoff_status(text: str | None) -> str | None:
     match = HANDOFF_STATUS.search(text or "")
     return match.group(1) if match else None
@@ -202,7 +210,7 @@ class Effective:
 
 
 def effective_state(profile: Profile, primary: QueueRow, primary_record: str | None,
-                    facts: BranchFacts | None) -> Effective:
+                    facts: BranchFacts | None, review: str | None = None) -> Effective:
     """Combine the primary queue row with the task branch state, never writing either."""
     if facts is None:
         row, record, source, writer = primary, primary_record, "main", False
@@ -240,11 +248,12 @@ def effective_state(profile: Profile, primary: QueueRow, primary_record: str | N
 
     phase = profile.phases[row.status]
     if profile.name == "governed-sdd":
+        review_value = row.review if review is None else review
         if row.status == "READY_FOR_REVIEW" or record == "READY_FOR_REVIEW":
             if record != row.status:
                 return mismatch(f"queue {row.status}, task record {record or 'no status'}")
-            if row.review not in (None, "REQUIRED"):
-                return mismatch(f"queue READY_FOR_REVIEW, Review {row.review or 'unset'}")
+            if review_value not in (None, "REQUIRED"):
+                return mismatch(f"queue READY_FOR_REVIEW, Review {review_value or 'unset'}")
         return Effective(
             phase, row.status, source, active_writer=writer,
             changes_requested=bool(

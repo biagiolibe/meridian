@@ -18,31 +18,31 @@ cannot see or launch the permitted review directive.
 
 ## Acceptance Criteria
 
-- [ ] When the queue table has a `Review` column, its value is still used
+- [x] When the queue table has a `Review` column, its value is still used
   unchanged.
-- [ ] When the queue table has no `Review` column, the console reads the
+- [x] When the queue table has no `Review` column, the console reads the
   `Review:` field from the header of the task record. For a task whose
   effective state comes from a branch, it reads the record from that branch.
-- [ ] Only the values `REQUIRED` and `NOT REQUIRED` (case-sensitive, after
+- [x] Only the values `REQUIRED` and `NOT REQUIRED` (case-sensitive, after
   trimming) are accepted. A missing, empty, or unrecognized value leaves the
   policy undeclared (`None`), and no review launch is offered.
-- [ ] A Governed `ready_for_review` task with `Review: REQUIRED` in its record
+- [x] A Governed `ready_for_review` task with `Review: REQUIRED` in its record
   offers `Review <ID>` through `launch_command`, subject to every existing
   refusal (active writer, `MISMATCH`, record problem).
-- [ ] The existing mismatch rule that compares `Review` with the queue status
+- [x] The existing mismatch rule that compares `Review` with the queue status
   uses the same resolved value, so a record-declared `Review: REQUIRED` does not
   create a false mismatch and a record-declared `NOT REQUIRED` is treated as it
   is for a queue column.
-- [ ] `Task.next_action` returns the review directive whenever `launch_command`
+- [x] `Task.next_action` returns the review directive whenever `launch_command`
   returns one, as `If assigned: Review <ID>`, matching the `todo` case.
-- [ ] When a task is `ready_for_review` and no launch is offered,
+- [x] When a task is `ready_for_review` and no launch is offered,
   `Next action` states the specific reason: active writer, `MISMATCH`, record
   problem, `Review: NOT REQUIRED`, or review policy not declared. The generic
   "Awaiting review of the task branch" remains only when no specific reason
   applies.
-- [ ] Lean Delivery behavior is unchanged: `Review <ID>` for `ready_for_review`
+- [x] Lean Delivery behavior is unchanged: `Review <ID>` for `ready_for_review`
   without reading any `Review` field.
-- [ ] The console still never writes project files itself.
+- [x] The console still never writes project files itself.
 
 ## Relevant Files
 
