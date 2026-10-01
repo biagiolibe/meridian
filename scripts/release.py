@@ -134,9 +134,13 @@ def protocol_version(root: Path) -> int:
 
 def render_changelog(changelog: str, version: str, kind: str, body: str) -> str:
     start, end, _ = unreleased_body(changelog)
-    summary = "this release introduces no migration." if kind == CLI_ONLY else "this release advances the workflow baseline."
-    section = f"\n\n## [{version}]\n\n{kind}: {summary}\n\n{body}\n\n"
+    section = render_release_section(version, kind, body)
     return changelog[:start] + "\n\n" + section + changelog[end:].lstrip("\n")
+
+
+def render_release_section(version: str, kind: str, body: str) -> str:
+    summary = "this release introduces no migration." if kind == CLI_ONLY else "this release advances the workflow baseline."
+    return f"## [{version}]\n\n{kind}: {summary}\n\n{body}\n\n"
 
 
 def write_release(root: Path, version: str, date: str, kind: str, migrations: list[str], baseline: str, protocol: int, body: str) -> list[Path]:
@@ -205,12 +209,14 @@ def prepare_main(argv: list[str] | None = None) -> int:
         previous, body, kind, migrations, baseline, protocol = preflight(root, new_version)
         if protocol != previous.get("protocolVersion") and not args.protocol_reviewed:
             raise ReleaseError("BLOCKED: PROTOCOL_VERSION changed; use --protocol-reviewed only after CONTRIBUTING.md compatibility tests are added")
+        if args.dry_run:
+            print(f"Derived release kind: {kind}")
+            print(f"Version: {new_version}")
+            print("Would write: VERSION, .claude-plugin/plugin.json, " f"releases/{new_version}.json, CHANGELOG.md")
+            print(render_release_section(new_version, kind, body), end="")
+            return 0
         if protocol == previous.get("protocolVersion"):
             print("Manifest comparison remains a manual check; this command does not perform it.")
-        if args.dry_run:
-            print(f"Dry run: {kind}; would write VERSION, .claude-plugin/plugin.json, releases/{new_version}.json, CHANGELOG.md")
-            print(render_changelog((root / "CHANGELOG.md").read_text(encoding="utf-8"), new_version, kind, body))
-            return 0
         paths = write_release(root, new_version, date, kind, migrations, baseline, protocol, body)
         status, command = validate(root, new_version)
         if status:
@@ -410,6 +416,18 @@ def publish_main(argv: list[str]) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     values = list(sys.argv[1:] if argv is None else argv)
+    if values == ["--help"]:
+        parser = argparse.ArgumentParser(
+            description="Prepare or publish a Meridian release.",
+            epilog="prepare makes a local release commit; publish pushes main and the release tag.",
+        )
+        subcommands = parser.add_subparsers(title="commands")
+        subcommands.add_parser("prepare", help="prepare a local release without publishing")
+        subcommands.add_parser("publish", help="publish a prepared release by pushing main and the tag")
+        parser.print_help()
+        return 0
+    if values and values[0] == "prepare":
+        return prepare_main(values[1:])
     if values and values[0] == "publish":
         return publish_main(values[1:])
     return prepare_main(values)
