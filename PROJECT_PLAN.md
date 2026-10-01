@@ -59,7 +59,7 @@
 - `[x]` 089 — Prepare release 1.2.0.
 - `[ ]` 090 — Make a 1.0.0 project reach the current release in one step.
 - `[x]` 091 — Record the 1.2.0 marketplace install evidence.
-- `[/]` 092 — Link the Codex skills in `meridian setup` and check them in `codex doctor`.
+- `[x]` 092 — Link the Codex skills in `meridian setup` and check them in `codex doctor`.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.
 - `[x]` 053 — Remove machine-specific absolute paths from tracked records.

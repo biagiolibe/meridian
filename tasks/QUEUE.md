@@ -39,7 +39,7 @@ steps into the consented `meridian setup` and the read-only `codex doctor`.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[/]` | 092 | Link the Codex skills in `meridian setup` and check them in `codex doctor` | 🟡 P2 | 083, 085 | [092](092-setup-codex-skill-links-and-doctor-checks.md) |
+| `[x]` | 092 | Link the Codex skills in `meridian setup` and check them in `codex doctor` | 🟡 P2 | 083, 085 | [092](done/092-setup-codex-skill-links-and-doctor-checks.md) |
 
 ### Phase 35 — Single-step upgrade from the 1.0.0 baseline
 
