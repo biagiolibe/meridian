@@ -20,11 +20,11 @@
   "templates/workflows/governed-sdd/PROJECT_WORKFLOW.md": {
     "bounded-worktree-lifecycle": {
       "sha256": "c69878caa8860d5966a103f577fe1b068a4567924cda4637f3e2dc9b2fa818b3",
-      "version": 2
+      "version": 3
     },
     "codex-worktree-access": {
-      "sha256": "5345a2fecbc9e9eaeff515bd1b16b7fdfd8dfc775e9c76ef68deb46154e24c5d",
-      "version": 2
+      "sha256": "0c3d176ee3b192b194d32a59dd5222b5372c2b13a9c37d7faeaae2edde90bc57",
+      "version": 3
     },
     "document-precedence": {
       "sha256": "2a4f6b7a1a8afcf116aa94e193be6256804f621e451a22df368fba4ccda176c9",
@@ -195,8 +195,8 @@
       "version": 1
     },
     "task-worktree-boundary": {
-      "sha256": "a9d5853ff2d3bfa4f91f9222517a701597bb1f850faf639d90942ef04578095e",
-      "version": 3
+      "sha256": "f9d012508e3c997aed9dd9e5272c7ad1eb3d025b68ff5788f23f80f2168132f1",
+      "version": 4
     },
     "validation-scoping": {
       "sha256": "447faaddb875883d676be4c53abf218fc555325cbb591e411412249f7077012d",
@@ -231,8 +231,8 @@
       "version": 2
     },
     "task-worktree-remediation": {
-      "sha256": "f76a32e3f7c9e24f1e6c16007e1945e0fe0c7d3181759cb808c2f0d480b40a22",
-      "version": 2
+      "sha256": "2429da0de1ae2e355ad7fe86c45c05910b3107f79a6cbbc7adae1dc1eab87b26",
+      "version": 3
     }
   },
   "templates/workflows/governed-sdd/docs/workflows/REVIEW.md": {
@@ -249,8 +249,8 @@
       "version": 1
     },
     "task-worktree-review-procedure": {
-      "sha256": "d091fe815f32d69844d71a1e69e7ea2c3296293f93df6f341ff9b3d768730a10",
-      "version": 5
+      "sha256": "0fa3bb5edab85fc97cdc7132c7436b7f5682251d4d39285e55a1bf63be0eed68",
+      "version": 6
     }
   },
   "templates/workflows/governed-sdd/tasks/TASK_BLUEPRINT.md": {
@@ -267,12 +267,12 @@
   },
   "templates/workflows/lean-delivery/PROJECT_WORKFLOW.md": {
     "bounded-worktree-lifecycle": {
-      "sha256": "ba6cde18b16c85bca5d5cc325ae7a8226e68f35021b1ea3f8d5bdc48343f3432",
-      "version": 2
+      "sha256": "9a8a17f2a3ce34de16286bf0b96bd894df18826fba1d973574b7658f641c3f3f",
+      "version": 3
     },
     "codex-worktree-access": {
-      "sha256": "3c44eb88acc366eedda1ee95c3da2d0df094630de5955dc9d70b97a3dca1a2fd",
-      "version": 2
+      "sha256": "0317a096f55d591d66408601de6eddc2b29e2e39e9231216a1e5c60e73fb0901",
+      "version": 3
     },
     "task-identity-policy": {
       "sha256": "78df2cd565b113a06771de7572bd260667aa8a687aa3b6066d12b4578d510221",

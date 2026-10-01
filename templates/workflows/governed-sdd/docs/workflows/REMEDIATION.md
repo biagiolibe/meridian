@@ -2,11 +2,11 @@
 
 Use this procedure only for `Address review <TASK-ID>` after the entry-point router has applied its always-loaded invariants.
 
-<!-- MERIDIAN:BEGIN capability=task-worktree-remediation v2 -->
+<!-- MERIDIAN:BEGIN capability=task-worktree-remediation v3 -->
 Remediation reuses the prepared task worktree only after the reviewer has
 stopped. Start in the coordinator-supplied existing directory and run
 `meridian worktree check <TASK-ID> --project <primary-checkout>
---worktree-root <root> --format json` before reading the task or review record.
+--format json` before reading the task or review record.
 Verify the result against the durable handoff before writing. Never remediate
 in the primary checkout, create a replacement worktree, or run concurrently
 with a reviewer. A mismatch is `BLOCKED` and preserves the existing state.

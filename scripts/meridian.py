@@ -10,11 +10,13 @@ import json
 import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
 import tomllib
 import unicodedata
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum
 from http.client import HTTPException
@@ -164,6 +166,13 @@ class ResolvedTaskIdentity:
 
 
 @dataclass(frozen=True)
+class ResolvedWorktreeRoot:
+    path: Path
+    source: str
+    config_path: Path
+
+
+@dataclass(frozen=True)
 class CodexConfigurationPlan:
     status: str
     config_path: Path
@@ -172,6 +181,19 @@ class CodexConfigurationPlan:
     proposed_text: str | None
     detail: str
     current_text: str | None = None
+
+
+@dataclass(frozen=True)
+class SetupPlan:
+    resolution: ResolvedWorktreeRoot
+    codex_config: Path
+    directory_state: str
+    codex_state: str
+    codex_plan: CodexConfigurationPlan | None
+    codex_detail: str
+    config_action: str
+    changes: tuple[str, ...]
+    warnings: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -376,11 +398,11 @@ def handoff_worktree_value(worktree_root: Path, path: Path) -> str:
     return path.relative_to(worktree_root.expanduser().resolve()).as_posix()
 
 
-def task_worktree_path(project_root: Path, worktree_root: Path, task_id: str) -> Path:
+def task_worktree_path(project_root: Path, worktree_root: Path | None, task_id: str) -> Path:
     """Compatibility derivation for callers that may be planning a new task."""
     return _task_worktree_path_for_identity(
         project_root,
-        worktree_root,
+        _effective_worktree_root(worktree_root),
         resolve_task_identity(project_root, task_id, "new"),
     )
 
@@ -451,16 +473,74 @@ def _verified_lifecycle_project(supplied_project: Path | None = None) -> Path:
     return current_project
 
 
-def _effective_worktree_root(worktree_root: Path) -> Path:
-    supplied = worktree_root.expanduser().resolve()
-    configured = os.environ.get("MERIDIAN_WORKTREE_ROOT")
-    if configured and Path(configured).expanduser().resolve() != supplied:
+def user_configuration_path(
+    environment: Mapping[str, str] | None = None,
+    home: Path | None = None,
+) -> Path:
+    values = os.environ if environment is None else environment
+    user_home = (home or Path.home()).expanduser().resolve()
+    configured = values.get("XDG_CONFIG_HOME")
+    base = Path(configured).expanduser().resolve() if configured else user_home / ".config"
+    return base / "meridian/config.json"
+
+
+def _read_user_configuration(path: Path) -> dict[str, object] | None:
+    if not path.exists():
+        return None
+    value = _read_json_object(path, "Meridian user configuration")
+    if set(value) != {"version", "worktreeRoot"} or value.get("version") != 1:
         raise MeridianError(
-            f"worktree root differs from MERIDIAN_WORKTREE_ROOT: {supplied}"
+            f"Meridian user configuration must contain only version 1 and worktreeRoot: {path}"
         )
-    if supplied in {Path(supplied.anchor), Path.home().resolve()}:
-        raise MeridianError("worktree root must be a dedicated directory, not the filesystem root or home")
-    return supplied
+    root = value.get("worktreeRoot")
+    if not isinstance(root, str) or not root.strip():
+        raise MeridianError(f"Meridian user configuration worktreeRoot must be a non-empty string: {path}")
+    if not Path(root).expanduser().is_absolute():
+        raise MeridianError(f"Meridian user configuration worktreeRoot must be absolute: {path}")
+    return value
+
+
+def resolve_worktree_root(
+    explicit: Path | None = None,
+    *,
+    environment: Mapping[str, str] | None = None,
+    home: Path | None = None,
+    config_path: Path | None = None,
+) -> ResolvedWorktreeRoot:
+    values = os.environ if environment is None else environment
+    user_home = (home or Path.home()).expanduser().resolve()
+    selected_config = config_path or user_configuration_path(values, user_home)
+    explicit_path = explicit.expanduser().resolve() if explicit is not None else None
+    environment_value = values.get("MERIDIAN_WORKTREE_ROOT")
+    environment_path = (
+        Path(environment_value).expanduser().resolve() if environment_value else None
+    )
+    if explicit_path is not None and environment_path is not None and explicit_path != environment_path:
+        raise MeridianError(
+            "conflicting worktree roots: --worktree-root supplied "
+            f"{explicit_path}; MERIDIAN_WORKTREE_ROOT supplied {environment_path}"
+        )
+    if explicit_path is not None:
+        root, source = explicit_path, "--worktree-root"
+    elif environment_path is not None:
+        root, source = environment_path, "MERIDIAN_WORKTREE_ROOT"
+    else:
+        configuration = _read_user_configuration(selected_config)
+        if configuration is not None:
+            root = Path(str(configuration["worktreeRoot"])).expanduser().resolve()
+            source = "user-config"
+        else:
+            root = user_home / ".meridian/worktrees"
+            source = "default"
+    if root in {Path(root.anchor), user_home}:
+        raise MeridianError(
+            f"worktree root from {source} must be a dedicated directory, not the filesystem root or home: {root}"
+        )
+    return ResolvedWorktreeRoot(root, source, selected_config)
+
+
+def _effective_worktree_root(worktree_root: Path | None = None) -> Path:
+    return resolve_worktree_root(worktree_root).path
 
 
 def _lifecycle_paths(project_root: Path, identity: ResolvedTaskIdentity) -> tuple[Path, Path, Path]:
@@ -512,7 +592,7 @@ def _branch_commit(project_root: Path, branch: str) -> str | None:
 
 def prepare_task_worktree(
     task_id: str,
-    worktree_root: Path,
+    worktree_root: Path | None,
     supplied_project: Path | None = None,
     base: str = "main",
 ) -> dict[str, object]:
@@ -577,7 +657,7 @@ def prepare_task_worktree(
 
 def inspect_task_worktree(
     task_id: str,
-    worktree_root: Path,
+    worktree_root: Path | None,
     supplied_project: Path | None = None,
     *,
     require_effective_worktree: bool = True,
@@ -718,7 +798,7 @@ def _remove_owned_file(path: Path) -> None:
 
 def stage_task_integration(
     task_id: str,
-    worktree_root: Path,
+    worktree_root: Path | None,
     evidence_path: Path,
     supplied_project: Path | None = None,
 ) -> dict[str, object]:
@@ -910,7 +990,7 @@ def abort_task_integration(task_id: str, supplied_project: Path | None = None) -
 
 def cleanup_task_worktree(
     task_id: str,
-    worktree_root: Path,
+    worktree_root: Path | None,
     supplied_project: Path | None = None,
 ) -> dict[str, object]:
     project_root = _verified_lifecycle_project(supplied_project)
@@ -1260,6 +1340,199 @@ def apply_codex_configuration(plan: CodexConfigurationPlan) -> bool:
     return True
 
 
+def _directory_setup_state(root: Path) -> tuple[str, str]:
+    if not root.exists():
+        return "missing", f"create {root} with mode 0700"
+    if not root.is_dir():
+        return "blocked", f"worktree root exists but is not a directory: {root}"
+    details = root.stat()
+    if hasattr(os, "getuid") and details.st_uid != os.getuid():
+        return "blocked", f"worktree root is not owned by the current user: {root}"
+    mode = stat.S_IMODE(details.st_mode)
+    if mode != 0o700:
+        return "repair-required", f"set mode 0700 on {root} (currently {mode:04o})"
+    return "ready", "no directory change"
+
+
+def _setup_codex_state(plan: CodexConfigurationPlan) -> str:
+    if plan.status in ("ready", "repair-required"):
+        return plan.status
+    text = plan.current_text or ""
+    try:
+        parsed = tomllib.loads(text)
+    except tomllib.TOMLDecodeError:
+        return "blocked"
+    permissions = parsed.get("permissions")
+    existing = permissions.get(CODEX_PERMISSION_PROFILE) if isinstance(permissions, dict) else None
+    if isinstance(existing, dict) and _codex_markers_intact(text):
+        expected = _codex_expected_profile(plan.worktree_root)
+        differing = [key for key in sorted(set(existing) | set(expected)) if existing.get(key) != expected.get(key)]
+        roots = existing.get("workspace_roots")
+        enabled_roots = (
+            [value for value, allowed in roots.items() if allowed is True]
+            if isinstance(roots, dict)
+            else []
+        )
+        if differing == ["workspace_roots"] and len(enabled_roots) == 1:
+            return "different-root"
+        return "blocked"
+    return "unconfigured"
+
+
+def codex_profile_root_mismatch(config_path: Path, resolved_root: Path) -> str | None:
+    if not config_path.is_file():
+        return None
+    try:
+        parsed = tomllib.loads(config_path.read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError):
+        return None
+    permissions = parsed.get("permissions")
+    profile = permissions.get(CODEX_PERMISSION_PROFILE) if isinstance(permissions, dict) else None
+    roots = profile.get("workspace_roots") if isinstance(profile, dict) else None
+    if not isinstance(roots, dict):
+        return None
+    enabled = [Path(value).expanduser().resolve() for value, allowed in roots.items() if allowed is True]
+    if len(enabled) == 1 and enabled[0] != resolved_root:
+        return f"profile={enabled[0]} resolved={resolved_root}"
+    return None
+
+
+def plan_setup(
+    worktree_root: Path | None,
+    codex_config: Path,
+    *,
+    environment: Mapping[str, str] | None = None,
+    home: Path | None = None,
+    user_config: Path | None = None,
+) -> SetupPlan:
+    resolution = resolve_worktree_root(
+        worktree_root,
+        environment=environment,
+        home=home,
+        config_path=user_config,
+    )
+    # Applying with a higher-precedence source must never overwrite malformed
+    # lower-precedence user state without first reporting it.
+    existing_config = _read_user_configuration(resolution.config_path)
+    default_root = ((home or Path.home()).expanduser().resolve() / ".meridian/worktrees")
+    expected_config = {"version": 1, "worktreeRoot": str(resolution.path)}
+    if resolution.path == default_root:
+        config_action = "remove" if existing_config is not None else "none"
+    elif existing_config == expected_config:
+        config_action = "none"
+    else:
+        config_action = "write"
+
+    directory_state, directory_change = _directory_setup_state(resolution.path)
+    codex_plan: CodexConfigurationPlan | None = None
+    try:
+        codex_plan = plan_codex_configuration(codex_config, resolution.path)
+        codex_state = _setup_codex_state(codex_plan)
+        if codex_state == "blocked":
+            parsed = tomllib.loads(codex_plan.current_text or "")
+            differences = _codex_profile_divergence(parsed, resolution.path)
+            codex_detail = (
+                "owned Codex profile has unexpected divergence in: "
+                + ", ".join(differences)
+            )
+        else:
+            codex_detail = codex_plan.detail
+    except MeridianError as error:
+        codex_state = "blocked"
+        codex_detail = str(error)
+
+    changes: list[str] = []
+    if directory_state != "ready":
+        changes.append(directory_change)
+    if config_action == "write":
+        changes.append(f"write {resolution.config_path} with version 1 and worktreeRoot {resolution.path}")
+    elif config_action == "remove":
+        changes.append(f"remove {resolution.config_path} because the built-in default needs no configuration")
+    if codex_plan is not None and codex_plan.proposed_text is not None:
+        verb = "repair" if codex_state == "repair-required" else "configure"
+        changes.append(f"{verb} Codex permission profile in {codex_config} for {resolution.path}")
+    if directory_state == "blocked" or codex_state == "blocked":
+        changes = ["none; setup is blocked before mutation"]
+    elif not changes:
+        changes.append("none")
+    warnings: list[str] = []
+    temporary_root = Path(tempfile.gettempdir()).resolve()
+    if resolution.path == temporary_root or temporary_root in resolution.path.parents:
+        warnings.append("resolved root is under a temporary directory and is unsuitable for persistent setup")
+    probe_path = resolution.path
+    while not probe_path.exists() and probe_path != probe_path.parent:
+        probe_path = probe_path.parent
+    if not probe_path.is_dir():
+        probe_path = probe_path.parent
+    repository_probe = _run_git(probe_path, "rev-parse", "--show-toplevel")
+    if repository_probe.returncode == 0:
+        repository_root = Path(repository_probe.stdout.strip()).resolve()
+        if resolution.path == repository_root or repository_root in resolution.path.parents:
+            warnings.append("resolved root is inside the current repository and is unsuitable for machine setup")
+    return SetupPlan(
+        resolution,
+        codex_config,
+        directory_state,
+        codex_state,
+        codex_plan,
+        codex_detail,
+        config_action,
+        tuple(changes),
+        tuple(warnings),
+    )
+
+
+def print_setup_plan(plan: SetupPlan) -> None:
+    print(f"worktree-root: {plan.resolution.path}")
+    print(f"worktree-root-source: {plan.resolution.source}")
+    print(f"directory-exists: {'no' if plan.directory_state == 'missing' else 'yes'}")
+    print(f"directory-owner-only: {'yes' if plan.directory_state == 'ready' else 'no'}")
+    print(f"directory: {plan.directory_state}")
+    print(f"codex-profile: {plan.codex_state}")
+    print(f"codex-detail: {plan.codex_detail}")
+    mismatch = codex_profile_root_mismatch(
+        plan.codex_config,
+        plan.resolution.path,
+    )
+    if mismatch:
+        print(f"codex-root-mismatch: {mismatch}")
+    for warning in plan.warnings:
+        print(f"warning: {warning}")
+    print("changes:")
+    for change in plan.changes:
+        print(f"- {change}")
+
+
+def apply_setup(plan: SetupPlan) -> bool:
+    if plan.directory_state == "blocked" or plan.codex_state == "blocked" or plan.codex_plan is None:
+        detail = (
+            plan.codex_detail
+            if plan.codex_state == "blocked"
+            else _directory_setup_state(plan.resolution.path)[1]
+        )
+        raise MeridianError(f"setup is blocked: {detail}")
+    changed = False
+    root = plan.resolution.path
+    if plan.directory_state == "missing":
+        root.mkdir(parents=True, mode=0o700)
+        os.chmod(root, 0o700)
+        changed = True
+    elif plan.directory_state == "repair-required":
+        os.chmod(root, 0o700)
+        changed = True
+    if plan.config_action == "write":
+        _write_json_atomic(
+            plan.resolution.config_path,
+            {"version": 1, "worktreeRoot": str(root)},
+        )
+        changed = True
+    elif plan.config_action == "remove":
+        plan.resolution.config_path.unlink()
+        changed = True
+    changed = apply_codex_configuration(plan.codex_plan) or changed
+    return changed
+
+
 def codex_doctor(project_root: Path, config_path: Path, worktree_root: Path) -> dict[str, str]:
     result: dict[str, str] = {}
     try:
@@ -1271,6 +1544,9 @@ def codex_doctor(project_root: Path, config_path: Path, worktree_root: Path) -> 
     except MeridianError:
         result["permission-model"] = "blocked"
         result["profile-ownership"] = "blocked"
+    mismatch = codex_profile_root_mismatch(config_path, worktree_root)
+    if mismatch:
+        result["codex-root-mismatch"] = mismatch
     text = config_path.read_text(encoding="utf-8") if config_path.is_file() else ""
     try:
         parsed = tomllib.loads(text)
@@ -6416,22 +6692,29 @@ def main() -> int:
     locations.add_argument("--project", type=Path, default=Path.cwd())
     locations.add_argument("--field", choices=("queue", "task-roots"))
 
+    setup = subparsers.add_parser("setup", help="plan or apply machine-level worktree and Codex setup")
+    setup_group = setup.add_mutually_exclusive_group(required=True)
+    setup_group.add_argument("--check", action="store_true")
+    setup_group.add_argument("--apply", action="store_true")
+    setup.add_argument("--worktree-root", type=Path)
+    setup.add_argument("--config", type=Path, default=Path.home() / ".codex/config.toml", help=argparse.SUPPRESS)
+
     codex = subparsers.add_parser("codex", help="configure and diagnose Codex task-worktree access")
     codex_sub = codex.add_subparsers(dest="codex_command", required=True)
     codex_configure = codex_sub.add_parser("configure", help="plan or apply a bounded Codex permission profile")
     codex_configure_group = codex_configure.add_mutually_exclusive_group(required=True)
     codex_configure_group.add_argument("--check", action="store_true")
     codex_configure_group.add_argument("--apply", action="store_true")
-    codex_configure.add_argument("--worktree-root", type=Path, required=True)
+    codex_configure.add_argument("--worktree-root", type=Path)
     codex_configure.add_argument("--config", type=Path, default=Path.home() / ".codex/config.toml", help=argparse.SUPPRESS)
     codex_configure.add_argument("--requirements", type=Path, help=argparse.SUPPRESS)
     codex_path = codex_sub.add_parser("worktree-path", help="derive one repository-qualified task worktree path")
     codex_path.add_argument("task_id")
     codex_path.add_argument("--project", type=Path, default=Path.cwd())
-    codex_path.add_argument("--worktree-root", type=Path, required=True)
+    codex_path.add_argument("--worktree-root", type=Path)
     codex_doctor_parser = codex_sub.add_parser("doctor", help="report Codex host capabilities separately")
     codex_doctor_parser.add_argument("--project", type=Path, default=Path.cwd())
-    codex_doctor_parser.add_argument("--worktree-root", type=Path, required=True)
+    codex_doctor_parser.add_argument("--worktree-root", type=Path)
     codex_doctor_parser.add_argument("--config", type=Path, default=Path.home() / ".codex/config.toml", help=argparse.SUPPRESS)
 
     worktree = subparsers.add_parser("worktree", help="run the bounded host-neutral task-worktree lifecycle")
@@ -6439,25 +6722,25 @@ def main() -> int:
     worktree_path_parser = worktree_sub.add_parser("path", help="derive the canonical task-worktree path")
     worktree_path_parser.add_argument("task_id")
     worktree_path_parser.add_argument("--project", type=Path)
-    worktree_path_parser.add_argument("--worktree-root", type=Path, required=True)
+    worktree_path_parser.add_argument("--worktree-root", type=Path)
     worktree_path_parser.add_argument("--format", choices=("json",))
     worktree_prepare = worktree_sub.add_parser("prepare", help="create or select exactly one canonical task worktree")
     worktree_prepare.add_argument("task_id")
     worktree_prepare.add_argument("--project", type=Path)
-    worktree_prepare.add_argument("--worktree-root", type=Path, required=True)
+    worktree_prepare.add_argument("--worktree-root", type=Path)
     worktree_prepare.add_argument("--base", choices=("main",), default="main")
     worktree_prepare.add_argument("--format", choices=("json",), required=True)
     worktree_check = worktree_sub.add_parser("check", help="inspect the effective worker worktree without mutation")
     worktree_check.add_argument("task_id")
     worktree_check.add_argument("--project", type=Path)
-    worktree_check.add_argument("--worktree-root", type=Path, required=True)
+    worktree_check.add_argument("--worktree-root", type=Path)
     worktree_check.add_argument("--format", choices=("json",), required=True)
     worktree_integrate = worktree_sub.add_parser("integrate", help="stage, finalize, or abort one owned integration")
     integrate_sub = worktree_integrate.add_subparsers(dest="integrate_command", required=True)
     integrate_stage = integrate_sub.add_parser("stage", help="lease and stage the prescribed no-commit merge")
     integrate_stage.add_argument("task_id")
     integrate_stage.add_argument("--project", type=Path)
-    integrate_stage.add_argument("--worktree-root", type=Path, required=True)
+    integrate_stage.add_argument("--worktree-root", type=Path)
     integrate_stage.add_argument("--evidence", type=Path, required=True)
     integrate_stage.add_argument("--format", choices=("json",), required=True)
     integrate_finalize = integrate_sub.add_parser("finalize", help="commit an exactly validated staged candidate")
@@ -6472,7 +6755,7 @@ def main() -> int:
     worktree_cleanup = worktree_sub.add_parser("cleanup", help="remove an integrated worktree and its merged local branch")
     worktree_cleanup.add_argument("task_id")
     worktree_cleanup.add_argument("--project", type=Path)
-    worktree_cleanup.add_argument("--worktree-root", type=Path, required=True)
+    worktree_cleanup.add_argument("--worktree-root", type=Path)
     worktree_cleanup.add_argument("--format", choices=("json",), required=True)
 
     task = subparsers.add_parser("task", help="inspect task records and identities")
@@ -6656,11 +6939,21 @@ def main() -> int:
                 print("\n".join(str(root) for root in locations.task_roots))
             else:
                 print(json.dumps({"queue": str(locations.queue), "taskRoots": [str(root) for root in locations.task_roots]}))
+        elif arguments.command == "setup":
+            plan = plan_setup(
+                arguments.worktree_root,
+                arguments.config.expanduser().resolve(),
+            )
+            print_setup_plan(plan)
+            if arguments.apply:
+                changed = apply_setup(plan)
+                print("result: updated; restart Codex" if changed else "result: no-op")
         elif arguments.command == "codex":
+            resolved_root = resolve_worktree_root(arguments.worktree_root)
             if arguments.codex_command == "configure":
                 plan = plan_codex_configuration(
                     arguments.config.expanduser().resolve(),
-                    arguments.worktree_root,
+                    resolved_root.path,
                     arguments.requirements.expanduser().resolve() if arguments.requirements else None,
                 )
                 print_codex_configuration_plan(plan)
@@ -6674,12 +6967,12 @@ def main() -> int:
                     else:
                         print("result: updated; restart Codex and select the profile" if changed else "result: no-op")
             elif arguments.codex_command == "worktree-path":
-                path = task_worktree_path(project_root, arguments.worktree_root, arguments.task_id)
+                path = task_worktree_path(project_root, resolved_root.path, arguments.task_id)
                 validate_worktree_collision(project_root, path, arguments.task_id)
                 print("DEPRECATED: use `meridian worktree path`", file=sys.stderr)
                 print(path)
             else:
-                report = codex_doctor(project_root, arguments.config.expanduser().resolve(), arguments.worktree_root.expanduser().resolve())
+                report = codex_doctor(project_root, arguments.config.expanduser().resolve(), resolved_root.path)
                 for capability, status in report.items():
                     print(f"{capability}: {status}")
         elif arguments.command == "worktree":
