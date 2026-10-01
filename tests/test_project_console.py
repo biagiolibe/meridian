@@ -7,6 +7,8 @@ import re
 import subprocess
 import sys
 import tempfile
+import threading
+import time
 import unittest
 from datetime import datetime
 from pathlib import Path
@@ -483,6 +485,134 @@ class GovernedEffectiveStateTest(RepoCase):
         task = self.load()["TASK-001"]
         self.assertTrue(task.active_writer)
         self.assertEqual(task.readiness, "IN PROGRESS")
+
+
+class RefreshCostTest(RepoCase):
+    """The cost of a refresh must not grow with the number of known tasks."""
+
+    queue = LeanEffectiveStateTest.queue
+    setup_project = LeanEffectiveStateTest.setup_project
+
+    def setup_with_history(self, archived: int) -> None:
+        self.setup_project({"001": " ", "002": " "})
+        queue = (self.project / "tasks/QUEUE.md").read_text(encoding="utf-8")
+        history = "".join(f"| `[x]` | {100 + n} | Done {n} | P2 | — | — |\n" for n in range(archived))
+        self.write(self.project, "tasks/QUEUE.md", queue + history)
+        self.commit(self.project, "history")
+
+    def subprocess_calls(self, cache: console.IdentityCache | None) -> list[list[str]]:
+        real = subprocess.run
+        calls: list[list[str]] = []
+
+        def counting(command, *args, **kwargs):
+            calls.append(list(command))
+            return real(command, *args, **kwargs)
+
+        with mock.patch.object(subprocess, "run", side_effect=counting):
+            console.load_snapshot(self.project, cache)
+        return calls
+
+    def test_subprocess_work_does_not_grow_with_known_tasks(self) -> None:
+        self.setup_with_history(2)
+        small = self.subprocess_calls(console.IdentityCache())
+        self.setup_with_history(40)
+        large = self.subprocess_calls(console.IdentityCache())
+        self.assertEqual(len(small), len(large))
+        checks = [call for call in large if "check-ref-format" in call]
+        self.assertEqual(len(checks), 2, "one ref check per open task")
+
+    def test_warm_refresh_resolves_no_identity_and_spawns_no_ref_check(self) -> None:
+        self.setup_with_history(5)
+        cache = console.IdentityCache()
+        self.subprocess_calls(cache)
+        warm = self.subprocess_calls(cache)
+        self.assertEqual([call for call in warm if "check-ref-format" in call], [])
+
+    def test_identity_is_resolved_once_until_the_declaration_changes(self) -> None:
+        self.setup_with_history(1)
+        cache = console.IdentityCache()
+        with mock.patch.object(console, "resolve_task_identity",
+                               wraps=console.resolve_task_identity) as resolver:
+            console.load_snapshot(self.project, cache)
+            console.load_snapshot(self.project, cache)
+            self.assertEqual(resolver.call_count, 2)
+            self.write(self.project, ".meridian/task-identity.json",
+                       json.dumps({"version": 1, "mode": "opaque"}))
+            console.load_snapshot(self.project, cache)
+            self.assertEqual(resolver.call_count, 4)
+            console.load_snapshot(self.project, cache)
+            self.assertEqual(resolver.call_count, 4)
+
+    def test_failed_resolution_is_not_cached(self) -> None:
+        cache = console.IdentityCache()
+        self.setup_with_history(1)
+        with self.assertRaises(console.MeridianError):
+            cache.resolve(self.project, "999")
+        self.write(self.project, "tasks/999-task.md", "# Task 999\n\n> **ID**: `999`\n")
+        self.assertEqual(cache.resolve(self.project, "999").canonical_id, "999")
+
+
+class BackgroundRefreshTest(unittest.TestCase):
+    def wait_idle(self, state: console.ConsoleState) -> None:
+        deadline = time.monotonic() + 5
+        while state.refreshing and time.monotonic() < deadline:
+            time.sleep(0.01)
+        self.assertFalse(state.refreshing)
+
+    def snapshot(self, marker: str) -> console.Snapshot:
+        return console.Snapshot(
+            project=Path("/p"), queue=Path("/p/q"), branch=marker, git_summary="clean",
+            git_changes=0, tasks=(), done_count=0,
+        )
+
+    def test_refresh_is_non_blocking_single_flight_and_published_atomically(self) -> None:
+        state = console.ConsoleState(Path("/p"))
+        state.snapshot = self.snapshot("old")
+        release = threading.Event()
+        started = threading.Event()
+
+        def slow(_project, _identities):
+            started.set()
+            release.wait(5)
+            return self.snapshot("new")
+
+        with mock.patch.object(console, "load_snapshot", side_effect=slow) as loader:
+            began = time.monotonic()
+            self.assertTrue(state.start_refresh())
+            self.assertLess(time.monotonic() - began, 1)
+            self.assertTrue(started.wait(5))
+            self.assertFalse(state.start_refresh(), "refreshes must not overlap")
+            state.apply_pending()
+            self.assertEqual(state.snapshot.branch, "old")
+            release.set()
+            self.wait_idle(state)
+            self.assertEqual(state.snapshot.branch, "old", "published only when applied")
+            state.apply_pending()
+            self.assertEqual(state.snapshot.branch, "new")
+            self.assertIsNone(state.error)
+            self.assertEqual(loader.call_count, 1)
+
+    def test_failed_background_refresh_keeps_last_snapshot_and_marks_it_stale(self) -> None:
+        state = console.ConsoleState(Path("/p"))
+        state.snapshot = self.snapshot("old")
+        with mock.patch.object(console, "load_snapshot",
+                               side_effect=console.ConsoleError("boom")):
+            self.assertTrue(state.start_refresh())
+            self.wait_idle(state)
+        state.apply_pending()
+        self.assertEqual(state.snapshot.branch, "old")
+        self.assertEqual(state.error, "boom")
+        with mock.patch.object(console, "load_snapshot", side_effect=RuntimeError("bug")):
+            self.assertTrue(state.start_refresh())
+            self.wait_idle(state)
+        state.apply_pending()
+        self.assertEqual(state.snapshot.branch, "old")
+        self.assertIn("bug", state.error)
+        with mock.patch.object(console, "load_snapshot", return_value=self.snapshot("fresh")):
+            self.assertTrue(state.start_refresh())
+            self.wait_idle(state)
+        state.apply_pending()
+        self.assertEqual((state.snapshot.branch, state.error), ("fresh", None))
 
 
 class WorkflowModeLockTest(RepoCase):
