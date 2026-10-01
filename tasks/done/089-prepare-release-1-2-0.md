@@ -20,31 +20,31 @@ requires a one-time marketplace migration for existing Claude Code installs.
 
 ## Acceptance Criteria
 
-- [ ] `VERSION` and `.claude-plugin/plugin.json` `version` are `1.2.0`.
-- [ ] `CHANGELOG.md` has a `## [1.2.0]` section holding the former
+- [x] `VERSION` and `.claude-plugin/plugin.json` `version` are `1.2.0`.
+- [x] `CHANGELOG.md` has a `## [1.2.0]` section holding the former
   `[Unreleased]` content, with an empty `## [Unreleased]` left above it. The
   section opens with the release kind line required by Task 067.
-- [ ] The `1.2.0` section states that `1.1.51`, `1.1.52`, and `1.1.53` were
+- [x] The `1.2.0` section states that `1.1.51`, `1.1.52`, and `1.1.53` were
   never published as tags or GitHub Releases, and that an adopter upgrading
   from `1.1.50` receives migrations `053`, `054`, and `055` in one
   `upgrade --apply`. Existing `1.1.51`–`1.1.53` sections are not rewritten.
-- [ ] The section carries the Claude Code marketplace migration as upgrade
+- [x] The section carries the Claude Code marketplace migration as upgrade
   notes (uninstall `meridian@meridian-local`, remove `meridian-local`, add
   `biagiolibe/meridian#v1.2.0`, install `meridian@meridian`).
-- [ ] `releases/1.2.0.json` exists with `gitTag: v1.2.0`, today's
+- [x] `releases/1.2.0.json` exists with `gitTag: v1.2.0`, today's
   `releaseDate`, `workflowBaselineVersion: 1.1.53`, `baselineChanged: false`,
   and an empty `migrations` list, unless the classification step below finds a
   changed managed file; in that case the task stops and reports `BLOCKED`
   instead of choosing.
-- [ ] Classification is evidenced: the diff of managed template and workflow
+- [x] Classification is evidenced: the diff of managed template and workflow
   files since `1.1.53` is listed and shows no change, and the manifest written
   by the new CLI is compared with the one from `1.1.50`. `PROTOCOL_VERSION` is
   changed only if an older CLI cannot safely read the new manifest; the
   comparison and the decision are recorded in the handoff.
-- [ ] The README install and update commands name `v1.2.0`-style pins
+- [x] The README install and update commands name `v1.2.0`-style pins
   consistently with the changelog, and no tracked file contains a
   machine-specific absolute path.
-- [ ] `python3 scripts/check_repository.py` and
+- [x] `python3 scripts/check_repository.py` and
   `python3 -m unittest discover -s tests` pass, and
   `python3 scripts/prepare_release.py --tag v1.2.0 --repository
   biagiolibe/meridian --notes-file <scratch file>` succeeds locally without
