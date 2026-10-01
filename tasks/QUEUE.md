@@ -50,7 +50,7 @@ adopters as a migration.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[ ]` | 097 | Let a manually typed `Proceed with` prepare its own worktree in Governed SDD | 🟡 P2 | 051, 055 | [097](097-governed-proceed-prepares-worktree.md) |
+| `[x]` | 097 | Let a manually typed `Proceed with` prepare its own worktree in Governed SDD | 🟡 P2 | 051, 055 | [097](done/097-governed-proceed-prepares-worktree.md) |
 
 ### Phase 40 — Release publish wait
 
