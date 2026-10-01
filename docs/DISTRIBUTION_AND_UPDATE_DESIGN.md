@@ -215,12 +215,14 @@ subsection belongs in the release-notes follow-up task.
 Consistent with `migrations/`, `release-baselines/`, and the append-only
 ledger:
 
-- **Upgrade window.** Every release from the `1.0.0` baseline forward is
-  upgradable to the newest release in a single `upgrade --apply`, because the
-  migration chain is contiguous from `1.0.0` and `release-baselines/1.0.0` is
-  the earliest packaged baseline (`scripts/check_repository.py` enforces the
-  chain). Migrations and packaged baselines are never removed while this
-  policy holds.
+- **Upgrade window.** Every published release from `v1.1.49` (the oldest
+  release published as a tag) forward is upgradable to the newest release in a
+  single `upgrade --apply`, proved by
+  `test_oldest_published_release_upgrades_to_current_in_one_apply`. Migrations
+  and packaged baselines are never removed while this policy holds.
+  Amended by task 068: the original `1.0.0` window does not hold, because a
+  pristine `1.0.0` project adopts with conflicts at migrations `037` and `038`
+  (task 090). Projects older than `v1.1.49` use `meridian adopt` best-effort.
 - **Skipping releases** is supported; adopters need not step through
   intermediate releases.
 - **Fixes land only in the newest release.** There are no backport branches; a

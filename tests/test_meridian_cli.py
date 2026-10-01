@@ -10,6 +10,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import tarfile
 import tempfile
 import tomllib
 import unittest
@@ -2026,6 +2027,41 @@ worktree before the branch only after validated integration succeeds.
             "`Restart rejected <TASK-ID>`",
             (self.project / "AGENTS.md").read_text(encoding="utf-8"),
         )
+
+    def test_oldest_published_release_upgrades_to_current_in_one_apply(self) -> None:
+        """Decision 6: the oldest published release reaches the current one in one step."""
+        current_templates = self.framework / "templates/workflows/governed-sdd"
+        shutil.rmtree(current_templates)
+        # Verbatim templates/workflows/governed-sdd at tag v1.1.49; do not edit.
+        with tarfile.open(ROOT / "tests/fixtures/release-1.1.49-governed-sdd.tar.gz") as archive:
+            archive.extractall(current_templates.parent, filter="data")
+        shutil.rmtree(self.project)
+        self.project.mkdir()
+        self.copy_governed_templates()
+        (self.framework / "VERSION").write_text("1.1.49\n", encoding="utf-8")
+        locked = self.run_cli("lock", "--mode", "governed-sdd")
+        self.assertEqual(locked.returncode, 0, locked.stdout + locked.stderr)
+
+        shutil.rmtree(current_templates)
+        shutil.copytree(ROOT / "templates/workflows/governed-sdd", current_templates)
+        current = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
+        (self.framework / "VERSION").write_text(current + "\n", encoding="utf-8")
+
+        applied = self.run_cli("upgrade", "--apply")
+        self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+        manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual(manifest["frameworkVersion"], current)
+        expected = [
+            path.stem
+            for path in sorted((self.framework / "migrations").glob("*.json"))
+            if tuple(map(int, json.loads(path.read_text(encoding="utf-8"))["from"].split(".")))
+            >= (1, 1, 49)
+        ]
+        self.assertTrue(expected, "the current release must apply at least one migration after 1.1.49")
+        self.assertTrue(set(expected) <= set(manifest["appliedMigrations"]))
+        noop = self.run_cli("upgrade", "--check")
+        self.assertEqual(noop.returncode, 0, noop.stdout + noop.stderr)
+        self.assertNotIn("CONFLICT", noop.stdout)
 
     def test_owner_reconciled_upgrade_registers_baseline_despite_conflicts(self) -> None:
         self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)

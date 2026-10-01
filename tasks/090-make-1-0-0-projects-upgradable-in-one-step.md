@@ -9,19 +9,21 @@
 
 ## Objective
 
-Decision 6 in `docs/DISTRIBUTION_AND_UPDATE_DESIGN.md` promises that every
-release from the `1.0.0` baseline forward reaches the newest release in a
+Decision 6 in `docs/DISTRIBUTION_AND_UPDATE_DESIGN.md` originally promised that
+every release from the `1.0.0` baseline forward reaches the newest release in a
 single `upgrade --apply`. Task 068 found that a pristine `1.0.0` Governed SDD
-project cannot be adopted onto the current framework without conflicts. Make
-the promise true, or amend the decision with the developer's approval.
+project cannot be adopted onto the current framework without conflicts, and
+narrowed the window to `v1.1.49` forward. Make `1.0.0` projects adoptable
+again and, if so, widen the window back, or keep the narrower window.
 
 ## Acceptance Criteria
 
 - [ ] The cause of the conflicts below is identified and recorded.
-- [ ] Either a `1.0.0` project reaches the current release without conflicts
-  (adopt followed by upgrade, or the documented equivalent), proved by a test
-  that uses the unmodified `release-baselines/1.0.0` templates and the real
-  `migrations/`, or Decision 6 is amended with developer approval.
+- [ ] A `1.0.0` project reaches the current release without conflicts (adopt
+  followed by upgrade, or the documented equivalent), proved by a test that
+  uses the unmodified `release-baselines/1.0.0` templates and the real
+  `migrations/`; then Decision 6, README, and CONTRIBUTING are widened to
+  `1.0.0`. Otherwise the developer confirms the narrower window stays.
 - [ ] `python3 scripts/check_repository.py` and the unit tests pass.
 
 ## Technical Context
