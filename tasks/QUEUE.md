@@ -38,7 +38,7 @@ Match the approved console background color in the interactive terminal.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[ ]` | 074 | Match the console background color | 🟢 P3 | 073 | [074](074-match-console-background-color.md) |
+| `[/]` | 074 | Match the console background color | 🟢 P3 | 073 | [074](074-match-console-background-color.md) |
 
 ### Phase 24 — Review worktree routing correction
 
