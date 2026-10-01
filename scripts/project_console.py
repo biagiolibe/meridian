@@ -683,6 +683,7 @@ def _detail_lines(task: Task, width: int, palette: dict[str, int],
     if not compact:
         add("")
     add(task.title, "title")
+    add(f"Task {task.task_id}", "muted")
     add(f"○ {label}", color)
     if task.source != "main":
         add(f"State from {task.source}", "muted")
@@ -765,16 +766,50 @@ def _draw_header(screen, state: ConsoleState, palette: dict[str, int],
         selected_x += label_width + 1
 
 
+LIST_ID_X = 3
+LIST_STATUS_WIDTH = 11
+LIST_AGE_WIDTH = 9
+LIST_MIN_TITLE_WIDTH = 8
+
+
+@dataclass(frozen=True)
+class ListLayout:
+    id_x: int
+    id_width: int
+    title_x: int
+    title_width: int
+    status_x: int
+    age_x: int
+
+
+def _list_layout(all_tasks: tuple[Task, ...] | list[Task], left_width: int) -> ListLayout:
+    """Column positions for the task list.
+
+    The ID width follows the longest ID of the full open task set, so filtering
+    or searching never moves a column. It is capped at a third of the pane and
+    never squeezes the title below its minimum width.
+    """
+    status_x = left_width - LIST_STATUS_WIDTH - LIST_AGE_WIDTH - 2
+    longest = max((len(task.task_id) for task in all_tasks), default=0)
+    room = status_x - 2 - LIST_MIN_TITLE_WIDTH - LIST_ID_X - 1
+    id_width = max(1, min(longest, left_width // 3, room))
+    title_x = LIST_ID_X + id_width + 1
+    return ListLayout(
+        LIST_ID_X, id_width, title_x,
+        max(LIST_MIN_TITLE_WIDTH, status_x - 2 - title_x),
+        status_x, left_width - LIST_AGE_WIDTH - 1,
+    )
+
+
 def _draw_list(screen, tasks: list[Task], selected_id: str | None,
                offset: int, left_width: int, height: int,
-               palette: dict[str, int]) -> int:
-    status_width = 11
-    age_width = 9
-    # The title starts at column 9 and leaves two columns before status.
-    title_width = max(8, left_width - status_width - age_width - 13)
-    _put(screen, 3, 2, "Tasks", title_width, palette["muted"])
-    _put(screen, 3, left_width - status_width - age_width - 2, "Status", status_width, palette["muted"])
-    _put(screen, 3, left_width - age_width - 1, "Updated", age_width, palette["muted"])
+               palette: dict[str, int],
+               all_tasks: tuple[Task, ...] | list[Task] | None = None) -> int:
+    layout = _list_layout(tasks if all_tasks is None else all_tasks, left_width)
+    title_width = layout.title_width
+    _put(screen, 3, 2, "Tasks", layout.title_x + title_width - 2, palette["muted"])
+    _put(screen, 3, layout.status_x, "Status", LIST_STATUS_WIDTH, palette["muted"])
+    _put(screen, 3, layout.age_x, "Updated", LIST_AGE_WIDTH, palette["muted"])
     entries: list[tuple[str, Task | None]] = []
     phase = None
     for task in tasks:
@@ -799,16 +834,17 @@ def _draw_list(screen, tasks: list[Task], selected_id: str | None,
         row_attr = palette["selected"] if selected else palette["base"]
         _fill(screen, line_number, 0, left_width - 1, row_attr)
         _put(screen, line_number, 1, "›" if selected else " ", 1, row_attr)
-        _put(screen, line_number, 3, task.task_id, 5, row_attr if selected else palette["muted"])
-        _put(screen, line_number, 9, _clip(f"○ {task.title}", title_width),
+        _put(screen, line_number, layout.id_x, _clip(task.task_id, layout.id_width),
+             layout.id_width, row_attr if selected else palette["muted"])
+        _put(screen, line_number, layout.title_x, _clip(f"○ {task.title}", title_width),
              title_width, row_attr)
         label, color = _state_label(task)
         flags = ("↺" if task.changes_requested else "") + ("●" if task.active_writer else "")
-        _put(screen, line_number, left_width - status_width - age_width - 2,
-             f"{label} {flags}" if flags else label, status_width,
+        _put(screen, line_number, layout.status_x,
+             f"{label} {flags}" if flags else label, LIST_STATUS_WIDTH,
              row_attr if selected else palette[color])
-        _put(screen, line_number, left_width - age_width - 1,
-             _age(task.updated_at), age_width, row_attr if selected else palette["muted"])
+        _put(screen, line_number, layout.age_x,
+             _age(task.updated_at), LIST_AGE_WIDTH, row_attr if selected else palette["muted"])
     if not tasks:
         _put(screen, body_top + 1, 2, "No matching open tasks", left_width - 4, palette["muted"])
     return offset
@@ -898,7 +934,8 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
             else:
                 left_width = int(width * .68) if wide else width
                 offset = _draw_list(screen, visible, selected_id, offset, left_width,
-                                    height, palette)
+                                    height, palette,
+                                    snapshot.tasks if snapshot else ())
                 if wide:
                     divider = left_width - 1
                     for y in range(3, height - 2):
