@@ -48,7 +48,7 @@
 - `[x]` 081 — Group console tasks by their queue headings in Governed SDD projects.
 - `[x]` 082 — Fix detail pane scrolling, Governed objective, and dependency order.
 - `[x]` 084 — Show uncommitted in-progress task state in the console.
-- `[ ]` 077 — Launch Claude Code or Codex from the console in an iTerm2 tab.
+- `[x]` 077 — Launch Claude Code or Codex from the console in an iTerm2 tab.
 - `[ ]` 067 — Enforce the adopter-facing release-notes contract.
 - `[ ]` 068 — Document and test the upgrade support policy.
 - `[x]` 083 — Unify worktree-root resolution and add `meridian setup`.
