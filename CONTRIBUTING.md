@@ -57,6 +57,11 @@ For changes under `bin/`, `migrations/`, or `scripts/meridian.py`, also run:
 python3 -m unittest discover -s tests -v
 ```
 
+The AppleScript compile test proves its iTerm2 payload compiles only where
+`osacompile` can resolve the iTerm2 scripting dictionary. If it is skipped
+because the dictionary is unavailable, record it as a skip in the task handoff;
+before a release, a maintainer must run the full suite outside the agent sandbox.
+
 For a change to a template or workflow rule, also manually trace the affected path from initialization through task creation, implementation, review, acceptance, and a framework-upgrade plan. The templates are the product.
 
 ## Release procedure

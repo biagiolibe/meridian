@@ -49,7 +49,7 @@ AppleScript compiler cannot reach its system services there.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[ ]` | 099 | Skip the AppleScript compile test when `osacompile` cannot run | 🔴 P1 | 086 | [099](099-skip-applescript-compile-test-when-osacompile-unusable.md) |
+| `[/]` | 099 | Skip the AppleScript compile test when `osacompile` cannot run | 🔴 P1 | 086 | [099](099-skip-applescript-compile-test-when-osacompile-unusable.md) |
 
 ### Phase 41 — Governed Proceed prepares its worktree
 
