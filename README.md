@@ -252,13 +252,39 @@ Generated Lean Delivery and Governed-SDD projects include `AGENTS.md` and
 `PROJECT_WORKFLOW.md`. Codex also needs one consented machine-level filesystem
 setup for task worktrees.
 
-For reusable Meridian operations across projects, install or symlink [`skills/meridian-lean-delivery/`](skills/meridian-lean-delivery/) and [`skills/meridian-governed-sdd/`](skills/meridian-governed-sdd/) into your local Codex skills directory. Set the location of this checkout once per machine:
+For reusable Meridian operations across projects, install Meridian from a tagged
+checkout. The tag pins the release; nothing moves it for you.
 
 ```bash
-export MERIDIAN_ROOT=/path/to/meridian
+git clone --branch v<version> https://github.com/biagiolibe/meridian ~/meridian
+export MERIDIAN_ROOT=~/meridian   # add to your shell profile
+export PATH="$MERIDIAN_ROOT/bin:$PATH"
+mkdir -p ~/.agents/skills
+ln -s "$MERIDIAN_ROOT/skills/meridian-lean-delivery" ~/.agents/skills/
+ln -s "$MERIDIAN_ROOT/skills/meridian-governed-sdd" ~/.agents/skills/
 ```
 
-Review and apply that setup once, then restart Codex:
+Codex scans `$HOME/.agents/skills` for user skills and follows these symlinks
+(verified with Codex CLI 0.159.2; see
+[`docs/HOST_CAPABILITY_CONTRACT.md`](docs/HOST_CAPABILITY_CONTRACT.md)). Restart
+Codex after linking. `bin/meridian` needs Python 3.11 or later on the `PATH` of
+the shell Codex uses; with an older `python3` the launcher fails on
+`import tomllib`. An older `~/.codex/skills` copy is also discovered, so remove
+a stale one yourself rather than expecting Meridian to.
+
+To update, read the release notes, then fetch and move the pin before touching
+any project:
+
+```bash
+git -C "$MERIDIAN_ROOT" fetch --tags
+git -C "$MERIDIAN_ROOT" checkout v<new-version>
+meridian upgrade --check   # from the project; apply with --apply on a dedicated branch
+```
+
+The skill symlinks follow the checkout, so no relinking is needed. Meridian does
+not publish tags or move an adopter automatically.
+
+Then review and apply the machine-level worktree setup once, and restart Codex:
 
 ```bash
 meridian setup --check
