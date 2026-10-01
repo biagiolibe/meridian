@@ -49,7 +49,7 @@ document how adopters use it from any Meridian project.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[ ]` | 075 | Distribute the project console through the Meridian CLI | 🟡 P2 | 074, 065 | [075](075-distribute-project-console-cli.md) |
+| `[/]` | 075 | Distribute the project console through the Meridian CLI | 🟡 P2 | 074, 065 | [075](075-distribute-project-console-cli.md) |
 
 ### Phase 23 — Shared task identity resolver
 
