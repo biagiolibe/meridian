@@ -188,6 +188,7 @@ class BranchFacts:
     ahead: bool
     worktree: str | None
     dirty: bool
+    working_row: QueueRow | None = None
 
 
 @dataclass(frozen=True)
@@ -219,6 +220,18 @@ def effective_state(profile: Profile, primary: QueueRow, primary_record: str | N
                 "in_progress", "MISMATCH", source, active_writer=writer,
                 mismatch=f"main {primary.status}, {facts.branch} {row.status}",
             )
+        if facts.working_row is not None:
+            working_phase = PHASES.index(profile.phases[facts.working_row.status])
+            committed_phase = PHASES.index(profile.phases[row.status])
+            if working_phase < committed_phase:
+                return Effective(
+                    "in_progress", "MISMATCH", source, active_writer=writer,
+                    mismatch=(f"{facts.branch} {row.status}, working tree "
+                              f"{facts.working_row.status}"),
+                )
+            if working_phase > committed_phase:
+                row = facts.working_row
+                source = f"uncommitted {facts.branch}"
         if row.status == primary.status:
             source = "main"
 
