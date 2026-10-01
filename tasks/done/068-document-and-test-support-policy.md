@@ -13,10 +13,10 @@ State the Decision 6 support window in README and CONTRIBUTING and prove it with
 
 ## 📋 Acceptance Criteria
 
-- [ ] A test upgrades a project from the oldest packaged baseline (`1.0.0`) to the current release in one `upgrade --apply`, or the existing equivalent test is identified and cited.
-- [ ] README and CONTRIBUTING state the window, skip-release support, newest-only fixes, and the unsupported cases.
-- [ ] No CLI behavior change; any discovered gap is reported as a new task.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
+- [x] A test upgrades a project from the oldest published release (`v1.1.49`) to the current release in one `upgrade --apply`: `test_oldest_published_release_upgrades_to_current_in_one_apply`. Amended by the developer from the original `1.0.0` baseline, which does not upgrade cleanly (gap reported as task 090).
+- [x] README and CONTRIBUTING state the window, skip-release support, newest-only fixes, and the unsupported cases.
+- [x] No CLI behavior change; any discovered gap is reported as a new task (090).
+- [x] `python3 scripts/check_repository.py` and the unit tests pass.
 
 ## 📁 Relevant Files
 

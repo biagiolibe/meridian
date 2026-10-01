@@ -246,6 +246,21 @@ fresh chats otherwise) without ever copying context between them. Run
 `APPROVE`; a developer who personally reviewed the migration may pass
 `--owner-accepted` instead. See [assisted adoption](commands/meridian-adopt.md).
 
+### Support policy
+
+- **Upgrade window.** Every published release from `v1.1.49` forward upgrades
+  to the newest release in a single `upgrade --apply`. `v1.1.49` is the oldest
+  release published as a tag, and the test suite proves this path.
+- **Skipping releases** is supported; step through intermediate releases only
+  if you prefer to.
+- **Fixes land only in the newest release.** There are no backport branches; a
+  correction ships as a new release.
+- **Not supported:** downgrades, manifests whose installed baseline is not
+  recorded (use `meridian adopt`), and unreleased `main`.
+- **Projects older than `v1.1.49`**, including the packaged `1.0.0` baseline,
+  are adopted with `meridian adopt` on a best-effort basis. A pristine `1.0.0`
+  project currently adopts with conflicts against the newest release.
+
 ## Quick start with Codex
 
 Generated Lean Delivery and Governed-SDD projects include `AGENTS.md` and

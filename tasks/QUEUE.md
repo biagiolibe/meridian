@@ -32,6 +32,15 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, 25, 26, 27, 28, 31, and 32
 are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 
+### Phase 35 — Single-step upgrade from the 1.0.0 baseline
+
+Found by task 068: a pristine `1.0.0` project does not reach the current
+release without conflicts, contradicting Decision 6.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 090 | Make a 1.0.0 project reach the current release in one step | 🟡 P2 | 068 | [090](090-make-1-0-0-projects-upgradable-in-one-step.md) |
+
 ### Phase 34 — Release 1.2.0 preparation
 
 Closes the changelog, bumps the version, and records the ledger entry for the
@@ -137,7 +146,7 @@ for adopters, and a manual-only release procedure.
 | `[x]` | 065 | Rename the marketplace and document the pinned install | 🟡 P2 | 049 | [065](done/065-rename-marketplace-and-document-pinned-install.md) |
 | `[x]` | 066 | Add `meridian self-check --check-latest` | 🟢 P3 | 049, 050, 065 | [066](done/066-add-self-check-latest-command.md) |
 | `[x]` | 067 | Enforce the adopter-facing release-notes contract | 🟢 P3 | 049, 050 | [067](done/067-enforce-release-notes-contract.md) |
-| `[ ]` | 068 | Document and test the upgrade support policy | 🟢 P3 | 049 | [068](068-document-and-test-support-policy.md) |
+| `[x]` | 068 | Document and test the upgrade support policy | 🟢 P3 | 049 | [068](done/068-document-and-test-support-policy.md) |
 | `[x]` | 069 | Document Codex install from a tagged checkout | 🟢 P3 | 049 | [069](done/069-document-codex-install-from-tagged-checkout.md) |
 
 ## 🧪 Quick Tasks (No File)
