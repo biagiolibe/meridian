@@ -1,4 +1,4 @@
-# Task 074 — Match the console background color
+# Task 074 — Use the terminal background in the project console
 
 > **ID**: `074`
 > **Category**: Developer tooling
@@ -8,22 +8,22 @@
 
 ## Objective
 
-Set the interactive terminal console's main background to `#1e1e2e` to match
-the approved mockup.
+Let the interactive console use its terminal's default background, matching
+the native terminal appearance in the Codex agent console reference.
 
 ## Acceptance Criteria
 
-- [ ] The interactive console uses `#1e1e2e` for its main surface when the
-  terminal supports palette color changes or xterm palette controls.
-- [ ] The console restores any changed terminal palette color on exit.
+- [ ] The interactive console uses the terminal's default background when
+  default-color support is available, without changing its palette.
+- [ ] A terminal without default-color support retains a dark fallback.
 - [ ] Existing status colors, selection, layout, and interaction remain intact.
 - [ ] The project baseline checks pass.
 
 ## Relevant Files and Context
 
 - `scripts/project_console.py` defines the curses palette.
-- Color 233 is currently used for the main surface in 256-color terminals.
-- Task 073 is integrated; this request changes only the background color.
+- The previous fixed 256-color background is color 233.
+- Task 073 is integrated; this request changes only background handling.
 
 ## Validation
 
