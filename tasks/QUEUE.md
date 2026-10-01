@@ -41,7 +41,8 @@ it in an iTerm2 tab with the permitted task directive already supplied.
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
 | `[x]` | 076 | Show effective task state across workflow modes in the console | 🟡 P2 | 075 | [076](done/076-console-effective-state-and-workflow-profiles.md) |
-| `[ ]` | 077 | Launch Claude Code or Codex from the console in an iTerm2 tab | 🟡 P2 | 076 | [077](077-console-launch-agent-in-iterm2.md) |
+| `[ ]` | 078 | Remove the console refresh latency introduced by effective-state reads | 🔴 P1 | 076 | [078](078-fix-console-refresh-latency.md) |
+| `[ ]` | 077 | Launch Claude Code or Codex from the console in an iTerm2 tab | 🟡 P2 | 076, 078 | [077](077-console-launch-agent-in-iterm2.md) |
 
 ### Phase 24 — Review worktree routing correction
 

@@ -80,5 +80,5 @@ or multiplexers, embedded terminals, and any change to the lifecycle documents.
 
 ## Dependencies
 
-- **Depends on**: 076
+- **Depends on**: 076, 078
 - **Blocks**: none
