@@ -32,6 +32,26 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, 25, 26, 27, 28, 31, 32, 34, and 36
 are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 
+### Phase 42 — Release command for template-changing releases
+
+Lets `release.py publish` release a template-changing release whose version,
+ledger, and changelog were bumped by the task that added its migration, and makes
+`prepare` explain that state.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 098 | Let `release.py publish` release an already-prepared template-changing release | 🟡 P2 | 094, 095 | [098](098-release-publish-prepared-template-changing.md) |
+
+### Phase 41 — Governed Proceed prepares its worktree
+
+Makes a manually typed `Proceed with` in Governed SDD prepare the task's
+worktree for exactly that task when no coordinator did, and ships the rule to
+adopters as a migration.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 097 | Let a manually typed `Proceed with` prepare its own worktree in Governed SDD | 🟡 P2 | 051, 055 | [097](097-governed-proceed-prepares-worktree.md) |
+
 ### Phase 40 — Release publish wait
 
 Makes `release.py publish` wait for the workflow run to appear, identifies it by
