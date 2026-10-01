@@ -4371,6 +4371,73 @@ class WorktreeRootSetupTest(unittest.TestCase):
             {str(root): True},
         )
 
+    def test_setup_plans_and_applies_codex_skill_links_idempotently(self) -> None:
+        root = self.home / "root"
+        environment = {**self.environment, "MERIDIAN_ROOT": str(ROOT)}
+        plan = meridian.plan_setup(
+            root, self.codex_config, environment=environment, home=self.home, framework_root=ROOT
+        )
+        self.assertEqual(plan.skill_links_state, "missing")
+        self.assertEqual(plan.meridian_root_state, "ready")
+        self.assertFalse((self.home / ".agents").exists())
+        self.assertTrue(meridian.apply_setup(plan))
+        for name in meridian.CODEX_SKILL_NAMES:
+            link = self.home / ".agents/skills" / name
+            self.assertTrue(link.is_symlink())
+            self.assertEqual(link.resolve(), (ROOT / "skills" / name).resolve())
+        again = meridian.plan_setup(
+            root, self.codex_config, environment=environment, home=self.home, framework_root=ROOT
+        )
+        self.assertEqual(again.skill_links_state, "ready")
+        self.assertFalse(meridian.apply_setup(again))
+
+    def test_setup_refuses_conflicting_or_blocked_skill_links(self) -> None:
+        skills = self.home / ".agents/skills"
+        skills.mkdir(parents=True)
+        (skills / "meridian-lean-delivery").symlink_to(self.home / "elsewhere")
+        (skills / "meridian-governed-sdd").mkdir()
+        plan = meridian.plan_setup(
+            self.home / "root", self.codex_config, environment=self.environment, home=self.home, framework_root=ROOT
+        )
+        self.assertEqual(plan.skill_links_state, "blocked")
+        self.assertEqual(plan.changes, ("none; setup is blocked before mutation",))
+        with self.assertRaisesRegex(meridian.MeridianError, "setup is blocked"):
+            meridian.apply_setup(plan)
+        self.assertFalse((self.home / "root").exists())
+        self.assertFalse(self.codex_config.exists())
+
+    def test_setup_skips_skill_links_outside_a_git_checkout_and_warns_about_stale_copy(self) -> None:
+        framework = self.home / "plugin-cache"
+        for name in meridian.CODEX_SKILL_NAMES:
+            (framework / "skills" / name).mkdir(parents=True)
+            (framework / "skills" / name / "SKILL.md").write_text("skill\n", encoding="utf-8")
+        stale = self.home / ".codex/skills/meridian-lean-delivery"
+        stale.parent.mkdir(parents=True)
+        stale.write_text("stale\n", encoding="utf-8")
+        plan = meridian.plan_setup(
+            self.home / "root", self.codex_config, environment=self.environment, home=self.home, framework_root=framework
+        )
+        self.assertEqual(plan.skill_links_state, "skipped")
+        self.assertTrue(any(str(stale) in warning for warning in plan.warnings))
+        self.assertFalse(meridian.apply_setup(plan) and (self.home / ".agents").exists())
+
+    def test_setup_reports_meridian_root_environment_states(self) -> None:
+        root = self.home / "root"
+        for environment, expected in (
+            (self.environment, "unset"),
+            ({**self.environment, "MERIDIAN_ROOT": str(ROOT)}, "ready"),
+            ({**self.environment, "MERIDIAN_ROOT": str(self.home / "other")}, "mismatch"),
+        ):
+            with self.subTest(expected=expected):
+                plan = meridian.plan_setup(
+                    root,
+                    self.codex_config,
+                    environment=environment,
+                    home=self.home,
+                    framework_root=ROOT,
+                )
+                self.assertEqual(plan.meridian_root_state, expected)
+
 
 class CodexProfileRepairTest(unittest.TestCase):
     """Semantic recovery of the Codex permission profile when ownership comments are lost."""
@@ -4685,6 +4752,21 @@ class CodexProfileRepairTest(unittest.TestCase):
         self.assertEqual(blocked["permission-model"], "blocked")
         self.assertEqual(blocked["profile-ownership"], "blocked")
         self.assertEqual(blocked["worktree-root-write"], "approval-required")
+
+    def test_doctor_reports_skill_links_and_meridian_root_without_writing(self) -> None:
+        before = sorted(path.relative_to(self.root) for path in self.root.rglob("*"))
+        report = meridian.codex_doctor(
+            self.root,
+            self.config,
+            self.worktrees,
+            framework_root=ROOT,
+            home=self.root,
+            environment={"MERIDIAN_ROOT": str(ROOT)},
+        )
+        self.assertEqual(report["skill-links"], "missing")
+        self.assertEqual(report["MERIDIAN_ROOT"], "ready")
+        after = sorted(path.relative_to(self.root) for path in self.root.rglob("*"))
+        self.assertEqual(before, after)
 
 
 class TaskIdentityResolverTest(unittest.TestCase):
