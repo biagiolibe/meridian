@@ -17,22 +17,22 @@ section and the list is flat.
 
 ## Acceptance Criteria
 
-- [ ] A task's group is the nearest heading above its table, at any level from
+- [x] A task's group is the nearest heading above its table, at any level from
   `##` to `######`. When headings of two levels enclose a table, both are kept
   and shown in file order, outer first.
-- [ ] A heading with no queue table beneath it produces no group and no empty
+- [x] A heading with no queue table beneath it produces no group and no empty
   heading line (for example `## Rules` and `## Priority` in Palimpsest).
-- [ ] Group labels are cleaned for display: a trailing `Queue` word and its
+- [x] Group labels are cleaned for display: a trailing `Queue` word and its
   separator are dropped, so `M37 Queue — Reactions, First Layer` shows as
   `M37 — Reactions, First Layer`. The raw heading is kept for matching.
-- [ ] Row order inside a group, and group order, follow the file.
-- [ ] A group whose tasks are all terminal does not appear in the open-task
+- [x] Row order inside a group, and group order, follow the file.
+- [x] A group whose tasks are all terminal does not appear in the open-task
   list; the done count is unaffected.
-- [ ] Search matches the group label as well as the ID and title.
-- [ ] Lean Delivery `### Phase N — …` lists look and behave as before.
-- [ ] Tasks read from a task branch use the same grouping as the primary
+- [x] Search matches the group label as well as the ID and title.
+- [x] Lean Delivery `### Phase N — …` lists look and behave as before.
+- [x] Tasks read from a task branch use the same grouping as the primary
   checkout, so a task does not jump groups when its effective state changes.
-- [ ] A Palimpsest-shaped fixture (many `##` milestone headings, no `###`,
+- [x] A Palimpsest-shaped fixture (many `##` milestone headings, no `###`,
   non-table `##` headings, an `F0` track) and a two-level fixture pass, with
   assertions on the rendered list, not only the parsed rows.
 

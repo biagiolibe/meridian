@@ -16,6 +16,8 @@ REVIEW_ATTEMPT = re.compile(
     r"^## Attempt (\d+) — (CHANGES_REQUESTED|APPROVE|BLOCKED)\s*$", re.MULTILINE
 )
 TASK_HEADING = re.compile(r"^#\s+(?:Task\s+)?\S+\s+[—-]\s+(.+?)\s*$")
+QUEUE_HEADING = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
+LEAN_QUEUE_WRAPPER = re.compile(r"\bActive Queue$", re.IGNORECASE)
 
 
 class ConsoleError(Exception):
@@ -60,7 +62,7 @@ class QueueRow:
     task_id: str
     status: str
     title: str
-    section: str
+    section: tuple[str, ...]
     dependencies: str
     link: str
     review: str | None
@@ -77,10 +79,17 @@ def _cell(row: dict[str, str], *names: str) -> str:
 def parse_queue(text: str, label: str, profile: Profile) -> list[QueueRow]:
     rows: list[QueueRow] = []
     headers: list[str] = []
-    section = ""
+    headings: list[tuple[int, str]] = []
     for line_number, line in enumerate(text.splitlines(), 1):
-        if line.startswith("### "):
-            section = line[4:].strip()
+        heading = QUEUE_HEADING.match(line)
+        if heading:
+            level = len(heading.group(1))
+            headings = [(depth, title) for depth, title in headings if depth < level]
+            if level >= 2 and not (
+                profile.name == "lean-delivery" and level == 2
+                and LEAN_QUEUE_WRAPPER.search(heading.group(2))
+            ):
+                headings.append((level, heading.group(2)))
         if not line.startswith("|"):
             headers = []
             continue
@@ -100,7 +109,8 @@ def parse_queue(text: str, label: str, profile: Profile) -> list[QueueRow]:
             raise ConsoleError(f"Invalid task ID in {label}:{line_number}")
         rows.append(QueueRow(
             task_id=task_id, status=profile.tokens[token], title=_cell(row, "Title"),
-            section=section, dependencies=_cell(row, "Depends on", "Dependencies"),
+            section=tuple(title for _, title in headings),
+            dependencies=_cell(row, "Depends on", "Dependencies"),
             link=_cell(row, "File", "Task file"),
             # None: the queue has no Review column, so no policy is declared.
             review=_cell(row, "Review").strip("`") if "review" in folded_headers else None,

@@ -33,7 +33,7 @@ class Task:
     task_id: str
     title: str
     status: str
-    phase: str
+    phase: tuple[str, ...]
     dependencies: tuple[str, ...]
     path: Path | None
     objective: tuple[str, ...]
@@ -717,8 +717,16 @@ def _visible_tasks(snapshot: Snapshot | None, status_filter: str, search: str) -
     return [
         task for task in tasks
         if (status_filter == "All" or _state_label(task)[0] == status_filter)
-        and search.casefold() in f"{task.task_id} {task.title}".casefold()
+        and search.casefold() in (
+            f"{task.task_id} {task.title} "
+            + " ".join(_group_label(heading) for heading in task.phase)
+        ).casefold()
     ]
+
+
+def _group_label(heading: str) -> str:
+    """Remove a queue descriptor while retaining the heading's identity."""
+    return re.sub(r"\s+Queue(?=\s*(?:[—–:]|$))", "", heading, flags=re.IGNORECASE)
 
 
 def _draw_header(screen, state: ConsoleState, palette: dict[str, int],
@@ -811,12 +819,17 @@ def _draw_list(screen, tasks: list[Task], selected_id: str | None,
     _put(screen, 3, layout.status_x, "Status", LIST_STATUS_WIDTH, palette["muted"])
     _put(screen, 3, layout.age_x, "Updated", LIST_AGE_WIDTH, palette["muted"])
     entries: list[tuple[str, Task | None]] = []
-    phase = None
+    previous: tuple[str, ...] = ()
     for task in tasks:
-        if task.phase != phase:
-            phase = task.phase
-            entries.append((phase, None))
+        shared = 0
+        for old, new in zip(previous, task.phase):
+            if old != new:
+                break
+            shared += 1
+        for depth, heading in enumerate(task.phase[shared:], shared):
+            entries.append(("  " * depth + _group_label(heading), None))
         entries.append(("", task))
+        previous = task.phase
     body_top = 5
     body_lines = max(1, height - body_top - 2)
     selected_line = next((i for i, (_, task) in enumerate(entries)
