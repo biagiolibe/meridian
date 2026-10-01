@@ -2,13 +2,13 @@
 
 Use this procedure only for `Proceed with <TASK-ID>` after the entry-point router has applied its always-loaded invariants.
 
-<!-- MERIDIAN:BEGIN capability=task-worktree-boundary v3 -->
+<!-- MERIDIAN:BEGIN capability=task-worktree-boundary v4 -->
 The coordinator runs `meridian worktree prepare` before starting this worker
 and passes its returned branch, absolute worktree path, primary checkout, and
 worktree root as launch inputs. Start in that exact existing directory; do not
 use host automatic isolation or create another checkout. Before reading the
 task, implementation files, or diff, run `meridian worktree check <TASK-ID>
---project <primary-checkout> --worktree-root <root> --format json`. Any blocked
+--project <primary-checkout> --format json`. Any blocked
 result stops all task work and preserves both checkouts. Run every later read,
 implementation, validation, status, and handoff operation in the same verified
 worktree, never the primary checkout.

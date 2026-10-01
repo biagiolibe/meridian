@@ -35,6 +35,25 @@ records which release moved it.
   update procedure. Moving a pin requires removing the marketplace, adding it
   at the new tag, and reinstalling the plugin.
 
+## [1.1.53]
+
+Template-changing release: migration `055-unified-worktree-root-and-setup`
+advances `workflowBaselineVersion` to `1.1.53`.
+
+### Added
+
+- `meridian setup --check|--apply` plans and performs the bounded, once-per-
+  machine worktree-root and Codex profile setup.
+
+### Changed
+
+- Worktree roots resolve consistently from an explicit option, environment,
+  versioned user configuration, or `~/.meridian/worktrees`. Lifecycle and
+  Codex commands no longer require `--worktree-root`.
+- Start-of-turn and doctor diagnostics report a Codex profile that points at a
+  different root. Existing worktrees remain in their old roots until normal
+  explicit cleanup.
+
 ## [1.1.52]
 
 Template-changing release: migration `054-machine-independent-worktree-handoff`

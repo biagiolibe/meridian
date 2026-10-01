@@ -7,6 +7,7 @@ large queue -- all without a session ever opening the queue file itself.
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 import tempfile
@@ -24,9 +25,10 @@ GOVERNED_HEADER = (
 )
 
 
-def run_hook(cwd: Path) -> subprocess.CompletedProcess[str]:
+def run_hook(cwd: Path, environment: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        ["bash", str(HOOK)], cwd=str(cwd), capture_output=True, text=True, check=False
+        ["bash", str(HOOK)], cwd=str(cwd), capture_output=True, text=True,
+        check=False, env=environment,
     )
 
 
@@ -59,6 +61,32 @@ class QueueBriefingTest(unittest.TestCase):
         result = run_hook(self.project)
         self.assertEqual(result.returncode, 0)
         self.assertEqual(result.stdout, "")
+
+    def test_reports_one_line_when_codex_profile_uses_another_root(self) -> None:
+        self.write_queue("| 1 | TASK-001 | P0 | QUEUED | REQUIRED | — | [TASK-001](TASK-001.md) |\n")
+        home = self.project / "home"
+        config = home / ".codex/config.toml"
+        config.parent.mkdir(parents=True)
+        other = self.project / "old-root"
+        config.write_text(
+            '# MERIDIAN:BEGIN worktree-permissions v1\n'
+            'default_permissions = "meridian-worktrees"\n\n'
+            '[permissions.meridian-worktrees]\n'
+            'description = "Workspace access plus Meridian-managed task worktrees."\n'
+            'extends = ":workspace"\n\n'
+            '[permissions.meridian-worktrees.workspace_roots]\n'
+            f'"{other}" = true\n'
+            '# MERIDIAN:END worktree-permissions\n',
+            encoding="utf-8",
+        )
+        result = run_hook(
+            self.project,
+            {**os.environ, "HOME": str(home), "XDG_CONFIG_HOME": str(home / ".config")},
+        )
+        mismatch = [line for line in result.stdout.splitlines() if "Codex worktree root differs" in line]
+        self.assertEqual(len(mismatch), 1, result.stdout)
+        self.assertIn(str(other), mismatch[0])
+        self.assertIn(str(home / ".meridian/worktrees"), mismatch[0])
 
     def test_emits_language_policy_without_a_queue(self) -> None:
         self.write_language_policy("Italian")
