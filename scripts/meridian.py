@@ -193,6 +193,10 @@ class SetupPlan:
     codex_plan: CodexConfigurationPlan | None
     codex_detail: str
     config_action: str
+    framework_root: Path
+    skill_links: tuple[tuple[str, Path, str, str], ...]
+    skill_links_state: str
+    meridian_root_state: str
     changes: tuple[str, ...]
     warnings: tuple[str, ...]
 
@@ -1411,6 +1415,59 @@ def _directory_setup_state(root: Path) -> tuple[str, str]:
     return "ready", "no directory change"
 
 
+CODEX_SKILL_NAMES = ("meridian-lean-delivery", "meridian-governed-sdd")
+
+
+def _framework_skill_links(framework_root: Path, home: Path) -> tuple[tuple[str, Path, str, str], ...]:
+    target_root = (framework_root / "skills").resolve()
+    checkout = _run_git(framework_root, "rev-parse", "--show-toplevel")
+    if checkout.returncode != 0 or Path(checkout.stdout.strip()).resolve() != framework_root.resolve():
+        reason = "framework root is not the root of a Git checkout"
+        return tuple((name, home / ".agents/skills" / name, "skipped", reason) for name in CODEX_SKILL_NAMES)
+    missing_assets = [name for name in CODEX_SKILL_NAMES if not (target_root / name / "SKILL.md").is_file()]
+    if missing_assets:
+        reason = "framework checkout does not contain " + ", ".join(
+            f"skills/{name}/SKILL.md" for name in missing_assets
+        )
+        return tuple((name, home / ".agents/skills" / name, "skipped", reason) for name in CODEX_SKILL_NAMES)
+    links: list[tuple[str, Path, str, str]] = []
+    for name in CODEX_SKILL_NAMES:
+        path = home / ".agents/skills" / name
+        target = target_root / name
+        if path.is_symlink():
+            observed = os.readlink(path)
+            state = "ready" if path.resolve() == target else "conflict"
+            detail = str(target) if state == "ready" else f"points to {observed} (expected {target})"
+        elif path.exists():
+            state = "blocked"
+            detail = f"path exists as {('directory' if path.is_dir() else 'regular file')}"
+        else:
+            state = "missing"
+            detail = f"create symlink to {target}"
+        links.append((name, path, state, detail))
+    return tuple(links)
+
+
+def _aggregate_skill_state(links: tuple[tuple[str, Path, str, str], ...]) -> str:
+    states = {state for _, _, state, _ in links}
+    if "blocked" in states:
+        return "blocked"
+    if "conflict" in states:
+        return "conflict"
+    if states == {"skipped"}:
+        return "skipped"
+    if "missing" in states:
+        return "missing"
+    return "ready"
+
+
+def _stale_codex_skill_warnings(home: Path) -> list[str]:
+    return [
+        f"stale Codex skill copy: {path}"
+        for path in sorted((home / ".codex/skills").glob("meridian-*"))
+    ]
+
+
 def _setup_codex_state(plan: CodexConfigurationPlan) -> str:
     if plan.status in ("ready", "repair-required", "repair-and-replace-required"):
         return plan.status
@@ -1461,7 +1518,11 @@ def plan_setup(
     environment: Mapping[str, str] | None = None,
     home: Path | None = None,
     user_config: Path | None = None,
+    framework_root: Path | None = None,
 ) -> SetupPlan:
+    home = (home or Path.home()).expanduser().resolve()
+    framework_root = (framework_root or Path(__file__).resolve().parents[1]).expanduser().resolve()
+    environment = environment or os.environ
     resolution = resolve_worktree_root(
         worktree_root,
         environment=environment,
@@ -1471,7 +1532,7 @@ def plan_setup(
     # Applying with a higher-precedence source must never overwrite malformed
     # lower-precedence user state without first reporting it.
     existing_config = _read_user_configuration(resolution.config_path)
-    default_root = ((home or Path.home()).expanduser().resolve() / ".meridian/worktrees")
+    default_root = home / ".meridian/worktrees"
     expected_config = {"version": 1, "worktreeRoot": str(resolution.path)}
     if resolution.path == default_root:
         config_action = "remove" if existing_config is not None else "none"
@@ -1513,6 +1574,23 @@ def plan_setup(
     elif not changes:
         changes.append("none")
     warnings: list[str] = []
+    skill_links = _framework_skill_links(framework_root, home)
+    skill_links_state = _aggregate_skill_state(skill_links)
+    if skill_links_state in ("blocked", "conflict"):
+        changes = ["none; setup is blocked before mutation"]
+    elif skill_links_state == "missing" and changes != ["none; setup is blocked before mutation"]:
+        changes.append(f"create missing Codex skill links in {home / '.agents/skills'}")
+    meridian_root_value = environment.get("MERIDIAN_ROOT")
+    meridian_root_state = (
+        "unset"
+        if meridian_root_value is None
+        else "ready"
+        if Path(meridian_root_value).expanduser().resolve() == framework_root
+        else "mismatch"
+    )
+    if meridian_root_state == "mismatch":
+        warnings.append(f"MERIDIAN_ROOT differs from framework root: {meridian_root_value}")
+    warnings.extend(_stale_codex_skill_warnings(home))
     temporary_root = Path(tempfile.gettempdir()).resolve()
     if resolution.path == temporary_root or temporary_root in resolution.path.parents:
         warnings.append("resolved root is under a temporary directory and is unsuitable for persistent setup")
@@ -1534,6 +1612,10 @@ def plan_setup(
         codex_plan,
         codex_detail,
         config_action,
+        framework_root,
+        skill_links,
+        skill_links_state,
+        meridian_root_state,
         tuple(changes),
         tuple(warnings),
     )
@@ -1553,6 +1635,12 @@ def print_setup_plan(plan: SetupPlan) -> None:
     )
     if mismatch:
         print(f"codex-root-mismatch: {mismatch}")
+    print(f"codex-skill-links: {plan.skill_links_state}")
+    for name, path, state, detail in plan.skill_links:
+        print(f"codex-skill-{name}: {state} ({path}; {detail})")
+    print(f"MERIDIAN_ROOT: {plan.meridian_root_state}")
+    print(f"shell-profile-MERIDIAN_ROOT: export MERIDIAN_ROOT={plan.framework_root}")
+    print('shell-profile-PATH: export PATH="$MERIDIAN_ROOT/bin:$PATH"')
     for warning in plan.warnings:
         print(f"warning: {warning}")
     print("changes:")
@@ -1561,9 +1649,16 @@ def print_setup_plan(plan: SetupPlan) -> None:
 
 
 def apply_setup(plan: SetupPlan) -> bool:
-    if plan.directory_state == "blocked" or plan.codex_state == "blocked" or plan.codex_plan is None:
+    if (
+        plan.directory_state == "blocked"
+        or plan.codex_state == "blocked"
+        or plan.skill_links_state in ("blocked", "conflict")
+        or plan.codex_plan is None
+    ):
         detail = (
-            plan.codex_detail
+            next(detail for _, _, state, detail in plan.skill_links if state in ("blocked", "conflict"))
+            if plan.skill_links_state in ("blocked", "conflict")
+            else plan.codex_detail
             if plan.codex_state == "blocked"
             else _directory_setup_state(plan.resolution.path)[1]
         )
@@ -1587,10 +1682,32 @@ def apply_setup(plan: SetupPlan) -> bool:
         plan.resolution.config_path.unlink()
         changed = True
     changed = apply_codex_configuration(plan.codex_plan) or changed
+    missing_links = [
+        (path, plan.framework_root / "skills" / name)
+        for name, path, state, _ in plan.skill_links
+        if state == "missing"
+    ]
+    if missing_links:
+        skills_root = missing_links[0][0].parent
+        if not skills_root.exists():
+            skills_root.mkdir(parents=True, mode=0o700)
+            os.chmod(skills_root, 0o700)
+            changed = True
+        for path, target in missing_links:
+            path.symlink_to(target)
+            changed = True
     return changed
 
 
-def codex_doctor(project_root: Path, config_path: Path, worktree_root: Path) -> dict[str, str]:
+def codex_doctor(
+    project_root: Path,
+    config_path: Path,
+    worktree_root: Path,
+    *,
+    framework_root: Path | None = None,
+    home: Path | None = None,
+    environment: Mapping[str, str] | None = None,
+) -> dict[str, str]:
     result: dict[str, str] = {}
     try:
         plan = plan_codex_configuration(config_path, worktree_root)
@@ -1661,6 +1778,17 @@ def codex_doctor(project_root: Path, config_path: Path, worktree_root: Path) -> 
             root_write = "blocked"
     result["worktree-root-write"] = root_write
     result["git-metadata"] = "ready" if lifecycle_policy == "ready" else "approval-required"
+    home = (home or Path.home()).expanduser().resolve()
+    framework_root = (framework_root or Path(__file__).resolve().parents[1]).expanduser().resolve()
+    result["skill-links"] = _aggregate_skill_state(_framework_skill_links(framework_root, home))
+    meridian_root_value = (environment or os.environ).get("MERIDIAN_ROOT")
+    result["MERIDIAN_ROOT"] = (
+        "unset"
+        if meridian_root_value is None
+        else "ready"
+        if Path(meridian_root_value).expanduser().resolve() == framework_root
+        else "mismatch"
+    )
     return result
 
 
@@ -7004,6 +7132,7 @@ def main() -> int:
             plan = plan_setup(
                 arguments.worktree_root,
                 arguments.config.expanduser().resolve(),
+                framework_root=framework_root,
             )
             print_setup_plan(plan)
             if arguments.apply:
@@ -7038,7 +7167,12 @@ def main() -> int:
                 print("DEPRECATED: use `meridian worktree path`", file=sys.stderr)
                 print(path)
             else:
-                report = codex_doctor(project_root, arguments.config.expanduser().resolve(), resolved_root.path)
+                report = codex_doctor(
+                    project_root,
+                    arguments.config.expanduser().resolve(),
+                    resolved_root.path,
+                    framework_root=framework_root,
+                )
                 for capability, status in report.items():
                     print(f"{capability}: {status}")
         elif arguments.command == "worktree":
