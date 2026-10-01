@@ -10,13 +10,17 @@ import re
 import subprocess
 import sys
 import textwrap
+import threading
 import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
 sys.dont_write_bytecode = True
-from meridian import MeridianError, detect_mode, resolve_project_locations, resolve_task_identity
+from meridian import (
+    TASK_IDENTITY_PATH, MeridianError, ResolvedTaskIdentity, detect_mode,
+    resolve_project_locations, resolve_task_identity,
+)
 from console_workflow import (
     ID_PATTERN, PROFILES, BranchFacts, ConsoleError, QueueRow, Profile, effective_state,
     handoff_status, heading_title, latest_review_verdict, link_target, parse_queue,
@@ -171,8 +175,35 @@ def _relative(project: Path, path: Path) -> str:
         raise ConsoleError(f"Task record is outside the project: {path}") from error
 
 
+class IdentityCache:
+    """Resolve each task identity once per console process.
+
+    Entries are valid only for the bytes of the identity declaration they were
+    resolved under; any change to that file discards them. Failures are never
+    cached, so a corrected project recovers on the next refresh.
+    """
+
+    def __init__(self) -> None:
+        self._declaration: bytes | None = None
+        self._loaded = False
+        self._items: dict[str, ResolvedTaskIdentity] = {}
+
+    def resolve(self, project: Path, task_id: str) -> ResolvedTaskIdentity:
+        try:
+            declaration = (project / TASK_IDENTITY_PATH).read_bytes()
+        except OSError:
+            declaration = None
+        if not self._loaded or declaration != self._declaration:
+            self._items.clear()
+            self._declaration, self._loaded = declaration, True
+        identity = self._items.get(task_id)
+        if identity is None:
+            identity = self._items[task_id] = resolve_task_identity(project, task_id, "existing")
+        return identity
+
+
 def _branch_facts(project: Path, profile: Profile, task_id: str, queue: str,
-                  worktrees: dict[str, str]
+                  worktrees: dict[str, str], identities: IdentityCache | None = None
                   ) -> tuple[BranchFacts | None, str | None, str | None, str | None]:
     """Read one task branch without touching its worktree.
 
@@ -180,7 +211,7 @@ def _branch_facts(project: Path, profile: Profile, task_id: str, queue: str,
     registered worktree path (known even when the branch ref is unreadable).
     """
     try:
-        identity = resolve_task_identity(project, task_id, "existing")
+        identity = (identities or IdentityCache()).resolve(project, task_id)
     except MeridianError as error:
         raise ConsoleError(f"Cannot resolve task identity for {task_id}: {error}") from error
     branch = identity.branch_name
@@ -212,7 +243,7 @@ def _branch_facts(project: Path, profile: Profile, task_id: str, queue: str,
     return facts, record, record_path, worktree
 
 
-def load_snapshot(project: Path) -> Snapshot:
+def load_snapshot(project: Path, identities: IdentityCache | None = None) -> Snapshot:
     project = project.expanduser().resolve()
     profile = _select_profile(project)
     try:
@@ -248,7 +279,7 @@ def load_snapshot(project: Path) -> Snapshot:
         path = _task_path(project, queue, row)
         primary_text = _read_text(path)
         facts, branch_text, branch_path, worktree = _branch_facts(
-            project, profile, row.task_id, queue_relative, worktrees)
+            project, profile, row.task_id, queue_relative, worktrees, identities)
         effective = effective_state(profile, row, record_status(primary_text), facts)
         # Dependencies are satisfied by integrated state only: a task accepted on its
         # branch does not unblock dependents until it reaches the primary queue.
@@ -291,21 +322,69 @@ def load_snapshot(project: Path) -> Snapshot:
 
 
 class ConsoleState:
+    """Snapshot, staleness and refresh state shown by the console.
+
+    `refresh` loads synchronously. `start_refresh` loads on one background
+    thread and hands the result over through `apply_pending`, so the display
+    only ever changes on the caller's thread and never shows a mixed state.
+    """
+
     def __init__(self, project: Path):
         self.project = project
         self.snapshot: Snapshot | None = None
         self.last_success: datetime | None = None
         self.error: str | None = None
+        self.identities = IdentityCache()
+        self._lock = threading.Lock()
+        self._worker: threading.Thread | None = None
+        self._pending: tuple[Snapshot | None, str | None] | None = None
 
-    def refresh(self) -> None:
+    def _load(self) -> tuple[Snapshot | None, str | None]:
         try:
-            candidate = load_snapshot(self.project)
+            return load_snapshot(self.project, self.identities), None
         except ConsoleError as error:
-            self.error = str(error)
+            return None, str(error)
+
+    def _apply(self, candidate: Snapshot | None, error: str | None) -> None:
+        if candidate is None:
+            self.error = error
             return
         self.snapshot = candidate
         self.last_success = datetime.now().astimezone()
         self.error = None
+
+    def refresh(self) -> None:
+        self._apply(*self._load())
+
+    @property
+    def refreshing(self) -> bool:
+        with self._lock:
+            return self._worker is not None
+
+    def start_refresh(self) -> bool:
+        """Start a background refresh unless one is already running."""
+        with self._lock:
+            if self._worker is not None:
+                return False
+            self._worker = threading.Thread(target=self._run, daemon=True)
+            worker = self._worker
+        worker.start()
+        return True
+
+    def _run(self) -> None:
+        try:
+            result = self._load()
+        except Exception as error:  # a worker must never die silently
+            result = (None, f"Refresh failed: {error}")
+        with self._lock:
+            self._pending = result
+            self._worker = None
+
+    def apply_pending(self) -> None:
+        with self._lock:
+            pending, self._pending = self._pending, None
+        if pending is not None:
+            self._apply(*pending)
 
 
 def one_shot(state: ConsoleState) -> str:
@@ -696,8 +775,8 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
     notice_until = 0.0
     while True:
         now = time.monotonic()
-        if now - last_poll >= interval:
-            state.refresh()
+        state.apply_pending()
+        if now - last_poll >= interval and state.start_refresh():
             last_poll = now
         snapshot = state.snapshot
         visible = _visible_tasks(snapshot, status_filter, search)
@@ -826,8 +905,8 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
             searching = True
             search = ""
         elif key == ord("r"):
-            state.refresh()
-            last_poll = time.monotonic()
+            if state.start_refresh():
+                last_poll = time.monotonic()
         elif key == ord("c") and selected_task and not help_visible:
             command = selected_task.launch_command
             notice = (f"Copied: {command}" if command and _copy_to_clipboard(command)
@@ -848,8 +927,8 @@ def main(argv: list[str] | None = None) -> int:
     if not 0.2 <= args.interval <= 60:
         parser.error("--interval must be between 0.2 and 60 seconds")
     state = ConsoleState(args.project)
-    state.refresh()
     if args.once:
+        state.refresh()
         print(one_shot(state))
         return 1 if state.error else 0
     if not sys.stdin.isatty() or not sys.stdout.isatty():
