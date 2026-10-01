@@ -146,7 +146,7 @@ for adopters, and a manual-only release procedure.
 | `[x]` | 065 | Rename the marketplace and document the pinned install | 🟡 P2 | 049 | [065](done/065-rename-marketplace-and-document-pinned-install.md) |
 | `[x]` | 066 | Add `meridian self-check --check-latest` | 🟢 P3 | 049, 050, 065 | [066](done/066-add-self-check-latest-command.md) |
 | `[x]` | 067 | Enforce the adopter-facing release-notes contract | 🟢 P3 | 049, 050 | [067](done/067-enforce-release-notes-contract.md) |
-| `[/]` | 068 | Document and test the upgrade support policy | 🟢 P3 | 049 | [068](068-document-and-test-support-policy.md) |
+| `[x]` | 068 | Document and test the upgrade support policy | 🟢 P3 | 049 | [068](done/068-document-and-test-support-policy.md) |
 | `[x]` | 069 | Document Codex install from a tagged checkout | 🟢 P3 | 049 | [069](done/069-document-codex-install-from-tagged-checkout.md) |
 
 ## 🧪 Quick Tasks (No File)
