@@ -32,6 +32,17 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, 25, 26, 27, 28, 31, 32, 34, and 36
 are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 
+### Phase 38 — Release command
+
+Replaces the manual release steps with a maintainer script: a local `prepare`
+that derives the release kind and writes and validates the release commit, and
+a `publish` that pushes `main` and the tag only after a typed confirmation.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 093 | Add `scripts/release.py prepare` | 🟡 P2 | 067, 089 | [093](093-release-script-prepare.md) |
+| `[ ]` | 094 | Add `scripts/release.py publish` | 🟡 P2 | 093 | [094](094-release-script-publish.md) |
+
 ### Phase 37 — Codex machine setup completeness
 
 Moves the Codex skill links and the `MERIDIAN_ROOT` check from manual README
