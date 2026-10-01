@@ -57,7 +57,7 @@
 - `[x]` 087 — Read the review policy from the task record in the console.
 - `[ ]` 088 — Define how a completion handoff names commits that cannot contain their own SHA.
 - `[ ]` 089 — Prepare release 1.2.0.
-- `[ ]` 069 — Document Codex install from a tagged checkout.
+- `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.
 - `[x]` 053 — Remove machine-specific absolute paths from tracked records.
 
