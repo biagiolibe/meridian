@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import difflib
 import hashlib
 import json
@@ -1215,6 +1216,58 @@ def _plan_codex_ownership_repair(
     )
 
 
+def _plan_codex_ownership_repair_and_root_replacement(
+    config_path: Path, text: str, parsed: dict[str, object], root: Path
+) -> CodexConfigurationPlan | None:
+    """Plan the one safe combined recovery, or return None for a normal refusal.
+
+    Lost comments are not ownership evidence.  The profile's exact Meridian
+    shape is, but only when it contains one enabled root that differs from the
+    requested root.  Keep this predicate deliberately narrower than parsed
+    divergence so foreign grants and unusual shapes cannot be adopted.
+    """
+    permissions = parsed.get("permissions")
+    profile = permissions.get(CODEX_PERMISSION_PROFILE) if isinstance(permissions, dict) else None
+    expected = _codex_expected_profile(root)
+    if (
+        parsed.get("default_permissions") != CODEX_PERMISSION_PROFILE
+        or not isinstance(profile, dict)
+        or set(profile) != set(expected)
+        or profile.get("description") != expected["description"]
+        or profile.get("extends") != expected["extends"]
+    ):
+        return None
+    roots = profile.get("workspace_roots")
+    if not isinstance(roots, dict) or len(roots) != 1 or list(roots.values()) != [True]:
+        return None
+    if roots == expected["workspace_roots"]:
+        return None
+
+    stripped = _without_codex_profile_text(text)
+    proposed = _replace_codex_managed_block(stripped, _codex_managed_block(root))
+    try:
+        reparsed = tomllib.loads(proposed)
+    except tomllib.TOMLDecodeError as error:
+        raise MeridianError(f"proposed Codex repair and root replacement would be invalid: {error}") from error
+    expected_parsed = copy.deepcopy(parsed)
+    expected_parsed["permissions"][CODEX_PERMISSION_PROFILE]["workspace_roots"] = expected["workspace_roots"]  # type: ignore[index]
+    if reparsed != expected_parsed:
+        raise MeridianError(
+            "Codex repair and root replacement would change effective configuration beyond the one root value; "
+            "reconcile it manually"
+        )
+    return CodexConfigurationPlan(
+        "repair-and-replace-required",
+        config_path,
+        root,
+        "permission-profile",
+        proposed,
+        "ownership-metadata-repair-and-root-replacement: explicit --apply restores Meridian's ownership "
+        "metadata and replaces the one configured worktree root",
+        text,
+    )
+
+
 def plan_codex_configuration(
     config_path: Path,
     worktree_root: Path,
@@ -1243,6 +1296,9 @@ def plan_codex_configuration(
     existing_profile = parsed.get("permissions", {}).get(CODEX_PERMISSION_PROFILE)
     managed_present = CODEX_MANAGED_BEGIN in text or CODEX_MANAGED_END in text
     if existing_profile is not None and not _codex_markers_intact(text):
+        replacement = _plan_codex_ownership_repair_and_root_replacement(config_path, text, parsed, root)
+        if replacement is not None:
+            return replacement
         return _plan_codex_ownership_repair(config_path, text, parsed, root)
     if managed_present and not _codex_markers_intact(text):
         raise MeridianError("Codex configuration contains an incomplete or damaged Meridian-managed block")
@@ -1266,8 +1322,9 @@ def print_codex_configuration_plan(plan: CodexConfigurationPlan) -> None:
     print(f"permission-model: {plan.current_model}")
     print(f"worktree-root: {plan.worktree_root}")
     print(f"detail: {plan.detail}")
-    if plan.status == "repair-required" and plan.proposed_text is not None and plan.current_text is not None:
-        print("proposed-change (unified diff; effective configuration is unchanged):")
+    if plan.status in ("repair-required", "repair-and-replace-required") and plan.proposed_text is not None and plan.current_text is not None:
+        suffix = "effective configuration is unchanged" if plan.status == "repair-required" else "repairs ownership metadata and replaces the worktree root"
+        print(f"proposed-change (unified diff; {suffix}):")
         print(
             "".join(
                 difflib.unified_diff(
@@ -1314,7 +1371,7 @@ def apply_codex_configuration(plan: CodexConfigurationPlan) -> bool:
         return False
     path = plan.config_path
     path.parent.mkdir(parents=True, exist_ok=True)
-    if plan.status == "repair-required":
+    if plan.status in ("repair-required", "repair-and-replace-required"):
         if not path.is_file() or path.read_text(encoding="utf-8") != plan.current_text:
             raise MeridianError("Codex configuration changed since it was planned; rerun --check")
         _write_exclusive_backup(path, _unused_repair_backup(path))
@@ -1355,7 +1412,7 @@ def _directory_setup_state(root: Path) -> tuple[str, str]:
 
 
 def _setup_codex_state(plan: CodexConfigurationPlan) -> str:
-    if plan.status in ("ready", "repair-required"):
+    if plan.status in ("ready", "repair-required", "repair-and-replace-required"):
         return plan.status
     text = plan.current_text or ""
     try:
@@ -1449,7 +1506,7 @@ def plan_setup(
     elif config_action == "remove":
         changes.append(f"remove {resolution.config_path} because the built-in default needs no configuration")
     if codex_plan is not None and codex_plan.proposed_text is not None:
-        verb = "repair" if codex_state == "repair-required" else "configure"
+        verb = "repair" if codex_state in ("repair-required", "repair-and-replace-required") else "configure"
         changes.append(f"{verb} Codex permission profile in {codex_config} for {resolution.path}")
     if directory_state == "blocked" or codex_state == "blocked":
         changes = ["none; setup is blocked before mutation"]
@@ -1539,7 +1596,11 @@ def codex_doctor(project_root: Path, config_path: Path, worktree_root: Path) -> 
         plan = plan_codex_configuration(config_path, worktree_root)
         result["permission-model"] = plan.status
         result["profile-ownership"] = (
-            "ready" if plan.status == "ready" else "repair-required" if plan.status == "repair-required" else "not-applicable"
+            "ready"
+            if plan.status == "ready"
+            else plan.status
+            if plan.status in ("repair-required", "repair-and-replace-required")
+            else "not-applicable"
         )
     except MeridianError:
         result["permission-model"] = "blocked"
@@ -1590,7 +1651,7 @@ def codex_doctor(project_root: Path, config_path: Path, worktree_root: Path) -> 
         lifecycle_policy = "blocked"
     result["lifecycle-command-policy"] = lifecycle_policy
     root_write = "approval-required"
-    if result["permission-model"] in ("ready", "repair-required") and worktree_root.is_dir():
+    if result["permission-model"] in ("ready", "repair-required", "repair-and-replace-required") and worktree_root.is_dir():
         try:
             descriptor, probe_name = tempfile.mkstemp(prefix=".meridian-codex-probe-", dir=worktree_root)
             os.close(descriptor)
@@ -6959,9 +7020,14 @@ def main() -> int:
                 print_codex_configuration_plan(plan)
                 if arguments.apply:
                     changed = apply_codex_configuration(plan)
-                    if changed and plan.status == "repair-required":
+                    if changed and plan.status in ("repair-required", "repair-and-replace-required"):
+                        action = (
+                            "ownership metadata repaired and root replaced"
+                            if plan.status == "repair-and-replace-required"
+                            else "ownership metadata repaired"
+                        )
                         print(
-                            "result: ownership metadata repaired; this does not prove the running session loaded "
+                            f"result: {action}; this does not prove the running session loaded "
                             "the profile, so start a fresh Codex session and probe it"
                         )
                     else:
