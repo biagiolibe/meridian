@@ -46,7 +46,7 @@
 - `[x]` 079 — Resolve task records in the console when the queue has no file link.
 - `[x]` 080 — Fit the task ID column to the IDs in the console list.
 - `[x]` 081 — Group console tasks by their queue headings in Governed SDD projects.
-- `[ ]` 082 — Fix detail pane scrolling, Governed objective, and dependency order.
+- `[x]` 082 — Fix detail pane scrolling, Governed objective, and dependency order.
 - `[ ]` 077 — Launch Claude Code or Codex from the console in an iTerm2 tab.
 - `[ ]` 067 — Enforce the adopter-facing release-notes contract.
 - `[ ]` 068 — Document and test the upgrade support policy.
