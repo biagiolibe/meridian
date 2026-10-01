@@ -111,9 +111,15 @@ QUEUE=${QUEUE:-$(resolve_queue_path)}
 # Meridian project. `setup --check` is read-only; emit exactly one line only
 # when the configured Codex profile grants a different worktree root.
 if [ -n "$MERIDIAN_BIN" ] && [ -x "$MERIDIAN_BIN" ]; then
-  ROOT_MISMATCH=$("$MERIDIAN_BIN" setup --check 2>/dev/null \
-    | sed -n 's/^codex-root-mismatch: /  ⚠ Codex worktree root differs: /p')
-  [ -n "$ROOT_MISMATCH" ] && printf '[Meridian Host]\n%s\n' "$ROOT_MISMATCH"
+  SETUP_CHECK=$("$MERIDIAN_BIN" setup --check 2>/dev/null)
+  CODEX_STATE=$(printf '%s\n' "$SETUP_CHECK" | sed -n 's/^codex-profile: //p')
+  if [ "$CODEX_STATE" = "repair-and-replace-required" ]; then
+    printf '[Meridian Host]\n  ⚠ Codex profile needs ownership repair and worktree-root replacement; run meridian setup --apply\n'
+  else
+    ROOT_MISMATCH=$(printf '%s\n' "$SETUP_CHECK" \
+      | sed -n 's/^codex-root-mismatch: /  ⚠ Codex worktree root differs: /p')
+    [ -n "$ROOT_MISMATCH" ] && printf '[Meridian Host]\n%s\n' "$ROOT_MISMATCH"
+  fi
 fi
 
 # An archived ACCEPTED row (this task's own archiving convention) still

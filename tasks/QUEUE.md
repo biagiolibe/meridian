@@ -58,7 +58,7 @@ that configures the root and the Codex permission profile together.
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
 | `[x]` | 083 | Unify worktree-root resolution and add `meridian setup` | 🟡 P2 | 054, 056, 062 | [083](done/083-unified-worktree-root-and-setup.md) |
-| `[ ]` | 085 | Repair and replace the Codex profile root in one setup step | 🟡 P2 | 062, 083 | [085](085-setup-repair-and-replace-codex-profile-root.md) |
+| `[x]` | 085 | Repair and replace the Codex profile root in one setup step | 🟡 P2 | 062, 083 | [085](done/085-setup-repair-and-replace-codex-profile-root.md) |
 
 ### Phase 24 — Review worktree routing correction
 

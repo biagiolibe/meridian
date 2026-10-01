@@ -88,6 +88,31 @@ class QueueBriefingTest(unittest.TestCase):
         self.assertIn(str(other), mismatch[0])
         self.assertIn(str(home / ".meridian/worktrees"), mismatch[0])
 
+    def test_reports_combined_codex_repair_and_root_replacement_on_one_line(self) -> None:
+        self.write_queue("| 1 | TASK-001 | P0 | QUEUED | REQUIRED | — | [TASK-001](TASK-001.md) |\n")
+        home = self.project / "home"
+        config = home / ".codex/config.toml"
+        config.parent.mkdir(parents=True)
+        old_root = self.project / "old-root"
+        config.write_text(
+            '# MERIDIAN:BEGIN worktree-permissions v1\n'
+            'default_permissions = "meridian-worktrees"\n\n'
+            '[permissions.meridian-worktrees]\n'
+            'description = "Workspace access plus Meridian-managed task worktrees."\n'
+            'extends = ":workspace"\n\n'
+            '[permissions.meridian-worktrees.workspace_roots]\n'
+            f'"{old_root}" = true\n',
+            encoding="utf-8",
+        )
+        result = run_hook(
+            self.project,
+            {**os.environ, "HOME": str(home), "XDG_CONFIG_HOME": str(home / ".config")},
+        )
+        notice = [line for line in result.stdout.splitlines() if "ownership repair" in line]
+        self.assertEqual(len(notice), 1, result.stdout)
+        self.assertIn("meridian setup --apply", notice[0])
+        self.assertNotIn("Codex worktree root differs", result.stdout)
+
     def test_emits_language_policy_without_a_queue(self) -> None:
         self.write_language_policy("Italian")
 
