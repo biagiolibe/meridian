@@ -15,6 +15,11 @@ records which release moved it.
 
 ## [Unreleased]
 
+
+## [1.2.1]
+
+CLI-only release: this release introduces no migration.
+
 ### Added
 
 - `meridian setup --check` now plans, and `--apply` creates, the Codex skill
