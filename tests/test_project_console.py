@@ -458,6 +458,53 @@ class LeanEffectiveStateTest(RepoCase):
         self.assertEqual(task.worktree, str(self.root / "wt-task-001"))
         self.assertIn("[ ]", (self.project / "tasks/QUEUE.md").read_text(encoding="utf-8"))
 
+    def test_clean_prepared_worktree_is_registered_but_stays_todo(self) -> None:
+        self.setup_project({"001": " "})
+        self.worktree("task-001")
+        task = self.load()["001"]
+        self.assertEqual((task.readiness, task.lifecycle, task.source), ("READY", "todo", "main"))
+        self.assertFalse(task.active_writer)
+        self.assertEqual(task.markers, ("registered worktree",))
+
+    def test_uncommitted_in_progress_row_supersedes_committed_todo(self) -> None:
+        self.setup_project({"001": " "})
+        wt = self.worktree("task-001")
+        queue = (wt / "tasks/QUEUE.md").read_text(encoding="utf-8").replace("| `[ ]` | 001 |", "| `[/]` | 001 |")
+        self.write(wt, "tasks/QUEUE.md", queue)
+        task = self.load()["001"]
+        self.assertEqual((task.readiness, task.lifecycle), ("IN PROGRESS", "in_progress"))
+        self.assertEqual(task.source, "uncommitted task-001")
+        self.assertTrue(task.active_writer)
+
+    def test_working_tree_behind_committed_row_is_a_mismatch(self) -> None:
+        self.setup_project({"001": " "})
+        wt = self.worktree("task-001")
+        self.set_branch_status(wt, "001", "/")
+        queue = (wt / "tasks/QUEUE.md").read_text(encoding="utf-8").replace("| `[/]` | 001 |", "| `[ ]` | 001 |")
+        self.write(wt, "tasks/QUEUE.md", queue)
+        task = self.load()["001"]
+        self.assertEqual(task.readiness, "MISMATCH")
+        self.assertIn("working tree TODO", task.mismatch or "")
+
+    def test_unparseable_working_queue_falls_back_to_committed_state(self) -> None:
+        self.setup_project({"001": " "})
+        wt = self.worktree("task-001")
+        self.set_branch_status(wt, "001", "/")
+        queue = (wt / "tasks/QUEUE.md").read_text(encoding="utf-8").replace("`[/]`", "`[?]`")
+        self.write(wt, "tasks/QUEUE.md", queue)
+        task = self.load()["001"]
+        self.assertEqual((task.readiness, task.source), ("IN PROGRESS", "branch task-001"))
+
+    def test_missing_registered_worktree_directory_does_not_break_snapshot(self) -> None:
+        self.setup_project({"001": " "})
+        wt = self.worktree("task-001")
+        moved = wt.with_name("missing-task-001")
+        wt.rename(moved)
+        self.addCleanup(lambda: moved.rename(wt) if moved.exists() else None)
+        task = self.load()["001"]
+        self.assertEqual((task.readiness, task.source), ("READY", "main"))
+        self.assertEqual(task.worktree, str(wt))
+
     def test_completed_branch_with_done_handoff_is_ready_for_review(self) -> None:
         self.setup_project({"001": " "})
         self.set_branch_status(self.worktree("task-001"), "001", "x", handoff="DONE")
@@ -666,6 +713,16 @@ class GovernedEffectiveStateTest(RepoCase):
         task = self.load()["TASK-001"]
         self.assertTrue(task.active_writer)
         self.assertEqual(task.readiness, "IN PROGRESS")
+
+    def test_uncommitted_in_progress_row_supersedes_committed_queued(self) -> None:
+        self.setup_project([("TASK-001", "QUEUED", "REQUIRED", "—")])
+        wt = self.worktree("task-001")
+        queue = (wt / "tasks/QUEUE.md").read_text(encoding="utf-8").replace(
+            "| TASK-001 | P1 | QUEUED", "| TASK-001 | P1 | IN_PROGRESS")
+        self.write(wt, "tasks/QUEUE.md", queue)
+        task = self.load()["TASK-001"]
+        self.assertEqual((task.readiness, task.lifecycle), ("IN PROGRESS", "in_progress"))
+        self.assertEqual(task.source, "uncommitted task-001")
 
 
 class LinklessQueueTest(RepoCase):
@@ -977,6 +1034,25 @@ class RefreshCostTest(RepoCase):
         self.assertEqual(len(small), len(large))
         checks = [call for call in large if "check-ref-format" in call]
         self.assertEqual(len(checks), 2, "one ref check per open task")
+
+    def test_refresh_reads_worktree_queue_only_for_dirty_worktrees(self) -> None:
+        statuses = {f"{number:03}": " " for number in range(1, 6)}
+        self.setup_project(statuses)
+        worktrees = {task_id: self.worktree(f"task-{task_id}") for task_id in statuses}
+        self.write(worktrees["001"], "scratch.txt", "uncommitted")
+        reads: list[Path] = []
+        original = console._read_text
+
+        def observing(path: Path) -> str:
+            reads.append(path)
+            return original(path)
+
+        with mock.patch.object(console, "_read_text", side_effect=observing):
+            console.load_snapshot(self.project, console.IdentityCache())
+        self.assertIn(worktrees["001"] / "tasks/QUEUE.md", reads)
+        for task_id, worktree in worktrees.items():
+            if task_id != "001":
+                self.assertNotIn(worktree / "tasks/QUEUE.md", reads)
 
     def test_warm_refresh_resolves_no_identity_and_spawns_no_ref_check(self) -> None:
         self.setup_with_history(5)
