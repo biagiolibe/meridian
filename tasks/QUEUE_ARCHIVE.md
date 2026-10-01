@@ -245,4 +245,15 @@ queue, task descriptions, dependencies, and local Git state.
 |--------|----|-------|----------|------------|------|
 | `[x]` | 070 | Build a read-only project console with automatic local refresh | 🟡 P2 | 063 | [070](done/070-build-project-console.md) |
 
+### Phase 26 — Project console presentation
+
+Align the local console with the approved compact shell design while keeping
+its project-state sources local.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 071 | Apply the compact dark shell design to the project console | 🟡 P2 | 070 | [071](done/071-apply-compact-console-design.md) |
+| `[x]` | 072 | Match the approved console mockup in the terminal renderer | 🟡 P2 | 071 | [072](done/072-match-console-mockup.md) |
+| `[x]` | 073 | Make directives copyable and restore All filter navigation | 🟡 P2 | 072 | [073](done/073-copy-directive-and-filter-navigation.md) |
+
 *Last updated: 2026-10-01*
