@@ -21,33 +21,33 @@ with at most an "active writer" marker.
 
 ## 📋 Acceptance Criteria
 
-- [ ] The report is reproduced first and the result is recorded in the handoff:
+- [x] The report is reproduced first and the result is recorded in the handoff:
       prepare a task worktree, change the task's queue row to `[/]` without
       committing, and capture what the console shows before the fix. If the
       defect is not reproduced, record exactly what was tried and stop with the
       task still `[/]` and the blocker stated.
-- [ ] In a Lean Delivery project, a task whose registered worktree is dirty and
+- [x] In a Lean Delivery project, a task whose registered worktree is dirty and
       whose working-tree queue row is `[/]` is shown as in progress even though
       the branch commit still says `[ ]`. The row's source indicates that the
       state is uncommitted.
-- [ ] The same behavior holds for Governed SDD (`QUEUED` to `IN_PROGRESS`) using
+- [x] The same behavior holds for Governed SDD (`QUEUED` to `IN_PROGRESS`) using
       that profile's tokens and phases.
-- [ ] A clean worktree whose branch equals `main` (prepared, nothing written) is
+- [x] A clean worktree whose branch equals `main` (prepared, nothing written) is
       not shown as in progress. It stays `TODO`, with a distinct, non-error
       indication that a worktree is registered.
-- [ ] A working-tree row that is behind the committed branch row, or a
+- [x] A working-tree row that is behind the committed branch row, or a
       working-tree queue file that cannot be parsed, never advances or
       regresses the state silently: it falls back to the committed state and
       reports a mismatch where the existing rules already report one.
-- [ ] The console remains strictly read-only: it reads the working-tree queue
+- [x] The console remains strictly read-only: it reads the working-tree queue
       file only, never writes, stages, or runs project commands in a worktree.
       Reads stay bounded and do not reintroduce the refresh latency fixed in
       Task 078.
-- [ ] Tests cover: uncommitted `[/]` in both workflow profiles, clean prepared
+- [x] Tests cover: uncommitted `[/]` in both workflow profiles, clean prepared
       worktree, committed state ahead of the working tree, unparsable working
       tree queue, a missing worktree directory for a registered branch, and
       refresh timing for a project with several worktrees.
-- [ ] `python3 -m unittest discover -s tests`,
+- [x] `python3 -m unittest discover -s tests`,
       `python3 scripts/check_repository.py`, and `git diff --check` pass.
 
 ## 📁 Relevant Files
