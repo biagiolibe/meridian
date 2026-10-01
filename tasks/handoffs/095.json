@@ -11,7 +11,11 @@
     "README.md",
     "CHANGELOG.md",
     "tasks/QUEUE.md",
-    "PROJECT_PLAN.md"
+    "tasks/QUEUE_ARCHIVE.md",
+    "PROJECT_PLAN.md",
+    "tasks/done/095-release-command-fixes-and-readme.md",
+    "tasks/handoffs/095.md",
+    "tasks/handoffs/095.json"
   ],
   "task_dependencies": ["093", "094"],
   "task_behavioral_surfaces": [
