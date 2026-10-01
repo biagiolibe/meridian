@@ -40,7 +40,7 @@ labelled.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[ ]` | 091 | Record the 1.2.0 marketplace install evidence | 🟡 P2 | 065, 089 | [091](091-record-1-2-0-marketplace-install-evidence.md) |
+| `[x]` | 091 | Record the 1.2.0 marketplace install evidence | 🟡 P2 | 065, 089 | [091](done/091-record-1-2-0-marketplace-install-evidence.md) |
 
 ### Phase 35 — Single-step upgrade from the 1.0.0 baseline
 
