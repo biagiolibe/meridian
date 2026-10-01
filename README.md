@@ -75,6 +75,13 @@ state every two seconds and never sends directives to agents or writes project
 files. Use `--project /path/to/project` to inspect another project and
 `--interval 5` to change the refresh interval (between 0.2 and 60 seconds).
 
+The console supports both `LEAN_DELIVERY` and `GOVERNED_SDD` projects, selected
+from the mode lock in `PROJECT_WORKFLOW.md`. Because lifecycle edits are
+committed on each task branch, it reads a task's queue row, record, handoff,
+and review record from that branch with read-only Git commands and shows the
+effective state with its source. Disagreements the lifecycle does not produce
+appear as `MISMATCH` with no launch directive.
+
 The command is part of the tagged Meridian tree. Claude Code adopters receive
 it through `${CLAUDE_PLUGIN_ROOT}/bin/meridian`; Codex adopters run the
 `bin/meridian` launcher from their tagged checkout with `MERIDIAN_ROOT` pointing

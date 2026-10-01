@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -30,11 +32,11 @@ class ProjectConsoleTest(unittest.TestCase):
         (self.project / "tasks").mkdir()
         (self.project / "PROJECT_WORKFLOW.md").write_text("# LEAN_DELIVERY\n", encoding="utf-8")
         (self.project / "tasks" / "001-first.md").write_text(
-            "# Task 001\n\n## Objective\n\nFirst task.\n\n"
+            "# Task 001\n\n> **ID**: `001`\n\n## Objective\n\nFirst task.\n\n"
             "## Acceptance Criteria\n\n- [ ] First check.\n", encoding="utf-8",
         )
         (self.project / "tasks" / "002-second.md").write_text(
-            "# Task 002\n\n## Objective\n\nSecond task.\n\n"
+            "# Task 002\n\n> **ID**: `002`\n\n## Objective\n\nSecond task.\n\n"
             "## Acceptance Criteria\n\n- [ ] Second check.\n", encoding="utf-8",
         )
 
@@ -173,6 +175,328 @@ class ProjectConsoleTest(unittest.TestCase):
             )
             run.return_value.returncode = 1
             self.assertFalse(console._copy_to_clipboard(task.launch_command))
+
+    def test_new_tabs_are_appended_after_existing_ones(self) -> None:
+        self.write_queue()
+        snapshot = self.snapshot()
+        self.assertEqual(
+            tuple(console._filter_counts(snapshot)),
+            ("Ready", "Working", "Blocked", "Unknown", "Review", "Mismatch"),
+        )
+
+
+class RepoCase(unittest.TestCase):
+    """Throwaway Git repository with a primary checkout and task worktrees."""
+
+    lock = "LEAN_DELIVERY"
+
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name).resolve()
+        self.project = self.root / "project"
+        self.project.mkdir()
+        self.git(self.project, "init", "-q", "-b", "main")
+        self.write(self.project, "PROJECT_WORKFLOW.md", f"# {self.lock}\n")
+
+    def git(self, cwd: Path, *args: str) -> str:
+        return subprocess.run(
+            ["git", "-c", "commit.gpgsign=false", "-c", "user.name=Test",
+             "-c", "user.email=test@example.com", "-C", str(cwd), *args],
+            capture_output=True, text=True, check=True,
+        ).stdout
+
+    def write(self, root: Path, relative: str, text: str) -> None:
+        path = root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+
+    def commit(self, cwd: Path, message: str = "change") -> None:
+        self.git(cwd, "add", "-A")
+        self.git(cwd, "commit", "-q", "-m", message)
+
+    def worktree(self, branch: str) -> Path:
+        path = self.root / f"wt-{branch}"
+        self.git(self.project, "worktree", "add", "-q", "-b", branch, str(path))
+        return path
+
+    def load(self) -> dict[str, console.Task]:
+        return {task.task_id: task for task in console.load_snapshot(self.project).tasks}
+
+    def refs_and_status(self) -> tuple[str, str]:
+        return (self.git(self.project, "for-each-ref"),
+                self.git(self.project, "status", "--porcelain"))
+
+
+class LeanEffectiveStateTest(RepoCase):
+    def queue(self, statuses: dict[str, str], deps: dict[str, str] | None = None) -> str:
+        rows = "".join(
+            f"| `[{token}]` | {task_id} | Task {task_id} | P2 | {(deps or {}).get(task_id, '—')} "
+            f"| [{task_id}]({task_id}-task.md) |\n"
+            for task_id, token in statuses.items()
+        )
+        return ("# Queue\n\n### Phase 1\n\n" + HEADER + rows)
+
+    def setup_project(self, statuses: dict[str, str], deps: dict[str, str] | None = None) -> None:
+        self.write(self.project, "tasks/QUEUE.md", self.queue(statuses, deps))
+        for task_id in statuses:
+            self.write(
+                self.project, f"tasks/{task_id}-task.md",
+                f"# Task {task_id} — Title {task_id}\n\n> **ID**: `{task_id}`\n\n"
+                "## Objective\n\nDo it.\n\n## Acceptance Criteria\n\n- [ ] Check.\n",
+            )
+        self.commit(self.project, "initial")
+
+    def set_branch_status(self, wt: Path, task_id: str, token: str, handoff: str | None = None) -> None:
+        queue = (wt / "tasks/QUEUE.md").read_text(encoding="utf-8")
+        queue = re.sub(rf"\| `\[.\]` \| {task_id} \|", f"| `[{token}]` | {task_id} |", queue)
+        self.write(wt, "tasks/QUEUE.md", queue)
+        if handoff:
+            self.write(wt, f"tasks/handoffs/{task_id}.md",
+                       f"# Completion Report — {task_id}\n\n- Status: `{handoff}`\n")
+        self.commit(wt, f"{task_id} {token}")
+
+    def test_task_without_branch_keeps_current_behavior(self) -> None:
+        self.setup_project({"001": " "})
+        task = self.load()["001"]
+        self.assertEqual((task.readiness, task.lifecycle, task.source), ("READY", "todo", "main"))
+        self.assertEqual(task.launch_command, "Proceed with 001")
+        self.assertFalse(task.active_writer)
+
+    def test_reserved_branch_state_wins_without_any_write(self) -> None:
+        self.setup_project({"001": " "})
+        self.set_branch_status(self.worktree("task-001"), "001", "/")
+        before = self.refs_and_status()
+        task = self.load()["001"]
+        self.assertEqual(self.refs_and_status(), before)
+        self.assertEqual((task.readiness, task.lifecycle), ("IN PROGRESS", "in_progress"))
+        self.assertEqual(task.source, "branch task-001")
+        self.assertIsNone(task.launch_command)
+        self.assertEqual(task.worktree, str(self.root / "wt-task-001"))
+        self.assertIn("[ ]", (self.project / "tasks/QUEUE.md").read_text(encoding="utf-8"))
+
+    def test_completed_branch_with_done_handoff_is_ready_for_review(self) -> None:
+        self.setup_project({"001": " "})
+        self.set_branch_status(self.worktree("task-001"), "001", "x", handoff="DONE")
+        task = self.load()["001"]
+        self.assertEqual((task.readiness, task.lifecycle), ("READY FOR REVIEW", "ready_for_review"))
+        self.assertEqual(console._state_label(task), ("Review", "ready"))
+        self.assertIsNone(task.launch_command)
+
+    def test_completed_row_without_done_handoff_is_a_mismatch(self) -> None:
+        self.setup_project({"001": " "})
+        self.set_branch_status(self.worktree("task-001"), "001", "x", handoff="BLOCKED")
+        task = self.load()["001"]
+        self.assertEqual(task.readiness, "MISMATCH")
+        self.assertIn("handoff BLOCKED", task.mismatch or "")
+
+    def test_completed_branch_with_dirty_worktree_stays_in_progress(self) -> None:
+        self.setup_project({"001": " "})
+        wt = self.worktree("task-001")
+        self.set_branch_status(wt, "001", "x", handoff="DONE")
+        self.write(wt, "scratch.txt", "uncommitted")
+        task = self.load()["001"]
+        self.assertEqual((task.readiness, task.lifecycle), ("IN PROGRESS", "in_progress"))
+        self.assertTrue(task.active_writer)
+
+    def test_dirty_worktree_is_advisory_and_never_changes_state(self) -> None:
+        self.setup_project({"001": " "})
+        wt = self.worktree("task-001")
+        self.set_branch_status(wt, "001", "/")
+        clean = self.load()["001"]
+        self.write(wt, "scratch.txt", "uncommitted")
+        dirty = self.load()["001"]
+        self.assertFalse(clean.active_writer)
+        self.assertTrue(dirty.active_writer)
+        self.assertEqual((clean.readiness, clean.lifecycle), (dirty.readiness, dirty.lifecycle))
+        self.assertEqual(dirty.markers, ("active writer",))
+
+    def test_branch_behind_primary_is_a_mismatch_without_directive(self) -> None:
+        self.setup_project({"001": "/"})
+        self.worktree("task-001")
+        wt = self.root / "wt-task-001"
+        self.set_branch_status(wt, "001", " ")
+        task = self.load()["001"]
+        self.assertEqual(task.readiness, "MISMATCH")
+        self.assertIn("main IN_PROGRESS", task.mismatch or "")
+        self.assertIn("task-001 TODO", task.mismatch or "")
+        self.assertIsNone(task.launch_command)
+        self.assertEqual(console._state_label(task)[0], "Mismatch")
+
+    def test_dependencies_are_satisfied_by_integrated_state_only(self) -> None:
+        self.setup_project({"001": " ", "002": " "}, deps={"002": "001"})
+        self.set_branch_status(self.worktree("task-001"), "001", "x", handoff="DONE")
+        tasks = self.load()
+        self.assertEqual(tasks["001"].readiness, "READY FOR REVIEW")
+        self.assertEqual(tasks["002"].readiness, "BLOCKED: 001")
+        self.assertIsNone(tasks["002"].launch_command)
+
+    def test_milestone_identity_resolves_the_task_branch(self) -> None:
+        self.write(self.project, ".meridian/task-identity.json",
+                   json.dumps({"version": 1, "mode": "milestone"}))
+        self.setup_project({"M1-CORE-001": " "})
+        self.set_branch_status(self.worktree("m1-core-001"), "M1-CORE-001", "/")
+        task = self.load()["M1-CORE-001"]
+        self.assertEqual(task.source, "branch m1-core-001")
+        self.assertEqual(task.readiness, "IN PROGRESS")
+
+    def test_one_shot_reports_source_markers_and_mismatch(self) -> None:
+        self.setup_project({"001": " ", "002": "/"})
+        wt = self.worktree("task-001")
+        self.set_branch_status(wt, "001", "/")
+        self.write(wt, "scratch.txt", "uncommitted")
+        self.set_branch_status(self.worktree("task-002"), "002", " ")
+        state = console.ConsoleState(self.project)
+        state.refresh()
+        output = console.one_shot(state)
+        self.assertIn("State from: branch task-001", output)
+        self.assertIn("Markers: active writer", output)
+        self.assertIn("Mismatch: main IN_PROGRESS, task-002 TODO", output)
+
+
+class GovernedEffectiveStateTest(RepoCase):
+    lock = "GOVERNED_SDD"
+    header = (
+        "| Order | ID | Priority | Status | Review | Dependencies | Task file |\n"
+        "|---:|---|---|---|---|---|---|\n"
+    )
+
+    def setup_project(self, rows: list[tuple[str, str, str, str]]) -> None:
+        """Rows are (id, status, review, dependencies)."""
+        body = "# Task Execution Queue\n\n" + self.header + "".join(
+            f"| {index} | {task_id} | P1 | {status} | {review} | {deps} | "
+            f"[{task_id}]({task_id}.md) |\n"
+            for index, (task_id, status, review, deps) in enumerate(rows, 1)
+        )
+        self.write(self.project, "tasks/QUEUE.md", body)
+        for task_id, status, review, _deps in rows:
+            self.write_record(self.project, task_id, status)
+        self.commit(self.project, "initial")
+
+    def write_record(self, root: Path, task_id: str, status: str) -> None:
+        self.write(root, f"tasks/{task_id}.md",
+                   f"# Task {task_id} — Governed {task_id}\n\nPriority: P1\nStatus: {status}\n"
+                   "Review: REQUIRED\n\n## Objective\n\nGoverned work.\n")
+
+    def set_branch(self, wt: Path, task_id: str, status: str, record: str | None = None,
+                   review: str | None = None) -> None:
+        queue = (wt / "tasks/QUEUE.md").read_text(encoding="utf-8")
+        queue = re.sub(rf"(\| {task_id} \| P1 \| )\w+", rf"\g<1>{status}", queue)
+        self.write(wt, "tasks/QUEUE.md", queue)
+        self.write_record(wt, task_id, record or status)
+        if review:
+            self.write(wt, f"tasks/reviews/{task_id}.md", review)
+        self.commit(wt, f"{task_id} {status}")
+
+    def test_queue_statuses_map_to_normalized_phases_and_dependencies(self) -> None:
+        self.setup_project([
+            ("TASK-001", "ACCEPTED", "REQUIRED", "—"),
+            ("TASK-002", "QUEUED", "REQUIRED", "TASK-001"),
+            ("TASK-003", "IN_PROGRESS", "REQUIRED", "—"),
+            ("TASK-004", "READY_FOR_REVIEW", "REQUIRED", "—"),
+            ("TASK-005", "ANSWERED", "SPIKE", "—"),
+            ("TASK-006", "QUEUED", "REQUIRED", "TASK-005"),
+            ("TASK-007", "INCONCLUSIVE", "SPIKE", "—"),
+            ("TASK-008", "QUEUED", "REQUIRED", "TASK-007"),
+        ])
+        tasks = self.load()
+        self.assertEqual({tid: t.lifecycle for tid, t in tasks.items()}, {
+            "TASK-002": "todo", "TASK-003": "in_progress", "TASK-004": "ready_for_review",
+            "TASK-006": "todo", "TASK-008": "todo",
+        })
+        self.assertEqual(tasks["TASK-002"].readiness, "READY")
+        self.assertEqual(tasks["TASK-006"].readiness, "READY")
+        self.assertEqual(tasks["TASK-008"].readiness, "BLOCKED: TASK-007")
+        self.assertEqual(tasks["TASK-004"].title, "Governed TASK-004")
+
+    def test_dependency_on_unaccepted_task_is_blocked(self) -> None:
+        self.setup_project([
+            ("TASK-001", "READY_FOR_REVIEW", "REQUIRED", "—"),
+            ("TASK-002", "QUEUED", "REQUIRED", "TASK-001"),
+        ])
+        self.assertEqual(self.load()["TASK-002"].readiness, "BLOCKED: TASK-001")
+
+    def test_unrecognized_status_is_an_explicit_error(self) -> None:
+        self.setup_project([("TASK-001", "CHANGES_REQUESTED", "REQUIRED", "—")])
+        with self.assertRaisesRegex(console.ConsoleError, "Unknown task status"):
+            console.load_snapshot(self.project)
+
+    def test_ready_for_review_requires_record_queue_and_review_agreement(self) -> None:
+        self.setup_project([("TASK-001", "QUEUED", "REQUIRED", "—")])
+        wt = self.worktree("task-001")
+        self.set_branch(wt, "TASK-001", "READY_FOR_REVIEW")
+        task = self.load()["TASK-001"]
+        self.assertEqual((task.readiness, task.lifecycle), ("READY FOR REVIEW", "ready_for_review"))
+        self.assertEqual(task.source, "branch task-001")
+        self.set_branch(wt, "TASK-001", "READY_FOR_REVIEW", record="IN_PROGRESS")
+        task = self.load()["TASK-001"]
+        self.assertEqual(task.readiness, "MISMATCH")
+        self.assertIn("task record IN_PROGRESS", task.mismatch or "")
+        self.assertIsNone(task.launch_command)
+
+    def test_ready_for_review_without_required_review_is_a_mismatch(self) -> None:
+        self.setup_project([("TASK-001", "QUEUED", "NOT_REQUIRED", "—")])
+        self.set_branch(self.worktree("task-001"), "TASK-001", "READY_FOR_REVIEW")
+        task = self.load()["TASK-001"]
+        self.assertEqual(task.readiness, "MISMATCH")
+        self.assertIn("Review NOT_REQUIRED", task.mismatch or "")
+
+    def test_latest_changes_requested_attempt_marks_in_progress_task(self) -> None:
+        self.setup_project([("TASK-001", "QUEUED", "REQUIRED", "—")])
+        wt = self.worktree("task-001")
+        review = (
+            "# Review Record — TASK-001\n\n## Attempt 1 — CHANGES_REQUESTED\n\n- x\n\n"
+            "## Attempt 2 — CHANGES_REQUESTED\n\n- y\n"
+        )
+        self.set_branch(wt, "TASK-001", "IN_PROGRESS", review=review)
+        task = self.load()["TASK-001"]
+        self.assertEqual((task.readiness, task.lifecycle), ("IN PROGRESS", "in_progress"))
+        self.assertTrue(task.changes_requested)
+        self.assertEqual(task.markers, ("changes requested",))
+        approved = review + "\n## Attempt 3 — APPROVE\n\n- z\n"
+        self.set_branch(wt, "TASK-001", "IN_PROGRESS", review=approved)
+        self.assertFalse(self.load()["TASK-001"].changes_requested)
+
+    def test_resubmission_after_changes_requested_is_ready_for_review(self) -> None:
+        self.setup_project([("TASK-001", "QUEUED", "REQUIRED", "—")])
+        review = "# Review Record — TASK-001\n\n## Attempt 1 — CHANGES_REQUESTED\n\n- x\n"
+        self.set_branch(self.worktree("task-001"), "TASK-001", "READY_FOR_REVIEW", review=review)
+        task = self.load()["TASK-001"]
+        self.assertEqual(task.lifecycle, "ready_for_review")
+        self.assertFalse(task.changes_requested)
+
+    def test_branch_accepted_is_done_on_branch_and_does_not_unblock_dependents(self) -> None:
+        self.setup_project([
+            ("TASK-001", "QUEUED", "REQUIRED", "—"),
+            ("TASK-002", "QUEUED", "REQUIRED", "TASK-001"),
+        ])
+        self.set_branch(self.worktree("task-001"), "TASK-001", "ACCEPTED")
+        tasks = self.load()
+        self.assertEqual(tasks["TASK-001"].readiness, "DONE ON BRANCH")
+        self.assertEqual(tasks["TASK-002"].readiness, "BLOCKED: TASK-001")
+
+    def test_dirty_worktree_shows_active_writer(self) -> None:
+        self.setup_project([("TASK-001", "QUEUED", "REQUIRED", "—")])
+        wt = self.worktree("task-001")
+        self.set_branch(wt, "TASK-001", "IN_PROGRESS")
+        self.write(wt, "scratch.txt", "uncommitted")
+        task = self.load()["TASK-001"]
+        self.assertTrue(task.active_writer)
+        self.assertEqual(task.readiness, "IN PROGRESS")
+
+
+class WorkflowModeLockTest(RepoCase):
+    def test_missing_unknown_and_double_locks_are_explicit_errors(self) -> None:
+        (self.project / "PROJECT_WORKFLOW.md").unlink()
+        with self.assertRaisesRegex(console.ConsoleError, "PROJECT_WORKFLOW.md is missing") as raised:
+            console.load_snapshot(self.project)
+        self.assertNotIn("--mode", str(raised.exception))
+        self.write(self.project, "PROJECT_WORKFLOW.md", "# nothing\n")
+        with self.assertRaisesRegex(console.ConsoleError, "no recognized mode lock"):
+            console.load_snapshot(self.project)
+        self.write(self.project, "PROJECT_WORKFLOW.md", "LEAN_DELIVERY GOVERNED_SDD\n")
+        with self.assertRaisesRegex(console.ConsoleError, "both mode locks"):
+            console.load_snapshot(self.project)
 
 
 if __name__ == "__main__":
