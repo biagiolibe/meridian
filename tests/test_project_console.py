@@ -671,6 +671,20 @@ class LinklessQueueTest(RepoCase):
         self.assertEqual((task.source, task.readiness, task.mismatch),
                          ("branch m37-cause-004", "READY FOR REVIEW", None))
 
+    def test_branch_that_moved_the_record_is_resolved_in_its_own_tree(self) -> None:
+        self.setup_project([("M37-CAUSE-004", "QUEUED", "—")])
+        wt = self.worktree("m37-cause-004")
+        queue = (wt / "docs/TASK_QUEUE.md").read_text(encoding="utf-8").replace(
+            "QUEUED", "READY_FOR_REVIEW")
+        self.write(wt, "docs/TASK_QUEUE.md", queue)
+        self.git(wt, "rm", "-q", "docs/tasks/M37/M37-CAUSE-004.md")
+        self.write(wt, *self.record("M37-CAUSE-004", "READY_FOR_REVIEW", milestone="M38"))
+        self.commit(wt)
+        task = self.load()["M37-CAUSE-004"]
+        self.assertEqual((task.source, task.readiness, task.mismatch),
+                         ("branch m37-cause-004", "READY FOR REVIEW", None))
+        self.assertEqual(task.path, self.project / "docs/tasks/M37/M37-CAUSE-004.md")
+
     def test_record_resolution_adds_no_per_task_subprocess_work(self) -> None:
         def calls(count: int, linked: bool) -> int:
             names = [f"M37-CAUSE-{n:03}" for n in range(count)]
