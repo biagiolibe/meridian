@@ -13,18 +13,18 @@ and make `All` straightforward to reach with Tab.
 
 ## Acceptance Criteria
 
-- [ ] A ready task shows `Proceed with <ID>` as the `Next directive` command.
+- [x] A ready task shows `Proceed with <ID>` as the `Next directive` command.
   Clicking the visible command copies exactly that text to the system clipboard
   and shows short success or failure feedback. Other task states are not
   presented as copyable launch commands.
-- [ ] `c` copies the selected ready task's launch command when terminal mouse
+- [x] `c` copies the selected ready task's launch command when terminal mouse
   events are unavailable. No directive is executed or sent to an agent.
-- [ ] Tab and Shift+Tab cycle `All` and populated status filters in both
+- [x] Tab and Shift+Tab cycle `All` and populated status filters in both
   directions, including returning to `All` after the last populated filter.
   Visible empty filters can still be selected by clicking their tabs.
-- [ ] Narrow and wide layouts, keyboard navigation, search, refresh, stale
+- [x] Narrow and wide layouts, keyboard navigation, search, refresh, stale
   state, and `--once` continue to work. No new package or network use is added.
-- [ ] Unit tests and interactive terminal smoke checks cover filter wrap,
+- [x] Unit tests and interactive terminal smoke checks cover filter wrap,
   click hit testing, clipboard success and failure, and the project baseline
   checks pass.
 

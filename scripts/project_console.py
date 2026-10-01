@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read-only terminal dashboard for a local Meridian project."""
+"""Local terminal dashboard for a Meridian project."""
 
 from __future__ import annotations
 
@@ -43,9 +43,13 @@ class Task:
     updated_at: int | None = None
 
     @property
+    def launch_command(self) -> str | None:
+        return f"Proceed with {self.task_id}" if self.readiness == "READY" else None
+
+    @property
     def next_action(self) -> str:
         if self.readiness == "READY":
-            return f"If assigned: Proceed with {self.task_id}"
+            return f"If assigned: {self.launch_command}"
         if self.readiness == "IN PROGRESS":
             return "Continue the assigned task in its worktree"
         if self.readiness.startswith("BLOCKED"):
@@ -353,6 +357,61 @@ def _state_label(task: Task) -> tuple[str, str]:
     return "Unknown", "unknown"
 
 
+def _filter_counts(snapshot: Snapshot | None) -> dict[str, int]:
+    counts = {name: 0 for name in ("Ready", "Working", "Blocked", "Unknown")}
+    for task in snapshot.tasks if snapshot else ():
+        counts[_state_label(task)[0]] += 1
+    return counts
+
+
+def _cycle_filter(snapshot: Snapshot | None, current: str, direction: int) -> str:
+    filters = ("All", "Ready", "Working", "Blocked", "Unknown")
+    counts = _filter_counts(snapshot)
+    start = filters.index(current)
+    for step in range(1, len(filters) + 1):
+        candidate = filters[(start + direction * step) % len(filters)]
+        if candidate == "All" or counts[candidate]:
+            return candidate
+    return "All"
+
+
+def _tab_at(snapshot: Snapshot | None, x: int, y: int) -> str | None:
+    if y != 1:
+        return None
+    counts = _filter_counts(snapshot)
+    tabs = (("All", sum(counts.values())), *counts.items())
+    left = 1
+    for name, count in tabs:
+        right = left + len(f" {name} {count} ")
+        if left <= x < right:
+            return name
+        left = right + 1
+    return None
+
+
+def _copy_to_clipboard(value: str) -> bool:
+    if sys.platform == "darwin":
+        commands = (("pbcopy",),)
+    elif sys.platform == "win32":
+        commands = (("clip",),)
+    else:
+        commands = (("wl-copy",), ("xclip", "-selection", "clipboard"))
+    for command in commands:
+        try:
+            result = subprocess.run(command, input=value, text=True,
+                                    capture_output=True, check=False, timeout=2)
+        except (OSError, subprocess.TimeoutExpired):
+            continue
+        if result.returncode == 0:
+            return True
+    return False
+
+
+def _action_hit(x: int, y: int,
+                bounds: tuple[int, int, set[int]] | None) -> bool:
+    return bool(bounds and bounds[0] <= x <= bounds[1] and y in bounds[2])
+
+
 def _age(timestamp: int | None) -> str:
     if timestamp is None:
         return "—"
@@ -399,7 +458,8 @@ def _detail_lines(task: Task, width: int, palette: dict[str, int],
     if not compact:
         add("")
     add("Next directive", "muted")
-    add(task.next_action, "action")
+    command = task.launch_command
+    add(f"{command}  [copy]" if command else task.next_action, "action")
     return lines
 
 
@@ -429,9 +489,7 @@ def _draw_header(screen, state: ConsoleState, palette: dict[str, int],
         _put(screen, 0, right_x, right, len(right), palette["blocked"])
     if state.error:
         _put(screen, 1, max(1, width - 9), "STALE", 7, palette["stale"])
-    counts = {name: 0 for name in ("Ready", "Working", "Blocked", "Unknown")}
-    for task in snapshot.tasks if snapshot else ():
-        counts[_state_label(task)[0]] += 1
+    counts = _filter_counts(snapshot)
     tabs = (("All", sum(counts.values())), *((name, count) for name, count in counts.items()))
     x = 1
     for name, count in tabs:
@@ -506,15 +564,23 @@ def _draw_list(screen, tasks: list[Task], selected_id: str | None,
 
 
 def _draw_detail(screen, task: Task | None, x: int, top: int, width: int,
-                 height: int, offset: int, palette: dict[str, int]) -> None:
+                 height: int, offset: int, palette: dict[str, int]) -> set[int]:
     if task is None:
         _put(screen, top, x, "No task selected", width, palette["muted"])
-        return
+        return set()
     lines = _detail_lines(task, width - 2, palette, compact=height < 30)
     body_lines = max(1, height - top - 2)
     offset = min(offset, max(0, len(lines) - body_lines))
     for y, (value, attr) in enumerate(lines[offset:offset + body_lines], top):
         _put(screen, y, x, value, width - 1, attr)
+    if not task.launch_command:
+        return set()
+    action_start = next(i for i, (value, _) in enumerate(lines)
+                        if value == "Next directive") + 1
+    return {
+        top + i - offset for i in range(action_start, len(lines))
+        if offset <= i < offset + body_lines
+    }
 
 
 def run_terminal(screen, state: ConsoleState, interval: float) -> None:
@@ -523,6 +589,10 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
     except curses.error:
         pass
     palette = _palette(screen)
+    try:
+        curses.mousemask(curses.BUTTON1_CLICKED | curses.BUTTON1_RELEASED)
+    except curses.error:
+        pass
     screen.timeout(100)
     selected_id: str | None = None
     offset = 0
@@ -531,9 +601,10 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
     searching = False
     help_visible = False
     detail_open = False
-    filters = ("All", "Ready", "Working", "Blocked", "Unknown")
     status_filter = "All"
     last_poll = 0.0
+    notice = ""
+    notice_until = 0.0
     while True:
         now = time.monotonic()
         if now - last_poll >= interval:
@@ -547,6 +618,7 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
         selected_task = next((task for task in visible if task.task_id == selected_id), None)
         height, width = screen.getmaxyx()
         screen.erase()
+        action_bounds: tuple[int, int, set[int]] | None = None
         if height < 12 or width < 50:
             _put(screen, 0, 0, "Terminal too small (minimum 50x12). Press q to quit.", width,
                  palette["text"])
@@ -558,8 +630,10 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
                     "Navigation", "↑/↓ or j/k  Select task", "Tab/Shift+Tab  Filter by status",
                     "Enter  Open full task details", "Esc  Return to task list",
                     "/  Search task ID or title", "[ / ]  Scroll task details",
+                    "c or click [copy]  Copy a ready task directive",
+                    "Tab  Cycle All and nonempty states; click any tab",
                     "r  Refresh now", "q  Quit", "",
-                    "This console reads local files and Git state only.",
+                    "Project state is read-only; copy writes to the clipboard.",
                     "Updated is the last committed change to the task file.",
                     "Agent activity is unavailable without a verified source.",
                     "It does not control agents or fetch from the network.",
@@ -567,8 +641,9 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
                 for y, line in enumerate(help_lines, 4):
                     _put(screen, y, 2, line, width - 4, palette["text"] if y == 4 else palette["base"])
             elif detail_open:
-                _draw_detail(screen, selected_task, 2, 4, width - 4, height,
-                             detail_offset, palette)
+                action_rows = _draw_detail(screen, selected_task, 2, 4, width - 4,
+                                           height, detail_offset, palette)
+                action_bounds = (2, width - 4, action_rows)
             else:
                 left_width = int(width * .68) if wide else width
                 offset = _draw_list(screen, visible, selected_id, offset, left_width,
@@ -577,16 +652,21 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
                     divider = left_width - 1
                     for y in range(3, height - 2):
                         _put(screen, y, divider, "│", 1, palette["line"])
-                    _draw_detail(screen, selected_task, left_width + 1, 4,
-                                 width - left_width - 2, height, detail_offset, palette)
-            if state.error:
+                    detail_x = left_width + 1
+                    action_rows = _draw_detail(screen, selected_task, detail_x, 4,
+                                               width - left_width - 2, height,
+                                               detail_offset, palette)
+                    action_bounds = (detail_x, width - 3, action_rows)
+            if notice and time.monotonic() < notice_until:
+                footer = notice
+            elif state.error:
                 footer = f"STALE: {state.error}"
             elif searching:
                 footer = f"Search: {search}"
             elif detail_open or help_visible:
                 footer = "Esc back   [/] scroll   r refresh   q quit"
             else:
-                footer = "? help   ↑/↓ move   tab filter   enter details   / search   r refresh   q quit"
+                footer = "? help   ↑/↓ move   tab filter   enter details   c copy   / search   r refresh   q quit"
             _put(screen, height - 2, 0, "─" * max(0, width - 1),
                  width - 1, palette["line"])
             _put(screen, height - 1, 1, footer, width - 2,
@@ -594,6 +674,24 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
         screen.refresh()
         key = screen.getch()
         if key == -1:
+            continue
+        if key == curses.KEY_MOUSE:
+            try:
+                _, mouse_x, mouse_y, _, button_state = curses.getmouse()
+            except curses.error:
+                continue
+            if not button_state & (curses.BUTTON1_CLICKED | curses.BUTTON1_RELEASED):
+                continue
+            tab = _tab_at(snapshot, mouse_x, mouse_y)
+            if tab and not help_visible and not detail_open:
+                status_filter = tab
+                offset = detail_offset = 0
+            elif selected_task and _action_hit(mouse_x, mouse_y, action_bounds):
+                command = selected_task.launch_command
+                if command:
+                    notice = (f"Copied: {command}" if _copy_to_clipboard(command)
+                              else "Clipboard unavailable")
+                    notice_until = time.monotonic() + 2
             continue
         if searching:
             if key in (10, 13, 27):
@@ -630,7 +728,7 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
             detail_offset = max(0, detail_offset - 1)
         elif key in (9, curses.KEY_BTAB) and not detail_open and not help_visible:
             direction = -1 if key == curses.KEY_BTAB else 1
-            status_filter = filters[(filters.index(status_filter) + direction) % len(filters)]
+            status_filter = _cycle_filter(snapshot, status_filter, direction)
             offset = detail_offset = 0
         elif key in (10, 13) and selected_task and not help_visible:
             detail_open = True
@@ -641,6 +739,12 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
         elif key == ord("r"):
             state.refresh()
             last_poll = time.monotonic()
+        elif key == ord("c") and selected_task and not help_visible:
+            command = selected_task.launch_command
+            notice = (f"Copied: {command}" if command and _copy_to_clipboard(command)
+                      else "Clipboard unavailable" if command
+                      else "No launch command for this task")
+            notice_until = time.monotonic() + 2
         elif key == ord("?"):
             help_visible = not help_visible
 
