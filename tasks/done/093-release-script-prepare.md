@@ -21,15 +21,15 @@ to the adopter-facing `meridian` CLI.
 
 ## Acceptance Criteria
 
-- [ ] Usage: `release.py prepare (--bump patch|minor|major | --version X.Y.Z)
+- [x] Usage: `release.py prepare (--bump patch|minor|major | --version X.Y.Z)
   [--date YYYY-MM-DD]`. The version is a plain `X.Y.Z`, strictly greater than
   the current `VERSION`. The date defaults to today.
-- [ ] Preflight, with nothing written and a specific message per failure: the
+- [x] Preflight, with nothing written and a specific message per failure: the
   current branch is `main`; the working tree is clean; `VERSION`,
   `.claude-plugin/plugin.json`, and the newest `releases/*.json` agree; the new
   tag does not exist locally; `## [Unreleased]` has a non-empty body. The
   command does not fetch and does not contact the remote.
-- [ ] The release kind is derived, not chosen. Migrations whose `to` is newer
+- [x] The release kind is derived, not chosen. Migrations whose `to` is newer
   than the previous ledger record's `workflowBaselineVersion` are introduced by
   this release. None: a CLI-only release (`baselineChanged: false`,
   `migrations: []`, `workflowBaselineVersion` unchanged). Any: a
@@ -37,37 +37,37 @@ to the adopter-facing `meridian` CLI.
   migration's `to` and the `### Upgrade notes` subsection to already be written
   under `## [Unreleased]`. Otherwise the command stops with `BLOCKED` and writes
   nothing. It never creates a migration and never invents upgrade notes.
-- [ ] `protocolVersion` in the new ledger record is the code's
+- [x] `protocolVersion` in the new ledger record is the code's
   `PROTOCOL_VERSION`. If it differs from the previous record's, the command
   stops unless `--protocol-reviewed` is given, and the message names the
   compatibility tests that `CONTRIBUTING.md` requires. When it is unchanged the
   output still states that the manifest comparison is a manual check the
   command does not perform.
-- [ ] Writes are limited to `VERSION`, the `version` field of
+- [x] Writes are limited to `VERSION`, the `version` field of
   `.claude-plugin/plugin.json`, a new `releases/<version>.json` with
   `gitTag: v<version>`, and `CHANGELOG.md`. In the changelog an empty
   `## [Unreleased]` heading stays on top and the former body moves under
   `## [<version>]`, whose first line is generated as `CLI-only release: …` or
   `Template-changing release: …`.
-- [ ] After writing, the command runs `python3 scripts/check_repository.py`,
+- [x] After writing, the command runs `python3 scripts/check_repository.py`,
   `python3 -m unittest discover -s tests`, and
   `python3 scripts/prepare_release.py --tag v<version> --notes-file <temp file>`.
   Any failure restores the four files to `HEAD` and exits non-zero with the
   failing command and its exit code.
-- [ ] On success the command creates exactly one local commit named
+- [x] On success the command creates exactly one local commit named
   `Release <version>` containing only those files, prints the commit, the
   derived kind, and the exact next command (`release.py publish`, Task 094),
   and exits zero.
-- [ ] `--dry-run` performs the preflight and prints the derived kind, the files
+- [x] `--dry-run` performs the preflight and prints the derived kind, the files
   it would write, and the changelog section it would produce, writing nothing.
-- [ ] Unit tests use temporary Git repositories and cover: each preflight
+- [x] Unit tests use temporary Git repositories and cover: each preflight
   failure, CLI-only and template-changing derivation, the missing upgrade notes
   block, the protocol gate, rollback after a failing validation command (with
   that command replaced by a test double), the commit contents, and
   `--dry-run` writing nothing. No test uses the network.
-- [ ] `CONTRIBUTING.md` release procedure describes the command and states that
+- [x] `CONTRIBUTING.md` release procedure describes the command and states that
   the manual steps remain valid and that the manifest comparison stays manual.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
+- [x] `python3 scripts/check_repository.py` and the unit tests pass.
 
 ## Relevant Files
 
