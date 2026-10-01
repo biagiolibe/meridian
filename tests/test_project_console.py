@@ -220,6 +220,66 @@ class ProjectConsoleTest(unittest.TestCase):
         )
 
 
+class AgentLaunchTest(unittest.TestCase):
+    def task(self, **changes) -> console.Task:
+        values = dict(
+            task_id="001", title="First", status="TODO", phase=(), dependencies=(), path=None,
+            objective=(), criteria=(), readiness="READY", lifecycle="todo",
+        )
+        values.update(changes)
+        return console.Task(**values)
+
+    def test_permitted_directive_matrix_refuses_writers_and_mismatches(self) -> None:
+        self.assertEqual(self.task().launch_command, "Proceed with 001")
+        self.assertEqual(self.task(workflow="lean-delivery", readiness="READY FOR REVIEW",
+                                   lifecycle="ready_for_review").launch_command, "Review 001")
+        self.assertEqual(self.task(workflow="governed-sdd", readiness="READY FOR REVIEW",
+                                   lifecycle="ready_for_review", review="REQUIRED").launch_command,
+                         "Review 001")
+        self.assertEqual(self.task(workflow="governed-sdd", readiness="IN PROGRESS",
+                                   lifecycle="in_progress", changes_requested=True).launch_command,
+                         "Address review 001")
+        self.assertIsNone(self.task(workflow="governed-sdd", readiness="READY FOR REVIEW",
+                                    lifecycle="ready_for_review", review="NOT_REQUIRED").launch_command)
+        self.assertIsNone(self.task(readiness="MISMATCH", active_writer=True).launch_command)
+        self.assertIsNone(self.task(active_writer=True).launch_command)
+
+    def test_request_revalidates_id_and_preserves_an_argument_vector(self) -> None:
+        request, error = console._launch_request(self.task(), Path("."), "codex")
+        self.assertIsNone(error)
+        self.assertIsNotNone(request)
+        self.assertEqual(request.directive, "Proceed with 001")
+        self.assertIn("exec codex 'Proceed with 001'", request.shell_command)
+        hostile, error = console._launch_request(self.task(task_id="001; rm -rf /"), Path("."), "codex")
+        self.assertIsNone(hostile)
+        self.assertIn("task ID", error or "")
+
+    def test_launch_failure_modes_leave_copy_as_fallback(self) -> None:
+        request = console.LaunchRequest("codex", "Proceed with 001", Path("/project"))
+        with mock.patch.object(console.sys, "platform", "linux"):
+            self.assertIn("macOS", console._start_launch(request)[1])
+        with mock.patch.object(console.sys, "platform", "darwin"), \
+             mock.patch.object(console.shutil, "which", return_value=None):
+            self.assertIn("codex is not available", console._start_launch(request)[1])
+        with mock.patch.object(console.sys, "platform", "darwin"), \
+             mock.patch.object(console.shutil, "which", return_value="/usr/bin/tool"), \
+             mock.patch.object(console.subprocess, "run", side_effect=subprocess.TimeoutExpired("osascript", 10)):
+            self.assertIn("timed out", console._start_launch(request)[1])
+
+    def test_osascript_receives_quoted_command_and_reports_iterm_failure(self) -> None:
+        request = console.LaunchRequest("claude", "Proceed with 001; echo nope", Path("/project name"))
+        with mock.patch.object(console.sys, "platform", "darwin"), \
+             mock.patch.object(console.shutil, "which", return_value="/usr/bin/tool"), \
+             mock.patch.object(console.subprocess, "run") as run:
+            run.return_value = mock.Mock(returncode=1, stderr="Application isn't running", stdout="")
+            success, message = console._start_launch(request)
+        self.assertFalse(success)
+        self.assertIn("iTerm2 is unavailable", message)
+        command = run.call_args.args[0]
+        self.assertEqual(command[0], "osascript")
+        self.assertIn("exec claude 'Proceed with 001; echo nope'", command[2])
+
+
 class FakeScreen:
     """Records what curses would draw, as a character grid read back by row."""
 
@@ -511,7 +571,7 @@ class LeanEffectiveStateTest(RepoCase):
         task = self.load()["001"]
         self.assertEqual((task.readiness, task.lifecycle), ("READY FOR REVIEW", "ready_for_review"))
         self.assertEqual(console._state_label(task), ("Review", "ready"))
-        self.assertIsNone(task.launch_command)
+        self.assertEqual(task.launch_command, "Review 001")
 
     def test_completed_row_without_done_handoff_is_a_mismatch(self) -> None:
         self.setup_project({"001": " "})
