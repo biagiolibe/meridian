@@ -32,6 +32,14 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, 25, and 26
 are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 
+### Phase 27 — Project console color refinement
+
+Match the approved console background color in the interactive terminal.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 074 | Match the console background color | 🟢 P3 | 073 | [074](074-match-console-background-color.md) |
+
 ### Phase 24 — Review worktree routing correction
 
 Removes contradictory Governed SDD instructions that can send a fresh
