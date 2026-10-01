@@ -1,0 +1,23 @@
+{
+  "accepted": true,
+  "validation_passed": true,
+  "validated_task_commit": "6b4ab1e4822cc53c54947a8a86a38ab2302ce82a",
+  "validated_base_commit": "0ab2e6f6aa735aad57b4cead37ec43fe03bc23b2",
+  "full_validation_required": false,
+  "interaction_assessment_complete": true,
+  "task_paths": [
+    "scripts/release.py",
+    "tests/test_release.py",
+    "README.md",
+    "CHANGELOG.md",
+    "tasks/QUEUE.md",
+    "PROJECT_PLAN.md"
+  ],
+  "task_dependencies": ["093", "094"],
+  "task_behavioral_surfaces": [
+    "maintainer release command parsing and dry-run output",
+    "public release and Codex documentation"
+  ],
+  "main_advanced_dependencies": [],
+  "main_advanced_behavioral_surfaces": []
+}
