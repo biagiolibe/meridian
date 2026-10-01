@@ -13,10 +13,10 @@ Document and verify the Codex channel from Decision 1: tagged checkout, `MERIDIA
 
 ## 📋 Acceptance Criteria
 
-- [ ] README Codex section documents cloning at `v<version>`, setting `MERIDIAN_ROOT`, and linking both skills into the verified user skills directory.
-- [ ] The skills directory and `MERIDIAN_ROOT` resolution are verified in a real Codex session and recorded in `docs/HOST_CAPABILITY_CONTRACT.md`; unverified points stay labelled unverified.
-- [ ] The update step (fetch, check out the new tag, then `meridian upgrade`) is documented.
-- [ ] `python3 scripts/check_repository.py` passes.
+- [x] README Codex section documents cloning at `v<version>`, setting `MERIDIAN_ROOT`, and linking both skills into the verified user skills directory.
+- [x] The skills directory and `MERIDIAN_ROOT` resolution are verified in a real Codex session and recorded in `docs/HOST_CAPABILITY_CONTRACT.md`; unverified points stay labelled unverified.
+- [x] The update step (fetch, check out the new tag, then `meridian upgrade`) is documented.
+- [x] `python3 scripts/check_repository.py` passes.
 
 ## 📁 Relevant Files
 
