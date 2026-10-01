@@ -64,7 +64,7 @@
 - `[x]` 094 — Add `scripts/release.py publish`.
 - `[x]` 095 — Fix the release command's usage and dry run, and update the README.
 - `[ ]` 096 — Retry the workflow lookup in `release.py publish` and add `verify`.
-- `[ ]` 097 — Let a manually typed `Proceed with` prepare its own worktree in Governed SDD.
+- `[x]` 097 — Let a manually typed `Proceed with` prepare its own worktree in Governed SDD.
 - `[x]` 098 — Let `release.py publish` release an already-prepared template-changing release.
 - `[ ]` 099 — Skip the AppleScript compile test when `osacompile` cannot run.
 - `[ ]` 100 — Design hands-off task closure.

@@ -2,16 +2,35 @@
 
 Use this procedure only for `Proceed with <TASK-ID>` after the entry-point router has applied its always-loaded invariants.
 
-<!-- MERIDIAN:BEGIN capability=task-worktree-boundary v4 -->
-The coordinator runs `meridian worktree prepare` before starting this worker
-and passes its returned branch, absolute worktree path, primary checkout, and
-worktree root as launch inputs. Start in that exact existing directory; do not
-use host automatic isolation or create another checkout. Before reading the
-task, implementation files, or diff, run `meridian worktree check <TASK-ID>
---project <primary-checkout> --format json`. Any blocked
-result stops all task work and preserves both checkouts. Run every later read,
-implementation, validation, status, and handoff operation in the same verified
-worktree, never the primary checkout.
+<!-- MERIDIAN:BEGIN capability=task-worktree-boundary v5 -->
+Choose exactly one start mode before reading the task, its handoff,
+implementation files, or any diff. The task ID is taken only from the
+`Proceed with <TASK-ID>` trigger; never infer it from a branch, directory, or
+task file.
+
+**Coordinator-launched.** When the coordinator supplied the branch, absolute
+worktree path, primary checkout, and worktree root as launch inputs, start in
+that exact existing directory. Do not use host automatic isolation or create
+another checkout. Run `meridian worktree check <TASK-ID> --project
+<primary-checkout> --format json` before any task read.
+
+**Manually triggered.** When no coordinator supplied all of those launch
+inputs, determine the primary checkout from the first entry of `git worktree
+list --porcelain`. Before any other command, run `meridian worktree prepare
+<TASK-ID> --project <primary-checkout> --format json` for exactly the task ID
+in the trigger, without `--worktree-root`. A non-zero result, including partial
+or mismatched state, an existing active writer, or an unresolvable task ID, is
+`BLOCKED`: report the command's message verbatim and change nothing else.
+`prepare` is the only command permitted before `check` passes. After a
+successful `prepare`, change to its returned worktree and run `meridian
+worktree check <TASK-ID> --project <primary-checkout> --format json` there.
+
+For either mode, a blocked `check` result stops all task work and preserves both
+checkouts. If the host cannot run commands or write in the prepared directory,
+return `BLOCKED`, name that exact directory, and tell the developer to restart
+the session there; never fall back to the primary checkout. Run every later
+read, implementation, validation, status, and handoff operation in the same
+verified worktree, never the primary checkout.
 <!-- MERIDIAN:END -->
 
 <!-- MERIDIAN:BEGIN capability=manual-verification-precondition v3 -->If the task declares `Manual verification: required`, check its `Manual verification rationale` first, before any probe: if it is missing, or names a property readable as a value anywhere in the program (a tier-1 structural or tier-2 derived-value property per `docs/CONTEXT_BUDGET_POLICY.md`'s evidence tiers), return `BLOCKED` asking for the task to be re-scoped as a deterministic check instead — do not run the probe. Only once the rationale names a genuine tier-3 perceptual property, confirm evidence availability before any implementation, not after: run an end-to-end probe that actually succeeds and produces the exact evidence channel the task will record, confirmed readable by the responsible agent or reviewer. A visible terminal entry, a launched process, or a presumed ability to automate an application window is not evidence availability; the probe must actually locate the application window and acquire its image, or otherwise produce and open the real artifact. If no such probe succeeds before implementation, return `BLOCKED` immediately; do not implement in the hope the channel will become available later. A probe that has been attempted and failed is positive evidence about the environment: report it and request the evidence channel from the developer before continuing, whatever the evidence tier — never respond to a failed probe by exploring the local environment for an alternative. When a deterministic test can serve as the change's primary acceptance evidence (for example, a geometry or layout assertion), it suspends only the requirement to *capture* manual or visual confirmation as the sole gate; it never suspends the requirement to stop on a probe that has already been attempted and failed.<!-- MERIDIAN:END -->
