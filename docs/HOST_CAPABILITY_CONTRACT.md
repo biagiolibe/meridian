@@ -77,7 +77,7 @@ On 2026-09-30, Claude Code `2.1.285` was run with an isolated
 `CLAUDE_CONFIG_DIR` against the real tags `v1.1.49` and `v1.1.50` of
 `biagiolibe/meridian`. Both tags predate the marketplace rename, so the
 marketplace in this probe was named `meridian-local`; the name `meridian`
-(`meridian@meridian`) has not been exercised against a published tag.
+(`meridian@meridian`) is covered by the `v1.2.0` migration below.
 
 | Question | Result |
 |---|---|
@@ -89,11 +89,32 @@ marketplace in this probe was named `meridian-local`; the name `meridian`
 | Does `claude plugin update` move a pinned plugin to a newer tag? | No. It reported the plugin already at the latest version for the pinned tag. |
 | Does `bin/meridian` exist in the installed plugin cache and run? | Yes. The cached `bin/meridian` of `1.1.50` ran and printed its usage. |
 
-Still unverified: the `meridian@meridian` name against a published tag, and
-`/plugin marketplace update meridian` for an unpinned marketplace moving to a
-newer release. `${CLAUDE_PLUGIN_ROOT}` expansion inside a live Claude session
-was not exercised; only the file at `<installPath>/bin/meridian` was. The probe
-does not cover Codex.
+### Migration to the published tag `v1.2.0`
+
+On 2026-10-01, Claude Code `2.1.287` was used for the developer's real
+user-scope installation, not an isolated `CLAUDE_CONFIG_DIR`. The migration
+commands were entered in the interactive `/plugin` interface, starting from the
+`meridian@meridian-local` install. Paths below are relative to `~/.claude`.
+
+| Question | Result | Evidence |
+|---|---|---|
+| Does `/plugin marketplace add biagiolibe/meridian#v1.2.0` register the marketplace `meridian` pinned to the tag? | Yes. Source `github`, repo `biagiolibe/meridian`, `ref: v1.2.0`; no `meridian-local` entry remained. | `plugins/known_marketplaces.json` |
+| Does `/plugin install meridian@meridian` install `1.2.0` at the tagged commit? | Yes. Version `1.2.0`, `gitCommitSha` `9a5bba7501cf8c7cf4c289998c71d96e8c4e7906`, equal to the commit of `v1.2.0`. | `plugins/installed_plugins.json`; `git ls-remote origin refs/tags/v1.2.0` |
+| Is the old install replaced without a manual `settings.json` edit? | Yes. No `meridian@meridian-local` entry or `enabledPlugins` key remained, and `meridian@meridian` was enabled. | `plugins/installed_plugins.json`; `settings.json` |
+| Does the cache hold a runnable `bin/meridian` for `1.2.0`? | Yes. `plugins/cache/meridian/meridian/1.2.0/bin/meridian self-check` ran and printed its usage. | Cache directory; command output |
+| Does the `/plugin` detail view list the commands, skills, and hooks of `1.2.0`? | Yes, as observed by the developer in the interactive interface. | Developer observation |
+
+Observed side effect, not a defect: the migration left
+`plugins/cache/meridian-local/` (holding `1.0.0`) on disk. Claude Code did not
+remove it, and it is safe to delete.
+
+Still unverified: `/plugin marketplace update meridian` for an unpinned
+marketplace moving to a newer release, and `${CLAUDE_PLUGIN_ROOT}` expansion
+inside a live Claude session. The installed `hooks/hooks.json` references
+`${CLAUDE_PLUGIN_ROOT}`, but no direct evidence that its hook command ran from
+the installed plugin in a new session has been recorded, and the `/plugin`
+detail view alone is not accepted as proof. The probes do not cover Codex, and
+everything about Codex remains unverified.
 
 ## Verified Codex hook probe
 
