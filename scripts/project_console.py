@@ -46,6 +46,7 @@ class Task:
     mismatch: str | None = None
     changes_requested: bool = False
     active_writer: bool = False
+    registered_worktree: bool = False
     record_problem: str | None = None
     review: str | None = None
     dependency_states: tuple[tuple[str, str], ...] = ()
@@ -61,6 +62,7 @@ class Task:
         return (
             *(("changes requested",) if self.changes_requested else ()),
             *(("active writer",) if self.active_writer else ()),
+            *(("registered worktree",) if self.registered_worktree else ()),
         )
 
     @property
@@ -306,11 +308,24 @@ def _branch_facts(project: Path, profile: Profile, task_id: str, queue: str,
         project, "rev-parse", "--verify", "--quiet", "refs/heads/main") is not None else "HEAD"
     ahead = (_git_optional(project, "rev-list", "--count", f"{base}..{ref}") or "0").strip() != "0"
     dirty = bool(worktree and (_git_optional(worktree, "status", "--porcelain") or "").strip())
+    working_row = None
+    if dirty and worktree:
+        try:
+            working_text = _read_text(Path(worktree) / queue)
+            working_row = next(
+                (item for item in parse_queue(working_text, f"{worktree}:{queue}", profile)
+                 if item.task_id == task_id),
+                None,
+            )
+        except ConsoleError:
+            # An unreadable or invalid uncommitted queue cannot supersede the
+            # committed branch state.
+            pass
     facts = BranchFacts(
         branch=branch, row=row, record=record_status(record),
         handoff=handoff_status(show(_relative(project, identity.handoff_path))),
         review_verdict=latest_review_verdict(review), ahead=ahead,
-        worktree=worktree, dirty=dirty,
+        worktree=worktree, dirty=dirty, working_row=working_row,
     )
     return facts, record, record_path, worktree
 
@@ -393,6 +408,10 @@ def load_snapshot(project: Path, identities: IdentityCache | None = None) -> Sna
             lifecycle=effective.lifecycle, source=effective.source,
             mismatch=effective.mismatch, changes_requested=effective.changes_requested,
             active_writer=effective.active_writer,
+            registered_worktree=bool(
+                facts and facts.worktree and not facts.dirty and facts.row
+                and facts.row.status == row.status
+            ),
             record_problem=problem, review=row.review,
             dependency_states=tuple(
                 (item, {
