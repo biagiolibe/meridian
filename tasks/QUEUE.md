@@ -48,6 +48,16 @@ it in an iTerm2 tab with the permitted task directive already supplied.
 | `[ ]` | 082 | Fix detail pane scrolling, Governed objective, and dependency order | 🔴 P1 | 076, 079 | [082](082-console-detail-pane-scroll-and-content.md) |
 | `[ ]` | 077 | Launch Claude Code or Codex from the console in an iTerm2 tab | 🟡 P2 | 076, 078, 079, 080, 081, 082 | [077](077-console-launch-agent-in-iterm2.md) |
 
+### Phase 30 — Unified worktree root and host setup
+
+Makes the task-worktree root a machine-level setting that resolves the same way
+for Claude Code, Codex, and every project, and adds one consented setup command
+that configures the root and the Codex permission profile together.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 083 | Unify worktree-root resolution and add `meridian setup` | 🟡 P2 | 054, 056, 062 | [083](083-unified-worktree-root-and-setup.md) |
+
 ### Phase 24 — Review worktree routing correction
 
 Removes contradictory Governed SDD instructions that can send a fresh
@@ -120,4 +130,4 @@ then folded it into the regenerated `CLAUDE.md`.
 All completed task and phase records are in `tasks/QUEUE_ARCHIVE.md`; this
 operational queue contains only non-terminal work.
 
-*Last updated: 2026-09-26*
+*Last updated: 2026-10-01*
