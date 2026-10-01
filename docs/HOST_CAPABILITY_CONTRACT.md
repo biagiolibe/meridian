@@ -130,6 +130,26 @@ external-path regression fixture, this is enforcement evidence for the named
 trusted Codex project-session profile, not for a Codex plugin session or every
 future Codex runtime.
 
+## Verified Codex skills install probe
+
+On 2026-10-01, Codex CLI 0.159.2 ran `codex exec` (read-only sandbox) with a
+scratch `HOME`, `CODEX_HOME` pointing at the real `~/.codex` for
+authentication, and a clone of `v1.1.50` whose two skill directories were
+symlinked into `$HOME/.agents/skills`.
+
+| Question | Result |
+|---|---|
+| Does Codex load user skills from `$HOME/.agents/skills`? | Yes. `meridian-lean-delivery` and `meridian-governed-sdd` were listed from that path. |
+| Does it follow directory symlinks? | Yes; each `SKILL.md` was reported under the symlinked path. |
+| Is `~/.codex/skills` also scanned? | Yes. A pre-existing `meridian-governed-sdd` there was listed alongside the `.agents` one. Only `meridian-lean-delivery`, present solely under `.agents/skills`, isolates the new path. |
+| Does `MERIDIAN_ROOT` reach the session shell? | Yes. `echo "$MERIDIAN_ROOT"` printed the tagged clone. |
+| Does `$MERIDIAN_ROOT/bin/meridian` run there? | Not in this probe. The shell resolved `/usr/bin/python3` 3.9.6, and the launcher failed on `import tomllib`; the same launcher printed `1.1.50` in an ordinary shell with Python 3.14. The scratch `HOME` had no shell profile, so that is the suspected cause, but it was not isolated and stays `unverified`. |
+
+Still unverified: the launcher under a Codex shell with a Python 3.11+
+`PATH`, skill auto-selection (the probe listed skills, it did not invoke
+`$meridian-lean-delivery`), the real-home path without a scratch `HOME`, other
+Codex versions, and Codex plugin sessions.
+
 ## Required host-impact gate
 
 Before a task changes a workflow rule, hook, command, generated instruction,
@@ -300,6 +320,7 @@ worktree-path` remains a deprecated path-only alias for one migration window.
 | Codex read guard | `enforced` for the trusted Palimpsest Codex project-session profile, including the recorded external absolute-path read. | Other Codex versions and plugin sessions remain unverified. |
 | Router auto-load parity | `unverified` as a release-wide claim. | Fresh-session evidence for the actual entry point and route-specific initial reads on both profiles. |
 | Codex review-isolation adapter | `unverified`; existing skill language may be stale. | Versioned check of available subagent/thread capability and a documented fresh-chat fallback. |
+| Codex tagged-checkout launcher | Skills directory, symlink following, and `MERIDIAN_ROOT` propagation verified on Codex CLI 0.159.2; `bin/meridian` launch is `unverified`. | Run the launcher in a Codex session whose shell resolves Python 3.11+. |
 | Host-neutral CLI bootstrap | `unverified` across profiles. | Subdirectory PATH/cwd checks for authority, upgrade, adoption, and hook entry points. |
 
 ## Non-goals
