@@ -17,6 +17,8 @@ records which release moved it.
 
 ### Documentation
 
+- `meridian setup` now plans and applies the Codex skill links, reports the
+  shell-profile lines, and `meridian codex doctor` reports the same host facts.
 - The `meridian-local` to `meridian` migration can leave
   `~/.claude/plugins/cache/meridian-local/` on disk; it is unused and can be
   deleted. The `v1.2.0` install evidence is recorded in

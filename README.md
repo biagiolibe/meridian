@@ -277,9 +277,6 @@ checkout. The tag pins the release; nothing moves it for you.
 git clone --branch v<version> https://github.com/biagiolibe/meridian ~/meridian
 export MERIDIAN_ROOT=~/meridian   # add to your shell profile
 export PATH="$MERIDIAN_ROOT/bin:$PATH"
-mkdir -p ~/.agents/skills
-ln -s "$MERIDIAN_ROOT/skills/meridian-lean-delivery" ~/.agents/skills/
-ln -s "$MERIDIAN_ROOT/skills/meridian-governed-sdd" ~/.agents/skills/
 ```
 
 Codex scans `$HOME/.agents/skills` for user skills and follows these symlinks
@@ -289,6 +286,13 @@ Codex after linking. `bin/meridian` needs Python 3.11 or later on the `PATH` of
 the shell Codex uses; with an older `python3` the launcher fails on
 `import tomllib`. An older `~/.codex/skills` copy is also discovered, so remove
 a stale one yourself rather than expecting Meridian to.
+
+Have Meridian review and, after confirmation, create the skill links:
+
+```bash
+meridian setup --check
+meridian setup --apply
+```
 
 To update, read the release notes, then fetch and move the pin before touching
 any project:
