@@ -24,6 +24,9 @@ records which release moved it.
 
 ### Changed
 
+- The project console now starts Claude Code and Codex in a horizontal iTerm2
+  split pane below the console instead of opening a tab. Repeated launches split
+  the console pane again and reduce the space available to existing panes.
 - **Breaking for existing Claude Code installs:** the marketplace is renamed
   from `meridian-local` to `meridian`, so the plugin id is now
   `meridian@meridian`. One-time migration: run
