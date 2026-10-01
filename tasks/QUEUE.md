@@ -29,7 +29,7 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 
 ## 🏃 Active Queue
 
-Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, 25, 26, 27, and 28
+Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, 25, 26, 27, 28, and 31
 are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 
 ### Phase 32 — Console review launch for task-record review policy
@@ -41,15 +41,6 @@ column, and explains why a directive is withheld.
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
 | `[ ]` | 087 | Read the review policy from the task record in the console | 🟡 P2 | 077 | [087](087-console-read-review-policy-from-task-record.md) |
-
-### Phase 31 — Console agent launch in a split pane
-
-Replaces the iTerm2 tab launched by the console with a horizontal split pane of
-the console's own session, so the console stays visible beside the agent.
-
-| Status | ID | Title | Priority | Depends on | File |
-|--------|----|-------|----------|------------|------|
-| `[x]` | 086 | Launch console agents in a horizontal iTerm2 split pane | 🟡 P2 | 077 | [086](done/086-console-launch-agent-in-iterm2-split-pane.md) |
 
 ### Phase 29 — Workflow-aware console state and agent launch
 
