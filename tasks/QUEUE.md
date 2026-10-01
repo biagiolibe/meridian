@@ -48,7 +48,7 @@ first adopter-installable release since `v1.1.50`.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[ ]` | 089 | Prepare release 1.2.0 | 🟡 P2 | 067, 068, 069 | [089](089-prepare-release-1-2-0.md) |
+| `[x]` | 089 | Prepare release 1.2.0 | 🟡 P2 | 067, 068, 069 | [089](done/089-prepare-release-1-2-0.md) |
 
 ### Phase 33 — Handoff commits that cannot name themselves
 
