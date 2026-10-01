@@ -6289,6 +6289,15 @@ def main() -> int:
         help="query the latest public GitHub Release",
     )
 
+    console = subparsers.add_parser(
+        "console", help="open the read-only project state console"
+    )
+    console.add_argument("--project", type=Path, default=Path.cwd())
+    console.add_argument(
+        "--interval", type=float, default=2.0,
+        help="seconds between local refreshes (default: 2)",
+    )
+
     lock = subparsers.add_parser("lock", help="register a newly initialized project for deterministic upgrades")
     lock.add_argument("--project", type=Path, default=Path.cwd())
     lock.add_argument("--mode", choices=("lean-delivery", "governed-sdd"), required=True)
@@ -6571,6 +6580,20 @@ def main() -> int:
     try:
         if arguments.command == "self-check":
             return run_self_check(framework_root)
+        if arguments.command == "console":
+            if not 0.2 <= arguments.interval <= 60:
+                raise MeridianError("--interval must be between 0.2 and 60")
+            if not sys.stdin.isatty() or not sys.stdout.isatty():
+                raise MeridianError("interactive console requires a terminal")
+            console_path = framework_root / "scripts" / "project_console.py"
+            if not console_path.is_file():
+                raise MeridianError(f"console is unavailable from framework root: {framework_root}")
+            sys.path.insert(0, str(console_path.parent))
+            import project_console
+
+            return project_console.main([
+                "--project", str(project_root), "--interval", str(arguments.interval),
+            ])
         if arguments.command == "lock":
             lock_project(project_root, framework_root, arguments.mode)
         elif arguments.command == "adopt":
