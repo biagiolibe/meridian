@@ -141,6 +141,39 @@ class ProjectConsoleTest(unittest.TestCase):
         self.assertTrue(any(y == 2 and "━" in value
                             for y, x, value, *_ in writes))
 
+    def test_tab_wraps_through_all_and_empty_tabs_remain_clickable(self) -> None:
+        self.write_queue()
+        snapshot = self.snapshot()
+        self.assertEqual(console._cycle_filter(snapshot, "Ready", 1), "All")
+        self.assertEqual(console._cycle_filter(snapshot, "Ready", -1), "All")
+        self.assertEqual(console._cycle_filter(snapshot, "All", 1), "Ready")
+        self.assertEqual(console._tab_at(snapshot, 2, 1), "All")
+        self.assertEqual(console._tab_at(snapshot, 20, 1), "Working")
+
+    def test_ready_directive_copy_hit_and_clipboard_result(self) -> None:
+        self.write_queue()
+        task = self.snapshot().tasks[0]
+        self.assertEqual(task.launch_command, "Proceed with 002")
+        palette = {name: 0 for name in (
+            "base", "text", "title", "ready", "muted", "line", "action"
+        )}
+        screen = mock.Mock()
+        screen.getmaxyx.return_value = (35, 140)
+        rows = console._draw_detail(screen, task, 95, 4, 43, 35, 0, palette)
+        self.assertTrue(rows)
+        self.assertTrue(console._action_hit(100, min(rows), (95, 136, rows)))
+        self.assertFalse(console._action_hit(94, min(rows), (95, 136, rows)))
+        with mock.patch.object(console.sys, "platform", "darwin"), \
+             mock.patch.object(console.subprocess, "run") as run:
+            run.return_value.returncode = 0
+            self.assertTrue(console._copy_to_clipboard(task.launch_command))
+            run.assert_called_once_with(
+                ("pbcopy",), input="Proceed with 002", text=True,
+                capture_output=True, check=False, timeout=2,
+            )
+            run.return_value.returncode = 1
+            self.assertFalse(console._copy_to_clipboard(task.launch_command))
+
 
 if __name__ == "__main__":
     unittest.main()
