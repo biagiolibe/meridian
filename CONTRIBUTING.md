@@ -61,13 +61,14 @@ For a change to a template or workflow rule, also manually trace the affected pa
 
 ## Release procedure
 
-`python3 scripts/release.py prepare --bump patch` (or `--bump minor`,
-`--bump major`, or `--version X.Y.Z`) is the repeatable local preparation
-command. It derives the release kind from migrations, writes the version,
-ledger, and changelog files, runs the release checks, and makes one local
-release commit. It never fetches, pushes, creates a tag, or compares manifests.
-Use `--dry-run` to inspect its derived result first. The manual procedure below
-remains valid; in particular, the manifest comparison remains a manual step.
+For a **CLI-only release**, `python3 scripts/release.py prepare --bump patch`
+(or `--bump minor`, `--bump major`, or `--version X.Y.Z`) is the repeatable
+local preparation command. It derives the release kind from migrations, writes
+the version, ledger, and changelog files, runs the release checks, and makes one
+local release commit. It never fetches, pushes, creates a tag, or compares
+manifests. Use `--dry-run` to inspect its derived result first. The manual
+procedure below remains valid; in particular, the manifest comparison remains a
+manual step.
 
 When changing the release version, update both `VERSION` and the `version`
 field in `.claude-plugin/plugin.json`; the repository check requires them to
@@ -97,15 +98,18 @@ release script enforces both rules.
 The last migration may lag behind `VERSION` but must never target a version
 ahead of it.
 
-Once `python3 scripts/release.py prepare` has made the local release commit on
-`main`, publish it with `python3 scripts/release.py publish --confirm
-v<VERSION>`. The confirmation must exactly match the current `VERSION`; the
-command prints its release summary first, pushes `main`, creates and pushes the
-tag, then waits for CI when `gh` is available. Use `--no-wait` only when you
-will verify the printed workflow and release URLs manually. It never force
-pushes, deletes, or moves a tag. If the workflow fails, the tag remains in
-place and no GitHub Release was published: inspect the run, fix the cause, and
-move the tag only if no release exists for it. The
+For a **template-changing release**, the task that adds the migration must also
+bump `VERSION`, `.claude-plugin/plugin.json`, the release ledger, and the
+changelog in its ordinary commits. Do not run `prepare`: it recognizes this
+already-prepared state and directs you to publish. For either path, on `main`,
+publish with `python3 scripts/release.py publish --confirm v<VERSION>`. The
+confirmation must exactly match the current `VERSION`; the command prints every
+commit to push, the ledger kind, and any migration ids before it pushes `main`,
+creates and pushes the tag, then waits for CI when `gh` is available. Use
+`--no-wait` only when you will verify the printed workflow and release URLs
+manually. It never force pushes, deletes, or moves a tag. If the workflow fails,
+the tag remains in place and no GitHub Release was published: inspect the run,
+fix the cause, and move the tag only if no release exists for it. The
 `.github/workflows/release.yml` workflow runs `scripts/prepare_release.py`, which
 fails unless the tag equals `v` plus `VERSION`, `releases/<VERSION>.json` exists
 with a matching `gitTag`, `.claude-plugin/plugin.json` matches `VERSION`, and
