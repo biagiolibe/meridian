@@ -42,6 +42,57 @@ def extract_changelog_section(changelog: str, version: str) -> str:
     return body
 
 
+CLI_ONLY_KIND = "CLI-only release"
+TEMPLATE_CHANGING_KIND = "Template-changing release"
+UPGRADE_NOTES_HEADING = re.compile(r"^(#{3,6})\s+Upgrade notes\s*$", re.IGNORECASE)
+
+
+def check_release_notes_contract(section: str, version: str, baseline_changed: object) -> None:
+    """Enforce that the section's kind line agrees with the ledger's `baselineChanged`.
+
+    A template-changing section must also carry a non-empty Upgrade notes
+    subsection (Decision 5 of docs/DISTRIBUTION_AND_UPDATE_DESIGN.md).
+    """
+    if not isinstance(baseline_changed, bool):
+        raise ReleaseError(f"releases/{version}.json baselineChanged must be true or false")
+    first_line = section.lstrip().splitlines()[0]
+    if first_line.startswith(CLI_ONLY_KIND):
+        declared = False
+    elif first_line.startswith(TEMPLATE_CHANGING_KIND):
+        declared = True
+    else:
+        raise ReleaseError(
+            f"CHANGELOG.md section '## [{version}]' must start with "
+            f"'{CLI_ONLY_KIND}' or '{TEMPLATE_CHANGING_KIND}'"
+        )
+    if declared != baseline_changed:
+        kind = TEMPLATE_CHANGING_KIND if declared else CLI_ONLY_KIND
+        raise ReleaseError(
+            f"CHANGELOG.md section '## [{version}]' is a {kind.lower()} but "
+            f"releases/{version}.json has baselineChanged {str(baseline_changed).lower()}"
+        )
+    if not declared:
+        return
+    lines = section.splitlines()
+    for index, line in enumerate(lines):
+        heading = UPGRADE_NOTES_HEADING.match(line)
+        if heading:
+            level = len(heading.group(1))
+            body = []
+            for following in lines[index + 1 :]:
+                marks = re.match(r"^(#+)\s", following)
+                if marks and len(marks.group(1)) <= level:
+                    break
+                body.append(following)
+            if "\n".join(body).strip():
+                return
+            break
+    raise ReleaseError(
+        f"template-changing CHANGELOG.md section '## [{version}]' needs a non-empty "
+        "'### Upgrade notes' subsection"
+    )
+
+
 def check_release_consistency(root: Path, tag: str) -> str:
     """Validate the tagged tree against the tag and return its version."""
     version = read_version(root)
@@ -66,7 +117,10 @@ def check_release_consistency(root: Path, tag: str) -> str:
             f".claude-plugin/plugin.json version {plugin.get('version')!r} "
             f"does not match VERSION {version!r}"
         )
-    extract_changelog_section((root / "CHANGELOG.md").read_text(encoding="utf-8"), version)
+    section = extract_changelog_section(
+        (root / "CHANGELOG.md").read_text(encoding="utf-8"), version
+    )
+    check_release_notes_contract(section, version, record.get("baselineChanged"))
     return version
 
 

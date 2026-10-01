@@ -77,6 +77,15 @@ requires one for the current `VERSION`. Then choose the release kind:
   `VERSION`, and list its id in the ledger record with `baselineChanged: true`.
   This is what advances `workflowBaselineVersion`.
 
+Every `CHANGELOG.md` release section states its kind in its first line: begin a
+CLI-only section with `CLI-only release` and a template-changing section with
+`Template-changing release`. The line must agree with the ledger's
+`baselineChanged`, and a template-changing section must also have a non-empty
+`### Upgrade notes` subsection listing the affected capabilities and managed
+paths, the required action (`upgrade --apply`), likely conflict areas for
+adapted projects, and any minimum framework or `protocolVersion` change. The
+release script enforces both rules.
+
 The last migration may lag behind `VERSION` but must never target a version
 ahead of it.
 
@@ -85,7 +94,8 @@ the tag `v<VERSION>`; CI publishes the release. The
 `.github/workflows/release.yml` workflow runs `scripts/prepare_release.py`, which
 fails unless the tag equals `v` plus `VERSION`, `releases/<VERSION>.json` exists
 with a matching `gitTag`, `.claude-plugin/plugin.json` matches `VERSION`, and
-`CHANGELOG.md` has a `## [<VERSION>]` section. It then runs the repository check
+`CHANGELOG.md` has a `## [<VERSION>]` section whose kind line and Upgrade notes
+satisfy the rules above. It then runs the repository check
 and the unit tests, and creates the GitHub Release whose body is that changelog
 section plus a link to `releases/<VERSION>.json`. Do not create the release by
 hand. A failed run publishes nothing; fix the cause, then move the tag only if
