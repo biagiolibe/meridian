@@ -15,6 +15,13 @@ records which release moved it.
 
 ## [Unreleased]
 
+### Changed
+
+- `scripts/release.py publish` now validates the release state rather than a
+  single `Release <version>` commit, so a migration task can prepare a
+  template-changing release in its ordinary commits and publish it with the
+  same typed-confirmation command as a CLI-only release.
+
 
 ## [1.2.2]
 
