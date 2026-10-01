@@ -13,11 +13,11 @@ Mechanically enforce Decision 5: the CHANGELOG section kind line agrees with the
 
 ## 📋 Acceptance Criteria
 
-- [ ] The release script from task 050 fails when a section's kind line disagrees with `baselineChanged` in `releases/<version>.json`.
-- [ ] A template-changing section without an `Upgrade notes` subsection fails validation.
-- [ ] `CONTRIBUTING.md` release procedure describes both requirements.
-- [ ] Unit tests cover both failures and both passing kinds.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
+- [x] The release script from task 050 fails when a section's kind line disagrees with `baselineChanged` in `releases/<version>.json`.
+- [x] A template-changing section without an `Upgrade notes` subsection fails validation.
+- [x] `CONTRIBUTING.md` release procedure describes both requirements.
+- [x] Unit tests cover both failures and both passing kinds.
+- [x] `python3 scripts/check_repository.py` and the unit tests pass.
 
 ## 📁 Relevant Files
 
