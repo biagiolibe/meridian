@@ -301,4 +301,14 @@ first adopter-installable release since `v1.1.50`.
 |--------|----|-------|----------|------------|------|
 | `[x]` | 089 | Prepare release 1.2.0 | 🟡 P2 | 067, 068, 069 | [089](done/089-prepare-release-1-2-0.md) |
 
+### Phase 36 — Post-release install evidence
+
+Records what the migration to the published `v1.2.0` tag proved about the
+`meridian@meridian` marketplace install, and keeps the unproven claims
+labelled.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 091 | Record the 1.2.0 marketplace install evidence | 🟡 P2 | 065, 089 | [091](done/091-record-1-2-0-marketplace-install-evidence.md) |
+
 *Last updated: 2026-10-01*
