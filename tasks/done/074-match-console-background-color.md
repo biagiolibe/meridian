@@ -13,11 +13,11 @@ the native terminal appearance in the Codex agent console reference.
 
 ## Acceptance Criteria
 
-- [ ] The interactive console uses the terminal's default background when
+- [x] The interactive console uses the terminal's default background when
   default-color support is available, without changing its palette.
-- [ ] A terminal without default-color support retains a dark fallback.
-- [ ] Existing status colors, selection, layout, and interaction remain intact.
-- [ ] The project baseline checks pass.
+- [x] A color terminal without default-color support retains a dark fallback.
+- [x] Existing status colors, selection, layout, and interaction remain intact.
+- [x] The project baseline checks pass.
 
 ## Relevant Files and Context
 

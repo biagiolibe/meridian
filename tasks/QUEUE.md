@@ -38,7 +38,7 @@ Let the interactive console use the terminal's own background.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[/]` | 074 | Use the terminal background in the project console | 🟢 P3 | 073 | [074](074-match-console-background-color.md) |
+| `[x]` | 074 | Use the terminal background in the project console | 🟢 P3 | 073 | [074](done/074-match-console-background-color.md) |
 
 ### Phase 24 — Review worktree routing correction
 
