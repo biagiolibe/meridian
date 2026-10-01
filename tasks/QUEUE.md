@@ -32,13 +32,13 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, 25, and 26
 are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 
-### Phase 27 — Project console color refinement
+### Phase 27 — Project console background refinement
 
-Match the approved console background color in the interactive terminal.
+Let the interactive console use the terminal's own background.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[/]` | 074 | Match the console background color | 🟢 P3 | 073 | [074](074-match-console-background-color.md) |
+| `[/]` | 074 | Use the terminal background in the project console | 🟢 P3 | 073 | [074](074-match-console-background-color.md) |
 
 ### Phase 24 — Review worktree routing correction
 

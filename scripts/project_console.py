@@ -287,7 +287,7 @@ def _fill(screen, y: int, x: int, width: int, attr: int) -> None:
 
 
 def _palette(screen) -> dict[str, int]:
-    """Paint the entire terminal with a dark surface, even under a light theme."""
+    """Use the terminal background while preserving console foreground colors."""
     if not curses.has_colors():
         screen.bkgd(" ", curses.A_NORMAL)
         return {
@@ -303,29 +303,35 @@ def _palette(screen) -> dict[str, int]:
             "action": curses.A_BOLD,
         }
     curses.start_color()
+    try:
+        curses.use_default_colors()
+        background = -1
+    except curses.error:
+        background = 233 if curses.COLORS >= 256 else curses.COLOR_BLACK
     if curses.COLORS >= 256:
         colors = (
-            (253, 233), (253, 233), (245, 233), (240, 233),
-            (80, 233), (141, 233), (221, 233), (203, 233),
-            (231, 52), (16, 75), (253, 238), (181, 233), (150, 233),
-            (117, 233),
+            (253, background), (253, background), (245, background),
+            (240, background), (80, background), (141, background),
+            (221, background), (203, background), (231, 52), (16, 75),
+            (253, 238), (181, background), (150, background),
+            (117, background),
         )
     else:
         colors = (
-            (curses.COLOR_WHITE, curses.COLOR_BLACK),
-            (curses.COLOR_WHITE, curses.COLOR_BLACK),
-            (curses.COLOR_WHITE, curses.COLOR_BLACK),
-            (curses.COLOR_WHITE, curses.COLOR_BLACK),
-            (curses.COLOR_CYAN, curses.COLOR_BLACK),
-            (curses.COLOR_MAGENTA, curses.COLOR_BLACK),
-            (curses.COLOR_YELLOW, curses.COLOR_BLACK),
-            (curses.COLOR_RED, curses.COLOR_BLACK),
+            (curses.COLOR_WHITE, background),
+            (curses.COLOR_WHITE, background),
+            (curses.COLOR_WHITE, background),
+            (curses.COLOR_WHITE, background),
+            (curses.COLOR_CYAN, background),
+            (curses.COLOR_MAGENTA, background),
+            (curses.COLOR_YELLOW, background),
+            (curses.COLOR_RED, background),
             (curses.COLOR_WHITE, curses.COLOR_RED),
             (curses.COLOR_BLACK, curses.COLOR_CYAN),
             (curses.COLOR_WHITE, curses.COLOR_BLUE),
-            (curses.COLOR_MAGENTA, curses.COLOR_BLACK),
-            (curses.COLOR_GREEN, curses.COLOR_BLACK),
-            (curses.COLOR_CYAN, curses.COLOR_BLACK),
+            (curses.COLOR_MAGENTA, background),
+            (curses.COLOR_GREEN, background),
+            (curses.COLOR_CYAN, background),
         )
     names = ("base", "text", "muted", "line", "ready", "working",
              "blocked", "unknown", "stale", "selected", "tab", "title", "action",
