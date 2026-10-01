@@ -3,7 +3,7 @@
 > **ID**: `076`
 > **Category**: Developer tooling
 > **Priority**: 🟡 P2
-> **Assigned to**: unassigned
+> **Assigned to**: Claude
 > **Session**: Developer request for agent launch from the project console
 
 ## Objective
@@ -16,43 +16,43 @@ cannot be opened at all.
 
 ## Acceptance Criteria
 
-- [ ] The console selects a workflow profile from `PROJECT_WORKFLOW.md` using
+- [x] The console selects a workflow profile from `PROJECT_WORKFLOW.md` using
   the same mode lock as `detect_mode` in `scripts/meridian.py`
   (`LEAN_DELIVERY` or `GOVERNED_SDD`); a missing, unknown, or doubly-locked
   mode is an explicit console error.
-- [ ] A profile defines queue parsing, the status vocabulary, the terminal
+- [x] A profile defines queue parsing, the status vocabulary, the terminal
   state that satisfies a dependency, and the derived phase. The list, detail,
   filter, and one-shot views consume only the normalized phases `todo`,
   `in_progress`, `ready_for_review`, and `done`.
-- [ ] Lean Delivery keeps its current queue format and behavior for tasks with
+- [x] Lean Delivery keeps its current queue format and behavior for tasks with
   no task branch.
-- [ ] Governed SDD parses the single queue table
+- [x] Governed SDD parses the single queue table
   (`Order|ID|Priority|Status|Review|Dependencies|Task file`) and maps
   `QUEUED`, `IN_PROGRESS`, `READY_FOR_REVIEW`, and `ACCEPTED`. Dependencies are
   satisfied only by `ACCEPTED`; the `ANSWERED` rule for spike tasks follows
   `PROJECT_WORKFLOW.md`. An unrecognized status is an explicit error, never a
   guess.
-- [ ] For a task whose branch exists, the console reads the queue row, task
+- [x] For a task whose branch exists, the console reads the queue row, task
   record, handoff, and (Governed SDD) `tasks/reviews/<ID>.md` from that branch
   without touching the worktree and without writing, locking, or fetching.
-- [ ] The branch name is obtained from the shared task-identity resolver, not
+- [x] The branch name is obtained from the shared task-identity resolver, not
   rebuilt locally, so `milestone` identity projects resolve correctly.
-- [ ] When the branch state is ahead of the primary checkout's state it is
+- [x] When the branch state is ahead of the primary checkout's state it is
   shown as the effective state with its source. When the two disagree in a way
   the lifecycle does not produce, the task shows a distinct `MISMATCH` state
   naming both values and offers no launch directive.
-- [ ] Lean Delivery has no `READY_FOR_REVIEW` status. A Lean task is shown as
+- [x] Lean Delivery has no `READY_FOR_REVIEW` status. A Lean task is shown as
   ready for review only when all hold: its branch queue row is `[x]`, its
   handoff reports `Status: DONE`, the branch is ahead of `main`, and its
   worktree is clean. The console never writes this state anywhere.
-- [ ] A Governed task is shown as ready for review only when the task record
+- [x] A Governed task is shown as ready for review only when the task record
   and the queue row both say `READY_FOR_REVIEW` and `Review: REQUIRED`;
   disagreement between them is `MISMATCH`.
-- [ ] A Governed task whose latest review attempt is `CHANGES_REQUESTED` is
+- [x] A Governed task whose latest review attempt is `CHANGES_REQUESTED` is
   shown as in progress with a "changes requested" marker.
-- [ ] A task with uncommitted worktree changes shows an "active writer"
+- [x] A task with uncommitted worktree changes shows an "active writer"
   indicator. The indicator is advisory and never changes the lifecycle state.
-- [ ] Task 075's `meridian console` command, `--project` option, and refresh
+- [x] Task 075's `meridian console` command, `--project` option, and refresh
   interval are unchanged.
 
 ## Relevant Files and Context
