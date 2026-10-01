@@ -44,7 +44,7 @@ Meridian is distributed as a GitHub-hosted Claude Code marketplace. Pin it to a
 release tag so you stay on a known release until you choose to move. Replace
 `<version>` with a release listed on the
 [Releases page](https://github.com/biagiolibe/meridian/releases), for example
-`1.1.50`:
+`1.2.0`:
 
 ```text
 /plugin marketplace add biagiolibe/meridian#v<version>

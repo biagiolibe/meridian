@@ -15,6 +15,18 @@ records which release moved it.
 
 ## [Unreleased]
 
+## [1.2.0]
+
+CLI-only release: this release introduces no migration and leaves
+`workflowBaselineVersion` at `1.1.53`.
+
+Versions `1.1.51`, `1.1.52`, and `1.1.53` were never published as Git tags or
+GitHub Releases. `1.2.0` is the first installable release since `v1.1.50` and
+bundles their changes with those below. A project upgrading from `1.1.50`
+receives migrations `053`, `054`, and `055` in one `meridian upgrade --apply`.
+The `1.1.51` through `1.1.53` sections below stay as the record of those
+changes.
+
 ### Added
 
 - `meridian self-check --check-latest` performs an opt-in, read-only comparison
@@ -47,6 +59,22 @@ records which release moved it.
 - The README documents the pinned install (`#v<version>`) and the ordered
   update procedure. Moving a pin requires removing the marketplace, adding it
   at the new tag, and reinstalling the plugin.
+
+### Upgrade notes
+
+- **Existing Claude Code installs need a one-time marketplace migration.** The
+  marketplace is now `meridian`, so the plugin id changes from
+  `meridian@meridian-local` to `meridian@meridian`. Run:
+
+  ```text
+  /plugin uninstall meridian@meridian-local
+  /plugin marketplace remove meridian-local
+  /plugin marketplace add biagiolibe/meridian#v1.2.0
+  /plugin install meridian@meridian
+  ```
+
+- Run `meridian upgrade --check`, then `meridian upgrade --apply`, in each
+  project. From `1.1.50` this applies migrations `053`, `054`, and `055`.
 
 ## [1.1.53]
 
