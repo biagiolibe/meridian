@@ -301,6 +301,16 @@ column, and explains why a directive is withheld.
 |--------|----|-------|----------|------------|------|
 | `[x]` | 087 | Read the review policy from the task record in the console | 🟡 P2 | 077 | [087](done/087-console-read-review-policy-from-task-record.md) |
 
+### Phase 33 — Handoff commits that cannot name themselves
+
+Makes the Governed SDD completion handoff and reviewer preflight state how a
+handoff names a commit that cannot contain its own SHA, and how a wrong commit
+field is corrected without amend or force-push.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 088 | Define how a completion handoff names commits that cannot contain their own SHA | 🟡 P2 | — | [088](done/088-handoff-commits-that-cannot-name-themselves.md) |
+
 ### Phase 34 — Release 1.2.0 preparation
 
 Closes the changelog, bumps the version, and records the ledger entry for the

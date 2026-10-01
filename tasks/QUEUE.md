@@ -91,16 +91,6 @@ release without conflicts, contradicting Decision 6.
 |--------|----|-------|----------|------------|------|
 | `[ ]` | 090 | Make a 1.0.0 project reach the current release in one step | 🟡 P2 | 068 | [090](090-make-1-0-0-projects-upgradable-in-one-step.md) |
 
-### Phase 33 — Handoff commits that cannot name themselves
-
-Makes the Governed SDD completion handoff and reviewer preflight state how a
-handoff names a commit that cannot contain its own SHA, and how a wrong commit
-field is corrected without amend or force-push.
-
-| Status | ID | Title | Priority | Depends on | File |
-|--------|----|-------|----------|------------|------|
-| `[x]` | 088 | Define how a completion handoff names commits that cannot contain their own SHA | 🟡 P2 | — | [088](done/088-handoff-commits-that-cannot-name-themselves.md) |
-
 ### Phase 29 — Workflow-aware console state and agent launch
 
 Makes the project console show each task's real state in both Lean Delivery and
