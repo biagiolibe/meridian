@@ -43,7 +43,7 @@
 - `[x]` 075 — Distribute the project console through the Meridian CLI.
 - `[x]` 076 — Show effective task state across workflow modes in the console.
 - `[x]` 078 — Remove the console refresh latency introduced by effective-state reads.
-- `[ ]` 079 — Resolve task records in the console when the queue has no file link.
+- `[x]` 079 — Resolve task records in the console when the queue has no file link.
 - `[ ]` 077 — Launch Claude Code or Codex from the console in an iTerm2 tab.
 - `[ ]` 067 — Enforce the adopter-facing release-notes contract.
 - `[ ]` 068 — Document and test the upgrade support policy.

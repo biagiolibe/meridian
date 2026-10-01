@@ -487,6 +487,231 @@ class GovernedEffectiveStateTest(RepoCase):
         self.assertEqual(task.readiness, "IN PROGRESS")
 
 
+class LinklessQueueTest(RepoCase):
+    """A Governed SDD project shaped like Palimpsest: no file or review column."""
+
+    lock = "GOVERNED_SDD"
+    header = (
+        "| Order | ID | Priority | Status | Dependencies | Estimate |\n"
+        "|---:|---|---|---|---|---|\n"
+    )
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.write(self.project, ".meridian/task-identity.json",
+                   json.dumps({"version": 1, "mode": "milestone"}))
+        self.write(self.project, "PROJECT_WORKFLOW.md", (
+            f"# {self.lock}\n\n<!-- MERIDIAN:BEGIN capability=execution-assets v1 -->\n"
+            "<!-- MERIDIAN:END -->\n\n"
+            "The queue is `docs/TASK_QUEUE.md`. Task files live under "
+            "`docs/tasks/<milestone>/<TASK-ID>.md`. Durable review records at "
+            "`docs/tasks/reviews/<TASK-ID>.md`. Completion handoffs live at "
+            "`tasks/handoffs/<TASK-ID>.md`.\n"
+        ))
+
+    def record(self, task_id: str, status: str = "QUEUED", milestone: str = "M37") -> str:
+        return (f"docs/tasks/{milestone}/{task_id}.md",
+                f"# {task_id} — Title of {task_id}\n\nStatus: {status}\n\n"
+                f"## Objective\n\nObjective of {task_id}.\n")
+
+    def setup_project(self, rows: list[tuple[str, str, str]], records: bool = True,
+                      header: str | None = None) -> None:
+        """Rows are (id, status, dependencies)."""
+        body = "# Task Queue\n\n" + (header or self.header) + "".join(
+            f"| {index} | {task_id} | P1 | {status} | {deps} | 2h |\n"
+            for index, (task_id, status, deps) in enumerate(rows, 1)
+        )
+        self.write(self.project, "docs/TASK_QUEUE.md", body)
+        for task_id, status, _deps in rows if records else ():
+            path, text = self.record(task_id, status)
+            self.write(self.project, path, text)
+        self.commit(self.project, "initial")
+
+    def test_palimpsest_shaped_project_lists_every_row_without_stale(self) -> None:
+        rows = [
+            ("M37-CAUSE-001", "ACCEPTED", "—"), ("M37-CAUSE-002", "QUEUED", "M37-CAUSE-001"),
+            ("M37-CAUSE-003", "IN_PROGRESS", "—"), ("M37-CAUSE-004", "READY_FOR_REVIEW", "—"),
+            ("M37-SPIKE-001", "ANSWERED", "—"), ("M37-CAUSE-005", "QUEUED", "M37-SPIKE-001"),
+        ]
+        self.setup_project(rows)
+        for task_id, _status, _deps in rows:  # review and handoff records share the ID
+            self.write(self.project, f"docs/tasks/reviews/{task_id}.md", "# Review\n")
+            self.write(self.project, f"tasks/handoffs/{task_id}.md", "# Handoff\n")
+        self.write(self.project, "docs/tasks/M36/notes/handoffs/M37-CAUSE-002.md", "# Stray\n")
+        self.commit(self.project, "records")
+        state = console.ConsoleState(self.project)
+        state.refresh()
+        self.assertIsNone(state.error)
+        self.assertNotIn("STALE", console.one_shot(state))
+        tasks = {task.task_id: task for task in state.snapshot.tasks}
+        self.assertEqual(sorted(tasks), ["M37-CAUSE-002", "M37-CAUSE-003",
+                                         "M37-CAUSE-004", "M37-CAUSE-005"])
+        self.assertEqual(tasks["M37-CAUSE-002"].path,
+                         self.project / "docs/tasks/M37/M37-CAUSE-002.md")
+        self.assertEqual(tasks["M37-CAUSE-002"].title, "Title of M37-CAUSE-002")
+        self.assertEqual(tasks["M37-CAUSE-002"].objective, ("Objective of M37-CAUSE-002.",))
+        self.assertIsNone(tasks["M37-CAUSE-002"].record_problem)
+        self.assertEqual(tasks["M37-CAUSE-002"].readiness, "READY")
+        self.assertEqual(tasks["M37-CAUSE-002"].launch_command, "Proceed with M37-CAUSE-002")
+        self.assertEqual(tasks["M37-CAUSE-005"].readiness, "READY")
+        self.assertEqual(state.snapshot.done_count, 2)
+
+    def test_queue_without_review_column_declares_no_review_policy(self) -> None:
+        self.setup_project([("M37-CAUSE-004", "READY_FOR_REVIEW", "—")])
+        task = self.load()["M37-CAUSE-004"]
+        self.assertIsNone(task.review)
+        self.assertEqual((task.readiness, task.lifecycle), ("READY FOR REVIEW", "ready_for_review"))
+        self.assertIsNone(task.launch_command)
+        self.assertIsNone(task.mismatch)
+
+    def test_review_column_still_gates_review_state(self) -> None:
+        header = ("| Order | ID | Priority | Status | Review | Dependencies |\n"
+                  "|---:|---|---|---|---|---|\n")
+        self.write(self.project, "docs/TASK_QUEUE.md", "# Q\n\n" + header
+                   + "| 1 | M37-CAUSE-004 | P1 | READY_FOR_REVIEW | NOT_REQUIRED | — |\n")
+        path, text = self.record("M37-CAUSE-004", "READY_FOR_REVIEW")
+        self.write(self.project, path, text)
+        self.commit(self.project)
+        task = self.load()["M37-CAUSE-004"]
+        self.assertEqual((task.review, task.readiness), ("NOT_REQUIRED", "MISMATCH"))
+
+    def test_missing_record_is_a_per_task_problem(self) -> None:
+        self.setup_project([("M37-CAUSE-001", "QUEUED", "—"), ("M37-CAUSE-002", "QUEUED", "—")],
+                           records=False)
+        path, text = self.record("M37-CAUSE-002")
+        self.write(self.project, path, text)
+        self.commit(self.project)
+        tasks = self.load()
+        missing = tasks["M37-CAUSE-001"]
+        self.assertEqual(missing.record_problem, "task record not found")
+        self.assertEqual((missing.title, missing.status, missing.objective, missing.updated_at),
+                         ("M37-CAUSE-001", "QUEUED", (), None))
+        self.assertIsNone(missing.path)
+        self.assertIsNone(missing.launch_command)
+        self.assertNotEqual(missing.readiness, "READY")
+        self.assertEqual(tasks["M37-CAUSE-002"].readiness, "READY")
+        palette = {name: 0 for name in (
+            "base", "text", "title", "muted", "line", "action", "blocked", "unknown")}
+        lines = [value for value, _ in console._detail_lines(missing, 60, palette)]
+        self.assertIn("Task record not found", lines)
+        self.assertIn("Unavailable", lines)
+        self.assertNotIn("Proceed with", " ".join(lines))
+
+    def test_duplicate_record_lists_the_paths_and_offers_no_directive(self) -> None:
+        self.setup_project([("M37-CAUSE-001", "QUEUED", "—"), ("M37-CAUSE-002", "QUEUED", "—")])
+        self.write(self.project, "tasks/M36/M37-CAUSE-001.md", "# Copy\n")
+        self.commit(self.project)
+        tasks = self.load()
+        duplicate = tasks["M37-CAUSE-001"]
+        self.assertEqual(
+            duplicate.record_problem,
+            "ambiguous task record: docs/tasks/M37/M37-CAUSE-001.md, tasks/M36/M37-CAUSE-001.md")
+        self.assertIsNone(duplicate.launch_command)
+        palette = {name: 0 for name in (
+            "base", "text", "title", "muted", "line", "action", "blocked", "unknown")}
+        lines = " ".join(value for value, _ in console._detail_lines(duplicate, 200, palette))
+        self.assertIn("docs/tasks/M37/M37-CAUSE-001.md, tasks/M36/M37-CAUSE-001.md", lines)
+        self.assertIn("Record: ambiguous", self.one_shot())
+        self.assertEqual(tasks["M37-CAUSE-002"].readiness, "READY")
+
+    def one_shot(self) -> str:
+        state = console.ConsoleState(self.project)
+        state.refresh()
+        return console.one_shot(state)
+
+    def test_present_but_invalid_link_keeps_its_rejection(self) -> None:
+        header = ("| Order | ID | Priority | Status | Dependencies | Task file |\n"
+                  "|---:|---|---|---|---|---|\n")
+        self.write(self.project, *self.record("M37-CAUSE-001"))
+        for cell, message in (("see notes", "no unambiguous file link"),
+                              ("[x](../../outside.md)", "no unambiguous file link"),
+                              ("[x](tasks/missing.md)", "unavailable within the project")):
+            self.write(self.project, "docs/TASK_QUEUE.md", "# Q\n\n" + header
+                       + f"| 1 | M37-CAUSE-001 | P1 | QUEUED | — | {cell} |\n")
+            with self.assertRaisesRegex(console.ConsoleError, message, msg=cell):
+                console.load_snapshot(self.project)
+
+    def test_link_wins_over_the_search_when_present(self) -> None:
+        header = ("| Order | ID | Priority | Status | Dependencies | Task file |\n"
+                  "|---:|---|---|---|---|---|\n")
+        self.write(self.project, "docs/TASK_QUEUE.md", "# Q\n\n" + header
+                   + "| 1 | M37-CAUSE-001 | P1 | QUEUED | — | [t](tasks/M37/M37-CAUSE-001.md) |\n")
+        self.write(self.project, "docs/tasks/M37/M37-CAUSE-001.md",
+                   "# M37-CAUSE-001 — Linked\n\nStatus: QUEUED\n")
+        self.commit(self.project)
+        task = self.load()["M37-CAUSE-001"]
+        self.assertEqual((task.title, task.record_problem), ("Linked", None))
+
+    def test_record_is_read_from_the_task_branch_without_links(self) -> None:
+        self.setup_project([("M37-CAUSE-001", "QUEUED", "—")])
+        wt = self.worktree("m37-cause-001")
+        queue = (wt / "docs/TASK_QUEUE.md").read_text(encoding="utf-8").replace("QUEUED", "IN_PROGRESS")
+        self.write(wt, "docs/TASK_QUEUE.md", queue)
+        path, text = self.record("M37-CAUSE-001", "IN_PROGRESS")
+        self.write(wt, path, text.replace("Objective of", "Branch objective of"))
+        self.commit(wt)
+        before = self.refs_and_status()
+        task = self.load()["M37-CAUSE-001"]
+        self.assertEqual(self.refs_and_status(), before)
+        self.assertEqual((task.source, task.readiness), ("branch m37-cause-001", "IN PROGRESS"))
+        self.assertIsNone(task.record_problem)
+        self.assertEqual(task.objective, ("Branch objective of M37-CAUSE-001.",))
+        self.assertEqual(task.path, self.project / path)
+        self.assertIsNotNone(task.updated_at)
+
+    def test_branch_record_state_is_used_when_the_queue_has_no_links(self) -> None:
+        self.setup_project([("M37-CAUSE-004", "QUEUED", "—")])
+        wt = self.worktree("m37-cause-004")
+        queue = (wt / "docs/TASK_QUEUE.md").read_text(encoding="utf-8").replace(
+            "QUEUED", "READY_FOR_REVIEW")
+        self.write(wt, "docs/TASK_QUEUE.md", queue)
+        self.write(wt, *self.record("M37-CAUSE-004", "READY_FOR_REVIEW"))
+        self.commit(wt)
+        task = self.load()["M37-CAUSE-004"]
+        self.assertEqual((task.source, task.readiness, task.mismatch),
+                         ("branch m37-cause-004", "READY FOR REVIEW", None))
+
+    def test_branch_that_moved_the_record_is_resolved_in_its_own_tree(self) -> None:
+        self.setup_project([("M37-CAUSE-004", "QUEUED", "—")])
+        wt = self.worktree("m37-cause-004")
+        queue = (wt / "docs/TASK_QUEUE.md").read_text(encoding="utf-8").replace(
+            "QUEUED", "READY_FOR_REVIEW")
+        self.write(wt, "docs/TASK_QUEUE.md", queue)
+        self.git(wt, "rm", "-q", "docs/tasks/M37/M37-CAUSE-004.md")
+        self.write(wt, *self.record("M37-CAUSE-004", "READY_FOR_REVIEW", milestone="M38"))
+        self.commit(wt)
+        task = self.load()["M37-CAUSE-004"]
+        self.assertEqual((task.source, task.readiness, task.mismatch),
+                         ("branch m37-cause-004", "READY FOR REVIEW", None))
+        self.assertEqual(task.path, self.project / "docs/tasks/M37/M37-CAUSE-004.md")
+
+    def test_record_resolution_adds_no_per_task_subprocess_work(self) -> None:
+        def calls(count: int, linked: bool) -> int:
+            names = [f"M37-CAUSE-{n:03}" for n in range(count)]
+            header = ("| Order | ID | Priority | Status | Dependencies | Task file |\n"
+                      "|---:|---|---|---|---|---|\n") if linked else None
+            self.setup_project([(name, "QUEUED", "—") for name in names], header=header)
+            if linked:
+                rows = "".join(
+                    f"| {n} | {name} | P1 | QUEUED | — | [t](tasks/M37/{name}.md) |\n"
+                    for n, name in enumerate(names, 1))
+                self.write(self.project, "docs/TASK_QUEUE.md", "# Q\n\n" + header + rows)
+                self.commit(self.project, "links")
+            seen: list[list[str]] = []
+            real = subprocess.run
+
+            def counting(command, *args, **kwargs):
+                seen.append(list(command))
+                return real(command, *args, **kwargs)
+
+            with mock.patch.object(subprocess, "run", side_effect=counting):
+                console.load_snapshot(self.project, console.IdentityCache())
+            return len(seen)
+
+        for count in (2, 12):
+            self.assertEqual(calls(count, linked=False), calls(count, linked=True), count)
+
+
 class RefreshCostTest(RepoCase):
     """The cost of a refresh must not grow with the number of known tasks."""
 
