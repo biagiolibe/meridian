@@ -15,6 +15,16 @@ records which release moved it.
 
 ## [Unreleased]
 
+### Added
+
+- `meridian setup --check` now plans, and `--apply` creates, the Codex skill
+  links `meridian-lean-delivery` and `meridian-governed-sdd` in
+  `~/.agents/skills`. It never overwrites an existing link or file, reports the
+  `MERIDIAN_ROOT` and `PATH` lines to add to the shell profile without editing
+  it, and warns about a stale copy in `~/.codex/skills`.
+- `meridian codex doctor` reports two more read-only host checks:
+  `skill-links` and `MERIDIAN_ROOT`.
+
 ### Fixed
 
 - `scripts/release.py prepare` is accepted alongside the existing no-word
@@ -23,8 +33,6 @@ records which release moved it.
 
 ### Documentation
 
-- `meridian setup` now plans and applies the Codex skill links, reports the
-  shell-profile lines, and `meridian codex doctor` reports the same host facts.
 - The README now documents the current repository layout, Codex doctor checks,
   and release preparation and publication commands.
 - The `meridian-local` to `meridian` migration can leave
