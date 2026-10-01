@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import hashlib
 import json
 import os
 import re
@@ -249,6 +250,75 @@ class MeridianCliTest(unittest.TestCase):
             source = ROOT / "templates/workflows/governed-sdd" / name
             (workflow / name).write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
         (self.framework / "VERSION").write_text("1.1.41\n", encoding="utf-8")
+
+    def configure_1_1_53_to_1_1_54_manual_proceed_upgrade(self) -> tuple[Path, Path]:
+        """Lock the two governed worktree capabilities immediately before 056."""
+        workflow = self.framework / "templates/workflows/governed-sdd"
+        implementation = workflow / "docs/workflows/IMPLEMENTATION.md"
+        project_workflow = workflow / "PROJECT_WORKFLOW.md"
+        current_implementation = implementation.read_text(encoding="utf-8")
+        current_workflow = project_workflow.read_text(encoding="utf-8")
+        legacy_implementation = "\n".join((
+            "<!-- MERIDIAN:BEGIN capability=task-worktree-boundary v4 -->",
+            "The coordinator runs `meridian worktree prepare` before starting this worker",
+            "and passes its returned branch, absolute worktree path, primary checkout, and",
+            "worktree root as launch inputs. Start in that exact existing directory; do not",
+            "use host automatic isolation or create another checkout. Before reading the",
+            "task, implementation files, or diff, run `meridian worktree check <TASK-ID>",
+            "--project <primary-checkout> --format json`. Any blocked",
+            "result stops all task work and preserves both checkouts. Run every later read,",
+            "implementation, validation, status, and handoff operation in the same verified",
+            "worktree, never the primary checkout.",
+            "<!-- MERIDIAN:END -->",
+            "",
+        ))
+        legacy_workflow = "\n".join((
+            "<!-- MERIDIAN:BEGIN capability=bounded-worktree-lifecycle v3 -->",
+            "The coordinator runs `meridian worktree prepare` before creating an",
+            "implementer, reviewer, or remediation session and passes the returned existing",
+            "path, branch, primary checkout, and worktree root as durable launch inputs.",
+            "Every worker starts in that exact directory and runs read-only `meridian",
+            "worktree check` before any task, handoff, implementation, or diff read. Hosts",
+            "must not create a substitute checkout. Integration uses `meridian worktree",
+            "integrate stage`, separately recorded candidate validation, and `integrate",
+            "finalize` or `integrate abort`; verified post-push cleanup uses `meridian",
+            "worktree cleanup`. See `docs/WORKTREE_LIFECYCLE.md`.",
+            "Absolute paths are runtime launch inputs only. A handoff or other tracked",
+            "record that names the worktree uses the `handoff_worktree` value returned by",
+            "`meridian worktree prepare`, the path relative to the worktree root, never an",
+            "absolute path.",
+            "<!-- MERIDIAN:END -->",
+            "",
+        ))
+        previous_implementation = re.sub(
+            r"<!-- MERIDIAN:BEGIN capability=task-worktree-boundary v5 -->.*?<!-- MERIDIAN:END -->\n",
+            legacy_implementation,
+            current_implementation,
+            count=1,
+            flags=re.DOTALL,
+        )
+        previous_workflow = re.sub(
+            r"<!-- MERIDIAN:BEGIN capability=bounded-worktree-lifecycle v4 -->.*?<!-- MERIDIAN:END -->\n",
+            legacy_workflow,
+            current_workflow,
+            count=1,
+            flags=re.DOTALL,
+        )
+        self.assertNotEqual(previous_implementation, current_implementation)
+        self.assertNotEqual(previous_workflow, current_workflow)
+        for source, previous, relative in (
+            (implementation, previous_implementation, Path("docs/workflows/IMPLEMENTATION.md")),
+            (project_workflow, previous_workflow, Path("PROJECT_WORKFLOW.md")),
+        ):
+            source.write_text(previous, encoding="utf-8")
+            (self.project / relative).write_text(previous, encoding="utf-8")
+        (self.framework / "VERSION").write_text("1.1.53\n", encoding="utf-8")
+        locked = self.run_cli("lock", "--mode", "governed-sdd")
+        self.assertEqual(locked.returncode, 0, locked.stdout + locked.stderr)
+        implementation.write_text(current_implementation, encoding="utf-8")
+        project_workflow.write_text(current_workflow, encoding="utf-8")
+        (self.framework / "VERSION").write_text("1.2.2\n", encoding="utf-8")
+        return self.project / "docs/workflows/IMPLEMENTATION.md", self.project / "PROJECT_WORKFLOW.md"
 
     def install_entry_router(self, include_restart: bool = True) -> None:
         lifecycle_triggers = (
@@ -1033,7 +1103,7 @@ class MeridianCliTest(unittest.TestCase):
         self.assertIn("capability=git-workflow v7", project_workflow.read_text(encoding="utf-8"))
         self.assertIn("Consumer-owned note.", project_workflow.read_text(encoding="utf-8"))
         self.assertIn(
-            "capability=task-worktree-boundary v4",
+            "capability=task-worktree-boundary v5",
             (self.project / "docs/workflows/IMPLEMENTATION.md").read_text(encoding="utf-8"),
         )
         report = (self.project / "docs/COMPLETION_REPORT_TEMPLATE.md").read_text(encoding="utf-8")
@@ -1273,6 +1343,42 @@ worktree before the branch only after validated integration succeeds.
                 self.assertEqual(manifest["frameworkVersion"], "1.1.51")
                 self.assertEqual(manifest["workflowBaselineVersion"], "1.1.51")
                 self.assertEqual(manifest["appliedMigrations"][-1], "053-codex-profile-repair-guidance")
+
+    def test_upgrade_installs_manual_proceed_worktree_rule_and_preserves_consumer_text(self) -> None:
+        implementation, project_workflow = self.configure_1_1_53_to_1_1_54_manual_proceed_upgrade()
+        project_workflow.write_text(
+            project_workflow.read_text(encoding="utf-8") + "\nConsumer-owned worktree note.\n",
+            encoding="utf-8",
+        )
+
+        checked = self.run_cli("upgrade", "--check")
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+        self.assertIn("MIGRATION 056-manual-governed-proceed-worktree", checked.stdout)
+        applied = self.run_cli("upgrade", "--apply")
+        self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+
+        self.assertIn("capability=task-worktree-boundary v5", implementation.read_text(encoding="utf-8"))
+        self.assertIn("**Manually triggered.**", implementation.read_text(encoding="utf-8"))
+        upgraded_workflow = project_workflow.read_text(encoding="utf-8")
+        self.assertIn("capability=bounded-worktree-lifecycle v4", upgraded_workflow)
+        self.assertIn("Consumer-owned worktree note.", upgraded_workflow)
+        manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual(manifest["workflowBaselineVersion"], "1.1.54")
+        self.assertEqual(manifest["appliedMigrations"][-1], "056-manual-governed-proceed-worktree")
+
+    def test_upgrade_reports_bounded_conflict_for_custom_implementation_procedure(self) -> None:
+        implementation, _ = self.configure_1_1_53_to_1_1_54_manual_proceed_upgrade()
+        customized = implementation.read_text(encoding="utf-8").replace(
+            "The coordinator runs `meridian worktree prepare`",
+            "Our coordinator runs `meridian worktree prepare`",
+            1,
+        )
+        implementation.write_text(customized, encoding="utf-8")
+
+        applied = self.run_cli("upgrade", "--apply")
+        self.assertEqual(applied.returncode, 2, applied.stdout + applied.stderr)
+        self.assertIn("CONFLICT docs/workflows/IMPLEMENTATION.md", applied.stdout)
+        self.assertEqual(implementation.read_text(encoding="utf-8"), customized)
 
     def test_upgrade_downgrades_cosmetic_conflict_to_verified(self) -> None:
         """Phase 3 of migrations/CAPABILITY_MARKERS.md: a conflict outside a
@@ -3569,6 +3675,15 @@ class CapabilityMarkerTest(unittest.TestCase):
         for pair in (("execution-command-gate", "1"), ("validation-scoping", "1"), ("spike-routing", "1"), ("host-impact-routing", "1")):
             self.assertIn(pair, implementation)
 
+    def test_manual_proceed_migration_leaves_review_and_remediation_bytes_unchanged(self) -> None:
+        expected = {
+            "REVIEW.md": "a695f9fa750e04495e02f4eef0bbb9cad666cd5ff11d384eacbefd04eab46d0d",
+            "REMEDIATION.md": "d995a711720865d1d1694654e6415fd699d159e487a211e36b035741e907f47e",
+        }
+        for name, digest in expected.items():
+            path = self.WORKFLOW / "docs/workflows" / name
+            self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), digest, name)
+
     def test_host_impact_declaration_has_both_governed_shapes_and_evidence_routing(self) -> None:
         blueprint = (self.WORKFLOW / "tasks/TASK_BLUEPRINT.md").read_text(encoding="utf-8")
         implementation = (self.WORKFLOW / "docs/workflows/IMPLEMENTATION.md").read_text(encoding="utf-8")
@@ -3756,7 +3871,7 @@ class CapabilityMarkerTest(unittest.TestCase):
         expected["execution-assets"] = "2"
         expected["roles"] = "2"
         expected["git-workflow"] = "7"
-        expected["bounded-worktree-lifecycle"] = "3"
+        expected["bounded-worktree-lifecycle"] = "4"
         expected["codex-worktree-access"] = "3"
         expected["task-identity-policy"] = "1"
         expected["task-lifecycle"] = "2"
