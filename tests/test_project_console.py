@@ -221,6 +221,8 @@ class ProjectConsoleTest(unittest.TestCase):
 
 
 class AgentLaunchTest(unittest.TestCase):
+    SESSION_ID = "w0t1p2:12345678-1234-1234-1234-123456789abc"
+
     def task(self, **changes) -> console.Task:
         values = dict(
             task_id="001", title="First", status="TODO", phase=(), dependencies=(), path=None,
@@ -245,17 +247,32 @@ class AgentLaunchTest(unittest.TestCase):
         self.assertIsNone(self.task(active_writer=True).launch_command)
 
     def test_request_revalidates_id_and_preserves_an_argument_vector(self) -> None:
-        request, error = console._launch_request(self.task(), Path("."), "codex")
+        with mock.patch.dict(console.os.environ, {"ITERM_SESSION_ID": self.SESSION_ID}, clear=False):
+            request, error = console._launch_request(self.task(), Path("."), "codex")
         self.assertIsNone(error)
         self.assertIsNotNone(request)
         self.assertEqual(request.directive, "Proceed with 001")
+        self.assertEqual(request.session_uuid, "12345678-1234-1234-1234-123456789abc")
         self.assertIn("exec codex 'Proceed with 001'", request.shell_command)
-        hostile, error = console._launch_request(self.task(task_id="001; rm -rf /"), Path("."), "codex")
+        with mock.patch.dict(console.os.environ, {"ITERM_SESSION_ID": self.SESSION_ID}, clear=False):
+            hostile, error = console._launch_request(self.task(task_id="001; rm -rf /"), Path("."), "codex")
         self.assertIsNone(hostile)
         self.assertIn("task ID", error or "")
 
+    def test_request_refuses_missing_or_malformed_console_session(self) -> None:
+        for session_id in (None, "w0t1p2:not-a-uuid", "wrong:12345678-1234-1234-1234-123456789abc"):
+            environment = {} if session_id is None else {"ITERM_SESSION_ID": session_id}
+            with self.subTest(session_id=session_id), \
+                 mock.patch.dict(console.os.environ, environment, clear=True):
+                request, error = console._launch_request(self.task(), Path("."), "codex")
+            self.assertIsNone(request)
+            self.assertEqual(error, "iTerm2 console session is missing or invalid; [copy] remains available")
+
     def test_launch_failure_modes_leave_copy_as_fallback(self) -> None:
-        request = console.LaunchRequest("codex", "Proceed with 001", Path("/project"))
+        request = console.LaunchRequest(
+            "codex", "Proceed with 001", Path("/project"), "001",
+            "12345678-1234-1234-1234-123456789abc",
+        )
         with mock.patch.object(console.sys, "platform", "linux"):
             self.assertIn("macOS", console._start_launch(request)[1])
         with mock.patch.object(console.sys, "platform", "darwin"), \
@@ -267,7 +284,10 @@ class AgentLaunchTest(unittest.TestCase):
             self.assertIn("timed out", console._start_launch(request)[1])
 
     def test_osascript_receives_quoted_command_and_reports_iterm_failure(self) -> None:
-        request = console.LaunchRequest("claude", "Proceed with 001; echo nope", Path("/project name"))
+        request = console.LaunchRequest(
+            "claude", "Proceed with 001; echo nope", Path("/project name"), "001",
+            "12345678-1234-1234-1234-123456789abc",
+        )
         with mock.patch.object(console.sys, "platform", "darwin"), \
              mock.patch.object(console.shutil, "which", return_value="/usr/bin/tool"), \
              mock.patch.object(console.subprocess, "run") as run:
@@ -278,6 +298,32 @@ class AgentLaunchTest(unittest.TestCase):
         command = run.call_args.args[0]
         self.assertEqual(command[0], "osascript")
         self.assertIn("exec claude 'Proceed with 001; echo nope'", command[2])
+        self.assertIn("split horizontally with default profile", command[2])
+        self.assertIn('unique id is "12345678-1234-1234-1234-123456789abc"', command[2])
+        self.assertNotIn("w0t1p2", command[2])
+        self.assertNotIn("create tab", command[2])
+        self.assertNotIn("create window", command[2])
+
+    def test_unmatched_console_session_leaves_copy_as_fallback(self) -> None:
+        request = console.LaunchRequest(
+            "codex", "Proceed with 001", Path("/project"), "001",
+            "12345678-1234-1234-1234-123456789abc",
+        )
+        with mock.patch.object(console.sys, "platform", "darwin"), \
+             mock.patch.object(console.shutil, "which", return_value="/usr/bin/tool"), \
+             mock.patch.object(console.subprocess, "run") as run:
+            run.return_value = mock.Mock(returncode=1, stderr="MERIDIAN_SESSION_NOT_FOUND", stdout="")
+            success, message = console._start_launch(request)
+        self.assertFalse(success)
+        self.assertEqual(message, "iTerm2 console session was not found; [copy] remains available")
+
+    def test_start_revalidates_task_and_session_ids(self) -> None:
+        request = console.LaunchRequest("codex", "Proceed with 001", Path("/project"), "001; rm -rf /", "bad")
+        with mock.patch.object(console.sys, "platform", "darwin"), \
+             mock.patch.object(console.shutil, "which", return_value="/usr/bin/tool"):
+            success, message = console._start_launch(request)
+        self.assertFalse(success)
+        self.assertIn("task ID", message)
 
 
 class FakeScreen:

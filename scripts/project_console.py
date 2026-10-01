@@ -30,6 +30,11 @@ from console_workflow import (
 )
 
 
+UUID_PATTERN = (r"[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-"
+                r"[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}")
+ITERM_SESSION_ID_PATTERN = re.compile(r"w\d+t\d+p\d+:(" + UUID_PATTERN + r")")
+
+
 @dataclass(frozen=True)
 class Task:
     task_id: str
@@ -99,11 +104,13 @@ class Task:
 
 @dataclass(frozen=True)
 class LaunchRequest:
-    """A confirmed, safe-to-quote invocation for a new iTerm2 tab."""
+    """A confirmed, safe-to-quote invocation for an iTerm2 split pane."""
 
     agent: str
     directive: str
     directory: Path
+    task_id: str
+    session_uuid: str
 
     @property
     def shell_command(self) -> str:
@@ -113,7 +120,7 @@ class LaunchRequest:
 
 
 def _launch_request(task: Task, project: Path, agent: str) -> tuple[LaunchRequest | None, str | None]:
-    """Revalidate a selected task before a confirmation can offer a launch."""
+    """Revalidate a selected task and console session before offering a launch."""
     if agent not in ("claude", "codex"):
         return None, "Choose Claude Code or Codex"
     if not ID_PATTERN.fullmatch(task.task_id):
@@ -124,38 +131,47 @@ def _launch_request(task: Task, project: Path, agent: str) -> tuple[LaunchReques
     directory, error = _primary_checkout(project)
     if error:
         return None, error
-    return LaunchRequest(agent, directive, directory), None
+    session_id = os.environ.get("ITERM_SESSION_ID", "")
+    match = ITERM_SESSION_ID_PATTERN.fullmatch(session_id)
+    if not match:
+        return None, "iTerm2 console session is missing or invalid; [copy] remains available"
+    return LaunchRequest(agent, directive, directory, task.task_id, match.group(1)), None
 
 
-def _apple_script(command: str) -> str:
-    """Return the sole iTerm2 automation payload, with AppleScript quoting."""
+def _apple_script(command: str, session_uuid: str) -> str:
+    """Return the sole split-pane payload, with AppleScript quoting."""
     quoted = command.replace("\\", "\\\\").replace('"', '\\"')
     return "\n".join((
         'tell application "iTerm2"',
         "activate",
-        "if (count of windows) is 0 then",
-        "create window with default profile",
-        "else",
-        "tell current window to create tab with default profile",
-        "end if",
-        "tell current session of current tab of current window",
-        f'write text "{quoted}"',
+        "try",
+        f'    set targetSession to first session of every tab of every window whose unique id is "{session_uuid}"',
+        "on error",
+        '    error "MERIDIAN_SESSION_NOT_FOUND"',
+        "end try",
+        "tell targetSession",
+        "set newSession to split horizontally with default profile",
+        f'write text "{quoted}" to newSession',
         "end tell",
         "end tell",
     ))
 
 
 def _start_launch(request: LaunchRequest) -> tuple[bool, str]:
-    """Open a new iTerm2 tab. This is called only after UI confirmation."""
+    """Open an iTerm2 split pane after UI confirmation."""
     if sys.platform != "darwin":
         return False, "Agent launch requires macOS and iTerm2; [copy] remains available"
     if shutil.which(request.agent) is None:
         return False, f"{request.agent} is not available on PATH; [copy] remains available"
     if shutil.which("osascript") is None:
         return False, "macOS osascript is unavailable; [copy] remains available"
+    if not ID_PATTERN.fullmatch(request.task_id):
+        return False, "Refusing launch: task ID no longer matches the workflow rules; [copy] remains available"
+    if not re.fullmatch(UUID_PATTERN, request.session_uuid):
+        return False, "iTerm2 console session is missing or invalid; [copy] remains available"
     try:
         result = subprocess.run(
-            ("osascript", "-e", _apple_script(request.shell_command)),
+            ("osascript", "-e", _apple_script(request.shell_command, request.session_uuid)),
             capture_output=True, text=True, check=False, timeout=10,
         )
     except subprocess.TimeoutExpired:
@@ -164,9 +180,11 @@ def _start_launch(request: LaunchRequest) -> tuple[bool, str]:
         return False, f"iTerm2 launch failed: {error}; [copy] remains available"
     if result.returncode:
         detail = (result.stderr or result.stdout).strip()
+        if "MERIDIAN_SESSION_NOT_FOUND" in detail:
+            return False, "iTerm2 console session was not found; [copy] remains available"
         return False, (f"iTerm2 is unavailable or rejected launch: {detail}; [copy] remains available"
                        if detail else "iTerm2 launch failed; [copy] remains available")
-    return True, f"Started {request.agent} in a new iTerm2 tab"
+    return True, f"Started {request.agent} in a new iTerm2 split pane"
 
 
 @dataclass(frozen=True)
@@ -1124,7 +1142,7 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
                     "Enter  Open full task details", "Esc  Return to task list",
                     "/  Search task ID or title", "[ / ]  Scroll task details",
                     "c or click [copy]  Copy a permitted task directive",
-                    "l  Choose Claude Code or Codex, then confirm an iTerm2 launch",
+                    "l  Choose Claude Code or Codex, then confirm an iTerm2 split pane",
                     "Tab  Cycle All and nonempty states; click any tab",
                     "r  Refresh now", "q  Quit", "",
                     "Project state is read-only; copy writes to the clipboard.",
