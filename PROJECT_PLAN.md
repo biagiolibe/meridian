@@ -58,6 +58,7 @@
 - `[ ]` 088 — Define how a completion handoff names commits that cannot contain their own SHA.
 - `[x]` 089 — Prepare release 1.2.0.
 - `[ ]` 090 — Make a 1.0.0 project reach the current release in one step.
+- `[ ]` 091 — Record the 1.2.0 marketplace install evidence.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.
 - `[x]` 053 — Remove machine-specific absolute paths from tracked records.
