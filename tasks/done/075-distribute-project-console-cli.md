@@ -13,16 +13,16 @@ and document how adopters launch it from any project containing Meridian files.
 
 ## Acceptance Criteria
 
-- [ ] `meridian console` launches the existing interactive console for the
+- [x] `meridian console` launches the existing interactive console for the
   current project.
-- [ ] `--project PATH` and the console refresh interval remain available.
-- [ ] The command resolves the console from the installed Meridian framework
+- [x] `--project PATH` and the console refresh interval remain available.
+- [x] The command resolves the console from the installed Meridian framework
   root and does not copy or modify project files.
-- [ ] README documents installation, invocation, refresh behavior, and the
+- [x] README documents installation, invocation, refresh behavior, and the
   supported Claude Code and Codex distribution paths.
-- [ ] The distribution design records the command as part of the tagged tree,
+- [x] The distribution design records the command as part of the tagged tree,
   with no separate package or network dependency.
-- [ ] Repository checks, CLI tests, console tests, and an interactive smoke
+- [x] Repository checks, CLI tests, console tests, and an interactive smoke
   check pass.
 
 ## Relevant Files and Context
