@@ -256,4 +256,12 @@ its project-state sources local.
 | `[x]` | 072 | Match the approved console mockup in the terminal renderer | 🟡 P2 | 071 | [072](done/072-match-console-mockup.md) |
 | `[x]` | 073 | Make directives copyable and restore All filter navigation | 🟡 P2 | 072 | [073](done/073-copy-directive-and-filter-navigation.md) |
 
+### Phase 27 — Project console background refinement
+
+Let the interactive console use the terminal's own background.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 074 | Use the terminal background in the project console | 🟢 P3 | 073 | [074](done/074-match-console-background-color.md) |
+
 *Last updated: 2026-10-01*
