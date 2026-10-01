@@ -41,6 +41,8 @@
 - `[x]` 073 — Make directives copyable and restore All filter navigation.
 - `[x]` 074 — Use the terminal background in the project console.
 - `[x]` 075 — Distribute the project console through the Meridian CLI.
+- `[ ]` 076 — Show effective task state across workflow modes in the console.
+- `[ ]` 077 — Launch Claude Code or Codex from the console in an iTerm2 tab.
 - `[ ]` 067 — Enforce the adopter-facing release-notes contract.
 - `[ ]` 068 — Document and test the upgrade support policy.
 - `[ ]` 069 — Document Codex install from a tagged checkout.

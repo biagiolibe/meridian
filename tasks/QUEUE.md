@@ -32,6 +32,17 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, 25, 26, 27, and 28
 are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 
+### Phase 29 — Workflow-aware console state and agent launch
+
+Makes the project console show each task's real state in both Lean Delivery and
+Governed SDD projects, then lets the developer start Claude Code or Codex from
+it in an iTerm2 tab with the permitted task directive already supplied.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 076 | Show effective task state across workflow modes in the console | 🟡 P2 | 075 | [076](076-console-effective-state-and-workflow-profiles.md) |
+| `[ ]` | 077 | Launch Claude Code or Codex from the console in an iTerm2 tab | 🟡 P2 | 076 | [077](077-console-launch-agent-in-iterm2.md) |
+
 ### Phase 24 — Review worktree routing correction
 
 Removes contradictory Governed SDD instructions that can send a fresh
