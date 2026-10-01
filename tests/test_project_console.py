@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -301,9 +302,26 @@ class AgentLaunchTest(unittest.TestCase):
         self.assertIn("split horizontally with default profile", command[2])
         self.assertIn('if unique id of aSession is "12345678-1234-1234-1234-123456789abc"', command[2])
         self.assertIn("repeat with aSession in sessions of aTab", command[2])
+        self.assertIn("tell newSession to write text", command[2])
         self.assertNotIn("w0t1p2", command[2])
         self.assertNotIn("create tab", command[2])
         self.assertNotIn("create window", command[2])
+
+    @unittest.skipUnless(
+        sys.platform == "darwin" and shutil.which("osacompile")
+        and Path("/Applications/iTerm.app").exists(),
+        "requires macOS osacompile and iTerm2",
+    )
+    def test_split_payload_compiles_as_applescript(self) -> None:
+        payload = console._apple_script(
+            "exec claude 'a \"q\" \\ b'", "12345678-1234-1234-1234-123456789abc",
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            result = subprocess.run(
+                ("osacompile", "-o", str(Path(directory) / "payload.scpt"), "-e", payload),
+                capture_output=True, text=True, check=False, timeout=30,
+            )
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_unmatched_console_session_leaves_copy_as_fallback(self) -> None:
         request = console.LaunchRequest(
