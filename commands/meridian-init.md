@@ -70,17 +70,18 @@ The Meridian template source is at: `${CLAUDE_PLUGIN_ROOT}`
    This writes `.meridian/manifest.json` and an installed-template baseline.
    Do not edit the manifest or baseline snapshots manually.
 
-12. If `codex` is available, ask whether the user wants to configure a
-    dedicated shared task-worktree root. Show the read-only plan first:
+12. Print the once-per-machine setup instruction. Show the read-only plan
+    first:
 
     ```bash
-    ${CLAUDE_PLUGIN_ROOT}/bin/meridian codex configure --check --worktree-root <selected-root>
+    ${CLAUDE_PLUGIN_ROOT}/bin/meridian setup --check
     ```
 
-    Run the same command with `--apply` only after explicit confirmation. A
-    decline, unavailable user configuration layer, or missing permission does
-    not invalidate initialization. Report the exact command above so the user
-    can apply it later. Never edit `~/.codex/config.toml` implicitly.
+    Run `meridian setup --apply` only after explicit confirmation. A decline,
+    unavailable user configuration layer, or missing permission does not invalidate initialization.
+    Claude Code needs no host setup. Report the
+    exact check and apply commands so the user can run them later. Never edit
+    user or Codex configuration implicitly.
 
 13. Confirm to the user: "Meridian initialized for **[Project Name]** with workflow `<workflow-mode>`. Next steps:
    - Fill in `TECH_DESIGN.md` with your actual stack details.

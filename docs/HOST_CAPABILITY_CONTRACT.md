@@ -152,11 +152,51 @@ The implementation and review report must repeat the profiles actually
 verified. A repository test may prove parser or template semantics, but cannot
 by itself promote a host integration to `enforced`.
 
+## Machine setup and worktree-root resolution
+
+Every `meridian worktree` and `meridian codex` command resolves one root in
+this order: explicit `--worktree-root`, `MERIDIAN_WORKTREE_ROOT`, the version-1
+user configuration, then `~/.meridian/worktrees`. The user configuration is
+`$XDG_CONFIG_HOME/meridian/config.json`, falling back to
+`~/.config/meridian/config.json`, and its only keys are `version` and
+`worktreeRoot`. It is absent when the built-in default is used. An explicit
+value that differs from the environment is blocked with both sources named.
+The filesystem root and the user's home are always rejected. A temporary or
+repository-local explicit root is visible in the setup plan and should be
+used only for bounded testing or legacy cleanup, never as machine setup.
+
+`meridian setup --check` is the read-only machine preflight. It reports the
+resolved path and source, whether the directory exists with current-user
+ownership and mode `0700`, the Codex profile state (`unconfigured`, `ready`,
+`repair-required`, `different-root`, or `blocked`), and every bounded change
+that `--apply` would make. `meridian setup --apply` is the only write path: it
+creates or repairs the private root, writes the user configuration only for a
+non-default root, and delegates the Codex edit to the existing bounded planner
+and backup behavior. Repeating it is a no-op. An intact Meridian-owned profile
+for another root is `different-root` and may be replaced after consent. A
+different root with damaged ownership markers is `blocked`, names the
+diverging fields, and must first be reconciled or repaired for its old root;
+it is never overwritten silently.
+
+The normal flow is:
+
+1. Install Meridian and put `meridian` on `PATH`.
+2. Once per machine, run `meridian setup --check`, review the plan, run
+   `meridian setup --apply`, and restart Codex. Claude Code needs no host
+   configuration.
+3. For a new project, run `meridian init`; lifecycle commands resolve the
+   machine root without a project setting.
+4. For an existing project, run `meridian upgrade --check` and then the
+   consented `--apply` to receive the migrated workflow text.
+5. Finish an existing worktree where it is. Clean it only after integration
+   with `meridian worktree cleanup --worktree-root <old-root>`; Meridian never
+   moves or deletes worktrees automatically.
+
 ## Codex task-worktree permission profile
 
 Meridian supports one Codex permission model for shared task worktrees: the
-beta permission-profile model. `meridian codex configure --check
---worktree-root <path>` parses the user configuration and prints the exact
+beta permission-profile model. `meridian codex configure --check` resolves the
+machine root, parses the user configuration, and prints the exact
 managed profile block without writing it. `--apply` is the only write path. It
 creates a restrictive backup before the first changed write and atomically
 replaces the configuration while retaining unrelated text and comments.
@@ -205,7 +245,10 @@ a fresh session and probe before relying on it.
 
 `meridian codex doctor` reports project trust, the selected permission model,
 effective worktree-root write access, command-policy availability, and Git
-metadata separately. It also reports `profile-ownership` (`ready`, `repair-required`, `blocked`, or `not-applicable`) as its own line, independent of root access. Static configuration is not host-execution evidence.
+metadata separately. It also reports `profile-ownership` (`ready`,
+`repair-required`, `blocked`, or `not-applicable`) as its own line, independent
+of root access, and a single `codex-root-mismatch` line when the profile and
+resolved roots differ. Static configuration is not host-execution evidence.
 `.git` and the resolved common Git directory remain protected independently;
 project execpolicy rules control approval decisions but cannot widen the
 filesystem sandbox.

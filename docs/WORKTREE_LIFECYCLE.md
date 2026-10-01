@@ -9,24 +9,28 @@ transition, and `64` for command-line usage errors.
 ## Commands
 
 All paths are absolute after resolution. `--project`, when supplied, must name
-the current repository's primary checkout. `--worktree-root` must equal
-`MERIDIAN_WORKTREE_ROOT` when that environment variable is set.
+the current repository's primary checkout. The worktree root resolves from an
+explicit `--worktree-root`, then `MERIDIAN_WORKTREE_ROOT`, then
+`$XDG_CONFIG_HOME/meridian/config.json` (or
+`~/.config/meridian/config.json`), then `~/.meridian/worktrees`. An explicit
+value that conflicts with the environment is blocked and names both sources.
+The explicit option remains available for finishing a worktree in an old root.
 
-- `meridian worktree path <TASK-ID> --project <primary> --worktree-root <root>
-  [--format json]` prints the canonical repository-qualified path.
-- `meridian worktree prepare <TASK-ID> --project <primary> --worktree-root
-  <root> [--base main] --format json` creates both the canonical branch and
+- `meridian worktree path <TASK-ID> --project <primary> [--format json]`
+  prints the canonical repository-qualified path.
+- `meridian worktree prepare <TASK-ID> --project <primary> [--base main]
+  --format json` creates both the canonical branch and
   worktree, or selects the exact existing pair. Partial or mismatched state is
   retained and blocked. The result contains `branch`, `worktree`,
   `worktree_root`, `base_commit`, `task_commit`, `created`, and `next_action`.
-- `meridian worktree check <TASK-ID> --project <primary> --worktree-root <root>
-  --format json` is read-only. It succeeds only inside the exact prepared
+- `meridian worktree check <TASK-ID> --project <primary> --format json` is
+  read-only. It succeeds only inside the exact prepared
   worker directory and reports repository, path, branch, HEAD, base, clean
   state, handoff-state consistency, active integration state, errors, and the
   next action. `wrong-worktree` is distinct from registration, branch, state,
   and cleanliness failures.
 - `meridian worktree integrate stage <TASK-ID> --project <primary>
-  --worktree-root <root> --evidence <handoff.json> --format json` atomically
+  --evidence <handoff.json> --format json` atomically
   acquires the repository integration lease, verifies the task and accepted
   validation evidence, performs only `git merge --no-ff --no-commit`, and
   returns `REUSE`, `BOUNDED`, or `FULL` with the exact candidate tree.
@@ -36,10 +40,15 @@ the current repository's primary checkout. `--worktree-root` must equal
   required validation scope.
 - `meridian worktree integrate abort <TASK-ID> --project <primary> --format
   json` aborts only the requested Meridian-owned merge and releases its lease.
-- `meridian worktree cleanup <TASK-ID> --project <primary> --worktree-root
-  <root> --format json` removes the clean canonical worktree and non-force
-  deletes its merged branch only after local integration and, when an origin
+- `meridian worktree cleanup <TASK-ID> --project <primary> --format json`
+  removes the clean canonical worktree and non-force
+deletes its merged branch only after local integration and, when an origin
   exists, pushed `main` are proven.
+
+Existing worktrees in a previous root are never moved or deleted
+automatically. Finish them in place and pass that old root explicitly to
+`check`, integration staging, and `cleanup`; new work resolves to the current
+machine-level root.
 
 `meridian codex worktree-path` is a deprecated alias for `meridian worktree
 path` for one migration window. It prints a deprecation notice to standard

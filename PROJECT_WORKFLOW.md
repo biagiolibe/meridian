@@ -32,9 +32,11 @@ an explicit version-1 declaration may select `opaque` or `milestone` mode.
 
 Every task uses exactly one branch and one linked worktree, with one writer at
 a time. Normalize the canonical task ID to lowercase `task-<number>` (for
-example, `TASK-051` becomes `task-051`) and use it as the branch name. Derive
-the worktree path with `meridian worktree path <task-id> --project
-<primary-checkout> --worktree-root <selected-root>`. The layout is
+example, `TASK-051` becomes `task-051`) and use it as the branch name. Meridian
+resolves one machine-level root from `--worktree-root`,
+`MERIDIAN_WORKTREE_ROOT`, user configuration, or the built-in default, in that
+order. Derive the worktree path with `meridian worktree path <task-id>
+--project <primary-checkout>`. The layout is
 `<root>/<remote-host>/<owner>/<repository>/<canonical-task-id>`; a repository
 without a usable remote uses a deterministic local name plus a canonical
 Git-common-directory hash. Unsafe, ambiguous, colliding, or mismatched paths
@@ -43,12 +45,12 @@ moved or deleted automatically. The first `git worktree list --porcelain`
 entry identifies the primary checkout.
 
 `Proceed with <TASK-ID>` first runs `meridian worktree prepare <task-id>
---project <primary-checkout> --worktree-root <selected-root> --format json`.
+--project <primary-checkout> --format json`.
 The coordinator passes the returned branch and absolute path to the worker and
 does not ask the host to create another checkout. Before any task read or
 write, the worker starts in that exact directory and runs `meridian worktree
-check <task-id> --project <primary-checkout> --worktree-root <selected-root>
---format json`. Any mismatch is `BLOCKED`; the primary checkout and every host-
+check <task-id> --project <primary-checkout> --format json`. Any mismatch is
+`BLOCKED`; the primary checkout and every host-
 created substitute remain coordination surfaces only. Absolute paths are
 runtime launch inputs only: a handoff or other tracked record that names the
 worktree uses the `handoff_worktree` value returned by `meridian worktree

@@ -236,13 +236,30 @@ fresh chats otherwise) without ever copying context between them. Run
 
 ## Quick start with Codex
 
-Generated Lean Delivery and Governed-SDD projects work with Codex immediately because they include `AGENTS.md` and `PROJECT_WORKFLOW.md`.
+Generated Lean Delivery and Governed-SDD projects include `AGENTS.md` and
+`PROJECT_WORKFLOW.md`. Codex also needs one consented machine-level filesystem
+setup for task worktrees.
 
 For reusable Meridian operations across projects, install or symlink [`skills/meridian-lean-delivery/`](skills/meridian-lean-delivery/) and [`skills/meridian-governed-sdd/`](skills/meridian-governed-sdd/) into your local Codex skills directory. Set the location of this checkout once per machine:
 
 ```bash
 export MERIDIAN_ROOT=/path/to/meridian
 ```
+
+Review and apply that setup once, then restart Codex:
+
+```bash
+meridian setup --check
+meridian setup --apply
+```
+
+The default root is `~/.meridian/worktrees`; a custom root is stored in the
+versioned user configuration. Claude Code needs no corresponding host setup.
+For a new project, run `meridian init` (or `/meridian-init`) and lifecycle
+commands resolve this root automatically. For an existing project, use
+`meridian upgrade --check` and the consented `--apply` to receive current
+workflow instructions. Existing worktrees stay in their old root; finish them
+there and pass `--worktree-root <old-root>` to their final cleanup.
 
 Then invoke the skill explicitly in Codex:
 

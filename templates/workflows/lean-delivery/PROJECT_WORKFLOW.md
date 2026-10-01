@@ -52,12 +52,13 @@ do not provide a second identity policy or imply task semantics.
 
 ## Task worktree boundary
 
-<!-- MERIDIAN:BEGIN capability=codex-worktree-access v2 -->
+<!-- MERIDIAN:BEGIN capability=codex-worktree-access v3 -->
 Every task uses exactly one branch and one linked worktree, with one writer at
 a time. Normalize the canonical task ID to lowercase `task-<number>` and use
-it as the branch name. Derive the worktree path with `meridian worktree path
-<task-id> --project <primary-checkout> --worktree-root
-<selected-root>`. The layout is
+it as the branch name. Meridian resolves one machine-level worktree root from
+an explicit option, the environment, user configuration, or the built-in
+default. Derive the path with `meridian worktree path <task-id> --project
+<primary-checkout>`. The layout is
 `<root>/<remote-host>/<owner>/<repository>/<canonical-task-id>`; a repository
 without a usable remote uses a deterministic local name plus a canonical
 Git-common-directory hash. Unsafe, ambiguous, colliding, or mismatched paths
@@ -65,9 +66,10 @@ are `BLOCKED`. Existing legacy worktrees remain discoverable and are never
 moved or deleted automatically. The first `git worktree list --porcelain`
 entry identifies the primary checkout.
 
-Before creating or editing a task worktree, run `meridian codex doctor` for
-the selected root. Static configuration is not proof of effective host access;
-resolve `approval-required` explicitly and treat `blocked` as `BLOCKED`.
+Once per machine, run `meridian setup --check`, review its bounded changes,
+then explicitly consent with `meridian setup --apply` and restart Codex.
+Claude Code needs no host configuration. Static configuration is not proof of
+effective host access; treat `blocked` as `BLOCKED`.
 
 If `meridian codex configure --check` reports `repair-required`, the effective
 profile is identical and only Meridian's ownership markers were damaged, for
@@ -77,14 +79,14 @@ requires manual reconciliation. Repair never proves that a running session
 loaded the profile; start a fresh session and probe it.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=bounded-worktree-lifecycle v2 -->
+<!-- MERIDIAN:BEGIN capability=bounded-worktree-lifecycle v3 -->
 `Proceed with <TASK-ID>` runs `meridian worktree prepare <task-id> --project
-<primary-checkout> --worktree-root <selected-root> --format json` before
+<primary-checkout> --format json` before
 starting a worker. The coordinator passes the returned branch and absolute
 path as durable launch inputs and does not use a host facility that creates a
 second checkout. The worker starts in that exact directory and, before any task
 read or write, runs `meridian worktree check <task-id> --project
-<primary-checkout> --worktree-root <selected-root> --format json`. Any path,
+<primary-checkout> --format json`. Any path,
 branch, HEAD, root, state, or cleanliness mismatch is `BLOCKED`.
 Absolute paths are runtime launch inputs only. A handoff or other tracked
 record that names the worktree uses the `handoff_worktree` value returned by
