@@ -53,6 +53,7 @@
 - `[ ]` 068 — Document and test the upgrade support policy.
 - `[x]` 083 — Unify worktree-root resolution and add `meridian setup`.
 - `[x]` 085 — Repair and replace the Codex profile root in one setup step.
+- `[ ]` 086 — Launch console agents in a horizontal iTerm2 split pane.
 - `[ ]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.
 - `[x]` 053 — Remove machine-specific absolute paths from tracked records.
