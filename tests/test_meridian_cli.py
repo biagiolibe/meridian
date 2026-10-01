@@ -317,7 +317,7 @@ class MeridianCliTest(unittest.TestCase):
         self.assertEqual(locked.returncode, 0, locked.stdout + locked.stderr)
         implementation.write_text(current_implementation, encoding="utf-8")
         project_workflow.write_text(current_workflow, encoding="utf-8")
-        (self.framework / "VERSION").write_text("1.2.2\n", encoding="utf-8")
+        (self.framework / "VERSION").write_text("1.1.54\n", encoding="utf-8")
         return self.project / "docs/workflows/IMPLEMENTATION.md", self.project / "PROJECT_WORKFLOW.md"
 
     def install_entry_router(self, include_restart: bool = True) -> None:
@@ -1175,7 +1175,7 @@ class MeridianCliTest(unittest.TestCase):
         self.assertIn("capability=git-workflow v7", project_workflow.read_text(encoding="utf-8"))
         self.assertIn("Consumer-owned note.", project_workflow.read_text(encoding="utf-8"))
         self.assertIn(
-            "capability=task-worktree-handoff v3",
+            "capability=task-worktree-handoff v4",
             (self.project / "docs/COMPLETION_REPORT_TEMPLATE.md").read_text(encoding="utf-8"),
         )
         manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
@@ -1284,7 +1284,7 @@ worktree before the branch only after validated integration succeeds.
 
         upgraded = review.read_text(encoding="utf-8")
         self.assertIn("capability=implementer-reviewer-handoff v3", upgraded)
-        self.assertIn("capability=task-worktree-review-procedure v6", upgraded)
+        self.assertIn("capability=task-worktree-review-procedure v7", upgraded)
         self.assertIn("Consumer-owned review note.", upgraded)
         self.assertNotIn("uses that same primary checkout", upgraded)
         self.assertNotIn("git switch <task-branch>", upgraded)
@@ -1379,6 +1379,49 @@ worktree before the branch only after validated integration succeeds.
         self.assertEqual(applied.returncode, 2, applied.stdout + applied.stderr)
         self.assertIn("CONFLICT docs/workflows/IMPLEMENTATION.md", applied.stdout)
         self.assertEqual(implementation.read_text(encoding="utf-8"), customized)
+
+    def test_upgrade_installs_self_referential_handoff_rules_and_preserves_consumer_text(self) -> None:
+        workflow = self.framework / "templates/workflows/governed-sdd"
+        paths = (
+            "docs/COMPLETION_REPORT_TEMPLATE.md",
+            "docs/workflows/REVIEW.md",
+        )
+        current = {relative: (workflow / relative).read_text(encoding="utf-8") for relative in paths}
+        previous = {
+            relative: text.replace("task-worktree-handoff v4", "task-worktree-handoff v3").replace(
+                "task-worktree-review-procedure v7", "task-worktree-review-procedure v6"
+            )
+            for relative, text in current.items()
+        }
+        for relative, text in previous.items():
+            (workflow / relative).write_text(text, encoding="utf-8")
+            destination = self.project / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_text(text, encoding="utf-8")
+        (self.framework / "VERSION").write_text("1.1.54\n", encoding="utf-8")
+        self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
+        report = self.project / "docs/COMPLETION_REPORT_TEMPLATE.md"
+        report.write_text(report.read_text(encoding="utf-8") + "\nConsumer-owned handoff note.\n", encoding="utf-8")
+
+        for relative, text in current.items():
+            (workflow / relative).write_text(text, encoding="utf-8")
+        (self.framework / "VERSION").write_text("1.2.3\n", encoding="utf-8")
+        checked = self.run_cli("upgrade", "--check")
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+        self.assertIn("MIGRATION 057-self-referential-handoff-commits", checked.stdout)
+        applied = self.run_cli("upgrade", "--apply")
+        self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+
+        upgraded_report = report.read_text(encoding="utf-8")
+        self.assertIn("capability=task-worktree-handoff v4", upgraded_report)
+        self.assertIn("created after this report", upgraded_report)
+        self.assertIn("Consumer-owned handoff note.", upgraded_report)
+        upgraded_review = (self.project / "docs/workflows/REVIEW.md").read_text(encoding="utf-8")
+        self.assertIn("capability=task-worktree-review-procedure v7", upgraded_review)
+        self.assertIn("resolve it to the registered task branch `HEAD`", upgraded_review)
+        manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual(manifest["workflowBaselineVersion"], "1.1.55")
+        self.assertEqual(manifest["appliedMigrations"][-1], "057-self-referential-handoff-commits")
 
     def test_upgrade_downgrades_cosmetic_conflict_to_verified(self) -> None:
         """Phase 3 of migrations/CAPABILITY_MARKERS.md: a conflict outside a
@@ -3677,7 +3720,7 @@ class CapabilityMarkerTest(unittest.TestCase):
 
     def test_manual_proceed_migration_leaves_review_and_remediation_bytes_unchanged(self) -> None:
         expected = {
-            "REVIEW.md": "a695f9fa750e04495e02f4eef0bbb9cad666cd5ff11d384eacbefd04eab46d0d",
+            "REVIEW.md": "3b9e03268a94905d3f1d37a8416267cd032fe88f8b02bd051750f9f03af73d9e",
             "REMEDIATION.md": "d995a711720865d1d1694654e6415fd699d159e487a211e36b035741e907f47e",
         }
         for name, digest in expected.items():
@@ -3821,7 +3864,7 @@ class CapabilityMarkerTest(unittest.TestCase):
         self.assertEqual(
             self.marker_pairs(completion_report),
             [
-                ("task-worktree-handoff", "3"),
+                ("task-worktree-handoff", "4"),
                 ("manual-verification-record", "1"),
                 ("ci-verified-validation", "1"),
             ],
@@ -3910,7 +3953,7 @@ class CapabilityMarkerTest(unittest.TestCase):
         self.assertIn(("review-mode-boundary", "1"), review)
         self.assertIn(("implementer-reviewer-handoff", "3"), review)
         self.assertIn(("reviewer-integrator-identity", "1"), review)
-        self.assertIn(("task-worktree-review-procedure", "6"), review)
+        self.assertIn(("task-worktree-review-procedure", "7"), review)
 
     def test_review_preflight_fails_closed_before_substantive_inspection(self) -> None:
         review = (self.WORKFLOW / "docs/workflows/REVIEW.md").read_text(encoding="utf-8")
@@ -3930,6 +3973,8 @@ class CapabilityMarkerTest(unittest.TestCase):
             "disagrees with the handoff",
             "active or unconfirmed implementer",
             "validated task and base commits exist",
+            "resolve it to the registered task branch `HEAD`",
+            "mismatched subject",
         ):
             with self.subTest(condition=condition):
                 self.assertIn(condition, normalized)

@@ -23,6 +23,28 @@ records which release moved it.
   same typed-confirmation command as a CLI-only release.
 
 
+## [1.2.3]
+
+Template-changing release: migration `057-self-referential-handoff-commits`
+advances `workflowBaselineVersion` to `1.1.55`.
+
+### Changed
+
+- In Governed SDD, the completion handoff now states how to record a commit
+  that cannot name itself: a descriptive form by subject and branch, full SHAs
+  for earlier commits in a lifecycle-only correction, and a correction commit
+  followed by one push instead of amend or force-push. Reviewer preflight
+  resolves a descriptive current task commit to the registered task branch
+  `HEAD` and still blocks any value naming a different commit.
+
+### Upgrade notes
+
+- Run `meridian upgrade --apply` in each Governed SDD project to install
+  `task-worktree-handoff` v4 in `docs/COMPLETION_REPORT_TEMPLATE.md` and
+  `task-worktree-review-procedure` v7 in `docs/workflows/REVIEW.md`.
+- Existing handoffs are not rewritten.
+- Restart open agent sessions after upgrading so they read the new procedure.
+
 ## [1.2.2]
 
 Template-changing release: migration `056-manual-governed-proceed-worktree`

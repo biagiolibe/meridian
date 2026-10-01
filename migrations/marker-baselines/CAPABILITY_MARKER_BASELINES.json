@@ -99,8 +99,8 @@
       "version": 1
     },
     "task-worktree-handoff": {
-      "sha256": "c676c3c464c3f470fe9957a162dcf8574cb84ecaa6910c44772e119f59232415",
-      "version": 3
+      "sha256": "cd048ce1393263b7ae00fb6731d7beed8efc14cf459328d15114915a03c53e17",
+      "version": 4
     }
   },
   "templates/workflows/governed-sdd/docs/CONTEXT_BUDGET_POLICY.md": {
@@ -249,8 +249,8 @@
       "version": 1
     },
     "task-worktree-review-procedure": {
-      "sha256": "0fa3bb5edab85fc97cdc7132c7436b7f5682251d4d39285e55a1bf63be0eed68",
-      "version": 6
+      "sha256": "3f4212acd6e4178a1c1ce1048f1ae380b66b2e2f38eeb36a3ad2fbebb3324e05",
+      "version": 7
     }
   },
   "templates/workflows/governed-sdd/tasks/TASK_BLUEPRINT.md": {

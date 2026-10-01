@@ -8,15 +8,28 @@ and `ready-check` use that canonical path when no report path is supplied.
 ## Completion Report — <TASK-ID>
 
 - Files changed: `<paths>`
-<!-- MERIDIAN:BEGIN capability=task-worktree-handoff v3 -->
+<!-- MERIDIAN:BEGIN capability=task-worktree-handoff v4 -->
 - Branch: `<task-branch>`
 - Worktree: `<task-worktree path relative to the worktree root, as returned in handoff_worktree; never an absolute path>`
-- Implementation commit: `<commit SHA>`
-- Validated task commit: `<commit SHA covered by all validation evidence>`
+- Implementation commit: `<commit SHA, or the descriptive form below>`
+- Validated task commit: `<commit SHA covered by all validation evidence, or the descriptive form below>`
 - Validated base `main` commit: `<commit SHA from which the task worktree was created>`
-- Current task commit: `<commit SHA; validated task commit must be its ancestor and the intervening diff must contain only permitted lifecycle records>`
+- Current task commit: `<task branch HEAD SHA; validated task commit must be its ancestor and the intervening diff must contain only permitted lifecycle records, or the descriptive form below>`
 - Integration requirement: `<bounded gate | full combined-tree validation with reason>`
 - Declared integration surface: `<files/directories; dependencies; generated/configuration inputs; schemas; shared-governance records; behavioral surfaces, or explicit none for each category>`
+
+When this report is committed in the implementation commit, that commit cannot
+name itself. The implementation, validated task, and current task commit fields
+may therefore use a descriptive form that identifies the commit by subject and
+branch, for example `the task commit <subject> (created after this report; see
+git log -1 <task-branch>)`; the latter two fields may say `same as the
+implementation commit`. When a later lifecycle-only commit corrects or extends
+the report, name every earlier commit by full SHA and describe only the new
+commit. The current task commit always identifies task branch `HEAD`; never
+record the validated base `main` commit or any other commit in that field. To
+correct a wrong commit field, create a new lifecycle-only commit changing only
+the handoff record, push the task branch once, then begin the next review
+attempt. Amend and force-push remain prohibited.
 <!-- MERIDIAN:END -->
 - Validation: `<exact commands run with their exit status, or the CI check run and its conclusion for this exact commit — not a bare "passed">`
 - Manual verification: `<none | screenshot path — view checked — result>`

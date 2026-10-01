@@ -99,7 +99,7 @@ field is corrected without amend or force-push.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[ ]` | 088 | Define how a completion handoff names commits that cannot contain their own SHA | 🟡 P2 | — | [088](088-handoff-commits-that-cannot-name-themselves.md) |
+| `[x]` | 088 | Define how a completion handoff names commits that cannot contain their own SHA | 🟡 P2 | — | [088](done/088-handoff-commits-that-cannot-name-themselves.md) |
 
 ### Phase 29 — Workflow-aware console state and agent launch
 
