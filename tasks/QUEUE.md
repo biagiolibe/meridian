@@ -42,15 +42,6 @@ reasons, and creates the implementation follow-ups.
 |--------|----|-------|----------|------------|------|
 | `[ ]` | 100 | Design hands-off task closure | 🔴 P1 | 088, 097, 099 | [100](100-design-hands-off-task-closure.md) |
 
-### Phase 43 — Agent-sandbox test reliability
-
-Stops the full test suite from failing in the Codex sandbox because the macOS
-AppleScript compiler cannot reach its system services there.
-
-| Status | ID | Title | Priority | Depends on | File |
-|--------|----|-------|----------|------------|------|
-| `[/]` | 099 | Skip the AppleScript compile test when `osacompile` cannot run | 🔴 P1 | 086 | [099](099-skip-applescript-compile-test-when-osacompile-unusable.md) |
-
 ### Phase 41 — Governed Proceed prepares its worktree
 
 Makes a manually typed `Proceed with` in Governed SDD prepare the task's

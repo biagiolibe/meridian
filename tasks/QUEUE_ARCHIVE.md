@@ -16,6 +16,15 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 | 🟡 P2 | Important feature |
 | 🟢 P3 | Optimization / Polish |
 
+### Phase 43 — Agent-sandbox test reliability
+
+Stops the full test suite from failing in the Codex sandbox because the macOS
+AppleScript compiler cannot resolve the iTerm2 scripting dictionary there.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 099 | Skip the AppleScript compile test when `osacompile` cannot run | 🔴 P1 | 086 | [099](done/099-skip-applescript-compile-test-when-osacompile-unusable.md) |
+
 ### Phase 1 — Cost reduction (~2–3 days)
 
 `001` and `002` are ~2h each and land the same day. `006` is the item that matters:
