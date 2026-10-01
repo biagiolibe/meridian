@@ -16,16 +16,12 @@ from datetime import datetime
 from pathlib import Path
 
 sys.dont_write_bytecode = True
-from meridian import resolve_project_locations
-
-
-STATUS = {"`[ ]`": "TODO", "`[/]`": "IN_PROGRESS", "`[x]`": "DONE"}
-ID_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
-LINK_PATTERN = re.compile(r"\[[^]]+\]\(([^)#]+)(?:#[^)]*)?\)")
-
-
-class ConsoleError(Exception):
-    """Project state could not be read without ambiguity."""
+from meridian import MeridianError, detect_mode, resolve_project_locations, resolve_task_identity
+from console_workflow import (
+    ID_PATTERN, PROFILES, BranchFacts, ConsoleError, QueueRow, Profile, effective_state,
+    handoff_status, heading_title, latest_review_verdict, link_target, parse_queue,
+    record_status,
+)
 
 
 @dataclass(frozen=True)
@@ -41,15 +37,33 @@ class Task:
     worktree: str | None = None
     readiness: str = ""
     updated_at: int | None = None
+    lifecycle: str = "todo"
+    source: str = "main"
+    mismatch: str | None = None
+    changes_requested: bool = False
+    active_writer: bool = False
 
     @property
     def launch_command(self) -> str | None:
         return f"Proceed with {self.task_id}" if self.readiness == "READY" else None
 
     @property
+    def markers(self) -> tuple[str, ...]:
+        return (
+            *(("changes requested",) if self.changes_requested else ()),
+            *(("active writer",) if self.active_writer else ()),
+        )
+
+    @property
     def next_action(self) -> str:
         if self.readiness == "READY":
             return f"If assigned: {self.launch_command}"
+        if self.readiness == "MISMATCH":
+            return f"Resolve the state disagreement: {self.mismatch}"
+        if self.readiness == "READY FOR REVIEW":
+            return "Awaiting review of the task branch"
+        if self.readiness == "DONE ON BRANCH":
+            return "Awaiting integration of the task branch"
         if self.readiness == "IN PROGRESS":
             return "Continue the assigned task in its worktree"
         if self.readiness.startswith("BLOCKED"):
@@ -75,42 +89,13 @@ def _read_text(path: Path) -> str:
         raise ConsoleError(f"Cannot read {path}: {error}") from error
 
 
-def _queue_rows(path: Path) -> list[dict[str, str]]:
-    rows: list[dict[str, str]] = []
-    headers: list[str] = []
-    phase = ""
-    for line_number, line in enumerate(_read_text(path).splitlines(), 1):
-        if line.startswith("### "):
-            phase = line[4:].strip()
-        if not line.startswith("|"):
-            headers = []
-            continue
-        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
-        if "Status" in cells and "ID" in cells:
-            headers = cells
-            continue
-        if not headers or len(cells) != len(headers) or set("".join(cells)) <= {"-", ":"}:
-            continue
-        row = dict(zip(headers, cells))
-        if row.get("Status") not in STATUS:
-            raise ConsoleError(f"Unknown task status in {path}:{line_number}: {row.get('Status')}")
-        task_id = row["ID"].strip("`")
-        if not ID_PATTERN.fullmatch(task_id):
-            raise ConsoleError(f"Invalid task ID in {path}:{line_number}")
-        row["ID"] = task_id
-        row["Phase"] = phase
-        rows.append(row)
-    return rows
-
-
-def _task_path(project: Path, queue: Path, row: dict[str, str]) -> Path:
-    cell = row.get("File", row.get("Task File", ""))
-    match = LINK_PATTERN.fullmatch(cell)
-    if not match:
-        raise ConsoleError(f"Task {row['ID']} has no unambiguous file link")
-    path = (queue.parent / match.group(1)).resolve()
+def _task_path(project: Path, queue: Path, row: QueueRow) -> Path:
+    target = link_target(queue.relative_to(project).as_posix(), row.link)
+    if target is None:
+        raise ConsoleError(f"Task {row.task_id} has no unambiguous file link")
+    path = (project / target).resolve()
     if not path.is_relative_to(project) or not path.is_file():
-        raise ConsoleError(f"Task {row['ID']} file is unavailable within the project: {path}")
+        raise ConsoleError(f"Task {row.task_id} file is unavailable within the project: {path}")
     return path
 
 
@@ -127,18 +112,28 @@ def _section(text: str, name: str) -> tuple[str, ...]:
     return tuple(lines)
 
 
-def _git(project: Path, *args: str) -> str:
+def _git_result(project: Path, *args: str) -> subprocess.CompletedProcess[str]:
     try:
-        result = subprocess.run(
+        return subprocess.run(
             ("git", "-C", str(project), *args),
             capture_output=True, text=True, check=False, timeout=5,
             env={**os.environ, "GIT_OPTIONAL_LOCKS": "0"},
         )
     except (OSError, subprocess.TimeoutExpired) as error:
         raise ConsoleError(f"Git {' '.join(args)} failed: {error}") from error
+
+
+def _git(project: Path, *args: str) -> str:
+    result = _git_result(project, *args)
     if result.returncode:
         raise ConsoleError(f"Git {' '.join(args)} failed: {result.stderr.strip()}")
     return result.stdout
+
+
+def _git_optional(project: Path, *args: str) -> str | None:
+    """Return Git output, or None when the object or ref does not exist."""
+    result = _git_result(project, *args)
+    return None if result.returncode else result.stdout
 
 
 def _worktrees(project: Path) -> dict[str, str]:
@@ -152,81 +147,146 @@ def _worktrees(project: Path) -> dict[str, str]:
     return records
 
 
-def _committed_update(project: Path, path: Path) -> int | None:
+def _committed_update(project: Path, relative: str, ref: str = "HEAD") -> int | None:
     """Return the last committed change to a task record, when Git knows it."""
-    relative = path.relative_to(project).as_posix()
     try:
-        value = _git(project, "log", "-1", "--format=%ct", "--", relative).strip()
+        value = _git(project, "log", "-1", "--format=%ct", ref, "--", relative).strip()
         return int(value) if value else None
     except (ConsoleError, ValueError):
         return None
 
 
+def _select_profile(project: Path) -> Profile:
+    try:
+        mode = detect_mode(project)
+    except MeridianError as error:
+        raise ConsoleError(str(error).partition("; pass --mode")[0]) from error
+    return PROFILES[mode]
+
+
+def _relative(project: Path, path: Path) -> str:
+    try:
+        return path.relative_to(project).as_posix()
+    except ValueError as error:
+        raise ConsoleError(f"Task record is outside the project: {path}") from error
+
+
+def _branch_facts(project: Path, profile: Profile, task_id: str, queue: str,
+                  worktrees: dict[str, str]
+                  ) -> tuple[BranchFacts | None, str | None, str | None, str | None]:
+    """Read one task branch without touching its worktree.
+
+    Returns the branch facts, the branch task record text and path, and the
+    registered worktree path (known even when the branch ref is unreadable).
+    """
+    try:
+        identity = resolve_task_identity(project, task_id, "existing")
+    except MeridianError as error:
+        raise ConsoleError(f"Cannot resolve task identity for {task_id}: {error}") from error
+    branch = identity.branch_name
+    worktree = worktrees.get(branch)
+    if _git_optional(project, "rev-parse", "--verify", "--quiet", f"refs/heads/{branch}") is None:
+        return None, None, None, worktree
+    ref = f"refs/heads/{branch}"
+
+    def show(relative: str) -> str | None:
+        return _git_optional(project, "show", f"{ref}:{relative}")
+
+    queue_text = show(queue)
+    row = next((item for item in parse_queue(queue_text, f"{branch}:{queue}", profile)
+                if item.task_id == task_id), None) if queue_text is not None else None
+    record_path = link_target(queue, row.link) if row else None
+    record = show(record_path) if record_path else None
+    review = (show(_relative(project, identity.review_path))
+              if profile.name == "governed-sdd" else None)
+    base = "refs/heads/main" if _git_optional(
+        project, "rev-parse", "--verify", "--quiet", "refs/heads/main") is not None else "HEAD"
+    ahead = (_git_optional(project, "rev-list", "--count", f"{base}..{ref}") or "0").strip() != "0"
+    dirty = bool(worktree and (_git_optional(worktree, "status", "--porcelain") or "").strip())
+    facts = BranchFacts(
+        branch=branch, row=row, record=record_status(record),
+        handoff=handoff_status(show(_relative(project, identity.handoff_path))),
+        review_verdict=latest_review_verdict(review), ahead=ahead,
+        worktree=worktree, dirty=dirty,
+    )
+    return facts, record, record_path, worktree
+
+
 def load_snapshot(project: Path) -> Snapshot:
     project = project.expanduser().resolve()
-    workflow = project / "PROJECT_WORKFLOW.md"
-    if not workflow.is_file():
-        raise ConsoleError(f"No PROJECT_WORKFLOW.md in {project}")
-    if "LEAN_DELIVERY" not in _read_text(workflow):
-        raise ConsoleError("This console currently supports LEAN_DELIVERY queues")
+    profile = _select_profile(project)
     try:
         locations = resolve_project_locations(project)
     except Exception as error:
         raise ConsoleError(f"Cannot resolve canonical queue: {error}") from error
     queue = project / locations.queue
     archive = queue.with_name("QUEUE_ARCHIVE.md")
-    active_rows = _queue_rows(queue)
-    archived_rows = _queue_rows(archive) if archive.is_file() else []
+    active_rows = parse_queue(_read_text(queue), str(queue), profile)
+    archived_rows = parse_queue(_read_text(archive), str(archive), profile) if archive.is_file() else []
     by_id: dict[str, str] = {}
     for row in (*active_rows, *archived_rows):
-        task_id = row["ID"]
-        if task_id in by_id:
-            raise ConsoleError(f"Duplicate task ID across queues: {task_id}")
-        by_id[task_id] = STATUS[row["Status"]]
+        if row.task_id in by_id:
+            raise ConsoleError(f"Duplicate task ID across queues: {row.task_id}")
+        by_id[row.task_id] = row.status
     status_lines = _git(project, "status", "--porcelain=v1", "--branch").splitlines()
     if not status_lines:
         raise ConsoleError("Git status returned no branch line")
     branch_line = status_lines[0].removeprefix("## ")
     branch = branch_line.split("...", 1)[0].split(" [", 1)[0]
     worktrees = _worktrees(project)
+    queue_relative = _relative(project, queue)
     tasks: list[Task] = []
     for row in active_rows:
-        status = STATUS[row["Status"]]
-        if status == "DONE":
+        if profile.phases[row.status] == "done":
             continue
-        raw_dependencies = row.get("Depends on", row.get("Dependencies", ""))
         dependencies = tuple(
-            item.strip().strip("`") for item in raw_dependencies.split(",")
+            item.strip().strip("`") for item in row.dependencies.split(",")
             if item.strip() not in ("", "—", "-")
         )
         if any(not ID_PATTERN.fullmatch(item) for item in dependencies):
-            raise ConsoleError(f"Task {row['ID']} has an invalid dependency")
+            raise ConsoleError(f"Task {row.task_id} has an invalid dependency")
+        path = _task_path(project, queue, row)
+        primary_text = _read_text(path)
+        facts, branch_text, branch_path, worktree = _branch_facts(
+            project, profile, row.task_id, queue_relative, worktrees)
+        effective = effective_state(profile, row, record_status(primary_text), facts)
+        # Dependencies are satisfied by integrated state only: a task accepted on its
+        # branch does not unblock dependents until it reaches the primary queue.
         missing = [item for item in dependencies if item not in by_id]
-        waiting = [item for item in dependencies if by_id.get(item) not in (None, "DONE")]
-        if missing:
+        waiting = [item for item in dependencies
+                   if item in by_id and by_id[item] not in profile.satisfying]
+        if effective.mismatch:
+            readiness = "MISMATCH"
+        elif missing:
             readiness = "UNKNOWN: missing " + ", ".join(missing)
         elif waiting:
             readiness = "BLOCKED: " + ", ".join(waiting)
-        elif status == "IN_PROGRESS":
-            readiness = "IN PROGRESS"
         else:
-            readiness = "READY"
-        path = _task_path(project, queue, row)
-        task_text = _read_text(path)
-        branch_name = f"task-{int(row['ID']):03d}" if row["ID"].isdigit() else row["ID"].lower()
+            readiness = {
+                "todo": "READY", "in_progress": "IN PROGRESS",
+                "ready_for_review": "READY FOR REVIEW", "done": "DONE ON BRANCH",
+            }[effective.lifecycle]
+        from_branch = facts is not None and branch_text is not None and effective.source != "main"
+        task_text = branch_text if from_branch else primary_text
+        updated_path = branch_path if from_branch else _relative(project, path)
+        updated_ref = ("refs/heads/" + facts.branch) if from_branch else "HEAD"
+        title = row.title or heading_title(task_text) or row.task_id
         tasks.append(Task(
-            task_id=row["ID"], title=row.get("Title", ""), status=status,
-            phase=row["Phase"], dependencies=dependencies, path=path,
+            task_id=row.task_id, title=title, status=effective.status,
+            phase=row.section, dependencies=dependencies, path=path,
             objective=_section(task_text, "Objective"),
             criteria=_section(task_text, "Acceptance Criteria"),
-            worktree=worktrees.get(branch_name), readiness=readiness,
-            updated_at=_committed_update(project, path),
+            worktree=worktree, readiness=readiness,
+            updated_at=_committed_update(project, updated_path, updated_ref),
+            lifecycle=effective.lifecycle, source=effective.source,
+            mismatch=effective.mismatch, changes_requested=effective.changes_requested,
+            active_writer=effective.active_writer,
         ))
     return Snapshot(
         project=project, queue=queue, branch=branch_line,
         git_summary="clean" if len(status_lines) == 1 else f"{len(status_lines) - 1} changed paths",
         git_changes=len(status_lines) - 1, tasks=tuple(tasks),
-        done_count=sum(status == "DONE" for status in by_id.values()),
+        done_count=sum(profile.phases[status] == "done" for status in by_id.values()),
     )
 
 
@@ -265,6 +325,12 @@ def one_shot(state: ConsoleState) -> str:
         if objective:
             lines.append(f"  {objective}")
         lines.append(f"  Dependencies: {', '.join(task.dependencies) or 'none'}")
+        if task.source != "main":
+            lines.append(f"  State from: {task.source}")
+        if task.mismatch:
+            lines.append(f"  Mismatch: {task.mismatch}")
+        if task.markers:
+            lines.append(f"  Markers: {', '.join(task.markers)}")
         lines.append(f"  Next action: {task.next_action}")
         if task.worktree:
             lines.append(f"  Worktree: {task.worktree}")
@@ -353,7 +419,15 @@ def _wrapped(lines: tuple[str, ...] | list[str], width: int) -> list[str]:
     return output
 
 
+FILTERS = ("Ready", "Working", "Blocked", "Unknown", "Review", "Mismatch")
+
+
 def _state_label(task: Task) -> tuple[str, str]:
+    if task.readiness == "MISMATCH":
+        return "Mismatch", "blocked"
+    if task.lifecycle in ("ready_for_review", "done") and not task.readiness.startswith(
+            ("BLOCKED", "UNKNOWN")):
+        return "Review", "ready"
     if task.readiness == "READY":
         return "Ready", "ready"
     if task.readiness == "IN PROGRESS":
@@ -364,14 +438,14 @@ def _state_label(task: Task) -> tuple[str, str]:
 
 
 def _filter_counts(snapshot: Snapshot | None) -> dict[str, int]:
-    counts = {name: 0 for name in ("Ready", "Working", "Blocked", "Unknown")}
+    counts = {name: 0 for name in FILTERS}
     for task in snapshot.tasks if snapshot else ():
         counts[_state_label(task)[0]] += 1
     return counts
 
 
 def _cycle_filter(snapshot: Snapshot | None, current: str, direction: int) -> str:
-    filters = ("All", "Ready", "Working", "Blocked", "Unknown")
+    filters = ("All", *FILTERS)
     counts = _filter_counts(snapshot)
     start = filters.index(current)
     for step in range(1, len(filters) + 1):
@@ -450,6 +524,12 @@ def _detail_lines(task: Task, width: int, palette: dict[str, int],
         add("")
     add(task.title, "title")
     add(f"○ {label}", color)
+    if task.source != "main":
+        add(f"State from {task.source}", "muted")
+    if task.mismatch:
+        add(f"Mismatch: {task.mismatch}", "blocked")
+    for marker in task.markers:
+        add(f"● {marker.capitalize()}", "working")
     add("")
     add("Objective", "muted")
     for value in task.objective or ("Unavailable",):
@@ -502,7 +582,8 @@ def _draw_header(screen, state: ConsoleState, palette: dict[str, int],
         label = f" {name} {count} "
         attr = palette["tab"] if name == status_filter else palette[
             {"All": "text", "Ready": "ready", "Working": "working",
-             "Blocked": "blocked", "Unknown": "unknown"}[name]
+             "Blocked": "blocked", "Unknown": "unknown", "Review": "ready",
+             "Mismatch": "blocked"}[name]
         ]
         _put(screen, 1, x, label, len(label), attr)
         x += len(label) + 1
@@ -560,8 +641,10 @@ def _draw_list(screen, tasks: list[Task], selected_id: str | None,
         _put(screen, line_number, 9, _clip(f"○ {task.title}", title_width),
              title_width, row_attr)
         label, color = _state_label(task)
+        flags = ("↺" if task.changes_requested else "") + ("●" if task.active_writer else "")
         _put(screen, line_number, left_width - status_width - age_width - 2,
-             label, status_width, row_attr if selected else palette[color])
+             f"{label} {flags}" if flags else label, status_width,
+             row_attr if selected else palette[color])
         _put(screen, line_number, left_width - age_width - 1,
              _age(task.updated_at), age_width, row_attr if selected else palette["muted"])
     if not tasks:
