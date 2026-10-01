@@ -5525,6 +5525,64 @@ class WorktreeLifecycleCliTest(unittest.TestCase):
         result = self.run_cli("worktree", "prepare", "056")
         self.assertEqual(result.returncode, 64)
 
+    def run_console(self, *arguments: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [
+                sys.executable,
+                str(CLI),
+                "--framework-root",
+                str(ROOT),
+                "console",
+                "--project",
+                str(self.project),
+                *arguments,
+            ],
+            text=True,
+            capture_output=True,
+            check=False,
+            stdin=subprocess.DEVNULL,
+        )
+
+    def test_console_rejects_out_of_range_interval(self) -> None:
+        for value in ("0.1", "61"):
+            result = self.run_console("--interval", value)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("--interval must be between 0.2 and 60", result.stderr)
+
+    def test_console_requires_a_terminal(self) -> None:
+        result = self.run_console()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("interactive console requires a terminal", result.stderr)
+
+    def test_console_dispatches_to_framework_console_with_project_and_interval(self) -> None:
+        import project_console
+
+        with (
+            mock.patch.object(
+                sys,
+                "argv",
+                [
+                    "meridian",
+                    "--framework-root",
+                    str(ROOT),
+                    "console",
+                    "--project",
+                    str(self.project),
+                    "--interval",
+                    "5",
+                ],
+            ),
+            mock.patch.object(sys.stdin, "isatty", return_value=True),
+            mock.patch.object(sys.stdout, "isatty", return_value=True),
+            mock.patch.object(project_console, "main", return_value=0) as launched,
+        ):
+            result = meridian.main()
+
+        self.assertEqual(result, 0)
+        launched.assert_called_once_with(
+            ["--project", str(self.project.resolve()), "--interval", "5.0"]
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

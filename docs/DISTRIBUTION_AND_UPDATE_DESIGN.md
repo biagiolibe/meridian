@@ -1,8 +1,8 @@
 # Distribution and Update Channel Design
 
-Status: decided by task 049 (design only). No packaging, CLI, or publishing
-change ships with this document; the implementation is split into the
-follow-up tasks listed at the end.
+Status: decided by task 049, with the project console CLI surface added by task
+075. The command remains part of the tagged repository tree; no separate
+package or publishing channel is introduced.
 
 ## Problem
 
@@ -85,6 +85,24 @@ Rejected alternatives:
   work; adopters must land on a ledger-recorded release.
 - **Submission to a third-party or official marketplace directory.** Out of
   scope and outward-facing; it requires a separate developer decision.
+
+### Project console command
+
+The read-only project console is exposed as `meridian console`. It is resolved
+from the installed Meridian framework root and operates on the current working
+project by default:
+
+```text
+meridian console
+meridian console --project /path/to/project --interval 5
+```
+
+This is a local terminal view with automatic refresh; it does not control
+agents, write project state, or require a service. Claude Code receives the
+command from `${CLAUDE_PLUGIN_ROOT}/bin/meridian`. Codex adopters use the
+`bin/meridian` launcher from their tagged checkout with `MERIDIAN_ROOT` set to
+that checkout. The command is therefore versioned and updated together with
+the tagged Meridian tree.
 
 ## Decision 2 — Version pinning
 
