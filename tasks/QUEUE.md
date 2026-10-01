@@ -29,7 +29,7 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 
 ## 🏃 Active Queue
 
-Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, 25, 26, and 27
+Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, 25, 26, 27, and 28
 are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 
 ### Phase 24 — Review worktree routing correction
@@ -41,15 +41,6 @@ worktree, and migrates the correction to existing adopters.
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
 | `[x]` | 064 | Remove the primary-checkout review conflict | 🔴 P1 | 051, 063 | [064](done/064-remove-primary-checkout-review-conflict.md) |
-
-### Phase 28 — Project console distribution
-
-Expose the read-only project console through the distributed Meridian CLI and
-document how adopters use it from any Meridian project.
-
-| Status | ID | Title | Priority | Depends on | File |
-|--------|----|-------|----------|------------|------|
-| `[x]` | 075 | Distribute the project console through the Meridian CLI | 🟡 P2 | 074, 065 | [075](done/075-distribute-project-console-cli.md) |
 
 ### Phase 23 — Shared task identity resolver
 
