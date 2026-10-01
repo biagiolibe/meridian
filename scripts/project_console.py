@@ -48,6 +48,7 @@ class Task:
     active_writer: bool = False
     record_problem: str | None = None
     review: str | None = None
+    dependency_states: tuple[tuple[str, str], ...] = ()
 
     @property
     def launch_command(self) -> str | None:
@@ -162,14 +163,16 @@ def _task_path(project: Path, queue: Path, row: QueueRow,
     return path, None
 
 
-def _section(text: str, name: str) -> tuple[str, ...]:
+def _section(text: str, *names: str) -> tuple[str, ...]:
+    """Return the first named level-two section, tolerating decorative emoji."""
     inside = False
     lines: list[str] = []
     for line in text.splitlines():
         if line.startswith("## "):
             if inside:
                 break
-            inside = name.casefold() in line.casefold()
+            heading = re.sub(r"^[^\w]+", "", line[3:]).strip().casefold()
+            inside = heading in {name.casefold() for name in names}
         elif inside and line.strip():
             lines.append(line.strip())
     return tuple(lines)
@@ -383,7 +386,7 @@ def load_snapshot(project: Path, identities: IdentityCache | None = None) -> Sna
         tasks.append(Task(
             task_id=row.task_id, title=title, status=effective.status,
             phase=row.section, dependencies=dependencies, path=path,
-            objective=_section(task_text or "", "Objective"),
+            objective=_section(task_text or "", "Objective", "Goal"),
             criteria=_section(task_text or "", "Acceptance Criteria"),
             worktree=worktree, readiness=readiness,
             updated_at=_committed_update(project, updated_path, updated_ref) if updated_path else None,
@@ -391,6 +394,13 @@ def load_snapshot(project: Path, identities: IdentityCache | None = None) -> Sna
             mismatch=effective.mismatch, changes_requested=effective.changes_requested,
             active_writer=effective.active_writer,
             record_problem=problem, review=row.review,
+            dependency_states=tuple(
+                (item, {
+                    "done": "Done", "in_progress": "Working",
+                    "ready_for_review": "Review", "todo": "Open",
+                }[profile.phases[by_id[item]]])
+                for item in dependencies if item in by_id
+            ),
         ))
     return Snapshot(
         project=project, queue=queue, branch=branch_line,
@@ -694,15 +704,25 @@ def _detail_lines(task: Task, width: int, palette: dict[str, int],
     if task.record_problem:
         add(task.record_problem[:1].upper() + task.record_problem[1:], "blocked")
     add("")
+    add("Dependencies", "muted")
+    states = dict(task.dependency_states)
+    for dependency in task.dependencies:
+        add(f"{dependency} — {states.get(dependency, 'state unavailable')}")
+    if not task.dependencies:
+        add("none")
+    if not compact:
+        add("")
     add("Objective", "muted")
-    for value in task.objective or ("Unavailable",):
+    for value in task.objective or ("Unavailable", "Searched headings: Objective, Goal"):
         add(value)
     if not compact:
         add("")
-    add("Dependencies", "muted")
-    add(", ".join(task.dependencies) or "none")
-    if not compact:
-        add("")
+    if task.criteria:
+        add("Acceptance criteria", "muted")
+        for value in task.criteria:
+            add(value)
+        if not compact:
+            add("")
     add("─" * min(20, width), "line")
     if not compact:
         add("")
@@ -863,16 +883,35 @@ def _draw_list(screen, tasks: list[Task], selected_id: str | None,
     return offset
 
 
+def _detail_view(task: Task | None, width: int, height: int, top: int,
+                 offset: int, palette: dict[str, int]) -> tuple[list[tuple[str, int]], int, int]:
+    """Build a detail viewport and clamp its offset for this exact terminal size."""
+    if task is None:
+        return [], 0, 1
+    lines = _detail_lines(task, width - 2, palette, compact=height < 30)
+    body_lines = max(1, height - top - 2)
+    return lines, min(max(0, offset), max(0, len(lines) - body_lines)), body_lines
+
+
+def _scroll_detail(task: Task | None, width: int, height: int, top: int,
+                   offset: int, delta: int, palette: dict[str, int]) -> int:
+    lines, offset, body_lines = _detail_view(task, width, height, top, offset, palette)
+    return min(max(0, offset + delta), max(0, len(lines) - body_lines))
+
+
 def _draw_detail(screen, task: Task | None, x: int, top: int, width: int,
                  height: int, offset: int, palette: dict[str, int]) -> set[int]:
     if task is None:
         _put(screen, top, x, "No task selected", width, palette["muted"])
         return set()
-    lines = _detail_lines(task, width - 2, palette, compact=height < 30)
-    body_lines = max(1, height - top - 2)
-    offset = min(offset, max(0, len(lines) - body_lines))
+    lines, offset, body_lines = _detail_view(task, width, height, top, offset, palette)
     for y, (value, attr) in enumerate(lines[offset:offset + body_lines], top):
         _put(screen, y, x, value, width - 1, attr)
+    if offset:
+        _put(screen, top, x + max(0, width - 13), "↑ more above", 12, palette["muted"])
+    if offset + body_lines < len(lines):
+        _put(screen, top + body_lines - 1, x + max(0, width - 13), "↓ more below", 12,
+             palette["muted"])
     if not task.launch_command:
         return set()
     action_start = next(i for i, (value, _) in enumerate(lines)
@@ -890,7 +929,9 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
         pass
     palette = _palette(screen)
     try:
-        curses.mousemask(curses.BUTTON1_CLICKED | curses.BUTTON1_RELEASED)
+        curses.mousemask(curses.BUTTON1_CLICKED | curses.BUTTON1_RELEASED
+                         | getattr(curses, "BUTTON4_PRESSED", 0)
+                         | getattr(curses, "BUTTON5_PRESSED", 0))
     except curses.error:
         pass
     screen.timeout(100)
@@ -901,6 +942,7 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
     searching = False
     help_visible = False
     detail_open = False
+    detail_focused = False
     status_filter = "All"
     last_poll = 0.0
     notice = ""
@@ -919,6 +961,8 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
         height, width = screen.getmaxyx()
         screen.erase()
         action_bounds: tuple[int, int, set[int]] | None = None
+        detail_bounds: tuple[int, int] | None = None
+        detail_width = 0
         if height < 12 or width < 50:
             _put(screen, 0, 0, "Terminal too small (minimum 50x12). Press q to quit.", width,
                  palette["text"])
@@ -941,6 +985,10 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
                 for y, line in enumerate(help_lines, 4):
                     _put(screen, y, 2, line, width - 4, palette["text"] if y == 4 else palette["base"])
             elif detail_open:
+                detail_width = width - 4
+                detail_bounds = (2, width - 3)
+                _, detail_offset, _ = _detail_view(selected_task, detail_width, height, 4,
+                                                   detail_offset, palette)
                 action_rows = _draw_detail(screen, selected_task, 2, 4, width - 4,
                                            height, detail_offset, palette)
                 action_bounds = (2, width - 4, action_rows)
@@ -954,6 +1002,10 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
                     for y in range(3, height - 2):
                         _put(screen, y, divider, "│", 1, palette["line"])
                     detail_x = left_width + 1
+                    detail_width = width - left_width - 2
+                    detail_bounds = (detail_x, width - 3)
+                    _, detail_offset, _ = _detail_view(selected_task, detail_width, height, 4,
+                                                       detail_offset, palette)
                     action_rows = _draw_detail(screen, selected_task, detail_x, 4,
                                                width - left_width - 2, height,
                                                detail_offset, palette)
@@ -967,7 +1019,8 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
             elif detail_open or help_visible:
                 footer = "Esc back   [/] scroll   r refresh   q quit"
             else:
-                footer = "? help   ↑/↓ move   tab filter   enter details   c copy   / search   r refresh   q quit"
+                footer = ("? help   ↑/↓ move   [/] scroll detail   tab filter   enter details   "
+                          "c copy   / search   r refresh   q quit")
             _put(screen, height - 2, 0, "─" * max(0, width - 1),
                  width - 1, palette["line"])
             _put(screen, height - 1, 1, footer, width - 2,
@@ -981,6 +1034,15 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
                 _, mouse_x, mouse_y, _, button_state = curses.getmouse()
             except curses.error:
                 continue
+            wheel_up = getattr(curses, "BUTTON4_PRESSED", 0)
+            wheel_down = getattr(curses, "BUTTON5_PRESSED", 0)
+            in_detail = bool(detail_bounds and detail_bounds[0] <= mouse_x <= detail_bounds[1])
+            if button_state & (wheel_up | wheel_down):
+                if selected_task and (detail_open or in_detail) and detail_width:
+                    detail_offset = _scroll_detail(
+                        selected_task, detail_width, height, 4, detail_offset,
+                        -3 if button_state & wheel_up else 3, palette)
+                continue
             if not button_state & (curses.BUTTON1_CLICKED | curses.BUTTON1_RELEASED):
                 continue
             tab = _tab_at(snapshot, mouse_x, mouse_y)
@@ -993,6 +1055,8 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
                     notice = (f"Copied: {command}" if _copy_to_clipboard(command)
                               else "Clipboard unavailable")
                     notice_until = time.monotonic() + 2
+            elif in_detail:
+                detail_focused = True
             continue
         if searching:
             if key in (10, 13, 27):
@@ -1005,11 +1069,27 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
                 detail_offset = offset = 0
             continue
         if key == 27:
-            detail_open = help_visible = False
+            detail_open = detail_focused = help_visible = False
             continue
         if key in (ord("q"), ord("Q")):
             return
-        if key in (ord("j"), curses.KEY_DOWN) and not detail_open and not help_visible:
+        scroll_focus = detail_open or detail_focused
+        page = max(1, height - 4 - 2)
+        if (key in (ord("j"), curses.KEY_DOWN) and scroll_focus and not help_visible
+                and selected_task and detail_width):
+            detail_offset = _scroll_detail(selected_task, detail_width, height, 4,
+                                           detail_offset, 1, palette)
+        elif (key in (ord("k"), curses.KEY_UP) and scroll_focus and not help_visible
+              and selected_task and detail_width):
+            detail_offset = _scroll_detail(selected_task, detail_width, height, 4,
+                                           detail_offset, -1, palette)
+        elif key == curses.KEY_NPAGE and selected_task and detail_width:
+            detail_offset = _scroll_detail(selected_task, detail_width, height, 4,
+                                           detail_offset, page, palette)
+        elif key == curses.KEY_PPAGE and selected_task and detail_width:
+            detail_offset = _scroll_detail(selected_task, detail_width, height, 4,
+                                           detail_offset, -page, palette)
+        elif key in (ord("j"), curses.KEY_DOWN) and not detail_open and not help_visible:
             if visible:
                 index = next((i for i, task in enumerate(visible)
                               if task.task_id == selected_id), 0)
@@ -1023,16 +1103,16 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
             detail_offset = 0
         elif key == ord("["):
             detail_offset = max(0, detail_offset - 1)
-        elif key == ord("]") or key == curses.KEY_NPAGE:
-            detail_offset += 1
-        elif key == curses.KEY_PPAGE:
-            detail_offset = max(0, detail_offset - 1)
+        elif key == ord("]") and selected_task and detail_width:
+            detail_offset = _scroll_detail(selected_task, detail_width, height, 4,
+                                           detail_offset, 1, palette)
         elif key in (9, curses.KEY_BTAB) and not detail_open and not help_visible:
             direction = -1 if key == curses.KEY_BTAB else 1
             status_filter = _cycle_filter(snapshot, status_filter, direction)
             offset = detail_offset = 0
         elif key in (10, 13) and selected_task and not help_visible:
             detail_open = True
+            detail_focused = True
             detail_offset = 0
         elif key == ord("/"):
             searching = True
