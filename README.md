@@ -150,6 +150,9 @@ from `meridian@meridian-local` to `meridian@meridian`. Migrate once:
 /plugin install meridian@meridian
 ```
 
+The migration can leave `~/.claude/plugins/cache/meridian-local/` on disk. It is
+not used any more and can be deleted.
+
 ### Language behavior
 
 During initialization, choose the language used for agent-developer conversation. Meridian stores that preference in `LANGUAGE_POLICY.md`; agents must keep using it even when an individual prompt is written in another language. The file also establishes an unconditional invariant: every persistent repository artifact—including code, documentation, comments, identifiers, user-facing strings, tests, configuration text, and commit messages—must be in English.

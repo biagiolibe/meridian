@@ -15,6 +15,13 @@ records which release moved it.
 
 ## [Unreleased]
 
+### Documentation
+
+- The `meridian-local` to `meridian` migration can leave
+  `~/.claude/plugins/cache/meridian-local/` on disk; it is unused and can be
+  deleted. The `v1.2.0` install evidence is recorded in
+  `docs/HOST_CAPABILITY_CONTRACT.md`.
+
 ## [1.2.0]
 
 CLI-only release: this release introduces no migration and leaves

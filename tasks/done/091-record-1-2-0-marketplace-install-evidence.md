@@ -16,13 +16,13 @@ tag carried it; release 1.2.0 is the first.
 
 ## Acceptance Criteria
 
-- [ ] The contract section "Verified Claude Code marketplace install probe"
+- [x] The contract section "Verified Claude Code marketplace install probe"
   gains a dated subsection for the `v1.2.0` migration. It states the Claude
   Code version used (`claude --version`, captured when the task runs), that
   the run was the developer's real user-scope installation and not an isolated
   `CLAUDE_CONFIG_DIR`, and that the commands were entered in the interactive
   `/plugin` interface.
-- [ ] The subsection records these results as verified, each with its
+- [x] The subsection records these results as verified, each with its
   evidence source:
   - `/plugin marketplace add biagiolibe/meridian#v1.2.0` registered the
     marketplace `meridian` with source `github`, repo `biagiolibe/meridian`,
@@ -37,23 +37,23 @@ tag carried it; release 1.2.0 is the first.
     prints its usage.
   - The `/plugin` detail view lists the commands, skills, and hooks of
     `1.2.0`.
-- [ ] The existing "Still unverified" paragraph is rewritten so the
+- [x] The existing "Still unverified" paragraph is rewritten so the
   `meridian@meridian` name against a published tag is no longer listed, while
   these remain explicitly `unverified`: `/plugin marketplace update meridian`
   for an unpinned marketplace moving to a newer release, `${CLAUDE_PLUGIN_ROOT}`
   expansion inside a live Claude session, and everything about Codex.
-- [ ] A leftover cache directory of the old marketplace
+- [x] A leftover cache directory of the old marketplace
   (`~/.claude/plugins/cache/meridian-local/`) is recorded as an observed
   side effect of the migration, not as a defect, and the migration notes in
   `README.md` and `CHANGELOG.md` mention that the directory can be deleted if
   the README does not already say so.
-- [ ] If the developer supplies direct evidence that a hook command using
+- [x] If the developer supplies direct evidence that a hook command using
   `${CLAUDE_PLUGIN_ROOT}` ran from the installed plugin in a new session, that
   evidence is recorded and the item moves to verified. Without it the item
   stays `unverified`; the `/plugin` detail view alone is not accepted as proof.
-- [ ] No tracked file contains a machine-specific absolute path; paths are
+- [x] No tracked file contains a machine-specific absolute path; paths are
   written relative to `~` or to the plugin cache root.
-- [ ] `python3 scripts/check_repository.py` passes.
+- [x] `python3 scripts/check_repository.py` passes.
 
 ## Relevant Files
 
