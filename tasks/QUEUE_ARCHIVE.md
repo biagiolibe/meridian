@@ -264,4 +264,13 @@ Let the interactive console use the terminal's own background.
 |--------|----|-------|----------|------------|------|
 | `[x]` | 074 | Use the terminal background in the project console | 🟢 P3 | 073 | [074](done/074-match-console-background-color.md) |
 
+### Phase 28 — Project console distribution
+
+Expose the read-only project console through the distributed Meridian CLI and
+document how adopters use it from any Meridian project.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 075 | Distribute the project console through the Meridian CLI | 🟡 P2 | 074, 065 | [075](done/075-distribute-project-console-cli.md) |
+
 *Last updated: 2026-10-01*
