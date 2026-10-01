@@ -2,7 +2,7 @@
 
 Use this procedure only for `Review <TASK-ID>` after the entry-point router has applied its always-loaded invariants.
 
-<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v6 -->
+<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v7 -->
 ## Mandatory task-worktree preflight
 
 This is the first review action. Before reading the assigned task,
@@ -22,10 +22,14 @@ implementation files, or any implementation diff:
    check, run `git worktree list
    --porcelain` and locate exactly one registered entry whose normalized
    absolute path equals the handoff value resolved against the worktree root. The entry must record the handoff branch
-   as `refs/heads/<task-branch>` and the handoff current task commit as its
-   `HEAD`. Do not infer the task worktree from the session's initial current
-   directory. If the path is absent, unregistered, duplicated, or disagrees
-   with the handoff, return `BLOCKED`.
+   as `refs/heads/<task-branch>` and its `HEAD`. A full-SHA current task commit
+   field must equal that `HEAD`. For a descriptive current task commit field,
+   resolve it to the registered task branch `HEAD` and confirm its stated
+   subject matches `git log -1 --format=%s <task-branch>`; treat that resolved
+   value as `HEAD` for this comparison. Do not infer the task worktree from
+   the session's initial current directory. If the path is absent, unregistered,
+   duplicated, disagrees with the handoff, names a different commit, or has a
+   mismatched subject, return `BLOCKED`.
 4. Root additional read-only Git checks in the recorded path with `git -C
    <absolute-task-worktree> ...`. Verify its absolute top level, symbolic
    branch, `HEAD`, and empty `git status --short`; verify that the validated
