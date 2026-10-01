@@ -290,9 +290,17 @@ a stale one yourself rather than expecting Meridian to.
 Have Meridian review and, after confirmation, create the skill links:
 
 ```bash
+meridian codex doctor  # read-only permission-profile, skill-link, and MERIDIAN_ROOT check
 meridian setup --check
 meridian setup --apply
 ```
+
+`meridian codex doctor` reports the current `permission-model`,
+`profile-ownership`, `project-trust`, `command-policy`,
+`lifecycle-command-policy`, `worktree-root-write`, `git-metadata`,
+`skill-links`, and `MERIDIAN_ROOT` states. Use it to inspect the machine
+profile before allowing `setup --apply`; it does not modify the profile or
+links.
 
 To update, read the release notes, then fetch and move the pin before touching
 any project:
@@ -510,11 +518,20 @@ This is a process boundary, not a claim that every project needs bureaucracy. Us
 commands/                         Claude Code commands
 hooks/                            Queue briefing hook
 bin/                              Framework maintenance CLI
+capabilities/                     Machine-readable framework capability catalog
+docs/                             Architecture, workflow, and operator documentation
 migrations/                       Versioned deterministic upgrade records
+release-baselines/                Archived release baseline templates
+releases/                         Immutable release ledger records
+schemas/                          JSON schemas for Meridian records
+scripts/                          Repository validation and release tooling
 skills/                           Codex and Claude Code workflow skills
+tasks/                            Active task records, queue, and handoffs
 templates/base/                   Shared stack-agnostic templates
 templates/workflows/lean-delivery/ Lean Delivery overlay
 templates/workflows/governed-sdd/ Governed-SDD overlay
+tests/                            Unit tests
+.github/workflows/                GitHub Actions workflows
 WORKFLOW_GUIDE.md                 Lean Delivery workflow reference
 CONTRIBUTING.md                   Contribution guidance and validation
 ```
@@ -552,9 +569,20 @@ python3 -m unittest discover -s tests -v
 
 The check validates JSON metadata, Bash syntax, required repository files, and local Markdown links. Read [CONTRIBUTING.md](CONTRIBUTING.md) for workflow-specific contribution guidance.
 
+### Releases
+
+The maintainer writes the changelog entries and any required migration before
+preparing a release. Run `python3 scripts/release.py prepare --bump patch` (or
+the appropriate bump) to make and validate the local release commit. Then run
+`python3 scripts/release.py publish --confirm v<version>`: `publish` pushes
+`main` and the tag only after that exact confirmation. The complete procedure
+is in [CONTRIBUTING.md](CONTRIBUTING.md#release-procedure).
+
 ## Roadmap
 
-The immediate goals are to stabilize the public documentation, validate the workflow across real projects, and make installation and release management smoother for both supported agent environments.
+The immediate goals are the open queue items: make a 1.0.0 project upgrade to
+the current release in one step, and define the completion-handoff evidence for
+commits that cannot contain their own SHA.
 
 ## License
 

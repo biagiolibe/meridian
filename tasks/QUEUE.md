@@ -39,7 +39,7 @@ run of `scripts/release.py`, and brings the README in line with what ships.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[ ]` | 095 | Fix the release command's usage and dry run, and update the README | 🟡 P2 | 093, 094 | [095](095-release-command-fixes-and-readme.md) |
+| `[/]` | 095 | Fix the release command's usage and dry run, and update the README | 🟡 P2 | 093, 094 | [095](095-release-command-fixes-and-readme.md) |
 
 ### Phase 38 — Release command
 

@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import json
+import io
 import subprocess
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 from unittest import mock
 
@@ -73,6 +75,31 @@ class ReleasePrepareTest(unittest.TestCase):
         before = self.git("status", "--porcelain").stdout
         self.assertEqual(self.invoke("--bump", "patch", "--dry-run"), 0)
         self.assertEqual(self.git("status", "--porcelain").stdout, before)
+
+    def test_prepare_word_matches_legacy_prepare_form(self) -> None:
+        legacy = io.StringIO()
+        named = io.StringIO()
+        with redirect_stdout(legacy):
+            self.assertEqual(self.invoke("--bump", "patch", "--dry-run"), 0)
+        with redirect_stdout(named):
+            self.assertEqual(self.invoke("prepare", "--bump", "patch", "--dry-run"), 0)
+        self.assertEqual(named.getvalue(), legacy.getvalue())
+
+    def test_dry_run_prints_only_new_changelog_section(self) -> None:
+        self.write_changelog("### Added\n\n- New command." + "\n\n## [0.9.9]\n\n" + "Old release.\n" * 500)
+        self.git("add", "CHANGELOG.md")
+        self.git("commit", "-qm", "long changelog")
+        output = io.StringIO()
+        with redirect_stdout(output):
+            self.assertEqual(self.invoke("--bump", "patch", "--dry-run"), 0)
+        text = output.getvalue()
+        self.assertTrue(text.startswith("Derived release kind: CLI-only release\nVersion: 1.0.1\nWould write:"))
+        self.assertIn("Derived release kind: CLI-only release", text)
+        self.assertIn("Version: 1.0.1", text)
+        self.assertIn("Would write: VERSION, .claude-plugin/plugin.json, releases/1.0.1.json, CHANGELOG.md", text)
+        self.assertIn("## [1.0.1]", text)
+        self.assertNotIn("## [0.9.9]", text)
+        self.assertLess(len(text), 500)
 
     def test_template_change_needs_upgrade_notes(self) -> None:
         (self.root / "migrations/001-test.json").write_text('{"id":"001-test","to":"1.0.1"}', encoding="utf-8")
