@@ -4,7 +4,7 @@
 > **Category**: Host Integration / CLI
 > **Priority**: 🟡 P2
 > **Estimate**: ~5–8h
-> **Assigned to**: unassigned
+> **Assigned to**: Codex
 > **Session**: 2026-10-01 worktree-root unification design
 
 ## 🎯 Objective
