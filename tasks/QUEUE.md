@@ -42,6 +42,16 @@ column, and explains why a directive is withheld.
 |--------|----|-------|----------|------------|------|
 | `[ ]` | 087 | Read the review policy from the task record in the console | 🟡 P2 | 077 | [087](087-console-read-review-policy-from-task-record.md) |
 
+### Phase 33 — Handoff commits that cannot name themselves
+
+Makes the Governed SDD completion handoff and reviewer preflight state how a
+handoff names a commit that cannot contain its own SHA, and how a wrong commit
+field is corrected without amend or force-push.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 088 | Define how a completion handoff names commits that cannot contain their own SHA | 🟡 P2 | — | [088](088-handoff-commits-that-cannot-name-themselves.md) |
+
 ### Phase 29 — Workflow-aware console state and agent launch
 
 Makes the project console show each task's real state in both Lean Delivery and

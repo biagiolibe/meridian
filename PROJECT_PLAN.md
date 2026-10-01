@@ -55,6 +55,7 @@
 - `[x]` 085 — Repair and replace the Codex profile root in one setup step.
 - `[x]` 086 — Launch console agents in a horizontal iTerm2 split pane.
 - `[ ]` 087 — Read the review policy from the task record in the console.
+- `[ ]` 088 — Define how a completion handoff names commits that cannot contain their own SHA.
 - `[ ]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.
 - `[x]` 053 — Remove machine-specific absolute paths from tracked records.
