@@ -282,4 +282,14 @@ the console's own session, so the console stays visible beside the agent.
 |--------|----|-------|----------|------------|------|
 | `[x]` | 086 | Launch console agents in a horizontal iTerm2 split pane | 🟡 P2 | 077 | [086](done/086-console-launch-agent-in-iterm2-split-pane.md) |
 
+### Phase 32 — Console review launch for task-record review policy
+
+Makes the console offer the permitted `Review` directive when a Governed SDD
+project declares the review policy in the task record instead of a queue
+column, and explains why a directive is withheld.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 087 | Read the review policy from the task record in the console | 🟡 P2 | 077 | [087](done/087-console-read-review-policy-from-task-record.md) |
+
 *Last updated: 2026-10-01*
