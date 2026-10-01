@@ -24,6 +24,12 @@ records which release moved it.
 
 ### Changed
 
+- The release script now enforces the adopter-facing release-notes contract: a
+  `CHANGELOG.md` release section must start with `CLI-only release` or
+  `Template-changing release`, the kind must agree with `baselineChanged` in
+  `releases/<version>.json`, and a template-changing section must carry a
+  non-empty `### Upgrade notes` subsection. Otherwise the release publishes
+  nothing.
 - The project console now starts Claude Code and Codex in a horizontal iTerm2
   split pane below the console instead of opening a tab. Repeated launches split
   the console pane again and reduce the space available to existing panes.

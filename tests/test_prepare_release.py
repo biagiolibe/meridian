@@ -18,6 +18,8 @@ CHANGELOG = """# Changelog
 
 ## [1.2.3]
 
+CLI-only release: no template, workflow rule, or managed file changed.
+
 Body of the newest release.
 
 ### Fixed
@@ -33,7 +35,8 @@ Older body.
 class ExtractChangelogSectionTest(unittest.TestCase):
     def test_returns_only_the_requested_section(self) -> None:
         section = pr.extract_changelog_section(CHANGELOG, "1.2.3")
-        self.assertTrue(section.startswith("Body of the newest release."))
+        self.assertTrue(section.startswith("CLI-only release:"))
+        self.assertIn("Body of the newest release.", section)
         self.assertIn("### Fixed", section)
         self.assertNotIn("Older body", section)
 
@@ -60,7 +63,7 @@ class ReleaseConsistencyTest(unittest.TestCase):
         (self.root / ".claude-plugin").mkdir()
         (self.root / "VERSION").write_text("1.2.3\n", encoding="utf-8")
         (self.root / "CHANGELOG.md").write_text(CHANGELOG, encoding="utf-8")
-        self.write_record({"version": "1.2.3", "gitTag": "v1.2.3"})
+        self.write_record({"version": "1.2.3", "gitTag": "v1.2.3", "baselineChanged": False})
         self.write_plugin("1.2.3")
 
     def write_record(self, data: dict) -> None:
@@ -97,6 +100,54 @@ class ReleaseConsistencyTest(unittest.TestCase):
         (self.root / "CHANGELOG.md").write_text("## [1.2.2]\nx\n", encoding="utf-8")
         with self.assertRaisesRegex(pr.ReleaseError, "no '## \\[1.2.3\\]'"):
             pr.check_release_consistency(self.root, "v1.2.3")
+
+    def write_changelog(self, section: str) -> None:
+        (self.root / "CHANGELOG.md").write_text(f"## [1.2.3]\n\n{section}\n", encoding="utf-8")
+
+    def write_baseline_changed(self, value: object) -> None:
+        self.write_record({"version": "1.2.3", "gitTag": "v1.2.3", "baselineChanged": value})
+
+    def test_template_changing_section_with_upgrade_notes_passes(self) -> None:
+        self.write_baseline_changed(True)
+        self.write_changelog(
+            "Template-changing release: migration `x` advances the baseline.\n\n"
+            "### Upgrade notes\n\n- Run `meridian upgrade --apply`.\n\n### Added\n\n- Y."
+        )
+        self.assertEqual(pr.check_release_consistency(self.root, "v1.2.3"), "1.2.3")
+
+    def test_kind_line_must_agree_with_ledger(self) -> None:
+        with self.subTest("cli-only line, baselineChanged true"):
+            self.write_baseline_changed(True)
+            with self.assertRaisesRegex(pr.ReleaseError, "baselineChanged true"):
+                pr.check_release_consistency(self.root, "v1.2.3")
+        with self.subTest("template-changing line, baselineChanged false"):
+            self.write_baseline_changed(False)
+            self.write_changelog(
+                "Template-changing release: migration `x`.\n\n### Upgrade notes\n\n- Apply."
+            )
+            with self.assertRaisesRegex(pr.ReleaseError, "baselineChanged false"):
+                pr.check_release_consistency(self.root, "v1.2.3")
+
+    def test_first_line_must_name_a_kind(self) -> None:
+        self.write_changelog("Some prose without a kind.")
+        with self.assertRaisesRegex(pr.ReleaseError, "must start with"):
+            pr.check_release_consistency(self.root, "v1.2.3")
+
+    def test_baseline_changed_must_be_boolean(self) -> None:
+        self.write_baseline_changed("yes")
+        with self.assertRaisesRegex(pr.ReleaseError, "must be true or false"):
+            pr.check_release_consistency(self.root, "v1.2.3")
+
+    def test_template_changing_section_requires_upgrade_notes(self) -> None:
+        self.write_baseline_changed(True)
+        for body in (
+            "Template-changing release: migration `x`.\n\n### Added\n\n- Y.",
+            "Template-changing release: migration `x`.\n\n### Upgrade notes\n\n### Added\n\n- Y.",
+        ):
+            with self.subTest(body=body):
+                self.write_changelog(body)
+                with self.assertRaisesRegex(pr.ReleaseError, "Upgrade notes"):
+                    pr.check_release_consistency(self.root, "v1.2.3")
 
     def test_notes_link_the_release_record(self) -> None:
         notes = pr.render_release_notes(self.root, "v1.2.3", "owner/repo")
