@@ -50,7 +50,7 @@
 - `[x]` 084 — Show uncommitted in-progress task state in the console.
 - `[x]` 077 — Launch Claude Code or Codex from the console in an iTerm2 tab.
 - `[x]` 067 — Enforce the adopter-facing release-notes contract.
-- `[/]` 068 — Document and test the upgrade support policy.
+- `[x]` 068 — Document and test the upgrade support policy.
 - `[x]` 083 — Unify worktree-root resolution and add `meridian setup`.
 - `[x]` 085 — Repair and replace the Codex profile root in one setup step.
 - `[x]` 086 — Launch console agents in a horizontal iTerm2 split pane.
