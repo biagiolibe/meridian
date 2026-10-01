@@ -17,26 +17,26 @@ loop that reads keys, so input is blocked for most of each cycle.
 
 ## Acceptance Criteria
 
-- [ ] On this repository's current queue, `load_snapshot` completes in under
+- [x] On this repository's current queue, `load_snapshot` completes in under
   0.5 seconds on a warm run, measured by a recorded command, with the
   subprocess count per task bounded and stated in the handoff.
-- [ ] The cause of the repeated `check-ref-format` calls is identified and
+- [x] The cause of the repeated `check-ref-format` calls is identified and
   recorded in the handoff before the fix is chosen.
-- [ ] Branch names and task identity keep coming from the shared resolver; the
+- [x] Branch names and task identity keep coming from the shared resolver; the
   console does not reimplement `milestone` or `opaque` derivation. Results for
   the same ID are identical to those before the change.
-- [ ] A task identity is resolved at most once per task per console process
+- [x] A task identity is resolved at most once per task per console process
   unless the identity declaration changes.
-- [ ] A refresh no longer blocks key handling: the interface keeps responding
+- [x] A refresh no longer blocks key handling: the interface keeps responding
   while a snapshot loads, and a finished snapshot replaces the previous one
   without partial or mixed state.
-- [ ] A slow or failed refresh keeps the last good snapshot visible and marks it
+- [x] A slow or failed refresh keeps the last good snapshot visible and marks it
   stale with the error, as today; no overlapping refreshes run concurrently.
-- [ ] Any change to `resolve_task_identity` or `_identity_derivations` keeps the
+- [x] Any change to `resolve_task_identity` or `_identity_derivations` keeps the
   worktree lifecycle commands' behavior and tests unchanged.
-- [ ] A regression test fails when per-task subprocess work grows with the number
+- [x] A regression test fails when per-task subprocess work grows with the number
   of known tasks.
-- [ ] `meridian console`, `--project`, and the refresh interval are unchanged.
+- [x] `meridian console`, `--project`, and the refresh interval are unchanged.
 
 ## Relevant Files and Context
 

@@ -5441,7 +5441,8 @@ def _authority_matches(authorities: dict[str, _TaskAuthority], supplied_id: str)
     return [canonical for canonical in authorities if _numeric_alias_key(canonical) == numeric]
 
 
-def _identity_derivations(canonical_id: str, kind: str) -> tuple[str, str, dict[str, object] | None]:
+def _identity_names(canonical_id: str, kind: str) -> tuple[str, str, dict[str, object] | None]:
+    """Derive branch and artifact names without spawning Git."""
     structured = STRUCTURED_TASK_ID.fullmatch(canonical_id)
     semantic: dict[str, object] | None = None
     if kind == "structured":
@@ -5462,6 +5463,10 @@ def _identity_derivations(canonical_id: str, kind: str) -> tuple[str, str, dict[
         raise MeridianError(f"task ID is not a safe filesystem component: {canonical_id!r}")
     if artifact in (".", "..") or artifact.casefold() in {"con", "prn", "aux", "nul"} or artifact.endswith((".", ".lock")):
         raise MeridianError(f"task ID is a reserved filesystem or Git component: {canonical_id!r}")
+    return branch, artifact, semantic
+
+
+def _check_branch_name(canonical_id: str, branch: str) -> None:
     checked = subprocess.run(
         ["git", "check-ref-format", "--branch", branch],
         text=True,
@@ -5470,6 +5475,11 @@ def _identity_derivations(canonical_id: str, kind: str) -> tuple[str, str, dict[
     )
     if checked.returncode != 0 or not SAFE_PATH_COMPONENT.fullmatch(branch):
         raise MeridianError(f"task ID does not derive a safe Git branch: {canonical_id!r}")
+
+
+def _identity_derivations(canonical_id: str, kind: str) -> tuple[str, str, dict[str, object] | None]:
+    branch, artifact, semantic = _identity_names(canonical_id, kind)
+    _check_branch_name(canonical_id, branch)
     return branch, artifact, semantic
 
 
@@ -5535,11 +5545,15 @@ def resolve_task_identity(project_root: Path, supplied_id: str, intent: str) -> 
             continue
         try:
             other_kind = "structured" if policy.mode == "milestone" and STRUCTURED_TASK_ID.fullmatch(other_id) else "opaque"
-            other_branch, other_artifact, _other_semantic = _identity_derivations(other_id, other_kind)
+            other_branch, other_artifact, _other_semantic = _identity_names(other_id, other_kind)
+            if other_branch.casefold() != branch.casefold() and other_artifact.casefold() != artifact.casefold():
+                continue
+            # Only a colliding ID needs the Git ref check, so the subprocess cost
+            # does not grow with the number of known tasks.
+            _check_branch_name(other_id, other_branch)
         except MeridianError:
             continue
-        if other_branch.casefold() == branch.casefold() or other_artifact.casefold() == artifact.casefold():
-            raise MeridianError(f"task identity collision between {canonical!r} and {other_id!r}")
+        raise MeridianError(f"task identity collision between {canonical!r} and {other_id!r}")
 
     return ResolvedTaskIdentity(
         policy_version=policy.version,
