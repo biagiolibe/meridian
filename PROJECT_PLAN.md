@@ -50,13 +50,14 @@
 - `[x]` 084 — Show uncommitted in-progress task state in the console.
 - `[x]` 077 — Launch Claude Code or Codex from the console in an iTerm2 tab.
 - `[x]` 067 — Enforce the adopter-facing release-notes contract.
-- `[ ]` 068 — Document and test the upgrade support policy.
+- `[/]` 068 — Document and test the upgrade support policy.
 - `[x]` 083 — Unify worktree-root resolution and add `meridian setup`.
 - `[x]` 085 — Repair and replace the Codex profile root in one setup step.
 - `[x]` 086 — Launch console agents in a horizontal iTerm2 split pane.
 - `[x]` 087 — Read the review policy from the task record in the console.
 - `[ ]` 088 — Define how a completion handoff names commits that cannot contain their own SHA.
 - `[ ]` 089 — Prepare release 1.2.0.
+- `[ ]` 090 — Make a 1.0.0 project reach the current release in one step.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.
 - `[x]` 053 — Remove machine-specific absolute paths from tracked records.
