@@ -168,15 +168,17 @@ used only for bounded testing or legacy cleanup, never as machine setup.
 `meridian setup --check` is the read-only machine preflight. It reports the
 resolved path and source, whether the directory exists with current-user
 ownership and mode `0700`, the Codex profile state (`unconfigured`, `ready`,
-`repair-required`, `different-root`, or `blocked`), and every bounded change
+`repair-required`, `repair-and-replace-required`, `different-root`, or `blocked`), and every bounded change
 that `--apply` would make. `meridian setup --apply` is the only write path: it
 creates or repairs the private root, writes the user configuration only for a
 non-default root, and delegates the Codex edit to the existing bounded planner
 and backup behavior. Repeating it is a no-op. An intact Meridian-owned profile
 for another root is `different-root` and may be replaced after consent. A
-different root with damaged ownership markers is `blocked`, names the
-diverging fields, and must first be reconciled or repaired for its old root;
-it is never overwritten silently.
+damaged profile with the exact Meridian description, parent, selection, and
+one enabled old root is `repair-and-replace-required`; `--apply` repairs its
+ownership metadata and replaces that root in one backed-up change. Every other
+damaged shape is `blocked`, names the diverging fields, and is never
+overwritten silently.
 
 The normal flow is:
 
@@ -220,15 +222,19 @@ the parsed configuration. The state is `repair-required` only when
 `description`, `extends = ":workspace"`, and a `workspace_roots` table holding
 only the requested root set to `true`. The Meridian-specific description plus
 the exact root, parent, and selection are the semantic evidence; no comment is
-required.
+required. `repair-and-replace-required` uses the same exact shape but has one
+enabled root different from the requested root. It repairs the markers and
+replaces that one root together; this is not evidence that any other profile
+shape is Meridian-owned.
 
 `--check` prints a unified diff of the bounded change and writes nothing.
 Explicit `--apply` is the only write path: it verifies the file is unchanged
 since planning, writes a new exclusive owner-only backup
 (`config.toml.meridian-repair.bak`, then `.1`, `.2`, ...), and replaces the file
 atomically. The repaired file must parse to exactly the same configuration as
-before, so unrelated keys, comments, tables, and application settings are
-preserved, and repeating the repair is a no-op. Because the profile tables
+before, or, for `repair-and-replace-required`, to that same document with only
+the one root value replaced. Unrelated keys, comments, tables, and application
+settings are preserved, and repeating the repair is a no-op. Because the profile tables
 move into the managed block, a repair may reorder them relative to unrelated
 tables; comments inside those two tables are not carried over.
 
@@ -246,7 +252,7 @@ a fresh session and probe before relying on it.
 `meridian codex doctor` reports project trust, the selected permission model,
 effective worktree-root write access, command-policy availability, and Git
 metadata separately. It also reports `profile-ownership` (`ready`,
-`repair-required`, `blocked`, or `not-applicable`) as its own line, independent
+`repair-required`, `repair-and-replace-required`, `blocked`, or `not-applicable`) as its own line, independent
 of root access, and a single `codex-root-mismatch` line when the profile and
 resolved roots differ. Static configuration is not host-execution evidence.
 `.git` and the resolved common Git directory remain protected independently;

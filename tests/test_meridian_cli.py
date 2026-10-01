@@ -4299,7 +4299,7 @@ class WorktreeRootSetupTest(unittest.TestCase):
         self.assertFalse(self.user_config.exists())
         self.assertFalse(self.codex_config.exists())
 
-    def test_every_codex_setup_state_and_divergent_damaged_refusal(self) -> None:
+    def test_every_codex_setup_state_including_damaged_profile_root_replacement(self) -> None:
         root = self.home / "root"
         root.mkdir(mode=0o700)
         unconfigured = meridian.plan_setup(root, self.codex_config, environment=self.environment, home=self.home)
@@ -4325,12 +4325,15 @@ class WorktreeRootSetupTest(unittest.TestCase):
 
         damaged = self.codex_config.read_text(encoding="utf-8").replace(meridian.CODEX_MANAGED_END + "\n", "")
         self.codex_config.write_text(damaged, encoding="utf-8")
-        blocked = meridian.plan_setup(root, self.codex_config, environment=self.environment, home=self.home)
-        self.assertEqual(blocked.codex_state, "blocked")
-        self.assertIn("workspace_roots", blocked.codex_detail)
-        with self.assertRaisesRegex(meridian.MeridianError, "setup is blocked"):
-            meridian.apply_setup(blocked)
-        self.assertEqual(self.codex_config.read_text(encoding="utf-8"), damaged)
+        combined = meridian.plan_setup(root, self.codex_config, environment=self.environment, home=self.home)
+        self.assertEqual(combined.codex_state, "repair-and-replace-required")
+        self.assertIn("replaces the one configured worktree root", combined.codex_detail)
+        self.assertTrue(meridian.apply_setup(combined))
+        self.assertEqual(
+            tomllib.loads(self.codex_config.read_text(encoding="utf-8"))["permissions"]
+            ["meridian-worktrees"]["workspace_roots"],
+            {str(root): True},
+        )
 
 
 class CodexProfileRepairTest(unittest.TestCase):
@@ -4398,6 +4401,58 @@ class CodexProfileRepairTest(unittest.TestCase):
         self.assertIn("ownership-metadata-repair", plan.detail)
         self.assertEqual(tomllib.loads(plan.proposed_text or ""), tomllib.loads(text))
         self.assertEqual(self.config.read_text(encoding="utf-8"), text)
+
+    def test_damaged_exact_profile_with_an_old_root_is_repaired_and_replaced(self) -> None:
+        old_root = self.root / "old-worktrees"
+        original = self.rewritten(tables=self.profile_tables(old_root))
+        self.config.write_text(original, encoding="utf-8")
+
+        plan = meridian.plan_codex_configuration(self.config, self.worktrees)
+
+        self.assertEqual(plan.status, "repair-and-replace-required")
+        self.assertIn("restores Meridian's ownership metadata and replaces the one configured worktree root", plan.detail)
+        self.assertEqual(self.config.read_text(encoding="utf-8"), original)
+        expected = tomllib.loads(original)
+        expected["permissions"]["meridian-worktrees"]["workspace_roots"] = {str(self.worktrees): True}
+        self.assertEqual(tomllib.loads(plan.proposed_text or ""), expected)
+
+        checked = self.run_cli("--check")
+        self.assertEqual(checked.returncode, 0, checked.stderr)
+        self.assertIn("status: repair-and-replace-required", checked.stdout)
+        self.assertIn("repairs ownership metadata and replaces the worktree root", checked.stdout)
+        self.assertIn(f'-"{old_root}" = true', checked.stdout)
+        self.assertIn(f'+"{self.worktrees}" = true', checked.stdout)
+        self.assertEqual(self.config.read_text(encoding="utf-8"), original)
+        report = meridian.codex_doctor(self.root, self.config, self.worktrees)
+        self.assertEqual(report["permission-model"], "repair-and-replace-required")
+        self.assertEqual(report["profile-ownership"], "repair-and-replace-required")
+
+        applied = self.run_cli("--apply")
+        self.assertEqual(applied.returncode, 0, applied.stderr)
+        self.assertIn("ownership metadata repaired and root replaced", applied.stdout)
+        backup = self.config.with_name("config.toml.meridian-repair.bak")
+        self.assertEqual(backup.read_text(encoding="utf-8"), original)
+        self.assertEqual(backup.stat().st_mode & 0o777, 0o600)
+        ready = meridian.plan_codex_configuration(self.config, self.worktrees)
+        self.assertEqual(ready.status, "ready")
+        self.assertFalse(meridian.apply_codex_configuration(ready))
+
+    def test_moved_and_normalized_markers_with_an_old_root_use_the_combined_state(self) -> None:
+        old_root = self.root / "old-worktrees"
+        base = self.rewritten(tables=self.profile_tables(old_root))
+        shapes = {
+            "moved": meridian.CODEX_MANAGED_END + "\n" + base,
+            "normalized": base.replace("# MERIDIAN:BEGIN", "# MERIDIAN:BEGIN  "),
+        }
+        for name, text in shapes.items():
+            with self.subTest(name):
+                self.config.write_text(text, encoding="utf-8")
+                plan = meridian.plan_codex_configuration(self.config, self.worktrees)
+                self.assertEqual(plan.status, "repair-and-replace-required")
+                self.assertEqual(
+                    tomllib.loads(plan.proposed_text or "")["permissions"]["meridian-worktrees"]["workspace_roots"],
+                    {str(self.worktrees): True},
+                )
 
     def test_every_damaged_marker_shape_is_repaired_to_a_fixed_point(self) -> None:
         begin, end = meridian.CODEX_MANAGED_BEGIN, meridian.CODEX_MANAGED_END
@@ -4470,7 +4525,6 @@ class CodexProfileRepairTest(unittest.TestCase):
     def test_divergent_profiles_are_never_adopted_and_name_the_field(self) -> None:
         other_root = self.root / "elsewhere"
         cases = {
-            "root": (self.rewritten(tables=self.profile_tables(other_root)), "workspace_roots"),
             "parent": (self.rewritten(tables=self.profile_tables(extends='":read-only"')), "extends"),
             "description": (self.rewritten(tables=self.profile_tables(description='"mine"')), "description"),
             "default-selection": (self.rewritten(selection='default_permissions = ":workspace"\n'), "default_permissions"),
