@@ -7,6 +7,7 @@ import argparse
 import datetime as dt
 import json
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -179,7 +180,7 @@ def validate(root: Path, version: str) -> tuple[int, list[str]]:
     return 0, []
 
 
-def main(argv: list[str] | None = None) -> int:
+def prepare_main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     choice = parser.add_mutually_exclusive_group(required=True)
     choice.add_argument("--bump", choices=("patch", "minor", "major"))
@@ -230,6 +231,188 @@ def main(argv: list[str] | None = None) -> int:
     except (ReleaseError, OSError, ValueError, json.JSONDecodeError) as error:
         print(f"release prepare failed: {error}", file=sys.stderr)
         return 1
+
+
+RELEASE_FILES = frozenset({"VERSION", ".claude-plugin/plugin.json", "CHANGELOG.md"})
+
+
+def command_text(command: list[str]) -> str:
+    return " ".join(command)
+
+
+def run_command(root: Path, command: list[str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(command, cwd=root, text=True, capture_output=True, check=False)
+
+
+def git_output(root: Path, *args: str) -> str:
+    result = run_git(root, *args)
+    if result.returncode:
+        raise ReleaseError(f"git {' '.join(args)} failed: {result.stderr.strip()}")
+    return result.stdout.strip()
+
+
+def remote_tag_exists(root: Path, tag: str) -> bool:
+    result = run_git(root, "ls-remote", "--exit-code", "--tags", "origin", f"refs/tags/{tag}")
+    if result.returncode == 0:
+        return True
+    if result.returncode == 2:
+        return False
+    raise ReleaseError(f"could not check origin for tag {tag}: {result.stderr.strip()}")
+
+
+def release_kind(root: Path, version: str) -> str:
+    record_path = root / "releases" / f"{version}.json"
+    try:
+        record = json.loads(record_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ReleaseError(f"could not read release ledger {record_path.relative_to(root)}: {error}") from error
+    if str(record.get("version")) != version:
+        raise ReleaseError(f"release ledger {record_path.relative_to(root)} does not match VERSION")
+    return TEMPLATE_CHANGING if record.get("baselineChanged") else CLI_ONLY
+
+
+def publish_preflight(root: Path, version: str) -> tuple[str, str, list[str]]:
+    if git_output(root, "branch", "--show-current") != "main":
+        raise ReleaseError("preflight failed: current branch must be main")
+    if git_output(root, "status", "--porcelain"):
+        raise ReleaseError("preflight failed: working tree must be clean")
+    head = git_output(root, "rev-parse", "HEAD")
+    if git_output(root, "log", "-1", "--format=%s", "HEAD") != f"Release {version}":
+        raise ReleaseError(f"preflight failed: HEAD must be the Release {version} commit made by prepare")
+    parent = git_output(root, "rev-parse", "HEAD^")
+    changed = set(filter(None, git_output(root, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD").splitlines()))
+    expected = set(RELEASE_FILES) | {f"releases/{version}.json"}
+    if changed != expected:
+        raise ReleaseError("preflight failed: release commit must touch only VERSION, plugin, ledger, and changelog files")
+    origin_main = git_output(root, "rev-parse", "refs/remotes/origin/main")
+    ancestor = run_git(root, "merge-base", "--is-ancestor", "refs/remotes/origin/main", "HEAD")
+    if ancestor.returncode:
+        raise ReleaseError("preflight failed: origin/main must be an ancestor of HEAD")
+    if parent != origin_main:
+        raise ReleaseError("preflight failed: Release commit parent must be the previous origin/main tip")
+    tag = f"v{version}"
+    if run_git(root, "show-ref", "--verify", "--quiet", f"refs/tags/{tag}").returncode == 0:
+        raise ReleaseError(f"preflight failed: local tag {tag} already exists")
+    if remote_tag_exists(root, tag):
+        raise ReleaseError(f"preflight failed: origin tag {tag} already exists")
+    commits = git_output(root, "log", "--format=%h %s", "refs/remotes/origin/main..HEAD").splitlines()
+    return head, release_kind(root, version), commits
+
+
+def github_repository(remote: str) -> str | None:
+    match = re.search(r"github\.com[/:]([^/]+)/([^/]+?)(?:\.git)?$", remote)
+    return f"{match.group(1)}/{match.group(2)}" if match else None
+
+
+def print_publish_summary(version: str, kind: str, commits: list[str], remote: str) -> None:
+    print(f"Release version: {version}")
+    print(f"Release kind: {kind}")
+    print("Commits to push:")
+    for commit in commits:
+        print(f"  {commit}")
+    print(f"Destination: origin ({remote})")
+
+
+def print_manual_urls(version: str, repository: str | None) -> None:
+    if repository:
+        base = f"https://github.com/{repository}"
+        print(f"Workflow: {base}/actions/workflows/release.yml")
+        print(f"Release: {base}/releases/tag/v{version}")
+    print(f"Manual verification: gh release view v{version} --repo <owner/repository>")
+
+
+def run_checked(root: Path, command: list[str], label: str) -> subprocess.CompletedProcess[str]:
+    result = run_command(root, command)
+    if result.returncode:
+        detail = result.stderr.strip() or result.stdout.strip()
+        raise ReleaseError(f"{label} failed ({result.returncode}): {detail}")
+    return result
+
+
+def wait_for_publication(root: Path, version: str, repository: str | None) -> None:
+    if not shutil.which("gh"):
+        print("gh is unavailable; skipping automated workflow and release verification.")
+        print_manual_urls(version, repository)
+        return
+    runs = run_checked(root, ["gh", "run", "list", "--workflow", "Publish release", "--branch", f"v{version}", "--limit", "1", "--json", "databaseId,url"], "workflow lookup")
+    try:
+        entries = json.loads(runs.stdout)
+        run = entries[0]
+        run_id = str(run["databaseId"])
+        run_url = str(run.get("url", "(workflow URL unavailable)"))
+    except (json.JSONDecodeError, IndexError, KeyError, TypeError) as error:
+        raise ReleaseError(f"workflow lookup returned no Publish release run for v{version}: {error}") from error
+    watched = run_command(root, ["gh", "run", "watch", run_id, "--exit-status"])
+    if watched.returncode:
+        print(f"Publish release workflow failed: {run_url}. Nothing was published; the tag was left unchanged.", file=sys.stderr)
+        raise ReleaseError("workflow failed; do not retry by moving the tag")
+    release = run_checked(root, ["gh", "release", "view", f"v{version}", "--json", "isDraft,isPrerelease,isLatest,url"], "release verification")
+    try:
+        details = json.loads(release.stdout)
+    except json.JSONDecodeError as error:
+        raise ReleaseError(f"release verification returned invalid JSON: {error}") from error
+    if details.get("isDraft") or details.get("isPrerelease") or not details.get("isLatest"):
+        raise ReleaseError("release verification failed: release must be published, stable, and latest")
+    print(f"Workflow succeeded: {run_url}")
+    print(f"Release verified: {details.get('url', f'v{version}')}")
+    self_check = run_command(root, ["bin/meridian", "self-check", "--check-latest"])
+    output = (self_check.stdout.strip() or self_check.stderr.strip() or f"exit {self_check.returncode}")
+    print(f"Self-check: {output}")
+
+
+def adopter_steps() -> str:
+    return "\n".join((
+        "Adopter update steps (not run):",
+        "  Claude Code: /plugin marketplace add biagiolibe/meridian#v<version>",
+        "  Codex: git -C \"$MERIDIAN_ROOT\" fetch --tags && git -C \"$MERIDIAN_ROOT\" checkout v<version>",
+    ))
+
+
+def publish_main(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(description="Publish the prepared Meridian release.")
+    parser.add_argument("--confirm", metavar="vVERSION")
+    parser.add_argument("--no-wait", action="store_true")
+    parser.add_argument("--root", type=Path, default=ROOT, help=argparse.SUPPRESS)
+    args = parser.parse_args(argv)
+    root = args.root.resolve()
+    try:
+        version = (root / "VERSION").read_text(encoding="utf-8").strip()
+        version_key(version)
+        head, kind, commits = publish_preflight(root, version)
+        remote = git_output(root, "remote", "get-url", "origin")
+        repository = github_repository(remote)
+        print_publish_summary(version, kind, commits, remote)
+        expected = f"v{version}"
+        if args.confirm != expected:
+            print(f"Refusing to publish: type --confirm {expected} to push main and tag.", file=sys.stderr)
+            return 1
+        status, command = validate(root, version)
+        if status:
+            raise ReleaseError(f"release validation failed: {command_text(command)} exited {status}")
+        completed: list[str] = []
+        for command, step in ((["git", "push", "origin", "main"], "main push"), (["git", "tag", expected], "local tag"), (["git", "push", "origin", expected], "tag push")):
+            result = run_command(root, command)
+            if result.returncode:
+                detail = result.stderr.strip() or result.stdout.strip()
+                raise ReleaseError(f"{step} failed after completed steps: {', '.join(completed) or 'none'}: {detail}")
+            completed.append(step)
+        print("Completed: " + ", ".join(completed))
+        if args.no_wait:
+            print_manual_urls(version, repository)
+        else:
+            wait_for_publication(root, version, repository)
+        print(adopter_steps())
+        return 0
+    except (ReleaseError, OSError, ValueError, json.JSONDecodeError) as error:
+        print(f"release publish failed: {error}", file=sys.stderr)
+        return 1
+
+
+def main(argv: list[str] | None = None) -> int:
+    values = list(sys.argv[1:] if argv is None else argv)
+    if values and values[0] == "publish":
+        return publish_main(values[1:])
+    return prepare_main(values)
 
 
 if __name__ == "__main__":
