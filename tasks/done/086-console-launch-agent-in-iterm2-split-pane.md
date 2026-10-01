@@ -17,27 +17,27 @@ checkout, quoting, refusals, `[copy]` fallback) is unchanged.
 
 ## Acceptance Criteria
 
-- [ ] The AppleScript payload splits the console's session with
+- [x] The AppleScript payload splits the console's session with
   `split horizontally with default profile` and writes the quoted command into
   the new pane. It no longer calls `create tab` or `create window`.
-- [ ] The console's session is identified from `ITERM_SESSION_ID`. The value is
+- [x] The console's session is identified from `ITERM_SESSION_ID`. The value is
   validated against the documented `w<N>t<N>p<N>:<UUID>` shape before use, and
   only the UUID part reaches AppleScript, quoted for it.
-- [ ] When `ITERM_SESSION_ID` is missing, malformed, or matches no iTerm2
+- [x] When `ITERM_SESSION_ID` is missing, malformed, or matches no iTerm2
   session, the launch fails with a specific message and the existing `[copy]`
   directive remains the fallback. There is no silent fallback to a tab or a
   window.
-- [ ] The command is still built as an argument vector and quoted with
+- [x] The command is still built as an argument vector and quoted with
   `shlex.quote`; the task ID is still revalidated immediately before launch; no
   flag that weakens permissions or sandboxing is added.
-- [ ] iTerm2 is still driven through AppleScript (`osascript`) only, with no new
+- [x] iTerm2 is still driven through AppleScript (`osascript`) only, with no new
   dependency and no iTerm2 Python API.
-- [ ] The success message, the launch hint in the help text, the docstrings, and
+- [x] The success message, the launch hint in the help text, the docstrings, and
   the README paragraph say "split pane" instead of "tab". The first-run macOS
   automation prompt remains documented.
-- [ ] Repeated launches split the console's own session each time; the
+- [x] Repeated launches split the console's own session each time; the
   behavior and its effect on pane sizes are stated in the README.
-- [ ] The console still never writes project files itself.
+- [x] The console still never writes project files itself.
 
 ## Relevant Files
 
@@ -75,13 +75,15 @@ checkout, quoting, refusals, `[copy]` fallback) is unchanged.
 
 ## Manual verification
 
-- 2026-10-01: The developer tried launching from both `main` and the task 086
-  worktree; each attempt opened another tab instead of a split pane. This
-  failed smoke check exposed that the AppleScript attempted to filter tabs by
-  a session property. The lookup now iterates each window, tab, and session
-  before comparing the session's unique ID. Repeat the iTerm2 smoke check after
-  launching this corrected task-worktree version; pane direction remains
-  unverified until then.
+- 2026-10-01: Earlier attempts opened a tab. Two causes were found: the
+  AppleScript contained an invalid `write text ... to newSession` statement
+  that does not compile (now `tell newSession to write text`, covered by an
+  `osacompile` test), and the developer's `MERIDIAN_ROOT` made
+  `meridian console` load the console from another checkout.
+- 2026-10-01: Smoke check in iTerm2 using the task-worktree console with
+  `MERIDIAN_ROOT` pointed at the worktree: launching an agent opened a split
+  pane below the console, and a second launch opened another pane below.
+  The console stayed usable.
 
 ## Out of scope
 
