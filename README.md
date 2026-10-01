@@ -60,6 +60,27 @@ Then open the project you want to initialize and run:
 /meridian-init
 ```
 
+### Project console
+
+From any project that contains Meridian's queue and task records, launch the
+read-only interactive project console with:
+
+```text
+meridian console
+```
+
+It reads the current project's queue, open task details, dependencies, Git
+summary, worktrees, and next permitted directives. The view refreshes local
+state every two seconds and never sends directives to agents or writes project
+files. Use `--project /path/to/project` to inspect another project and
+`--interval 5` to change the refresh interval (between 0.2 and 60 seconds).
+
+The command is part of the tagged Meridian tree. Claude Code adopters receive
+it through `${CLAUDE_PLUGIN_ROOT}/bin/meridian`; Codex adopters run the
+`bin/meridian` launcher from their tagged checkout with `MERIDIAN_ROOT` pointing
+at that checkout. No project-local copy, Python package, network service, or
+background process is required.
+
 Choose `lean-delivery` for lightweight delivery or `governed-sdd` for controlled integration. `classic` remains a backwards-compatible alias for `lean-delivery`. The initializer creates the relevant planning, design, queue, task, and agent-instruction files in the target project. It does not overwrite existing workflow documents without showing a diff and obtaining a migration decision.
 
 ### Updating Meridian
