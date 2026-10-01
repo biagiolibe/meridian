@@ -273,4 +273,13 @@ document how adopters use it from any Meridian project.
 |--------|----|-------|----------|------------|------|
 | `[x]` | 075 | Distribute the project console through the Meridian CLI | 🟡 P2 | 074, 065 | [075](done/075-distribute-project-console-cli.md) |
 
+### Phase 31 — Console agent launch in a split pane
+
+Replaces the iTerm2 tab launched by the console with a horizontal split pane of
+the console's own session, so the console stays visible beside the agent.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 086 | Launch console agents in a horizontal iTerm2 split pane | 🟡 P2 | 077 | [086](done/086-console-launch-agent-in-iterm2-split-pane.md) |
+
 *Last updated: 2026-10-01*
