@@ -55,7 +55,7 @@
 - `[x]` 085 — Repair and replace the Codex profile root in one setup step.
 - `[x]` 086 — Launch console agents in a horizontal iTerm2 split pane.
 - `[x]` 087 — Read the review policy from the task record in the console.
-- `[ ]` 088 — Define how a completion handoff names commits that cannot contain their own SHA.
+- `[x]` 088 — Define how a completion handoff names commits that cannot contain their own SHA.
 - `[x]` 089 — Prepare release 1.2.0.
 - `[ ]` 090 — Make a 1.0.0 project reach the current release in one step.
 - `[x]` 091 — Record the 1.2.0 marketplace install evidence.

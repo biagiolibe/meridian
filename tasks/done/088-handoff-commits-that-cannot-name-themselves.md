@@ -4,7 +4,7 @@
 > **Category**: Bugfix
 > **Priority**: 🟡 P2
 > **Estimate**: ~2h
-> **Assigned to**: unassigned
+> **Assigned to**: implementer
 > **Session**: Developer report on the F1-FIGURE-001 review preflight in the palimpsest project
 
 ## Objective
@@ -27,7 +27,7 @@ thing, so agents rediscover or misread it.
 
 ## Acceptance Criteria
 
-- [ ] The `task-worktree-handoff` capability block in
+- [x] The `task-worktree-handoff` capability block in
   `templates/workflows/governed-sdd/docs/COMPLETION_REPORT_TEMPLATE.md` moves
   to a new capability version and states:
   - when the handoff is committed in the implementation commit, the
@@ -43,21 +43,21 @@ thing, so agents rediscover or misread it.
   - a wrong commit field is corrected by a new lifecycle-only commit that
     changes only the handoff record, followed by one push of the task branch
     before the next review attempt; amend and force-push stay prohibited.
-- [ ] The reviewer preflight text (`task-worktree-review-procedure` in
+- [x] The reviewer preflight text (`task-worktree-review-procedure` in
   `docs/workflows/REVIEW.md`, and any other managed block that compares the
   handoff's current task commit with the worktree `HEAD`) states how a
   descriptive value is resolved: the reviewer resolves it to the registered
   task branch `HEAD` and confirms the subject matches, and a value that names
   a different commit is still `BLOCKED`. If no such change is needed, the
   task records why.
-- [ ] A migration file records the capability version changes, their
+- [x] A migration file records the capability version changes, their
   managed paths, and the delta, following the pattern of
   `migrations/054-machine-independent-worktree-handoff.json`. Existing
   consumer handoffs are not rewritten.
-- [ ] Marker baselines and every test that pins the block text are updated.
-- [ ] An upgrade from the previous capability version installs the new block
+- [x] Marker baselines and every test that pins the block text are updated.
+- [x] An upgrade from the previous capability version installs the new block
   while preserving consumer-owned text.
-- [ ] `meridian worktree check` and `meridian execution handoff-check`
+- [x] `meridian worktree check` and `meridian execution handoff-check`
   behaviour is unchanged. They resolve commits from Git, not from the
   handoff's commit-field text; the task confirms this with a test or a cited
   code path instead of assuming it.
@@ -101,6 +101,25 @@ python3 scripts/check_repository.py
 ```bash
 python3 -m unittest discover -s tests -v
 ```
+
+## Completion evidence
+
+- Handoff block moved to `task-worktree-handoff` v4 and reviewer preflight to
+  `task-worktree-review-procedure` v7; migration
+  `057-self-referential-handoff-commits` (1.1.54 -> 1.1.55) records both, and
+  the release ledger, `VERSION`, plugin manifest, and `CHANGELOG.md` carry
+  release 1.2.3 as required by `check_repository.py` (precedent: migration 056).
+- Upgrade test `test_upgrade_installs_self_referential_handoff_rules_and_preserves_consumer_text`
+  covers the v3 -> v4 / v6 -> v7 upgrade with consumer text preserved.
+- CLI behavior unchanged, by code path: `scripts/meridian.py` handoff
+  consistency (around lines 718-731) reads only the `Branch`, `Worktree`, and
+  `Base \`main\` commit` fields from the handoff, and never the
+  `Current task commit` text; integration validation (around line 1848)
+  compares commits supplied from Git. No CLI code changed.
+- Lean Delivery handoff: no self-reference gap was examined or changed; no
+  follow-up recorded.
+- Validation: `python3 scripts/check_repository.py` passed;
+  `python3 -m unittest discover -s tests` ran 446 tests, OK.
 
 ## Out of scope
 
