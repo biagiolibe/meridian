@@ -27,6 +27,10 @@ records which release moved it.
 - The project console now starts Claude Code and Codex in a horizontal iTerm2
   split pane below the console instead of opening a tab. Repeated launches split
   the console pane again and reduce the space available to existing panes.
+- The project console now reads the `Review:` field from a Governed SDD task
+  record when the queue table has no `Review` column, offers `Review <ID>` for a
+  `ready_for_review` task that declares `Review: REQUIRED`, and states why a
+  review is withheld in the `Next action` line.
 - **Breaking for existing Claude Code installs:** the marketplace is renamed
   from `meridian-local` to `meridian`, so the plugin id is now
   `meridian@meridian`. One-time migration: run

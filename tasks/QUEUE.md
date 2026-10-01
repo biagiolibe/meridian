@@ -40,7 +40,7 @@ column, and explains why a directive is withheld.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[ ]` | 087 | Read the review policy from the task record in the console | 🟡 P2 | 077 | [087](087-console-read-review-policy-from-task-record.md) |
+| `[x]` | 087 | Read the review policy from the task record in the console | 🟡 P2 | 077 | [087](done/087-console-read-review-policy-from-task-record.md) |
 
 ### Phase 33 — Handoff commits that cannot name themselves
 

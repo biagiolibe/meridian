@@ -26,7 +26,7 @@ from meridian import (
 from console_workflow import (
     ID_PATTERN, PROFILES, BranchFacts, ConsoleError, QueueRow, Profile, effective_state,
     handoff_status, has_link, heading_title, is_task_record_path, latest_review_verdict,
-    link_target, parse_queue, record_matches, record_status,
+    link_target, parse_queue, record_matches, record_review, record_status,
 )
 
 
@@ -92,6 +92,14 @@ class Task:
         if self.readiness == "MISMATCH":
             return f"Resolve the state disagreement: {self.mismatch}"
         if self.readiness == "READY FOR REVIEW":
+            if self.launch_command:
+                return f"If assigned: {self.launch_command}"
+            if self.active_writer:
+                return "Review unavailable: active writer"
+            if self.review == "NOT REQUIRED":
+                return "Review unavailable: Review: NOT REQUIRED"
+            if self.review is None:
+                return "Review unavailable: review policy not declared"
             return "Awaiting review of the task branch"
         if self.readiness == "DONE ON BRANCH":
             return "Awaiting integration of the task branch"
@@ -493,7 +501,10 @@ def load_snapshot(project: Path, identities: IdentityCache | None = None) -> Sna
             facts, branch_text, branch_path, worktree = _branch_facts(
                 project, profile, row.task_id, queue_relative, worktrees, identities, resolver,
                 _relative(project, path) if path and not has_link(row.link) else None)
-        effective = effective_state(profile, row, record_status(primary_text), facts)
+        branch_policy_text = (branch_text if facts and facts.row
+                              and facts.row.status != row.status else primary_text)
+        review = row.review if row.review is not None else record_review(branch_policy_text)
+        effective = effective_state(profile, row, record_status(primary_text), facts, review)
         from_branch = facts is not None and branch_text is not None and effective.source != "main"
         task_text = branch_text if from_branch else primary_text
         problem = None if task_text is not None else (main_problem or "task record not found")
@@ -532,7 +543,7 @@ def load_snapshot(project: Path, identities: IdentityCache | None = None) -> Sna
                 facts and facts.worktree and not facts.dirty and facts.row
                 and facts.row.status == row.status
             ),
-            record_problem=problem, review=row.review,
+            record_problem=problem, review=review,
             workflow=profile.name,
             dependency_states=tuple(
                 (item, {
