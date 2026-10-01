@@ -1,0 +1,26 @@
+{
+  "accepted": true,
+  "validation_passed": true,
+  "validated_task_commit": "033e9ee1c01009fd2e8b32febe8134328fb9e8db",
+  "validated_base_commit": "8e759cac55b8048581d9148ba3a122b28e8efaf1",
+  "full_validation_required": false,
+  "interaction_assessment_complete": true,
+  "task_paths": [
+    "tests/test_project_console.py",
+    "CONTRIBUTING.md",
+    "tasks/QUEUE.md",
+    "tasks/QUEUE_ARCHIVE.md",
+    "PROJECT_PLAN.md",
+    "tasks/099-skip-applescript-compile-test-when-osacompile-unusable.md",
+    "tasks/done/099-skip-applescript-compile-test-when-osacompile-unusable.md",
+    "tasks/handoffs/099.md",
+    "tasks/handoffs/099.json"
+  ],
+  "task_dependencies": ["086"],
+  "task_behavioral_surfaces": [
+    "iTerm2 AppleScript payload compilation test",
+    "maintainer validation guidance"
+  ],
+  "main_advanced_dependencies": [],
+  "main_advanced_behavioral_surfaces": []
+}
