@@ -71,12 +71,21 @@ for the task's effective state.
   refusal above, quoting of hostile IDs, and each failure mode, with `osascript`
   and the agent executable replaced by test doubles.
 - Manual smoke check in iTerm2 with one agent, recorded as the only manual
-  evidence, since a rendered terminal tab cannot be read back programmatically.
+evidence, since a rendered terminal tab cannot be read back programmatically.
+
+## Manual verification
+
+- 2026-10-01: iTerm2 3.7.3 accepted the AppleScript launch and opened a new
+  tab for Codex in the primary checkout with `Proceed with 077`. The launch
+  function returned `Started codex in a new iTerm2 tab`.
 
 ## Out of scope
 
 Preparing or removing worktrees, `Accept` and `Run lifecycle`, other terminals
 or multiplexers, embedded terminals, and any change to the lifecycle documents.
+
+`Accept` remains an owner-acceptance decision and `Run lifecycle` remains
+whole-loop orchestration; neither is a safe one-key console action.
 
 ## Dependencies
 

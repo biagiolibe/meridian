@@ -71,9 +71,9 @@ meridian console
 
 It reads the current project's queue, open task details, dependencies, Git
 summary, worktrees, and next permitted directives. The view refreshes local
-state every two seconds and never sends directives to agents or writes project
-files. Use `--project /path/to/project` to inspect another project and
-`--interval 5` to change the refresh interval (between 0.2 and 60 seconds).
+state every two seconds and never writes project files. Use `--project
+/path/to/project` to inspect another project and `--interval 5` to change the
+refresh interval (between 0.2 and 60 seconds).
 
 The console supports both `LEAN_DELIVERY` and `GOVERNED_SDD` projects, selected
 from the mode lock in `PROJECT_WORKFLOW.md`. Because lifecycle edits are
@@ -81,6 +81,16 @@ committed on each task branch, it reads a task's queue row, record, handoff,
 and review record from that branch with read-only Git commands and shows the
 effective state with its source. Disagreements the lifecycle does not produce
 appear as `MISMATCH` with no launch directive.
+
+For an eligible directive, `c` (or `[copy]`) keeps the copy-to-clipboard
+fallback. On macOS with iTerm2, press `l`, choose Claude Code or Codex, and
+then review the exact directive and primary-checkout directory before pressing
+Enter to start a new tab. The first launch may cause macOS to ask permission
+for the terminal to automate iTerm2. Launching starts an agent that may modify
+the project and counts as the developer's assignment of that task. The console
+does not prepare worktrees: the permitted directive does so. If iTerm2,
+`osascript`, or the selected executable is unavailable, the console reports
+the reason and `[copy]` remains available.
 
 The command is part of the tagged Meridian tree. Claude Code adopters receive
 it through `${CLAUDE_PLUGIN_ROOT}/bin/meridian`; Codex adopters run the

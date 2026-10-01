@@ -47,7 +47,7 @@ it in an iTerm2 tab with the permitted task directive already supplied.
 | `[x]` | 081 | Group console tasks by their queue headings in Governed SDD projects | 🟡 P2 | 076 | [081](done/081-console-group-tasks-by-queue-heading.md) |
 | `[x]` | 082 | Fix detail pane scrolling, Governed objective, and dependency order | 🔴 P1 | 076, 079 | [082](done/082-console-detail-pane-scroll-and-content.md) |
 | `[x]` | 084 | Show uncommitted in-progress task state in the console | 🟡 P2 | 076, 078, 079, 082 | [084](done/084-console-show-uncommitted-in-progress-state.md) |
-| `[ ]` | 077 | Launch Claude Code or Codex from the console in an iTerm2 tab | 🟡 P2 | 076, 078, 079, 080, 081, 082 | [077](077-console-launch-agent-in-iterm2.md) |
+| `[x]` | 077 | Launch Claude Code or Codex from the console in an iTerm2 tab | 🟡 P2 | 076, 078, 079, 080, 081, 082 | [077](done/077-console-launch-agent-in-iterm2.md) |
 
 ### Phase 30 — Unified worktree root and host setup
 
