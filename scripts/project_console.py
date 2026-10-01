@@ -7,6 +7,8 @@ import argparse
 import curses
 import os
 import re
+import shlex
+import shutil
 import subprocess
 import sys
 import textwrap
@@ -50,12 +52,23 @@ class Task:
     record_problem: str | None = None
     review: str | None = None
     dependency_states: tuple[tuple[str, str], ...] = ()
+    workflow: str = "lean-delivery"
 
     @property
     def launch_command(self) -> str | None:
-        if self.record_problem:
+        if self.record_problem or self.readiness == "MISMATCH" or self.active_writer:
             return None
-        return f"Proceed with {self.task_id}" if self.readiness == "READY" else None
+        if self.lifecycle == "todo" and self.readiness == "READY":
+            return f"Proceed with {self.task_id}"
+        if self.lifecycle == "ready_for_review":
+            if self.workflow == "lean-delivery":
+                return f"Review {self.task_id}"
+            if self.workflow == "governed-sdd" and self.review == "REQUIRED":
+                return f"Review {self.task_id}"
+        if (self.workflow == "governed-sdd" and self.lifecycle == "in_progress"
+                and self.changes_requested):
+            return f"Address review {self.task_id}"
+        return None
 
     @property
     def markers(self) -> tuple[str, ...]:
@@ -82,6 +95,78 @@ class Task:
         if self.readiness.startswith("BLOCKED"):
             return "Wait for the listed dependencies to complete"
         return "Resolve the missing dependency record"
+
+
+@dataclass(frozen=True)
+class LaunchRequest:
+    """A confirmed, safe-to-quote invocation for a new iTerm2 tab."""
+
+    agent: str
+    directive: str
+    directory: Path
+
+    @property
+    def shell_command(self) -> str:
+        return "cd " + shlex.quote(str(self.directory)) + " && exec " + shlex.join(
+            (self.agent, self.directive)
+        )
+
+
+def _launch_request(task: Task, project: Path, agent: str) -> tuple[LaunchRequest | None, str | None]:
+    """Revalidate a selected task before a confirmation can offer a launch."""
+    if agent not in ("claude", "codex"):
+        return None, "Choose Claude Code or Codex"
+    if not ID_PATTERN.fullmatch(task.task_id):
+        return None, "Refusing launch: task ID no longer matches the workflow rules"
+    directive = task.launch_command
+    if not directive:
+        return None, "This task is not eligible to launch; use [copy] if a directive is shown"
+    directory, error = _primary_checkout(project)
+    if error:
+        return None, error
+    return LaunchRequest(agent, directive, directory), None
+
+
+def _apple_script(command: str) -> str:
+    """Return the sole iTerm2 automation payload, with AppleScript quoting."""
+    quoted = command.replace("\\", "\\\\").replace('"', '\\"')
+    return "\n".join((
+        'tell application "iTerm2"',
+        "activate",
+        "if (count of windows) is 0 then",
+        "create window with default profile",
+        "else",
+        "tell current window to create tab with default profile",
+        "end if",
+        "tell current session of current tab of current window",
+        f'write text "{quoted}"',
+        "end tell",
+        "end tell",
+    ))
+
+
+def _start_launch(request: LaunchRequest) -> tuple[bool, str]:
+    """Open a new iTerm2 tab. This is called only after UI confirmation."""
+    if sys.platform != "darwin":
+        return False, "Agent launch requires macOS and iTerm2; [copy] remains available"
+    if shutil.which(request.agent) is None:
+        return False, f"{request.agent} is not available on PATH; [copy] remains available"
+    if shutil.which("osascript") is None:
+        return False, "macOS osascript is unavailable; [copy] remains available"
+    try:
+        result = subprocess.run(
+            ("osascript", "-e", _apple_script(request.shell_command)),
+            capture_output=True, text=True, check=False, timeout=10,
+        )
+    except subprocess.TimeoutExpired:
+        return False, "iTerm2 launch timed out; [copy] remains available"
+    except OSError as error:
+        return False, f"iTerm2 launch failed: {error}; [copy] remains available"
+    if result.returncode:
+        detail = (result.stderr or result.stdout).strip()
+        return False, (f"iTerm2 is unavailable or rejected launch: {detail}; [copy] remains available"
+                       if detail else "iTerm2 launch failed; [copy] remains available")
+    return True, f"Started {request.agent} in a new iTerm2 tab"
 
 
 @dataclass(frozen=True)
@@ -202,6 +287,19 @@ def _git_optional(project: Path, *args: str) -> str | None:
     """Return Git output, or None when the object or ref does not exist."""
     result = _git_result(project, *args)
     return None if result.returncode else result.stdout
+
+
+def _primary_checkout(project: Path) -> tuple[Path | None, str | None]:
+    """Resolve Git's first registered worktree, which is the primary checkout."""
+    result = _git_result(project, "worktree", "list", "--porcelain")
+    if result.returncode:
+        return None, "Cannot resolve the primary checkout"
+    primary = next((line.removeprefix("worktree ") for line in result.stdout.splitlines()
+                    if line.startswith("worktree ")), None)
+    directory = Path(primary).resolve() if primary else None
+    if directory is None or not directory.is_dir():
+        return None, "Primary checkout is unavailable"
+    return directory, None
 
 
 def _worktrees(project: Path) -> dict[str, str]:
@@ -413,6 +511,7 @@ def load_snapshot(project: Path, identities: IdentityCache | None = None) -> Sna
                 and facts.row.status == row.status
             ),
             record_problem=problem, review=row.review,
+            workflow=profile.name,
             dependency_states=tuple(
                 (item, {
                     "done": "Done", "in_progress": "Working",
@@ -747,7 +846,7 @@ def _detail_lines(task: Task, width: int, palette: dict[str, int],
         add("")
     add("Next directive", "muted")
     command = task.launch_command
-    add(f"{command}  [copy]" if command else task.next_action, "action")
+    add(f"{command}  [copy]  [l launch]" if command else task.next_action, "action")
     return lines
 
 
@@ -941,6 +1040,35 @@ def _draw_detail(screen, task: Task | None, x: int, top: int, width: int,
     }
 
 
+def _draw_launch_prompt(screen, width: int, height: int, agent: str | None,
+                        request: LaunchRequest | None, palette: dict[str, int]) -> None:
+    """Draw the two explicit steps required before starting a mutable agent."""
+    if agent is None and request is None:
+        return
+    lines = (
+        ("Launch agent", "title"),
+        ("This starts an agent that may modify the project.", "blocked"),
+    )
+    if agent is not None:
+        lines += (
+            ("Choose an agent: 1 Claude Code   2 Codex", "text"),
+            ("Esc cancels. Nothing has started.", "muted"),
+        )
+    else:
+        assert request is not None
+        lines += (
+            (f"Agent: {request.agent}", "text"),
+            (f"Directive: {request.directive}", "text"),
+            (f"Directory: {request.directory}", "text"),
+            ("Enter launches and assigns this task; Esc cancels.", "action"),
+        )
+    panel_width = min(width - 8, max(len(value) for value, _ in lines) + 4)
+    top = max(4, (height - len(lines) - 2) // 2)
+    left = max(2, (width - panel_width) // 2)
+    for index, (value, style) in enumerate(lines):
+        _put(screen, top + index, left, value, panel_width, palette[style])
+
+
 def run_terminal(screen, state: ConsoleState, interval: float) -> None:
     try:
         curses.curs_set(0)
@@ -966,6 +1094,8 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
     last_poll = 0.0
     notice = ""
     notice_until = 0.0
+    launch_agent: str | None = None
+    launch_request: LaunchRequest | None = None
     while True:
         now = time.monotonic()
         state.apply_pending()
@@ -993,13 +1123,14 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
                     "Navigation", "↑/↓ or j/k  Select task", "Tab/Shift+Tab  Filter by status",
                     "Enter  Open full task details", "Esc  Return to task list",
                     "/  Search task ID or title", "[ / ]  Scroll task details",
-                    "c or click [copy]  Copy a ready task directive",
+                    "c or click [copy]  Copy a permitted task directive",
+                    "l  Choose Claude Code or Codex, then confirm an iTerm2 launch",
                     "Tab  Cycle All and nonempty states; click any tab",
                     "r  Refresh now", "q  Quit", "",
                     "Project state is read-only; copy writes to the clipboard.",
                     "Updated is the last committed change to the task file.",
                     "Agent activity is unavailable without a verified source.",
-                    "It does not control agents or fetch from the network.",
+                    "Launching uses macOS iTerm2 only after explicit confirmation.",
                 )
                 for y, line in enumerate(help_lines, 4):
                     _put(screen, y, 2, line, width - 4, palette["text"] if y == 4 else palette["base"])
@@ -1029,6 +1160,7 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
                                                width - left_width - 2, height,
                                                detail_offset, palette)
                     action_bounds = (detail_x, width - 3, action_rows)
+            _draw_launch_prompt(screen, width, height, launch_agent, launch_request, palette)
             if notice and time.monotonic() < notice_until:
                 footer = notice
             elif state.error:
@@ -1039,7 +1171,7 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
                 footer = "Esc back   [/] scroll   r refresh   q quit"
             else:
                 footer = ("? help   ↑/↓ move   [/] scroll detail   tab filter   enter details   "
-                          "c copy   / search   r refresh   q quit")
+                          "c copy   l launch   / search   r refresh   q quit")
             _put(screen, height - 2, 0, "─" * max(0, width - 1),
                  width - 1, palette["line"])
             _put(screen, height - 1, 1, footer, width - 2,
@@ -1047,6 +1179,27 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
         screen.refresh()
         key = screen.getch()
         if key == -1:
+            continue
+        if launch_agent is not None:
+            if key == 27:
+                launch_agent = None
+                notice, notice_until = "Launch cancelled", time.monotonic() + 2
+            elif key in (ord("1"), ord("2")):
+                selected = "claude" if key == ord("1") else "codex"
+                launch_request, error = _launch_request(selected_task, state.project, selected) if selected_task else (
+                    None, "No task selected")
+                launch_agent = None
+                if error:
+                    notice, notice_until = error, time.monotonic() + 3
+            continue
+        if launch_request is not None:
+            if key == 27:
+                launch_request = None
+                notice, notice_until = "Launch cancelled", time.monotonic() + 2
+            elif key in (10, 13):
+                success, message = _start_launch(launch_request)
+                launch_request = None
+                notice, notice_until = message, time.monotonic() + (3 if success else 5)
             continue
         if key == curses.KEY_MOUSE:
             try:
@@ -1145,6 +1298,11 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
                       else "Clipboard unavailable" if command
                       else "No launch command for this task")
             notice_until = time.monotonic() + 2
+        elif key in (ord("l"), ord("L")) and selected_task and not help_visible:
+            if selected_task.launch_command:
+                launch_agent = "choose"
+            else:
+                notice, notice_until = "No eligible directive for this task", time.monotonic() + 2
         elif key == ord("?"):
             help_visible = not help_visible
 
