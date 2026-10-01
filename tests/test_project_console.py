@@ -187,6 +187,102 @@ class ProjectConsoleTest(unittest.TestCase):
         )
 
 
+class FakeScreen:
+    """Records what curses would draw, as a character grid read back by row."""
+
+    def __init__(self, height: int, width: int) -> None:
+        self.height, self.width = height, width
+        self.rows = [[" "] * width for _ in range(height)]
+
+    def getmaxyx(self) -> tuple[int, int]:
+        return self.height, self.width
+
+    def addnstr(self, y: int, x: int, value: str, count: int, attr: int = 0) -> None:
+        for offset, char in enumerate(value[:count]):
+            self.rows[y][x + offset] = char
+
+    def row(self, y: int) -> str:
+        return "".join(self.rows[y])
+
+
+class ConsoleListLayoutTest(unittest.TestCase):
+    PALETTE = {name: 0 for name in (
+        "base", "text", "title", "ready", "muted", "line", "action", "selected",
+        "working", "blocked", "unknown",
+    )}
+
+    @staticmethod
+    def task(task_id: str, title: str = "Title") -> console.Task:
+        return console.Task(task_id, title, "[ ]", "Phase 1", (), None, (), (),
+                            readiness="READY")
+
+    def render(self, tasks, width: int, all_tasks=None):
+        screen = FakeScreen(20, width)
+        console._draw_list(screen, list(tasks), tasks[0].task_id, 0, width, 20,
+                           self.PALETTE, all_tasks)
+        return screen
+
+    def test_columns_follow_the_longest_id_for_3_8_13_and_18_characters(self) -> None:
+        for length in (3, 8, 13, 18):
+            with self.subTest(length=length):
+                task_id = "X" * (length - 1) + "1"
+                tasks = [self.task("001"), self.task(task_id, "Visible title")]
+                screen = self.render(tasks, 110)
+                layout = console._list_layout(tasks, 110)
+                self.assertEqual(layout.id_width, length)
+                self.assertEqual(layout.title_x, 3 + length + 1)
+                row = screen.row(7)
+                self.assertEqual(row[3:3 + length], task_id)
+                self.assertEqual(row[layout.title_x:layout.title_x + 15], "○ Visible title")
+                self.assertEqual(row[layout.status_x:layout.status_x + 5], "Ready")
+                self.assertEqual(screen.row(3)[layout.status_x:layout.status_x + 6], "Status")
+                self.assertEqual(screen.row(3)[layout.age_x:layout.age_x + 7], "Updated")
+
+    def test_three_character_ids_keep_their_position_with_actual_width(self) -> None:
+        tasks = [self.task("075"), self.task("076")]
+        layout = console._list_layout(tasks, 110)
+        self.assertEqual((layout.id_x, layout.id_width, layout.title_x), (3, 3, 7))
+        self.assertEqual(self.render(tasks, 110).row(6)[1], "›")
+
+    def test_id_is_capped_clipped_and_never_overlaps_title_or_status(self) -> None:
+        long_id = "M20-EVENT-002-CORR"
+        tasks = [self.task(long_id, "Title")]
+        self.assertTrue(console._list_layout(tasks, 50).id_width < len(long_id))
+        for width in (50, 60, 74, 110):
+            with self.subTest(width=width):
+                layout = console._list_layout(tasks, width)
+                self.assertLessEqual(layout.id_width, width // 3)
+                self.assertGreaterEqual(layout.title_width, console.LIST_MIN_TITLE_WIDTH)
+                self.assertLessEqual(layout.title_x + layout.title_width + 2, layout.status_x)
+                row = self.render(tasks, width).row(6)
+                shown = row[3:3 + layout.id_width]
+                self.assertEqual(shown, console._clip(long_id, layout.id_width))
+                self.assertEqual(shown.endswith("…"), layout.id_width < len(long_id))
+                self.assertEqual(row[3 + layout.id_width], " ")
+                self.assertTrue(row[layout.title_x:].startswith("○ "))
+
+    def test_filtering_does_not_move_columns(self) -> None:
+        everything = [self.task("001"), self.task("M20-EVENT-002")]
+        full = console._list_layout(everything, 110)
+        filtered = self.render(everything[:1], 110, everything)
+        self.assertEqual(filtered.row(6)[3:6], "001")
+        self.assertEqual(filtered.row(6)[full.title_x:full.title_x + 7], "○ Title")
+        self.assertEqual(filtered.row(3)[full.status_x:full.status_x + 6], "Status")
+        self.assertNotEqual(full, console._list_layout(everything[:1], 110))
+
+    def test_full_id_is_in_detail_copy_directive_and_one_shot(self) -> None:
+        task = self.task("M20-EVENT-002-CORR")
+        lines = [value for value, _ in console._detail_lines(task, 60, self.PALETTE)]
+        self.assertIn("Task M20-EVENT-002-CORR", lines)
+        self.assertEqual(task.launch_command, "Proceed with M20-EVENT-002-CORR")
+        state = console.ConsoleState(Path("."))
+        state.snapshot = console.Snapshot(
+            Path("."), Path("tasks/QUEUE.md"), "main", "clean", 0, (task,), 0,
+        )
+        state.last_success = datetime.now().astimezone()
+        self.assertIn("M20-EVENT-002-CORR [READY] Title", console.one_shot(state))
+
+
 class RepoCase(unittest.TestCase):
     """Throwaway Git repository with a primary checkout and task worktrees."""
 
