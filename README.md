@@ -85,12 +85,14 @@ appear as `MISMATCH` with no launch directive.
 For an eligible directive, `c` (or `[copy]`) keeps the copy-to-clipboard
 fallback. On macOS with iTerm2, press `l`, choose Claude Code or Codex, and
 then review the exact directive and primary-checkout directory before pressing
-Enter to start a new tab. The first launch may cause macOS to ask permission
-for the terminal to automate iTerm2. Launching starts an agent that may modify
-the project and counts as the developer's assignment of that task. The console
-does not prepare worktrees: the permitted directive does so. If iTerm2,
-`osascript`, or the selected executable is unavailable, the console reports
-the reason and `[copy]` remains available.
+Enter to start a horizontal split pane below the console. The first launch may
+cause macOS to ask permission for the terminal to automate iTerm2. Each launch
+splits the console's current pane again, so repeated launches reduce the space
+available to existing panes. Launching starts an agent that may modify the
+project and counts as the developer's assignment of that task. The console does
+not prepare worktrees: the permitted directive does so. If iTerm2, `osascript`,
+the selected executable, or the console's iTerm2 session is unavailable,
+the console reports the reason and `[copy]` remains available.
 
 The command is part of the tagged Meridian tree. Claude Code adopters receive
 it through `${CLAUDE_PLUGIN_ROOT}/bin/meridian`; Codex adopters run the

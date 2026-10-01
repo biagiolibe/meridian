@@ -49,7 +49,7 @@ the console's own session, so the console stays visible beside the agent.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[ ]` | 086 | Launch console agents in a horizontal iTerm2 split pane | 🟡 P2 | 077 | [086](086-console-launch-agent-in-iterm2-split-pane.md) |
+| `[/]` | 086 | Launch console agents in a horizontal iTerm2 split pane | 🟡 P2 | 077 | [086](086-console-launch-agent-in-iterm2-split-pane.md) |
 
 ### Phase 29 — Workflow-aware console state and agent launch
 

@@ -73,6 +73,11 @@ checkout, quoting, refusals, `[copy]` fallback) is unchanged.
   evidence: the new pane appears below the console and the console stays
   usable.
 
+## Manual verification
+
+- Pending: run the iTerm2 smoke check above. The unique-id lookup and the
+  horizontal split direction cannot be verified programmatically.
+
 ## Out of scope
 
 Vertical splits or a direction setting, tiling or reusing earlier agent panes,
