@@ -127,6 +127,19 @@ class ReleasePrepareTest(unittest.TestCase):
         self.assertEqual((self.root / "VERSION").read_text(encoding="utf-8"), "1.0.0\n")
         self.assertEqual(self.git("status", "--porcelain").stdout, "")
 
+    def test_prepare_directs_an_already_prepared_release_to_publish(self) -> None:
+        self.git("tag", "v1.0.0")
+        (self.root / "VERSION").write_text("1.0.1\n", encoding="utf-8")
+        (self.root / ".claude-plugin/plugin.json").write_text('{"version": "1.0.1"}\n', encoding="utf-8")
+        (self.root / "releases/1.0.1.json").write_text(json.dumps({
+            "version": "1.0.1", "gitTag": "v1.0.1", "baselineChanged": False, "migrations": [],
+        }), encoding="utf-8")
+        self.git("add", ".")
+        self.git("commit", "-qm", "Prepare release in migration task")
+        with mock.patch("sys.stderr") as stderr:
+            self.assertEqual(self.invoke("--bump", "patch"), 1)
+        self.assertIn("publish --confirm v1.0.1", "".join(str(call) for call in stderr.write.call_args_list))
+
     def test_commit_contains_only_release_files(self) -> None:
         with mock.patch.object(release, "validate", return_value=(0, [])):
             self.assertEqual(self.invoke("--version", "1.0.1"), 0)
@@ -148,7 +161,9 @@ class ReleasePublishTest(unittest.TestCase):
         (self.root / "VERSION").write_text("1.0.0\n", encoding="utf-8")
         (self.root / ".claude-plugin/plugin.json").write_text('{"version": "1.0.0"}\n', encoding="utf-8")
         (self.root / "CHANGELOG.md").write_text("# Changelog\n", encoding="utf-8")
-        (self.root / "releases/1.0.0.json").write_text(json.dumps({"version": "1.0.0", "baselineChanged": False}), encoding="utf-8")
+        (self.root / "releases/1.0.0.json").write_text(json.dumps({
+            "version": "1.0.0", "gitTag": "v1.0.0", "baselineChanged": False, "migrations": [],
+        }), encoding="utf-8")
         (self.root / "scripts/check_repository.py").write_text("", encoding="utf-8")
         (self.root / "scripts/prepare_release.py").write_text("", encoding="utf-8")
         (self.root / "bin/meridian").write_text("#!/bin/sh\necho UP_TO_DATE\n", encoding="utf-8")
@@ -169,7 +184,9 @@ class ReleasePublishTest(unittest.TestCase):
         (self.root / "VERSION").write_text("1.0.1\n", encoding="utf-8")
         (self.root / ".claude-plugin/plugin.json").write_text('{"version": "1.0.1"}\n', encoding="utf-8")
         (self.root / "CHANGELOG.md").write_text("# Changelog\n\n## [1.0.1]\n", encoding="utf-8")
-        (self.root / "releases/1.0.1.json").write_text(json.dumps({"version": "1.0.1", "baselineChanged": False}), encoding="utf-8")
+        (self.root / "releases/1.0.1.json").write_text(json.dumps({
+            "version": "1.0.1", "gitTag": "v1.0.1", "baselineChanged": False, "migrations": [],
+        }), encoding="utf-8")
         self.git("add", ".")
         self.git("commit", "-qm", "Release 1.0.1")
 
@@ -187,8 +204,9 @@ class ReleasePublishTest(unittest.TestCase):
         cases = [
             ("branch", lambda: self.git("checkout", "-qb", "feature"), "current branch"),
             ("dirty", lambda: (self.root / "dirty").write_text("x", encoding="utf-8"), "working tree"),
-            ("head", lambda: self.git("commit", "--allow-empty", "-qm", "not release"), "HEAD must"),
-            ("files", lambda: ((self.root / "other").write_text("x", encoding="utf-8"), self.git("add", "other"), self.git("commit", "--amend", "--no-edit")), "touch only"),
+            ("versions", lambda: ((self.root / ".claude-plugin/plugin.json").write_text('{"version": "1.0.2"}\n', encoding="utf-8"), self.git("add", "."), self.git("commit", "-qm", "wrong version")), "must agree"),
+            ("ledger-tag", lambda: ((self.root / "releases/1.0.1.json").write_text(json.dumps({"version": "1.0.1", "gitTag": "v1.0.2", "baselineChanged": False, "migrations": []}), encoding="utf-8"), self.git("add", "."), self.git("commit", "-qm", "wrong tag")), "gitTag"),
+            ("cli-migrations", lambda: ((self.root / "releases/1.0.1.json").write_text(json.dumps({"version": "1.0.1", "gitTag": "v1.0.1", "baselineChanged": False, "migrations": ["001-test"]}), encoding="utf-8"), self.git("add", "."), self.git("commit", "-qm", "wrong migrations")), "CLI-only"),
             ("local-tag", lambda: self.git("tag", "v1.0.1"), "local tag"),
             ("remote-tag", lambda: (self.git("tag", "v1.0.1"), self.git("push", "origin", "v1.0.1"), self.git("tag", "-d", "v1.0.1")), "origin tag"),
         ]
@@ -199,6 +217,36 @@ class ReleasePublishTest(unittest.TestCase):
                 self.assertIn(expected, "".join(str(call) for call in stderr.write.call_args_list))
             self.tearDown()
             self.setUp()
+
+    def test_template_changing_release_and_multi_commit_publish(self) -> None:
+        (self.root / "migrations").mkdir()
+        (self.root / "migrations/001-test.json").write_text('{"id": "001-test", "to": "1.0.1"}', encoding="utf-8")
+        (self.root / "releases/1.0.1.json").write_text(json.dumps({
+            "version": "1.0.1", "gitTag": "v1.0.1", "baselineChanged": True, "migrations": ["001-test"],
+        }), encoding="utf-8")
+        self.git("add", ".")
+        self.git("commit", "-qm", "Add release migration")
+        self.git("commit", "--allow-empty", "-qm", "Document release migration")
+        output = io.StringIO()
+        with mock.patch.object(release, "validate", return_value=(0, [])), redirect_stdout(output):
+            self.assertEqual(self.invoke("--confirm", "v1.0.1", "--no-wait"), 0)
+        text = output.getvalue()
+        self.assertIn("Template-changing release", text)
+        self.assertIn("Migrations: 001-test", text)
+        self.assertIn("Add release migration", text)
+        self.assertIn("Document release migration", text)
+
+    def test_template_changing_ledger_migration_must_exist_and_target_version(self) -> None:
+        (self.root / "migrations").mkdir()
+        (self.root / "migrations/001-test.json").write_text('{"id": "001-test", "to": "1.0.2"}', encoding="utf-8")
+        (self.root / "releases/1.0.1.json").write_text(json.dumps({
+            "version": "1.0.1", "gitTag": "v1.0.1", "baselineChanged": True, "migrations": ["001-test"],
+        }), encoding="utf-8")
+        self.git("add", ".")
+        self.git("commit", "-qm", "Wrong migration target")
+        with mock.patch("sys.stderr") as stderr:
+            self.assertEqual(self.invoke("--confirm", "v1.0.1"), 1)
+        self.assertIn("must exist and target 1.0.1", "".join(str(call) for call in stderr.write.call_args_list))
 
     def test_origin_must_be_parent_of_release_commit(self) -> None:
         self.git("checkout", "-qb", "other", "origin/main")

@@ -1,0 +1,26 @@
+{
+  "accepted": true,
+  "validation_passed": true,
+  "validated_task_commit": "28d7ecf10aa4113678a8bf8b4cda72b47765baba",
+  "validated_base_commit": "489e10091fd4e01c0f64f0624a9d59854c11fb15",
+  "full_validation_required": false,
+  "interaction_assessment_complete": true,
+  "task_paths": [
+    "scripts/release.py",
+    "tests/test_release.py",
+    "CONTRIBUTING.md",
+    "CHANGELOG.md",
+    "tasks/QUEUE.md",
+    "PROJECT_PLAN.md",
+    "tasks/098-release-publish-prepared-template-changing.md",
+    "tasks/done/098-release-publish-prepared-template-changing.md",
+    "tasks/handoffs/098.md",
+    "tasks/handoffs/098.json"
+  ],
+  "task_dependencies": ["094", "095"],
+  "task_behavioral_surfaces": [
+    "maintainer release publication preconditions, summaries, and release preparation guidance"
+  ],
+  "main_advanced_dependencies": [],
+  "main_advanced_behavioral_surfaces": []
+}
