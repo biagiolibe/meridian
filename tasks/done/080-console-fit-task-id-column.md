@@ -16,27 +16,27 @@ has 13, and the longest ID in Palimpsest, `M20-EVENT-002-CORR`, has 18.
 
 ## Acceptance Criteria
 
-- [ ] The ID column width is computed from the longest task ID in the full open
+- [x] The ID column width is computed from the longest task ID in the full open
   task set, not from the currently filtered rows, so it does not change when the
   status filter or search changes.
-- [ ] The width is capped at one third of the list pane. An ID longer than the
+- [x] The width is capped at one third of the list pane. An ID longer than the
   cap is shown with a trailing `…` in the list and in full in the task detail.
-- [ ] The title starts after the ID column and receives the remaining width,
+- [x] The title starts after the ID column and receives the remaining width,
   keeping the existing status and updated columns; the title never overlaps the
   ID or status columns, and never receives less than its current minimum.
-- [ ] The "Tasks" header, the selection marker, and the phase headings stay
+- [x] The "Tasks" header, the selection marker, and the phase headings stay
   aligned with the computed column.
-- [ ] Lean Delivery lists with 3-character IDs look the same as before, except
+- [x] Lean Delivery lists with 3-character IDs look the same as before, except
   for the column width becoming the actual ID width.
-- [ ] A layout test asserts the rendered column positions for IDs of 3, 8, 13,
+- [x] A layout test asserts the rendered column positions for IDs of 3, 8, 13,
   and 18 characters, for a pane narrower than the capped width, and for a
   filter change.
-- [ ] Every other place that assumes the old 5 and 9 column positions is found
+- [x] Every other place that assumes the old 5 and 9 column positions is found
   and either updated or recorded in the handoff as unaffected, including the
   detail pane, the header, mouse hit-testing, and the one-shot output.
-- [ ] The full task ID is available in the detail view, the copy directive, and
+- [x] The full task ID is available in the detail view, the copy directive, and
   the one-shot output.
-- [ ] No snapshot, refresh, or state behavior changes.
+- [x] No snapshot, refresh, or state behavior changes.
 
 ## Relevant Files and Context
 
