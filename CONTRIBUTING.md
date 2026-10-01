@@ -109,6 +109,22 @@ protocol bump. When a bump is required, add compatibility tests that prove the
 older protocol remains readable and the newer protocol is rejected by the
 current reader with upgrade guidance.
 
+## Support policy
+
+The support window is defined by Decision 6 in
+`docs/DISTRIBUTION_AND_UPDATE_DESIGN.md` and stated for adopters in the README:
+
+- Every published release from `v1.1.49` forward upgrades to the newest release
+  in a single `upgrade --apply`, and releases may be skipped.
+  `test_oldest_published_release_upgrades_to_current_in_one_apply` proves this
+  from the snapshot in `tests/fixtures/release-1.1.49-governed-sdd.tar.gz`.
+- Fixes land only in the newest release; do not add backport branches.
+- Downgrades, manifests with an unrecorded baseline, and unreleased `main` are
+  unsupported. Projects older than `v1.1.49` use `meridian adopt` best-effort.
+- Never remove a migration or packaged baseline, or change the window, without a
+  CHANGELOG-announced release and a migration or `adopt` path for affected
+  projects. A change to a template or migration must keep the proving test green.
+
 ## Pull requests
 
 Explain the user-facing problem, the workflow behavior that changes, and how you validated it. When a change modifies a mode rule, identify every corresponding asset you updated—for example, the workflow document, `AGENTS.md`, `CLAUDE.md`, task template, queue template, commands, and skills.
