@@ -141,6 +141,12 @@ class RecordResolver:
             return None, f"task record is unavailable within the project: {matches[0]}"
         return path, None
 
+    def find_on_ref(self, ref: str, task_id: str) -> str | None:
+        """Apply the same rules to a task branch tree; None unless exactly one match."""
+        listing = _git_optional(self.project, "ls-tree", "-r", "--name-only", ref, "--", *self.roots)
+        matches = record_matches(task_id, (listing or "").splitlines(), self.excluded)
+        return matches[0] if len(matches) == 1 else None
+
 
 def _task_path(project: Path, queue: Path, row: QueueRow,
                resolver: RecordResolver) -> tuple[Path | None, str | None]:
@@ -257,7 +263,7 @@ class IdentityCache:
 
 def _branch_facts(project: Path, profile: Profile, task_id: str, queue: str,
                   worktrees: dict[str, str], identities: IdentityCache | None = None,
-                  main_record: str | None = None
+                  resolver: RecordResolver | None = None, main_record: str | None = None
                   ) -> tuple[BranchFacts | None, str | None, str | None, str | None]:
     """Read one task branch without touching its worktree.
 
@@ -285,9 +291,12 @@ def _branch_facts(project: Path, profile: Profile, task_id: str, queue: str,
     elif has_link(row.link):
         record_path = link_target(queue, row.link)
     else:
-        # The branch reads the record at the path resolved on main, as with a queue link.
         record_path = main_record
     record = show(record_path) if record_path else None
+    if record is None and resolver and row and not has_link(row.link):
+        # The branch moved the record: resolve it in the branch tree by the same rules.
+        record_path = resolver.find_on_ref(ref, task_id)
+        record = show(record_path) if record_path else None
     review = (show(_relative(project, identity.review_path))
               if profile.name == "governed-sdd" else None)
     base = "refs/heads/main" if _git_optional(
@@ -344,7 +353,7 @@ def load_snapshot(project: Path, identities: IdentityCache | None = None) -> Sna
             facts, branch_text, branch_path, worktree = None, None, None, None
         else:
             facts, branch_text, branch_path, worktree = _branch_facts(
-                project, profile, row.task_id, queue_relative, worktrees, identities,
+                project, profile, row.task_id, queue_relative, worktrees, identities, resolver,
                 _relative(project, path) if path and not has_link(row.link) else None)
         effective = effective_state(profile, row, record_status(primary_text), facts)
         from_branch = facts is not None and branch_text is not None and effective.source != "main"
