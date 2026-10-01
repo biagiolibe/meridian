@@ -171,7 +171,7 @@ def check_governed_review_worktree_contract(root: Path = ROOT) -> None:
                 )
 
     review = review_paths[-1].read_text(encoding="utf-8")
-    preflight = "<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v6 -->"
+    preflight = "<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v7 -->"
     boundary = "<!-- MERIDIAN:BEGIN capability=review-mode-boundary v1 -->"
     required = (
         "Before reading the assigned task",

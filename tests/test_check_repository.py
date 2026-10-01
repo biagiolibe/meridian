@@ -212,7 +212,7 @@ class GovernedReviewWorktreeContractTest(unittest.TestCase):
             / "templates/workflows/governed-sdd/docs/workflows/REVIEW.md"
         )
         text = review.read_text(encoding="utf-8")
-        begin = "<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v3 -->"
+        begin = "<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v7 -->"
         boundary = "<!-- MERIDIAN:BEGIN capability=review-mode-boundary v1 -->"
         text = text.replace(begin, "TEMP-PREFLIGHT", 1)
         text = text.replace(boundary, begin, 1).replace("TEMP-PREFLIGHT", boundary, 1)
