@@ -41,7 +41,7 @@ its project-state sources local.
 |--------|----|-------|----------|------------|------|
 | `[x]` | 071 | Apply the compact dark shell design to the project console | 🟡 P2 | 070 | [071](done/071-apply-compact-console-design.md) |
 | `[x]` | 072 | Match the approved console mockup in the terminal renderer | 🟡 P2 | 071 | [072](done/072-match-console-mockup.md) |
-| `[ ]` | 073 | Make directives copyable and restore All filter navigation | 🟡 P2 | 072 | [073](073-copy-directive-and-filter-navigation.md) |
+| `[x]` | 073 | Make directives copyable and restore All filter navigation | 🟡 P2 | 072 | [073](done/073-copy-directive-and-filter-navigation.md) |
 
 ### Phase 24 — Review worktree routing correction
 
