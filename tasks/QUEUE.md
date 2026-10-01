@@ -40,7 +40,7 @@ reasons, and creates the implementation follow-ups.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[ ]` | 100 | Design hands-off task closure | 🔴 P1 | 088, 097, 099 | [100](100-design-hands-off-task-closure.md) |
+| `[/]` | 100 | Design hands-off task closure | 🔴 P1 | 088, 097, 099 | [100](100-design-hands-off-task-closure.md) |
 
 ### Phase 41 — Governed Proceed prepares its worktree
 
