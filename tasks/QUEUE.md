@@ -42,6 +42,15 @@ worktree, and migrates the correction to existing adopters.
 |--------|----|-------|----------|------------|------|
 | `[x]` | 064 | Remove the primary-checkout review conflict | 🔴 P1 | 051, 063 | [064](done/064-remove-primary-checkout-review-conflict.md) |
 
+### Phase 28 — Project console distribution
+
+Expose the read-only project console through the distributed Meridian CLI and
+document how adopters use it from any Meridian project.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 075 | Distribute the project console through the Meridian CLI | 🟡 P2 | 074, 065 | [075](075-distribute-project-console-cli.md) |
+
 ### Phase 23 — Shared task identity resolver
 
 Implements the opt-in identity policy designed by Task 039 as one

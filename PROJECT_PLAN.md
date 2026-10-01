@@ -40,6 +40,7 @@
 - `[x]` 072 — Match the approved console mockup in the terminal renderer.
 - `[x]` 073 — Make directives copyable and restore All filter navigation.
 - `[x]` 074 — Use the terminal background in the project console.
+- `[ ]` 075 — Distribute the project console through the Meridian CLI.
 - `[ ]` 067 — Enforce the adopter-facing release-notes contract.
 - `[ ]` 068 — Document and test the upgrade support policy.
 - `[ ]` 069 — Document Codex install from a tagged checkout.
