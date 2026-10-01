@@ -292,4 +292,13 @@ column, and explains why a directive is withheld.
 |--------|----|-------|----------|------------|------|
 | `[x]` | 087 | Read the review policy from the task record in the console | 🟡 P2 | 077 | [087](done/087-console-read-review-policy-from-task-record.md) |
 
+### Phase 34 — Release 1.2.0 preparation
+
+Closes the changelog, bumps the version, and records the ledger entry for the
+first adopter-installable release since `v1.1.50`.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 089 | Prepare release 1.2.0 | 🟡 P2 | 067, 068, 069 | [089](done/089-prepare-release-1-2-0.md) |
+
 *Last updated: 2026-10-01*
