@@ -32,6 +32,15 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, 25, 26, 27, 28, 31, 32, 34, and 36
 are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 
+### Phase 37 — Codex machine setup completeness
+
+Moves the Codex skill links and the `MERIDIAN_ROOT` check from manual README
+steps into the consented `meridian setup` and the read-only `codex doctor`.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 092 | Link the Codex skills in `meridian setup` and check them in `codex doctor` | 🟡 P2 | 083, 085 | [092](092-setup-codex-skill-links-and-doctor-checks.md) |
+
 ### Phase 35 — Single-step upgrade from the 1.0.0 baseline
 
 Found by task 068: a pristine `1.0.0` project does not reach the current
