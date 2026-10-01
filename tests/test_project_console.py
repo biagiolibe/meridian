@@ -213,7 +213,7 @@ class ConsoleListLayoutTest(unittest.TestCase):
 
     @staticmethod
     def task(task_id: str, title: str = "Title") -> console.Task:
-        return console.Task(task_id, title, "[ ]", "Phase 1", (), None, (), (),
+        return console.Task(task_id, title, "[ ]", ("Phase 1",), (), None, (), (),
                             readiness="READY")
 
     def render(self, tasks, width: int, all_tasks=None):
@@ -237,6 +237,58 @@ class ConsoleListLayoutTest(unittest.TestCase):
                 self.assertEqual(row[layout.status_x:layout.status_x + 5], "Ready")
                 self.assertEqual(screen.row(3)[layout.status_x:layout.status_x + 6], "Status")
                 self.assertEqual(screen.row(3)[layout.age_x:layout.age_x + 7], "Updated")
+
+    def test_two_level_groups_render_once_and_search_both_labels(self) -> None:
+        queue = ("# Queue\n\n## Program Queue\n\n### Phase 1\n\n" + HEADER
+                 + "| `[ ]` | 001 | First | P2 | — | — |\n"
+                 + "| `[ ]` | 002 | Second | P2 | — | — |\n\n"
+                 + "### Phase 2\n\n" + HEADER
+                 + "| `[ ]` | 003 | Third | P2 | — | — |\n")
+        rows = console.parse_queue(queue, "fixture", console.PROFILES["lean-delivery"])
+        tasks = [
+            console.Task(row.task_id, row.title, row.status, row.section,
+                         (), None, (), (), readiness="READY")
+            for row in rows
+        ]
+        screen = self.render(tasks, 100)
+        drawn = [screen.row(y).strip() for y in range(5, 12)]
+        self.assertEqual(drawn[0], "Program")
+        self.assertEqual(drawn[1], "Phase 1")
+        self.assertIn("001", drawn[2])
+        self.assertIn("002", drawn[3])
+        self.assertEqual(drawn[4], "Phase 2")
+        self.assertIn("003", drawn[5])
+        self.assertEqual(sum(line == "Program" for line in drawn), 1)
+        snapshot = console.Snapshot(Path("/p"), Path("/p/q"), "main", "clean", 0,
+                                    tuple(tasks), 0)
+        self.assertEqual([task.task_id for task in console._visible_tasks(snapshot, "All", "program")],
+                         ["001", "002", "003"])
+        self.assertEqual([task.task_id for task in console._visible_tasks(snapshot, "All", "phase 2")],
+                         ["003"])
+
+    def test_lean_active_queue_wrapper_keeps_phase_only_rendering(self) -> None:
+        queue = ("# Queue\n\n## 🏃 Active Queue\n\n### Phase 29 — Work\n\n"
+                 + HEADER + "| `[ ]` | 001 | First | P2 | — | — |\n")
+        row = console.parse_queue(queue, "fixture", console.PROFILES["lean-delivery"])[0]
+        self.assertEqual(row.section, ("Phase 29 — Work",))
+        task = console.Task(row.task_id, row.title, row.status, row.section,
+                            (), None, (), (), readiness="READY")
+        screen = self.render([task], 100)
+        self.assertEqual(screen.row(5).strip(), "Phase 29 — Work")
+        self.assertNotIn("Active Queue", " ".join(screen.row(y) for y in range(5, 8)))
+
+    def test_queue_heading_levels_two_through_six_render(self) -> None:
+        for level in range(2, 7):
+            with self.subTest(level=level):
+                label = f"Level {level} Queue — Work"
+                queue = (f"# Queue\n\n{'#' * level} {label}\n\n" + HEADER
+                         + "| `[ ]` | 001 | First | P2 | — | — |\n")
+                row = console.parse_queue(queue, "fixture", console.PROFILES["lean-delivery"])[0]
+                task = console.Task(row.task_id, row.title, row.status, row.section,
+                                    (), None, (), (), readiness="READY")
+                self.assertEqual(row.section, (label,))
+                self.assertEqual(self.render([task], 100).row(5).strip(),
+                                 f"Level {level} — Work")
 
     def test_three_character_ids_keep_their_position_with_actual_width(self) -> None:
         tasks = [self.task("075"), self.task("076")]
@@ -652,6 +704,50 @@ class LinklessQueueTest(RepoCase):
         self.assertEqual(tasks["M37-CAUSE-005"].readiness, "READY")
         self.assertEqual(state.snapshot.done_count, 2)
 
+    def test_milestone_headings_group_the_rendered_open_list(self) -> None:
+        queue = "# Task Queue\n\n## Rules\n\nText only.\n\n## Priority\n\nText only.\n\n"
+        counts = {}
+        for number in range(1, 38):
+            milestone = f"M{number:02}"
+            task_id = f"{milestone}-CAUSE-001"
+            status = "ACCEPTED" if number == 1 else "QUEUED"
+            queue += (f"## {milestone} Queue — Milestone {number}\n\n" + self.header
+                      + f"| {number} | {task_id} | P1 | {status} | — | 2h |\n\n")
+            self.write(self.project, *self.record(task_id, status, milestone))
+            counts[milestone] = 1
+        queue += ("## F0 Queue — Presentation track\n\n" + self.header
+                  + "| 38 | F0-PRES-001 | P1 | QUEUED | — | 2h |\n"
+                  + "| 39 | F0-PRES-002 | P1 | QUEUED | — | 2h |\n")
+        for task_id in ("F0-PRES-001", "F0-PRES-002"):
+            self.write(self.project, *self.record(task_id, milestone="F0"))
+        counts["F0"] = 2
+        self.write(self.project, "docs/TASK_QUEUE.md", queue)
+        self.commit(self.project, "milestone queue")
+
+        snapshot = console.load_snapshot(self.project)
+        self.assertEqual(snapshot.done_count, 1)
+        self.assertEqual(len(snapshot.tasks), 38)
+        grouped = {}
+        for task in snapshot.tasks:
+            grouped.setdefault(task.phase[0].split()[0], []).append(task.task_id)
+        self.assertEqual({name: len(rows) for name, rows in grouped.items()},
+                         {name: count for name, count in counts.items() if name != "M01"})
+
+        screen = FakeScreen(100, 110)
+        console._draw_list(screen, list(snapshot.tasks), snapshot.tasks[0].task_id,
+                           0, 110, 100, ConsoleListLayoutTest.PALETTE)
+        drawn = [screen.row(y).strip() for y in range(5, 85)]
+        headings = [line for line in drawn if re.fullmatch(
+            r"(?:M\d{2} — Milestone \d+|F0 — Presentation track)", line)]
+        self.assertEqual(headings, [f"M{number:02} — Milestone {number}"
+                                    for number in range(2, 38)]
+                         + ["F0 — Presentation track"])
+        self.assertFalse(any("Rules" in line or "Priority" in line or "M01" in line
+                             for line in drawn))
+        self.assertLess(drawn.index("M37 — Milestone 37"), drawn.index("F0 — Presentation track"))
+        self.assertEqual([task.task_id for task in console._visible_tasks(
+            snapshot, "All", "presentation track")], ["F0-PRES-001", "F0-PRES-002"])
+
     def test_queue_without_review_column_declares_no_review_policy(self) -> None:
         self.setup_project([("M37-CAUSE-004", "READY_FOR_REVIEW", "—")])
         task = self.load()["M37-CAUSE-004"]
@@ -740,8 +836,14 @@ class LinklessQueueTest(RepoCase):
 
     def test_record_is_read_from_the_task_branch_without_links(self) -> None:
         self.setup_project([("M37-CAUSE-001", "QUEUED", "—")])
+        queue_path = self.project / "docs/TASK_QUEUE.md"
+        queue_path.write_text(queue_path.read_text(encoding="utf-8").replace(
+            "# Task Queue\n\n", "# Task Queue\n\n## M37 Queue — Main group\n\n"),
+            encoding="utf-8")
+        self.commit(self.project, "main group")
         wt = self.worktree("m37-cause-001")
-        queue = (wt / "docs/TASK_QUEUE.md").read_text(encoding="utf-8").replace("QUEUED", "IN_PROGRESS")
+        queue = (wt / "docs/TASK_QUEUE.md").read_text(encoding="utf-8").replace(
+            "QUEUED", "IN_PROGRESS").replace("Main group", "Branch group")
         self.write(wt, "docs/TASK_QUEUE.md", queue)
         path, text = self.record("M37-CAUSE-001", "IN_PROGRESS")
         self.write(wt, path, text.replace("Objective of", "Branch objective of"))
@@ -754,6 +856,7 @@ class LinklessQueueTest(RepoCase):
         self.assertEqual(task.objective, ("Branch objective of M37-CAUSE-001.",))
         self.assertEqual(task.path, self.project / path)
         self.assertIsNotNone(task.updated_at)
+        self.assertEqual(task.phase, ("M37 Queue — Main group",))
 
     def test_branch_record_state_is_used_when_the_queue_has_no_links(self) -> None:
         self.setup_project([("M37-CAUSE-004", "QUEUED", "—")])
