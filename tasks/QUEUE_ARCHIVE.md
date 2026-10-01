@@ -311,4 +311,13 @@ labelled.
 |--------|----|-------|----------|------------|------|
 | `[x]` | 091 | Record the 1.2.0 marketplace install evidence | 🟡 P2 | 065, 089 | [091](done/091-record-1-2-0-marketplace-install-evidence.md) |
 
+### Phase 39 — Release command follow-up and README
+
+Fixes the usage mismatch and the unbounded dry-run output found in the first
+run of `scripts/release.py`, and brings the README in line with what ships.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 095 | Fix the release command's usage and dry run, and update the README | 🟡 P2 | 093, 094 | [095](done/095-release-command-fixes-and-readme.md) |
+
 *Last updated: 2026-10-01*
