@@ -29,18 +29,8 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 
 ## 🏃 Active Queue
 
-Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, 25, 26, 27, 28, 31, 32, and 34
+Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, 25, 26, 27, 28, 31, 32, 34, and 36
 are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
-
-### Phase 36 — Post-release install evidence
-
-Records what the migration to the published `v1.2.0` tag proved about the
-`meridian@meridian` marketplace install, and keeps the unproven claims
-labelled.
-
-| Status | ID | Title | Priority | Depends on | File |
-|--------|----|-------|----------|------------|------|
-| `[x]` | 091 | Record the 1.2.0 marketplace install evidence | 🟡 P2 | 065, 089 | [091](done/091-record-1-2-0-marketplace-install-evidence.md) |
 
 ### Phase 35 — Single-step upgrade from the 1.0.0 baseline
 
