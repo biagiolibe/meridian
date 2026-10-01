@@ -247,6 +247,38 @@ class AgentLaunchTest(unittest.TestCase):
         self.assertIsNone(self.task(readiness="MISMATCH", active_writer=True).launch_command)
         self.assertIsNone(self.task(active_writer=True).launch_command)
 
+    def test_next_action_explains_review_launches_and_refusals(self) -> None:
+        required = self.task(workflow="governed-sdd", readiness="READY FOR REVIEW",
+                             lifecycle="ready_for_review", review="REQUIRED")
+        self.assertEqual(required.next_action, "If assigned: Review 001")
+        self.assertEqual(
+            self.task(workflow="governed-sdd", readiness="READY FOR REVIEW",
+                      lifecycle="ready_for_review").next_action,
+            "Review unavailable: review policy not declared",
+        )
+        self.assertEqual(
+            self.task(workflow="governed-sdd", readiness="READY FOR REVIEW",
+                      lifecycle="ready_for_review", review="NOT REQUIRED").next_action,
+            "Review unavailable: Review: NOT REQUIRED",
+        )
+        self.assertEqual(
+            self.task(workflow="governed-sdd", readiness="READY FOR REVIEW",
+                      lifecycle="ready_for_review", review="REQUIRED", active_writer=True).next_action,
+            "Review unavailable: active writer",
+        )
+        self.assertEqual(
+            self.task(readiness="MISMATCH", mismatch="state conflict").next_action,
+            "Resolve the state disagreement: state conflict",
+        )
+        self.assertEqual(
+            self.task(readiness="READY FOR REVIEW", lifecycle="ready_for_review",
+                      record_problem="task record not found").next_action,
+            "Resolve the task record: task record not found",
+        )
+        lean = self.task(workflow="lean-delivery", readiness="READY FOR REVIEW",
+                         lifecycle="ready_for_review")
+        self.assertEqual(lean.next_action, "If assigned: Review 001")
+
     def test_request_revalidates_id_and_preserves_an_argument_vector(self) -> None:
         with mock.patch.dict(console.os.environ, {"ITERM_SESSION_ID": self.SESSION_ID}, clear=False):
             request, error = console._launch_request(self.task(), Path("."), "codex")
@@ -970,6 +1002,44 @@ class LinklessQueueTest(RepoCase):
         self.assertEqual((task.readiness, task.lifecycle), ("READY FOR REVIEW", "ready_for_review"))
         self.assertIsNone(task.launch_command)
         self.assertIsNone(task.mismatch)
+
+    def test_task_record_review_values_are_strict(self) -> None:
+        for value, expected in (
+            ("REQUIRED", "REQUIRED"), (" NOT REQUIRED ", "NOT REQUIRED"),
+            ("", None), ("required", None), ("OPTIONAL", None),
+        ):
+            with self.subTest(value=value):
+                self.assertEqual(console.record_review(f"Review: {value}\n"), expected)
+        self.assertIsNone(console.record_review("Status: READY_FOR_REVIEW\n"))
+
+    def test_branch_task_record_review_required_offers_review(self) -> None:
+        self.setup_project([("M37-CAUSE-004", "QUEUED", "—")])
+        wt = self.worktree("m37-cause-004")
+        queue = (wt / "docs/TASK_QUEUE.md").read_text(encoding="utf-8").replace(
+            "QUEUED", "READY_FOR_REVIEW")
+        self.write(wt, "docs/TASK_QUEUE.md", queue)
+        path, text = self.record("M37-CAUSE-004", "READY_FOR_REVIEW")
+        self.write(wt, path, text + "Review: REQUIRED\n")
+        self.commit(wt)
+        task = self.load()["M37-CAUSE-004"]
+        self.assertEqual((task.source, task.review, task.readiness),
+                         ("branch m37-cause-004", "REQUIRED", "READY FOR REVIEW"))
+        self.assertEqual(task.launch_command, "Review M37-CAUSE-004")
+        self.assertEqual(task.next_action, "If assigned: Review M37-CAUSE-004")
+
+    def test_branch_task_record_not_required_uses_queue_mismatch_rule(self) -> None:
+        self.setup_project([("M37-CAUSE-004", "QUEUED", "—")])
+        wt = self.worktree("m37-cause-004")
+        queue = (wt / "docs/TASK_QUEUE.md").read_text(encoding="utf-8").replace(
+            "QUEUED", "READY_FOR_REVIEW")
+        self.write(wt, "docs/TASK_QUEUE.md", queue)
+        path, text = self.record("M37-CAUSE-004", "READY_FOR_REVIEW")
+        self.write(wt, path, text + "Review: NOT REQUIRED\n")
+        self.commit(wt)
+        task = self.load()["M37-CAUSE-004"]
+        self.assertEqual(task.review, "NOT REQUIRED")
+        self.assertEqual(task.readiness, "MISMATCH")
+        self.assertIn("Review NOT REQUIRED", task.mismatch or "")
 
     def test_review_column_still_gates_review_state(self) -> None:
         header = ("| Order | ID | Priority | Status | Review | Dependencies |\n"
