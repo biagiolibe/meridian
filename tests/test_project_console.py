@@ -120,10 +120,43 @@ class ProjectConsoleTest(unittest.TestCase):
         )}
         lines = [value for value, _ in console._detail_lines(task, 40, palette)]
         self.assertEqual(lines[0], "Task details")
-        self.assertLess(lines.index("Objective"), lines.index("Dependencies"))
+        self.assertLess(lines.index("Dependencies"), lines.index("Objective"))
+        self.assertLess(lines.index("Objective"), lines.index("Acceptance criteria"))
         self.assertLess(lines.index("Dependencies"), lines.index("Next directive"))
-        self.assertNotIn("Acceptance criteria", lines)
-        self.assertNotIn("- [ ] Second check.", lines)
+        self.assertIn("- [ ] Second check.", lines)
+
+    def test_detail_sections_accept_governed_headings_and_show_dependency_states(self) -> None:
+        self.write_queue()
+        task = self.snapshot().tasks[0]
+        governed = "# Task\n\n## 🎯 Goal\n\nGoverned goal.\n\n## ✅ Acceptance criteria\n\n- [ ] Done.\n"
+        self.assertEqual(console._section(governed, "Objective", "Goal"), ("Governed goal.",))
+        self.assertEqual(console._section(governed, "Acceptance Criteria"), ("- [ ] Done.",))
+        detailed = console.Task(
+            task.task_id, task.title, task.status, task.phase, ("001",), task.path,
+            task.objective, task.criteria, readiness=task.readiness,
+            dependency_states=(("001", "Done"),),
+        )
+        palette = {name: 0 for name in ("base", "text", "title", "ready", "muted", "line", "action")}
+        lines = [value for value, _ in console._detail_lines(detailed, 50, palette)]
+        self.assertLess(lines.index("Dependencies"), lines.index("Objective"))
+        self.assertIn("001 — Done", lines)
+
+    def test_detail_view_clamps_scroll_across_resize_and_draws_hidden_indicators(self) -> None:
+        palette = {name: 0 for name in ("base", "text", "title", "ready", "muted", "line", "action")}
+        task = console.Task(
+            "LONG", "A long task", "[ ]", (), ("001",), None,
+            tuple(f"Objective line {number} needs enough text to wrap in narrow panes." for number in range(12)),
+            (), readiness="READY", dependency_states=(("001", "Done"),),
+        )
+        lines, offset, body = console._detail_view(task, 32, 14, 4, 999, palette)
+        self.assertEqual(offset, len(lines) - body)
+        self.assertEqual(console._scroll_detail(task, 32, 14, 4, offset, 1, palette), offset)
+        self.assertEqual(console._scroll_detail(task, 32, 14, 4, offset, -1, palette), offset - 1)
+        _, resized, resized_body = console._detail_view(task, 72, 28, 4, offset, palette)
+        self.assertLessEqual(resized, max(0, len(console._detail_view(task, 72, 28, 4, 0, palette)[0]) - resized_body))
+        screen = FakeScreen(14, 40)
+        console._draw_detail(screen, task, 2, 4, 32, 14, offset, palette)
+        self.assertIn("more above", "\n".join(screen.row(y) for y in range(4, 12)))
 
     def test_header_right_aligns_git_and_underlines_active_all_tab(self) -> None:
         self.write_queue()
