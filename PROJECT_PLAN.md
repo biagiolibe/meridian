@@ -65,7 +65,9 @@
 - `[x]` 095 — Fix the release command's usage and dry run, and update the README.
 - `[ ]` 096 — Retry the workflow lookup in `release.py publish` and add `verify`.
 - `[x]` 097 — Let a manually typed `Proceed with` prepare its own worktree in Governed SDD.
-- `[ ]` 098 — Let `release.py publish` release an already-prepared template-changing release.
+- `[x]` 098 — Let `release.py publish` release an already-prepared template-changing release.
+- `[ ]` 099 — Skip the AppleScript compile test when `osacompile` cannot run.
+- `[ ]` 100 — Design hands-off task closure.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.
 - `[x]` 053 — Remove machine-specific absolute paths from tracked records.
