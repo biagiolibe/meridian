@@ -75,8 +75,13 @@ checkout, quoting, refusals, `[copy]` fallback) is unchanged.
 
 ## Manual verification
 
-- Pending: run the iTerm2 smoke check above. The unique-id lookup and the
-  horizontal split direction cannot be verified programmatically.
+- 2026-10-01: The developer tried launching from both `main` and the task 086
+  worktree; each attempt opened another tab instead of a split pane. This
+  failed smoke check exposed that the AppleScript attempted to filter tabs by
+  a session property. The lookup now iterates each window, tab, and session
+  before comparing the session's unique ID. Repeat the iTerm2 smoke check after
+  launching this corrected task-worktree version; pane direction remains
+  unverified until then.
 
 ## Out of scope
 
