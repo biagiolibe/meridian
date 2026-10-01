@@ -40,7 +40,17 @@ reasons, and creates the implementation follow-ups.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[/]` | 100 | Design hands-off task closure | 🔴 P1 | 088, 097, 099 | [100](100-design-hands-off-task-closure.md) |
+| `[x]` | 100 | Design hands-off task closure | 🔴 P1 | 088, 097, 099 | [100](done/100-design-hands-off-task-closure.md) |
+| `[ ]` | 101 | Add `meridian worktree closure-status` | 🟡 P2 | 100 | [101](101-closure-status-command.md) |
+| `[ ]` | 102 | Add the evidence command and recompute main-advance facts in `integrate stage` | 🟡 P2 | 100 | [102](102-evidence-command-and-main-advance-facts.md) |
+| `[ ]` | 103 | Apply queue and plan row status during `integrate stage` | 🟡 P2 | 100, 102 | [103](103-apply-queue-and-plan-rows-at-integration.md) |
+| `[ ]` | 104 | Apply phase archival during `integrate stage` | 🟡 P2 | 100, 103 | [104](104-apply-phase-archival-at-integration.md) |
+| `[ ]` | 105 | Derive `[/]` and show closure stop reasons in the console | 🟡 P2 | 101, 103 | [105](105-console-derive-in-progress-and-closure-stops.md) |
+| `[ ]` | 106 | Narrow the Codex push rule and offer a Claude Code allowlist | 🟡 P2 | 100 | [106](106-narrow-push-rule-and-claude-allowlist.md) |
+| `[ ]` | 107 | Block `integrate stage` when `main` is behind `origin` and report a pending push | 🟡 P2 | 100, 101 | [107](107-block-stage-when-main-behind-origin.md) |
+| `[ ]` | 108 | Add the `Validation skips` handoff field and its check | 🟡 P2 | 099, 100 | [108](108-validation-skips-handoff-field.md) |
+| `[ ]` | 109 | Ship the Lean Delivery closure rules and migration | 🟡 P2 | 100, 101, 102, 103, 104, 106, 107, 108 | [109](109-ship-lean-closure-rules-and-migration.md) |
+| `[ ]` | 110 | Ship the Governed SDD closure rules and migration | 🟡 P2 | 109 | [110](110-ship-governed-closure-rules-and-migration.md) |
 
 ### Phase 41 — Governed Proceed prepares its worktree
 
