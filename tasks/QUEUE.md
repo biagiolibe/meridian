@@ -40,7 +40,7 @@ ledger, and changelog were bumped by the task that added its migration, and make
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[ ]` | 098 | Let `release.py publish` release an already-prepared template-changing release | 🟡 P2 | 094, 095 | [098](098-release-publish-prepared-template-changing.md) |
+| `[/]` | 098 | Let `release.py publish` release an already-prepared template-changing release | 🟡 P2 | 094, 095 | [098](098-release-publish-prepared-template-changing.md) |
 
 ### Phase 41 — Governed Proceed prepares its worktree
 
