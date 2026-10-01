@@ -19,8 +19,8 @@
   },
   "templates/workflows/governed-sdd/PROJECT_WORKFLOW.md": {
     "bounded-worktree-lifecycle": {
-      "sha256": "c69878caa8860d5966a103f577fe1b068a4567924cda4637f3e2dc9b2fa818b3",
-      "version": 3
+      "sha256": "d02362560d411f1a63e8eed6d58f7163d136f26e1fac7d5fcfdca92b58a89f4d",
+      "version": 4
     },
     "codex-worktree-access": {
       "sha256": "0c3d176ee3b192b194d32a59dd5222b5372c2b13a9c37d7faeaae2edde90bc57",
@@ -195,8 +195,8 @@
       "version": 1
     },
     "task-worktree-boundary": {
-      "sha256": "f9d012508e3c997aed9dd9e5272c7ad1eb3d025b68ff5788f23f80f2168132f1",
-      "version": 4
+      "sha256": "67c357bb0e0b765dd2fc431ca280c7c290c457e3636772d96a89134bde11f695",
+      "version": 5
     },
     "validation-scoping": {
       "sha256": "447faaddb875883d676be4c53abf218fc555325cbb591e411412249f7077012d",

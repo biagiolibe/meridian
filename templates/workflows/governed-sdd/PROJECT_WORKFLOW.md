@@ -152,16 +152,20 @@ requires manual reconciliation. Repair never proves that a running session
 loaded the profile; start a fresh session and probe it.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=bounded-worktree-lifecycle v3 -->
-The coordinator runs `meridian worktree prepare` before creating an
-implementer, reviewer, or remediation session and passes the returned existing
-path, branch, primary checkout, and worktree root as durable launch inputs.
-Every worker starts in that exact directory and runs read-only `meridian
-worktree check` before any task, handoff, implementation, or diff read. Hosts
-must not create a substitute checkout. Integration uses `meridian worktree
-integrate stage`, separately recorded candidate validation, and `integrate
-finalize` or `integrate abort`; verified post-push cleanup uses `meridian
-worktree cleanup`. See `docs/WORKTREE_LIFECYCLE.md`.
+<!-- MERIDIAN:BEGIN capability=bounded-worktree-lifecycle v4 -->
+For coordinator-launched implementation, review, or remediation work, the
+coordinator runs `meridian worktree prepare` before creating the worker and
+passes the returned existing path, branch, primary checkout, and worktree root
+as durable launch inputs. Every such worker starts in that exact directory and
+runs read-only `meridian worktree check` before any task, handoff,
+implementation, or diff read. A manually typed `Proceed with <TASK-ID>` with
+no coordinator launch inputs follows the manual-start rule in
+`docs/workflows/IMPLEMENTATION.md`: it prepares exactly the triggered task and
+then checks the returned worktree before reading task material. Hosts must not
+create a substitute checkout. Integration uses `meridian worktree integrate
+stage`, separately recorded candidate validation, and `integrate finalize` or
+`integrate abort`; verified post-push cleanup uses `meridian worktree cleanup`.
+See `docs/WORKTREE_LIFECYCLE.md`.
 Absolute paths are runtime launch inputs only. A handoff or other tracked
 record that names the worktree uses the `handoff_worktree` value returned by
 `meridian worktree prepare`, the path relative to the worktree root, never an

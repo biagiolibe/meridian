@@ -16,6 +16,28 @@ records which release moved it.
 ## [Unreleased]
 
 
+## [1.2.2]
+
+Template-changing release: migration `056-manual-governed-proceed-worktree`
+advances `workflowBaselineVersion` to `1.1.54`.
+
+### Changed
+
+- In Governed SDD, a manually typed `Proceed with <TASK-ID>` now prepares and
+  verifies the exact task worktree when a coordinator did not supply launch
+  inputs. Coordinator-launched implementation, review, and remediation keep
+  their existing registered-worktree rules.
+
+### Upgrade notes
+
+- Run `meridian upgrade --apply` in each Governed SDD project to install
+  `bounded-worktree-lifecycle` v4 in `PROJECT_WORKFLOW.md` and
+  `task-worktree-boundary` v5 in `docs/workflows/IMPLEMENTATION.md`.
+- A locally edited `IMPLEMENTATION.md` can produce an upgrade conflict; resolve
+  the manual `Proceed with` worktree-start rule deliberately rather than
+  overwriting local policy.
+- Restart open agent sessions after upgrading so they read the new procedure.
+
 ## [1.2.1]
 
 CLI-only release: this release introduces no migration.
