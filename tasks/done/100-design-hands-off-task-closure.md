@@ -4,7 +4,7 @@
 > **Category**: Architecture / Design
 > **Priority**: 🔴 P1
 > **Estimate**: ~2.5h (decisions only; split the follow-ups if the survey grows)
-> **Assigned to**: unassigned
+> **Assigned to**: Claude CLI
 > **Session**: Developer report that task closure and integration keep stopping
 
 ## Objective
@@ -23,7 +23,7 @@ script, template, migration, or workflow rule.
 
 ## Acceptance Criteria
 
-- [ ] The design opens with a closure-stop survey built from repository
+- [x] The design opens with a closure-stop survey built from repository
   evidence re-collected at task time (handoffs in `tasks/handoffs/`, commit
   history, and the developer's reports), counted per cause. It must include at
   least these observed causes and say how many tasks each affected: the
@@ -35,7 +35,7 @@ script, template, migration, or workflow rule.
   (Task 088); a worktree that was never prepared (Task 097); the publish
   workflow lookup race (Task 096); and the agent stopping to ask for
   authorization before integrating.
-- [ ] **Authorization model.** The design decides, with the rule text it would
+- [x] **Authorization model.** The design decides, with the rule text it would
   add to `PROJECT_WORKFLOW.md`, whether `Proceed with <TASK-ID>` is the
   developer's standing authorization for the whole lifecycle through
   integration into `main`, the required push of `main`, and cleanup, when every
@@ -45,54 +45,54 @@ script, template, migration, or workflow rule.
   lists the actions that are never covered by that authorization: pushing or
   moving tags, publishing a release, force-pushing, rewriting history, deleting
   unmerged branches, and bypassing a required independent review.
-- [ ] **Shared governance files.** The design decides whether task branches stop
+- [x] **Shared governance files.** The design decides whether task branches stop
   editing `tasks/QUEUE.md`, `tasks/QUEUE_ARCHIVE.md`, and `PROJECT_PLAN.md`, with
   queue status, archival, and plan updates applied once, deterministically, on
   the integrated tree during serialized integration instead of merged textually
   from each branch. It states how `[/]` in-progress state is represented (for
   example derived from the branch and the task record, as the console already
   does) and what it costs for tasks already in flight.
-- [ ] **Integration when `main` has advanced.** The agent rule forbids `git
+- [x] **Integration when `main` has advanced.** The agent rule forbids `git
   rebase`, `git reset`, and `git cherry-pick`. The design decides how a task is
   integrated when `main` moved after validation (re-stage by the existing merge
   path, which facts are recomputed by `integrate stage` instead of hand-edited in
   the handoff, and when full combined-tree validation is required) so no step
   needs a rebase.
-- [ ] **Handoff facts.** The design decides which handoff facts are collected
+- [x] **Handoff facts.** The design decides which handoff facts are collected
   by a command instead of typed (task, base, and validated commits, validation
   commands with exit codes), and how a commit can be identified without naming
   its own SHA, aligned with Task 088.
-- [ ] **Closure procedure.** The design defines the complete ordered closure
+- [x] **Closure procedure.** The design defines the complete ordered closure
   sequence, from the validated task commit to cleanup, as one procedure with
   named stop points, an idempotent resume rule for each, and one `BLOCKED`
   reason per stop. It respects the existing constraint that lifecycle commands
   never run task-controlled commands: validation of the candidate is run by the
   agent between `integrate stage` and `integrate finalize`, not inside a
   lifecycle command.
-- [ ] **Validation environment.** The design decides how closure validation
+- [x] **Validation environment.** The design decides how closure validation
   behaves where the sandbox cannot run a test (Task 099's named skip), what the
   handoff must record for a skip, and whether the developer's full-suite run
   outside the sandbox is a gate or only a recorded confirmation.
-- [ ] **Review gates.** The design states that a Governed task with
+- [x] **Review gates.** The design states that a Governed task with
   `Review: REQUIRED` still stops for the independent review (a gate, not a
   request for authorization), that Lean Delivery and `NOT_REQUIRED` tasks run to
   the end, and what the console and the next-action text show at each stop.
-- [ ] **Rollout.** The design lists which workflow templates, migrations, CLI
+- [x] **Rollout.** The design lists which workflow templates, migrations, CLI
   commands, and docs change; how tasks already in flight and adopters on older
   baselines are handled; and that the change is template-changing for both
   workflow modes (Lean Delivery and Governed SDD).
-- [ ] **Rejected alternatives** are recorded with the reason, including at least:
+- [x] **Rejected alternatives** are recorded with the reason, including at least:
   a `merge=union` attribute for the governance files; letting the agent rebase;
   moving closure into one lifecycle command that runs the tests; and requiring a
   fresh developer confirmation at every closure step.
-- [ ] The design ends with a table of follow-up implementation tasks, each
+- [x] The design ends with a table of follow-up implementation tasks, each
   created as a numbered task file and added to `tasks/QUEUE.md` and
   `PROJECT_PLAN.md` with dependencies, in the style of Task 049. No follow-up is
   larger than about two hours.
-- [ ] Claims that depend on host behavior (what an agent does without a stated
+- [x] Claims that depend on host behavior (what an agent does without a stated
   authorization) are labelled as observed reports or unverified, and nothing is
   presented as proven that was not run.
-- [ ] `python3 scripts/check_repository.py` passes. The task is
+- [x] `python3 scripts/check_repository.py` passes. The task is
   documentation-only, so the unit test suite may be skipped, and the handoff
   records that skip.
 
