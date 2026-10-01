@@ -23,8 +23,8 @@ from meridian import (
 )
 from console_workflow import (
     ID_PATTERN, PROFILES, BranchFacts, ConsoleError, QueueRow, Profile, effective_state,
-    handoff_status, heading_title, latest_review_verdict, link_target, parse_queue,
-    record_status,
+    handoff_status, has_link, heading_title, is_task_record_path, latest_review_verdict,
+    link_target, parse_queue, record_matches, record_status,
 )
 
 
@@ -35,7 +35,7 @@ class Task:
     status: str
     phase: str
     dependencies: tuple[str, ...]
-    path: Path
+    path: Path | None
     objective: tuple[str, ...]
     criteria: tuple[str, ...]
     worktree: str | None = None
@@ -46,9 +46,13 @@ class Task:
     mismatch: str | None = None
     changes_requested: bool = False
     active_writer: bool = False
+    record_problem: str | None = None
+    review: str | None = None
 
     @property
     def launch_command(self) -> str | None:
+        if self.record_problem:
+            return None
         return f"Proceed with {self.task_id}" if self.readiness == "READY" else None
 
     @property
@@ -60,6 +64,8 @@ class Task:
 
     @property
     def next_action(self) -> str:
+        if self.record_problem and self.readiness != "MISMATCH":
+            return f"Resolve the task record: {self.record_problem}"
         if self.readiness == "READY":
             return f"If assigned: {self.launch_command}"
         if self.readiness == "MISMATCH":
@@ -93,14 +99,61 @@ def _read_text(path: Path) -> str:
         raise ConsoleError(f"Cannot read {path}: {error}") from error
 
 
-def _task_path(project: Path, queue: Path, row: QueueRow) -> Path:
+class RecordResolver:
+    """Find task records for queue rows that carry no file link.
+
+    The task roots are walked at most once per snapshot, and only when a row
+    needs the search, so resolution adds no per-task subprocess work.
+    """
+
+    def __init__(self, project: Path, locations) -> None:
+        self.project = project
+        self.roots = tuple(root.as_posix() for root in locations.task_roots)
+        self.excluded = (locations.handoff_root.as_posix(), locations.review_root.as_posix())
+        self._paths: list[str] | None = None
+
+    def _scan(self) -> list[str]:
+        if self._paths is None:
+            found: set[str] = set()
+            for root in self.roots:
+                for directory, names, files in os.walk(self.project / root):
+                    relative = Path(directory).relative_to(self.project).as_posix()
+                    names[:] = [
+                        name for name in names
+                        if is_task_record_path(f"{relative}/{name}/x", self.excluded)
+                    ]
+                    found.update(
+                        f"{relative}/{name}" for name in files
+                        if name.endswith(".md") and not os.path.islink(os.path.join(directory, name))
+                    )
+            self._paths = sorted(found)
+        return self._paths
+
+    def find(self, task_id: str) -> tuple[Path | None, str | None]:
+        """Return the record path, or the per-task problem that prevents one."""
+        matches = record_matches(task_id, self._scan(), self.excluded)
+        if not matches:
+            return None, "task record not found"
+        if len(matches) > 1:
+            return None, "ambiguous task record: " + ", ".join(matches)
+        path = (self.project / matches[0]).resolve()
+        if not path.is_relative_to(self.project) or not path.is_file():
+            return None, f"task record is unavailable within the project: {matches[0]}"
+        return path, None
+
+
+def _task_path(project: Path, queue: Path, row: QueueRow,
+               resolver: RecordResolver) -> tuple[Path | None, str | None]:
+    """Resolve a task record: the queue link when present, else a search of the task roots."""
+    if not has_link(row.link):
+        return resolver.find(row.task_id)
     target = link_target(queue.relative_to(project).as_posix(), row.link)
     if target is None:
         raise ConsoleError(f"Task {row.task_id} has no unambiguous file link")
     path = (project / target).resolve()
     if not path.is_relative_to(project) or not path.is_file():
         raise ConsoleError(f"Task {row.task_id} file is unavailable within the project: {path}")
-    return path
+    return path, None
 
 
 def _section(text: str, name: str) -> tuple[str, ...]:
@@ -203,7 +256,8 @@ class IdentityCache:
 
 
 def _branch_facts(project: Path, profile: Profile, task_id: str, queue: str,
-                  worktrees: dict[str, str], identities: IdentityCache | None = None
+                  worktrees: dict[str, str], identities: IdentityCache | None = None,
+                  main_record: str | None = None
                   ) -> tuple[BranchFacts | None, str | None, str | None, str | None]:
     """Read one task branch without touching its worktree.
 
@@ -226,7 +280,13 @@ def _branch_facts(project: Path, profile: Profile, task_id: str, queue: str,
     queue_text = show(queue)
     row = next((item for item in parse_queue(queue_text, f"{branch}:{queue}", profile)
                 if item.task_id == task_id), None) if queue_text is not None else None
-    record_path = link_target(queue, row.link) if row else None
+    if row is None:
+        record_path = None
+    elif has_link(row.link):
+        record_path = link_target(queue, row.link)
+    else:
+        # The branch reads the record at the path resolved on main, as with a queue link.
+        record_path = main_record
     record = show(record_path) if record_path else None
     review = (show(_relative(project, identity.review_path))
               if profile.name == "governed-sdd" else None)
@@ -266,6 +326,7 @@ def load_snapshot(project: Path, identities: IdentityCache | None = None) -> Sna
     branch = branch_line.split("...", 1)[0].split(" [", 1)[0]
     worktrees = _worktrees(project)
     queue_relative = _relative(project, queue)
+    resolver = RecordResolver(project, locations)
     tasks: list[Task] = []
     for row in active_rows:
         if profile.phases[row.status] == "done":
@@ -276,11 +337,19 @@ def load_snapshot(project: Path, identities: IdentityCache | None = None) -> Sna
         )
         if any(not ID_PATTERN.fullmatch(item) for item in dependencies):
             raise ConsoleError(f"Task {row.task_id} has an invalid dependency")
-        path = _task_path(project, queue, row)
-        primary_text = _read_text(path)
-        facts, branch_text, branch_path, worktree = _branch_facts(
-            project, profile, row.task_id, queue_relative, worktrees, identities)
+        path, main_problem = _task_path(project, queue, row, resolver)
+        primary_text = _read_text(path) if path else None
+        if main_problem:
+            # Task identity needs exactly one record, so a task without one has no branch state.
+            facts, branch_text, branch_path, worktree = None, None, None, None
+        else:
+            facts, branch_text, branch_path, worktree = _branch_facts(
+                project, profile, row.task_id, queue_relative, worktrees, identities,
+                _relative(project, path) if path and not has_link(row.link) else None)
         effective = effective_state(profile, row, record_status(primary_text), facts)
+        from_branch = facts is not None and branch_text is not None and effective.source != "main"
+        task_text = branch_text if from_branch else primary_text
+        problem = None if task_text is not None else (main_problem or "task record not found")
         # Dependencies are satisfied by integrated state only: a task accepted on its
         # branch does not unblock dependents until it reaches the primary queue.
         missing = [item for item in dependencies if item not in by_id]
@@ -288,6 +357,8 @@ def load_snapshot(project: Path, identities: IdentityCache | None = None) -> Sna
                    if item in by_id and by_id[item] not in profile.satisfying]
         if effective.mismatch:
             readiness = "MISMATCH"
+        elif problem:
+            readiness = "UNKNOWN: " + problem.split(":", 1)[0]
         elif missing:
             readiness = "UNKNOWN: missing " + ", ".join(missing)
         elif waiting:
@@ -297,21 +368,20 @@ def load_snapshot(project: Path, identities: IdentityCache | None = None) -> Sna
                 "todo": "READY", "in_progress": "IN PROGRESS",
                 "ready_for_review": "READY FOR REVIEW", "done": "DONE ON BRANCH",
             }[effective.lifecycle]
-        from_branch = facts is not None and branch_text is not None and effective.source != "main"
-        task_text = branch_text if from_branch else primary_text
-        updated_path = branch_path if from_branch else _relative(project, path)
+        updated_path = branch_path if from_branch else (_relative(project, path) if path else None)
         updated_ref = ("refs/heads/" + facts.branch) if from_branch else "HEAD"
-        title = row.title or heading_title(task_text) or row.task_id
+        title = row.title or heading_title(task_text or "") or row.task_id
         tasks.append(Task(
             task_id=row.task_id, title=title, status=effective.status,
             phase=row.section, dependencies=dependencies, path=path,
-            objective=_section(task_text, "Objective"),
-            criteria=_section(task_text, "Acceptance Criteria"),
+            objective=_section(task_text or "", "Objective"),
+            criteria=_section(task_text or "", "Acceptance Criteria"),
             worktree=worktree, readiness=readiness,
-            updated_at=_committed_update(project, updated_path, updated_ref),
+            updated_at=_committed_update(project, updated_path, updated_ref) if updated_path else None,
             lifecycle=effective.lifecycle, source=effective.source,
             mismatch=effective.mismatch, changes_requested=effective.changes_requested,
             active_writer=effective.active_writer,
+            record_problem=problem, review=row.review,
         ))
     return Snapshot(
         project=project, queue=queue, branch=branch_line,
@@ -410,6 +480,8 @@ def one_shot(state: ConsoleState) -> str:
             lines.append(f"  Mismatch: {task.mismatch}")
         if task.markers:
             lines.append(f"  Markers: {', '.join(task.markers)}")
+        if task.record_problem:
+            lines.append(f"  Record: {task.record_problem}")
         lines.append(f"  Next action: {task.next_action}")
         if task.worktree:
             lines.append(f"  Worktree: {task.worktree}")
@@ -609,6 +681,8 @@ def _detail_lines(task: Task, width: int, palette: dict[str, int],
         add(f"Mismatch: {task.mismatch}", "blocked")
     for marker in task.markers:
         add(f"● {marker.capitalize()}", "working")
+    if task.record_problem:
+        add(task.record_problem[:1].upper() + task.record_problem[1:], "blocked")
     add("")
     add("Objective", "muted")
     for value in task.objective or ("Unavailable",):

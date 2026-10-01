@@ -19,36 +19,36 @@ accepts only a queue link, and one unresolved record aborts the whole snapshot.
 
 ## Acceptance Criteria
 
-- [ ] A task's record is resolved in this order: the queue row's file link when
+- [x] A task's record is resolved in this order: the queue row's file link when
   present; otherwise a file named `<ID>.md` under the task roots returned by
   `resolve_project_locations`, searched recursively.
-- [ ] The search ignores review records and handoffs: any path under the
+- [x] The search ignores review records and handoffs: any path under the
   project's declared review root or handoff root, and any directory named
   `reviews` or `handoffs`.
-- [ ] A queue link that is present but invalid keeps its current rejection;
+- [x] A queue link that is present but invalid keeps its current rejection;
   the fallback search is used only when the row has no link at all.
-- [ ] Zero matches or more than one match for a task is a per-task problem, not
+- [x] Zero matches or more than one match for a task is a per-task problem, not
   a snapshot failure: the task still appears with its title and status from the
   queue, the detail view states "task record not found" or lists the ambiguous
   paths, and the task offers no launch directive.
-- [ ] Missing record data (objective, criteria, update time) renders as
+- [x] Missing record data (objective, criteria, update time) renders as
   unavailable and never blocks the rest of the list.
-- [ ] The same resolution is used when a task's record is read from its task
+- [x] The same resolution is used when a task's record is read from its task
   branch, so effective-state reads work for projects without links.
-- [ ] A queue without a `Review` column is read as no declared review policy;
+- [x] A queue without a `Review` column is read as no declared review policy;
   the console does not infer `REQUIRED` or `NOT_REQUIRED`, and offers no
   `Review` directive for such a task.
-- [ ] Lean Delivery projects and Governed SDD projects with link columns behave
+- [x] Lean Delivery projects and Governed SDD projects with link columns behave
   exactly as before.
-- [ ] A fixture shaped like Palimpsest passes: a queue without file or review
+- [x] A fixture shaped like Palimpsest passes: a queue without file or review
   columns, records under `docs/tasks/<milestone>/`, review records under
   `docs/tasks/reviews/`, handoffs under `tasks/handoffs/`, and statuses
   including `ANSWERED`. The console lists every task and reports no `STALE`
   state.
-- [ ] Running the console against a local copy of Palimpsest, or against this
+- [x] Running the console against a local copy of Palimpsest, or against this
   repository's equivalent fixture, lists all queue rows and reports no error;
   the exact command and result are recorded in the handoff.
-- [ ] Scan time stays within the bound set by Task 078: record resolution does
+- [x] Scan time stays within the bound set by Task 078: record resolution does
   not add per-task subprocess work.
 
 ## Relevant Files and Context
