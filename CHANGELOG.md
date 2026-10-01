@@ -15,10 +15,18 @@ records which release moved it.
 
 ## [Unreleased]
 
+### Fixed
+
+- `scripts/release.py prepare` is accepted alongside the existing no-word
+  preparation form, and its dry-run output now prints only the new release
+  section.
+
 ### Documentation
 
 - `meridian setup` now plans and applies the Codex skill links, reports the
   shell-profile lines, and `meridian codex doctor` reports the same host facts.
+- The README now documents the current repository layout, Codex doctor checks,
+  and release preparation and publication commands.
 - The `meridian-local` to `meridian` migration can leave
   `~/.claude/plugins/cache/meridian-local/` on disk; it is unused and can be
   deleted. The `v1.2.0` install evidence is recorded in

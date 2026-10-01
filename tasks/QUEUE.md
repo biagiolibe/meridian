@@ -32,15 +32,6 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, 25, 26, 27, 28, 31, 32, 34, and 36
 are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 
-### Phase 39 — Release command follow-up and README
-
-Fixes the usage mismatch and the unbounded dry-run output found in the first
-run of `scripts/release.py`, and brings the README in line with what ships.
-
-| Status | ID | Title | Priority | Depends on | File |
-|--------|----|-------|----------|------------|------|
-| `[ ]` | 095 | Fix the release command's usage and dry run, and update the README | 🟡 P2 | 093, 094 | [095](095-release-command-fixes-and-readme.md) |
-
 ### Phase 38 — Release command
 
 Replaces the manual release steps with a maintainer script: a local `prepare`
