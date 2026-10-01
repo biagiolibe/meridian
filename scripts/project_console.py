@@ -155,7 +155,7 @@ def _apple_script(command: str, session_uuid: str) -> str:
         "if targetSession is missing value then error \"MERIDIAN_SESSION_NOT_FOUND\"",
         "tell targetSession",
         "set newSession to split horizontally with default profile",
-        f'write text "{quoted}" to newSession',
+        f'tell newSession to write text "{quoted}"',
         "end tell",
         "end tell",
     ))
