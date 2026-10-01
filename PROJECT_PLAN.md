@@ -60,7 +60,7 @@
 - `[ ]` 090 — Make a 1.0.0 project reach the current release in one step.
 - `[x]` 091 — Record the 1.2.0 marketplace install evidence.
 - `[x]` 092 — Link the Codex skills in `meridian setup` and check them in `codex doctor`.
-- `[ ]` 093 — Add `scripts/release.py prepare`.
+- `[x]` 093 — Add `scripts/release.py prepare`.
 - `[ ]` 094 — Add `scripts/release.py publish`.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.
