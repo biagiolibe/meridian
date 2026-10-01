@@ -47,10 +47,12 @@
 - `[x]` 080 — Fit the task ID column to the IDs in the console list.
 - `[x]` 081 — Group console tasks by their queue headings in Governed SDD projects.
 - `[x]` 082 — Fix detail pane scrolling, Governed objective, and dependency order.
+- `[ ]` 084 — Show uncommitted in-progress task state in the console.
 - `[ ]` 077 — Launch Claude Code or Codex from the console in an iTerm2 tab.
 - `[ ]` 067 — Enforce the adopter-facing release-notes contract.
 - `[ ]` 068 — Document and test the upgrade support policy.
 - `[x]` 083 — Unify worktree-root resolution and add `meridian setup`.
+- `[ ]` 085 — Repair and replace the Codex profile root in one setup step.
 - `[ ]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.
 - `[x]` 053 — Remove machine-specific absolute paths from tracked records.
