@@ -108,6 +108,7 @@ def preflight(root: Path, new_version: str) -> tuple[dict[str, object], str, str
         raise ReleaseError("preflight failed: working tree must be clean")
     current = (root / "VERSION").read_text(encoding="utf-8").strip()
     version_key(current)
+    ensure_not_already_prepared(root, current)
     if version_key(new_version) <= version_key(current):
         raise ReleaseError(f"preflight failed: new version {new_version} must be greater than {current}")
     plugin = json.loads((root / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
@@ -122,6 +123,26 @@ def preflight(root: Path, new_version: str) -> tuple[dict[str, object], str, str
     protocol = protocol_version(root)
     old_protocol = previous.get("protocolVersion")
     return previous, body, kind, migrations, baseline, protocol if isinstance(protocol, int) else 0
+
+
+def ensure_not_already_prepared(root: Path, current: str) -> None:
+    """Tell a migration task's already-prepared release to publish instead."""
+    tags = run_git(root, "tag", "--list", "v*")
+    if tags.returncode:
+        raise ReleaseError(f"could not list local tags: {tags.stderr.strip()}")
+    published = []
+    for tag in tags.stdout.splitlines():
+        value = tag.removeprefix("v")
+        if tag.startswith("v") and VERSION.fullmatch(value):
+            published.append(value)
+    current_is_published = current in published
+    current_is_newer = bool(published) and version_key(current) > max(map(version_key, published))
+    migration_targets_current = any(str(migration.get("to")) == current for migration in read_migrations(root))
+    if current_is_newer or (migration_targets_current and not current_is_published):
+        raise ReleaseError(
+            f"preflight failed: release {current} is already prepared; "
+            f"run python3 scripts/release.py publish --confirm v{current}"
+        )
 
 
 def protocol_version(root: Path) -> int:
@@ -239,9 +260,6 @@ def prepare_main(argv: list[str] | None = None) -> int:
         return 1
 
 
-RELEASE_FILES = frozenset({"VERSION", ".claude-plugin/plugin.json", "CHANGELOG.md"})
-
-
 def command_text(command: list[str]) -> str:
     return " ".join(command)
 
@@ -266,7 +284,7 @@ def remote_tag_exists(root: Path, tag: str) -> bool:
     raise ReleaseError(f"could not check origin for tag {tag}: {result.stderr.strip()}")
 
 
-def release_kind(root: Path, version: str) -> str:
+def release_kind(root: Path, version: str) -> tuple[str, list[str]]:
     record_path = root / "releases" / f"{version}.json"
     try:
         record = json.loads(record_path.read_text(encoding="utf-8"))
@@ -274,35 +292,64 @@ def release_kind(root: Path, version: str) -> str:
         raise ReleaseError(f"could not read release ledger {record_path.relative_to(root)}: {error}") from error
     if str(record.get("version")) != version:
         raise ReleaseError(f"release ledger {record_path.relative_to(root)} does not match VERSION")
-    return TEMPLATE_CHANGING if record.get("baselineChanged") else CLI_ONLY
+    baseline_changed = record.get("baselineChanged")
+    migrations = record.get("migrations")
+    if not isinstance(baseline_changed, bool):
+        raise ReleaseError(f"release ledger {record_path.relative_to(root)} baselineChanged must be true or false")
+    if not isinstance(migrations, list) or not all(isinstance(migration, str) for migration in migrations):
+        raise ReleaseError(f"release ledger {record_path.relative_to(root)} migrations must be a list of ids")
+    if not baseline_changed:
+        if migrations:
+            raise ReleaseError("preflight failed: a CLI-only release ledger must list no migrations")
+        return CLI_ONLY, []
+    if not migrations:
+        raise ReleaseError("preflight failed: a template-changing release ledger must list migrations")
+    if len(set(migrations)) != len(migrations):
+        raise ReleaseError("preflight failed: a template-changing release ledger must not repeat migration ids")
+    available = {str(migration.get("id")): str(migration.get("to")) for migration in read_migrations(root)}
+    invalid = [migration for migration in migrations if available.get(migration) != version]
+    if invalid:
+        raise ReleaseError(
+            "preflight failed: template-changing release ledger migrations must exist "
+            f"and target {version}: {', '.join(invalid)}"
+        )
+    return TEMPLATE_CHANGING, migrations
 
 
-def publish_preflight(root: Path, version: str) -> tuple[str, str, list[str]]:
+def release_state(root: Path, version: str) -> tuple[str, list[str]]:
+    plugin = json.loads((root / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
+    newest = newest_record(root)
+    if plugin.get("version") != version or str(newest.get("version")) != version:
+        raise ReleaseError(
+            "preflight failed: VERSION, .claude-plugin/plugin.json, and newest release ledger record must agree"
+        )
+    record_path = root / "releases" / f"{version}.json"
+    try:
+        record = json.loads(record_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ReleaseError(f"could not read release ledger {record_path.relative_to(root)}: {error}") from error
+    if record.get("gitTag") != f"v{version}":
+        raise ReleaseError(f"preflight failed: release ledger gitTag must equal v{version}")
+    return release_kind(root, version)
+
+
+def publish_preflight(root: Path, version: str) -> tuple[str, str, list[str], list[str]]:
     if git_output(root, "branch", "--show-current") != "main":
         raise ReleaseError("preflight failed: current branch must be main")
     if git_output(root, "status", "--porcelain"):
         raise ReleaseError("preflight failed: working tree must be clean")
     head = git_output(root, "rev-parse", "HEAD")
-    if git_output(root, "log", "-1", "--format=%s", "HEAD") != f"Release {version}":
-        raise ReleaseError(f"preflight failed: HEAD must be the Release {version} commit made by prepare")
-    parent = git_output(root, "rev-parse", "HEAD^")
-    changed = set(filter(None, git_output(root, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD").splitlines()))
-    expected = set(RELEASE_FILES) | {f"releases/{version}.json"}
-    if changed != expected:
-        raise ReleaseError("preflight failed: release commit must touch only VERSION, plugin, ledger, and changelog files")
-    origin_main = git_output(root, "rev-parse", "refs/remotes/origin/main")
     ancestor = run_git(root, "merge-base", "--is-ancestor", "refs/remotes/origin/main", "HEAD")
     if ancestor.returncode:
         raise ReleaseError("preflight failed: origin/main must be an ancestor of HEAD")
-    if parent != origin_main:
-        raise ReleaseError("preflight failed: Release commit parent must be the previous origin/main tip")
+    kind, migrations = release_state(root, version)
     tag = f"v{version}"
     if run_git(root, "show-ref", "--verify", "--quiet", f"refs/tags/{tag}").returncode == 0:
         raise ReleaseError(f"preflight failed: local tag {tag} already exists")
     if remote_tag_exists(root, tag):
         raise ReleaseError(f"preflight failed: origin tag {tag} already exists")
     commits = git_output(root, "log", "--format=%h %s", "refs/remotes/origin/main..HEAD").splitlines()
-    return head, release_kind(root, version), commits
+    return head, kind, migrations, commits
 
 
 def github_repository(remote: str) -> str | None:
@@ -310,9 +357,10 @@ def github_repository(remote: str) -> str | None:
     return f"{match.group(1)}/{match.group(2)}" if match else None
 
 
-def print_publish_summary(version: str, kind: str, commits: list[str], remote: str) -> None:
+def print_publish_summary(version: str, kind: str, migrations: list[str], commits: list[str], remote: str) -> None:
     print(f"Release version: {version}")
     print(f"Release kind: {kind}")
+    print("Migrations: " + (", ".join(migrations) if migrations else "none"))
     print("Commits to push:")
     for commit in commits:
         print(f"  {commit}")
@@ -384,10 +432,10 @@ def publish_main(argv: list[str]) -> int:
     try:
         version = (root / "VERSION").read_text(encoding="utf-8").strip()
         version_key(version)
-        head, kind, commits = publish_preflight(root, version)
+        head, kind, migrations, commits = publish_preflight(root, version)
         remote = git_output(root, "remote", "get-url", "origin")
         repository = github_repository(remote)
-        print_publish_summary(version, kind, commits, remote)
+        print_publish_summary(version, kind, migrations, commits, remote)
         expected = f"v{version}"
         if args.confirm != expected:
             print(f"Refusing to publish: type --confirm {expected} to push main and tag.", file=sys.stderr)
