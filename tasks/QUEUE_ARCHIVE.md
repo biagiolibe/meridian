@@ -320,4 +320,14 @@ run of `scripts/release.py`, and brings the README in line with what ships.
 |--------|----|-------|----------|------------|------|
 | `[x]` | 095 | Fix the release command's usage and dry run, and update the README | 🟡 P2 | 093, 094 | [095](done/095-release-command-fixes-and-readme.md) |
 
+### Phase 42 — Release command for template-changing releases
+
+Lets `release.py publish` release a template-changing release whose version,
+ledger, and changelog were bumped by the task that added its migration, and makes
+`prepare` explain that state.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 098 | Let `release.py publish` release an already-prepared template-changing release | 🟡 P2 | 094, 095 | [098](done/098-release-publish-prepared-template-changing.md) |
+
 *Last updated: 2026-10-01*
