@@ -63,7 +63,7 @@ class QueueRow:
     section: str
     dependencies: str
     link: str
-    review: str
+    review: str | None
 
 
 def _cell(row: dict[str, str], *names: str) -> str:
@@ -91,6 +91,7 @@ def parse_queue(text: str, label: str, profile: Profile) -> list[QueueRow]:
         if not headers or len(cells) != len(headers) or set("".join(cells)) <= {"-", ":"}:
             continue
         row = dict(zip(headers, cells))
+        folded_headers = {header.casefold() for header in headers}
         token = row.get("Status", "").strip("`")
         if token not in profile.tokens:
             raise ConsoleError(f"Unknown task status in {label}:{line_number}: {row.get('Status')}")
@@ -100,7 +101,9 @@ def parse_queue(text: str, label: str, profile: Profile) -> list[QueueRow]:
         rows.append(QueueRow(
             task_id=task_id, status=profile.tokens[token], title=_cell(row, "Title"),
             section=section, dependencies=_cell(row, "Depends on", "Dependencies"),
-            link=_cell(row, "File", "Task file"), review=_cell(row, "Review").strip("`"),
+            link=_cell(row, "File", "Task file"),
+            # None: the queue has no Review column, so no policy is declared.
+            review=_cell(row, "Review").strip("`") if "review" in folded_headers else None,
         ))
     return rows
 
@@ -112,6 +115,34 @@ def link_target(queue_relative: str, cell: str) -> str | None:
         return None
     target = posixpath.normpath(posixpath.join(posixpath.dirname(queue_relative), match.group(1)))
     return None if target.startswith("..") or posixpath.isabs(target) else target
+
+
+def has_link(cell: str) -> bool:
+    """Whether a queue row declares a file link at all, valid or not."""
+    return cell.strip() not in ("", "—", "–", "-")
+
+
+IGNORED_RECORD_DIRECTORIES = frozenset({"reviews", "handoffs"})
+
+
+def is_task_record_path(path: str, excluded_roots: tuple[str, ...]) -> bool:
+    """Whether a project-relative POSIX path may be a task record.
+
+    Review records and handoffs share the task ID, so anything under a declared
+    review or handoff root, or a directory named `reviews` or `handoffs`, is not
+    a task record.
+    """
+    if IGNORED_RECORD_DIRECTORIES.intersection(path.split("/")[:-1]):
+        return False
+    return not any(path == root or path.startswith(root.rstrip("/") + "/")
+                   for root in excluded_roots)
+
+
+def record_matches(task_id: str, paths: list[str], excluded_roots: tuple[str, ...]) -> list[str]:
+    """Return the sorted task record candidates named `<ID>.md` among `paths`."""
+    name = f"{task_id}.md"
+    return sorted(path for path in paths
+                  if posixpath.basename(path) == name and is_task_record_path(path, excluded_roots))
 
 
 def heading_title(text: str) -> str:
@@ -189,7 +220,7 @@ def effective_state(profile: Profile, primary: QueueRow, primary_record: str | N
         if row.status == "READY_FOR_REVIEW" or record == "READY_FOR_REVIEW":
             if record != row.status:
                 return mismatch(f"queue {row.status}, task record {record or 'no status'}")
-            if row.review != "REQUIRED":
+            if row.review not in (None, "REQUIRED"):
                 return mismatch(f"queue READY_FOR_REVIEW, Review {row.review or 'unset'}")
         return Effective(
             phase, row.status, source, active_writer=writer,
