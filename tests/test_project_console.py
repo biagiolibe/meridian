@@ -26,6 +26,30 @@ HEADER = (
     "|--------|----|-------|----------|------------|------|\n"
 )
 
+ITERM2_DICTIONARY_PROBE = (
+    'tell application "iTerm2" to get unique id of current session of current tab of current window'
+)
+
+
+def _compile_applescript(script: str, output: Path) -> subprocess.CompletedProcess[str]:
+    """Compile an AppleScript using the same isolated output handling for each check."""
+    return subprocess.run(
+        ("osacompile", "-o", str(output), "-e", script),
+        capture_output=True, text=True, check=False, timeout=30,
+    )
+
+
+def _osacompile_can_resolve_iterm2_dictionary() -> tuple[bool, str]:
+    """Probe whether osacompile can resolve the iTerm2 dictionary used by the payload."""
+    with tempfile.TemporaryDirectory() as directory:
+        try:
+            result = _compile_applescript(ITERM2_DICTIONARY_PROBE, Path(directory) / "probe.scpt")
+        except subprocess.TimeoutExpired:
+            return False, "timed out"
+    if result.returncode:
+        return False, result.stderr
+    return True, ""
+
 
 class ProjectConsoleTest(unittest.TestCase):
     def setUp(self) -> None:
@@ -345,15 +369,63 @@ class AgentLaunchTest(unittest.TestCase):
         "requires macOS osacompile and iTerm2",
     )
     def test_split_payload_compiles_as_applescript(self) -> None:
+        usable, reason = _osacompile_can_resolve_iterm2_dictionary()
+        if not usable:
+            self.skipTest(
+                "osacompile cannot resolve the iTerm2 dictionary in this environment: "
+                f"{reason}",
+            )
         payload = console._apple_script(
             "exec claude 'a \"q\" \\ b'", "12345678-1234-1234-1234-123456789abc",
         )
         with tempfile.TemporaryDirectory() as directory:
-            result = subprocess.run(
-                ("osacompile", "-o", str(Path(directory) / "payload.scpt"), "-e", payload),
-                capture_output=True, text=True, check=False, timeout=30,
-            )
+            result = _compile_applescript(payload, Path(directory) / "payload.scpt")
         self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_iterm2_dictionary_probe_skips_or_preserves_payload_failure(self) -> None:
+        success = mock.Mock(returncode=0, stderr="")
+        dictionary_failure = mock.Mock(
+            returncode=1, stderr="Expected \u201cthen\u201d but found property. (-2741)\n(-2740)",
+        )
+        payload_failure = mock.Mock(returncode=1, stderr="payload does not compile")
+
+        with self.subTest("probe failure skips"):
+            with mock.patch.object(subprocess, "run", return_value=dictionary_failure):
+                usable, reason = _osacompile_can_resolve_iterm2_dictionary()
+            self.assertFalse(usable)
+            with self.assertRaisesRegex(
+                unittest.SkipTest,
+                "^osacompile cannot resolve the iTerm2 dictionary in this environment: .*\\(-2741\\)",
+            ):
+                if not usable:
+                    self.skipTest(
+                        "osacompile cannot resolve the iTerm2 dictionary in this environment: "
+                        f"{reason}",
+                    )
+
+        with self.subTest("probe timeout skips"):
+            with mock.patch.object(
+                subprocess, "run", side_effect=subprocess.TimeoutExpired("osacompile", 30),
+            ):
+                usable, reason = _osacompile_can_resolve_iterm2_dictionary()
+            self.assertFalse(usable)
+            with self.assertRaisesRegex(
+                unittest.SkipTest,
+                "^osacompile cannot resolve the iTerm2 dictionary in this environment: timed out",
+            ):
+                if not usable:
+                    self.skipTest(
+                        "osacompile cannot resolve the iTerm2 dictionary in this environment: "
+                        f"{reason}",
+                    )
+
+        with self.subTest("successful probe preserves payload failure"):
+            with mock.patch.object(subprocess, "run", side_effect=(success, payload_failure)):
+                usable, reason = _osacompile_can_resolve_iterm2_dictionary()
+                self.assertTrue(usable, reason)
+                result = _compile_applescript("invalid payload", Path("payload.scpt"))
+            with self.assertRaisesRegex(AssertionError, "payload does not compile"):
+                self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_unmatched_console_session_leaves_copy_as_fallback(self) -> None:
         request = console.LaunchRequest(
