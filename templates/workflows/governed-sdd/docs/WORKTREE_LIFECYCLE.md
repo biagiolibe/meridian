@@ -2,24 +2,28 @@
 
 Use the host-neutral `meridian worktree` namespace for task checkout lifecycle
 operations. Commands exit `0` on success, `2` when blocked, and `64` on usage
-errors.
+errors. The root resolves from an explicit option, the environment, user
+configuration, or `~/.meridian/worktrees`, in that order.
 
-- `path <TASK-ID> --project <primary> --worktree-root <root> [--format json]`
+- `path <TASK-ID> --project <primary> [--format json]`
   derives the canonical path.
-- `prepare <TASK-ID> --project <primary> --worktree-root <root> --format json`
+- `prepare <TASK-ID> --project <primary> --format json`
   creates or selects the exact branch/worktree pair before any worker starts.
-- `check <TASK-ID> --project <primary> --worktree-root <root> --format json`
+- `check <TASK-ID> --project <primary> --format json`
   is read-only and must be the implementer, reviewer, or remediation worker's
   first action in that same prepared directory.
-- `integrate stage <TASK-ID> --project <primary> --worktree-root <root>
+- `integrate stage <TASK-ID> --project <primary>
   --evidence <handoff.json> --format json` owns the lease and no-commit merge
   and returns `REUSE`, `BOUNDED`, or `FULL` plus the candidate tree.
 - Run the selected validation outside the lifecycle command, then use
   `integrate finalize <TASK-ID> --project <primary> --evidence
   <candidate-validation.json> --format json`, or `integrate abort` on failure.
-- `cleanup <TASK-ID> --project <primary> --worktree-root <root> --format json`
+- `cleanup <TASK-ID> --project <primary> --format json`
   removes only a clean, integrated, pushed worktree and non-force-deletes its
   merged branch.
+
+Legacy worktrees are never moved. Finish and clean one in its old root by
+passing `--worktree-root <old-root>` explicitly.
 
 Stage evidence records acceptance, successful validation, full validated task
 and base object IDs, the full-validation flag, a complete advanced-main

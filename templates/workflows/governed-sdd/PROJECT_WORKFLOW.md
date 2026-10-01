@@ -134,13 +134,15 @@ committed deliverable does not self-evidently answer `Question`, record
 `INCONCLUSIVE` rather than `ANSWERED` on the strength of author judgment.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=codex-worktree-access v2 -->
-Codex task worktrees live below a user-selected shared root, namespaced as
+<!-- MERIDIAN:BEGIN capability=codex-worktree-access v3 -->
+Task worktrees live below one machine-level resolved root, namespaced as
 `<root>/<remote-host>/<owner>/<repository>/<canonical-task-id>`. Use `meridian
 codex worktree-path` for derivation and collision checks and `meridian codex
 doctor` for separate trust, permission-model, root-write, command-policy, and
-Git-metadata status. Configuration requires explicit `meridian codex configure
---apply`; static configuration alone never proves effective host access.
+Git-metadata status. Once per machine, run `meridian setup --check`, review the
+bounded changes, then explicitly consent with `meridian setup --apply` and
+restart Codex. Claude Code needs no host configuration. Static configuration
+alone never proves effective host access.
 
 If `meridian codex configure --check` reports `repair-required`, the effective
 profile is identical and only Meridian's ownership markers were damaged, for
@@ -150,7 +152,7 @@ requires manual reconciliation. Repair never proves that a running session
 loaded the profile; start a fresh session and probe it.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=bounded-worktree-lifecycle v2 -->
+<!-- MERIDIAN:BEGIN capability=bounded-worktree-lifecycle v3 -->
 The coordinator runs `meridian worktree prepare` before creating an
 implementer, reviewer, or remediation session and passes the returned existing
 path, branch, primary checkout, and worktree root as durable launch inputs.

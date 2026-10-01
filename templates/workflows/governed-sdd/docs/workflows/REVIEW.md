@@ -2,7 +2,7 @@
 
 Use this procedure only for `Review <TASK-ID>` after the entry-point router has applied its always-loaded invariants.
 
-<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v5 -->
+<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v6 -->
 ## Mandatory task-worktree preflight
 
 This is the first review action. Before reading the assigned task,
@@ -10,7 +10,7 @@ implementation files, or any implementation diff:
 
 1. Start in the exact existing directory returned by `meridian worktree
    prepare` and run `meridian worktree check <TASK-ID> --project
-   <primary-checkout> --worktree-root <root> --format json`. A blocked result
+   <primary-checkout> --format json`. A blocked result
    stops before any other read; never use host automatic worktree isolation.
 2. Resolve the canonical completion-handoff location and read only that
    handoff. Obtain its task-worktree value (relative to the worktree root), task branch, current task

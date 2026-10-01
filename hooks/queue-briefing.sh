@@ -106,6 +106,16 @@ fi
 QUEUE=${QUEUE:-$(resolve_queue_path)}
 [ -f "$QUEUE" ] || exit 0
 
+# Machine setup is independent of the project, but a start-of-turn notice is
+# useful only after this hook has established that the current directory is a
+# Meridian project. `setup --check` is read-only; emit exactly one line only
+# when the configured Codex profile grants a different worktree root.
+if [ -n "$MERIDIAN_BIN" ] && [ -x "$MERIDIAN_BIN" ]; then
+  ROOT_MISMATCH=$("$MERIDIAN_BIN" setup --check 2>/dev/null \
+    | sed -n 's/^codex-root-mismatch: /  ⚠ Codex worktree root differs: /p')
+  [ -n "$ROOT_MISMATCH" ] && printf '[Meridian Host]\n%s\n' "$ROOT_MISMATCH"
+fi
+
 # An archived ACCEPTED row (this task's own archiving convention) still
 # satisfies a dependency and still counts toward the accepted tally; both
 # queue formats below read it from here alongside the active queue's own

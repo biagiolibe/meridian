@@ -4,7 +4,7 @@
 > **Category**: Host Integration / CLI
 > **Priority**: 🟡 P2
 > **Estimate**: ~5–8h
-> **Assigned to**: unassigned
+> **Assigned to**: Codex
 > **Session**: 2026-10-01 worktree-root unification design
 
 ## 🎯 Objective
@@ -25,60 +25,60 @@ Codex profile together after explicit consent.
 
 ## 📋 Acceptance Criteria
 
-- [ ] A single resolver returns the effective worktree root with this
+- [x] A single resolver returns the effective worktree root with this
       precedence: explicit `--worktree-root`, then `MERIDIAN_WORKTREE_ROOT`,
       then the user configuration file, then the built-in default. Every
       `meridian worktree` and `meridian codex` subcommand uses it, and
       `--worktree-root` becomes optional.
-- [ ] The built-in default is `~/.meridian/worktrees` expanded against the
+- [x] The built-in default is `~/.meridian/worktrees` expanded against the
       current user's home. It is outside every repository, not under a
       temporary directory, and never the home directory itself or the
       filesystem root. The existing repository-qualified layout is unchanged.
-- [ ] Conflicting sources are reported, not silently merged: an explicit value
+- [x] Conflicting sources are reported, not silently merged: an explicit value
       that differs from `MERIDIAN_WORKTREE_ROOT` keeps the existing blocked
       behavior, and the diagnostic names which source supplied each value.
-- [ ] A user configuration file at `$XDG_CONFIG_HOME/meridian/config.json`
+- [x] A user configuration file at `$XDG_CONFIG_HOME/meridian/config.json`
       (falling back to `~/.config/meridian/config.json`) may declare
       `worktreeRoot`. It is optional, versioned, validated, written only by
       `meridian setup --apply`, and absent when the default is used.
-- [ ] `meridian setup --check` is read-only. It prints the resolved root and
+- [x] `meridian setup --check` is read-only. It prints the resolved root and
       its source, whether the directory exists with owner-only permissions,
       and the Codex profile state (`unconfigured`, `ready`,
       `repair-required`, `different-root`, or `blocked`), plus the exact
       bounded changes `--apply` would make. It writes nothing.
-- [ ] `meridian setup --apply` is idempotent and is the only write path. It
+- [x] `meridian setup --apply` is idempotent and is the only write path. It
       creates the root with mode `0700`, writes the user configuration only
       when the root is not the default, and applies or repairs the Codex
       profile for exactly the resolved root by reusing the existing
       `meridian codex configure` logic and backup behavior. It never adopts a
       divergent or ambiguous profile and never touches unrelated Codex
       settings. Repeating it is a no-op.
-- [ ] A Codex profile that points at a different root with damaged ownership
+- [x] A Codex profile that points at a different root with damaged ownership
       markers is handled by an explicit, documented sequence (repair, then
       replace) or reported as `BLOCKED` with the exact diverging fields. It is
       never overwritten silently.
-- [ ] `meridian doctor`-style diagnostics and the start-of-turn briefing report
+- [x] `meridian doctor`-style diagnostics and the start-of-turn briefing report
       a single line when the Codex profile root differs from the resolved root.
       They do not modify anything.
-- [ ] Existing worktrees outside the resolved root remain discoverable and are
+- [x] Existing worktrees outside the resolved root remain discoverable and are
       never moved or deleted automatically; the change documents how to finish
       and clean them up in the old root.
-- [ ] The workflow texts that mention a selected or supplied worktree root in
+- [x] The workflow texts that mention a selected or supplied worktree root in
       `PROJECT_WORKFLOW.md`, both workflow templates, and
       `docs/WORKTREE_LIFECYCLE.md` describe the resolved root. Each changed
       protected capability region has a version bump, marker baselines are
       rewritten deliberately, and a migration record delivers the change to
       existing adopters while preserving project-owned text.
-- [ ] Documentation explains the typical flow for installation, a new project,
+- [x] Documentation explains the typical flow for installation, a new project,
       and an existing project (see Technical Context), including the rule that
       Claude Code needs no host configuration and Codex needs one consented
       `meridian setup --apply`.
-- [ ] Unit tests cover resolution precedence, source reporting, the default
+- [x] Unit tests cover resolution precedence, source reporting, the default
       path on a fresh home, directory creation and permissions, `--check`
       writing nothing, `--apply` idempotence, each Codex profile state, and
       the refusal paths. No test writes to the real home directory or Codex
       configuration.
-- [ ] `python3 -m unittest discover -s tests`,
+- [x] `python3 -m unittest discover -s tests`,
       `python3 scripts/check_repository.py`, and `git diff --check` pass.
 
 ## 📁 Relevant Files
@@ -159,6 +159,16 @@ Codex profile together after explicit consent.
 
 - **Depends on**: 054, 056, 062.
 - **Blocks**: none.
+
+## Completion decisions
+
+- Lean Delivery remains appropriate: the change is a bounded CLI and workflow
+  migration with deterministic tests and no new architectural uncertainty.
+- Initialization prints `meridian setup --check` and the consented
+  `meridian setup --apply` follow-up; it never runs machine setup
+  automatically. Existing-project guidance remains `meridian upgrade`.
+- A damaged, divergent Codex profile is `BLOCKED` with its differing fields;
+  Meridian does not attempt a silent repair-and-replace sequence.
 
 ## 🤖 How to delegate this task to Claude CLI
 

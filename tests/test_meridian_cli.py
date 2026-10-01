@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -1030,7 +1032,7 @@ class MeridianCliTest(unittest.TestCase):
         self.assertIn("capability=git-workflow v7", project_workflow.read_text(encoding="utf-8"))
         self.assertIn("Consumer-owned note.", project_workflow.read_text(encoding="utf-8"))
         self.assertIn(
-            "capability=task-worktree-boundary v3",
+            "capability=task-worktree-boundary v4",
             (self.project / "docs/workflows/IMPLEMENTATION.md").read_text(encoding="utf-8"),
         )
         report = (self.project / "docs/COMPLETION_REPORT_TEMPLATE.md").read_text(encoding="utf-8")
@@ -1211,7 +1213,7 @@ worktree before the branch only after validated integration succeeds.
 
         upgraded = review.read_text(encoding="utf-8")
         self.assertIn("capability=implementer-reviewer-handoff v3", upgraded)
-        self.assertIn("capability=task-worktree-review-procedure v5", upgraded)
+        self.assertIn("capability=task-worktree-review-procedure v6", upgraded)
         self.assertIn("Consumer-owned review note.", upgraded)
         self.assertNotIn("uses that same primary checkout", upgraded)
         self.assertNotIn("git switch <task-branch>", upgraded)
@@ -1263,7 +1265,7 @@ worktree before the branch only after validated integration succeeds.
                 applied = self.run_cli("upgrade", "--apply")
                 self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
                 upgraded = project_workflow.read_text(encoding="utf-8")
-                self.assertIn("capability=codex-worktree-access v2", upgraded)
+                self.assertIn("capability=codex-worktree-access v3", upgraded)
                 self.assertIn("reports `repair-required`", upgraded)
                 self.assertIn("Consumer-owned note.", upgraded)
                 manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -3718,8 +3720,8 @@ class CapabilityMarkerTest(unittest.TestCase):
         expected["execution-assets"] = "2"
         expected["roles"] = "2"
         expected["git-workflow"] = "7"
-        expected["bounded-worktree-lifecycle"] = "2"
-        expected["codex-worktree-access"] = "2"
+        expected["bounded-worktree-lifecycle"] = "3"
+        expected["codex-worktree-access"] = "3"
         expected["task-identity-policy"] = "1"
         expected["task-lifecycle"] = "2"
         expected["review-policy"] = "2"
@@ -3757,7 +3759,7 @@ class CapabilityMarkerTest(unittest.TestCase):
         self.assertIn(("review-mode-boundary", "1"), review)
         self.assertIn(("implementer-reviewer-handoff", "3"), review)
         self.assertIn(("reviewer-integrator-identity", "1"), review)
-        self.assertIn(("task-worktree-review-procedure", "5"), review)
+        self.assertIn(("task-worktree-review-procedure", "6"), review)
 
     def test_review_preflight_fails_closed_before_substantive_inspection(self) -> None:
         review = (self.WORKFLOW / "docs/workflows/REVIEW.md").read_text(encoding="utf-8")
@@ -4131,9 +4133,204 @@ class CodexWorktreeAccessTest(unittest.TestCase):
 
     def test_initializer_only_offers_explicit_check_and_apply(self) -> None:
         instructions = (ROOT / "commands/meridian-init.md").read_text(encoding="utf-8")
-        self.assertIn("codex configure --check --worktree-root", instructions)
-        self.assertIn("with `--apply` only after explicit confirmation", instructions)
+        self.assertIn("meridian setup --check", instructions)
+        self.assertIn("meridian setup --apply` only after explicit confirmation", instructions)
         self.assertIn("not invalidate initialization", instructions)
+
+
+class WorktreeRootSetupTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory()
+        self.home = Path(self.temporary.name).resolve()
+        self.xdg = self.home / "xdg"
+        self.user_config = self.xdg / "meridian/config.json"
+        self.codex_config = self.home / "codex/config.toml"
+        self.environment = {"XDG_CONFIG_HOME": str(self.xdg)}
+
+    def tearDown(self) -> None:
+        self.temporary.cleanup()
+
+    def resolve(self, explicit: Path | None = None, **environment: str) -> meridian.ResolvedWorktreeRoot:
+        return meridian.resolve_worktree_root(
+            explicit,
+            environment={**self.environment, **environment},
+            home=self.home,
+        )
+
+    def test_resolution_precedence_and_source_reporting(self) -> None:
+        default = self.resolve()
+        self.assertEqual(default.path, self.home / ".meridian/worktrees")
+        self.assertEqual(default.source, "default")
+
+        configured = self.home / "configured"
+        self.user_config.parent.mkdir(parents=True)
+        self.user_config.write_text(
+            json.dumps({"version": 1, "worktreeRoot": str(configured)}), encoding="utf-8"
+        )
+        self.assertEqual(self.resolve(), meridian.ResolvedWorktreeRoot(configured, "user-config", self.user_config))
+
+        from_environment = self.home / "environment"
+        resolved_environment = self.resolve(MERIDIAN_WORKTREE_ROOT=str(from_environment))
+        self.assertEqual((resolved_environment.path, resolved_environment.source), (from_environment, "MERIDIAN_WORKTREE_ROOT"))
+
+        explicit = self.home / "explicit"
+        resolved_explicit = self.resolve(explicit, MERIDIAN_WORKTREE_ROOT=str(explicit))
+        self.assertEqual((resolved_explicit.path, resolved_explicit.source), (explicit, "--worktree-root"))
+
+    def test_conflicting_explicit_and_environment_values_name_both_sources(self) -> None:
+        with self.assertRaisesRegex(
+            meridian.MeridianError, r"--worktree-root supplied .*MERIDIAN_WORKTREE_ROOT supplied"
+        ):
+            self.resolve(self.home / "explicit", MERIDIAN_WORKTREE_ROOT=str(self.home / "environment"))
+
+    def test_configuration_schema_and_unsafe_roots_are_rejected(self) -> None:
+        self.user_config.parent.mkdir(parents=True)
+        for value in (
+            {"worktreeRoot": str(self.home / "missing-version")},
+            {"version": 2, "worktreeRoot": str(self.home / "future")},
+            {"version": 1, "worktreeRoot": "", "extra": True},
+        ):
+            with self.subTest(value=value):
+                self.user_config.write_text(json.dumps(value), encoding="utf-8")
+                with self.assertRaises(meridian.MeridianError):
+                    self.resolve()
+        self.user_config.unlink()
+        with self.assertRaisesRegex(meridian.MeridianError, "filesystem root"):
+            self.resolve(Path("/"))
+        with self.assertRaisesRegex(meridian.MeridianError, "home"):
+            self.resolve(self.home)
+
+    def test_check_is_read_only_and_reports_unconfigured_state(self) -> None:
+        root = self.home / "custom"
+        plan = meridian.plan_setup(
+            root,
+            self.codex_config,
+            environment=self.environment,
+            home=self.home,
+        )
+        output = io.StringIO()
+        with redirect_stdout(output):
+            meridian.print_setup_plan(plan)
+        self.assertEqual(plan.directory_state, "missing")
+        self.assertEqual(plan.codex_state, "unconfigured")
+        self.assertIn("worktree-root-source: --worktree-root", output.getvalue())
+        self.assertIn("create", output.getvalue())
+        self.assertFalse(root.exists())
+        self.assertFalse(self.user_config.exists())
+        self.assertFalse(self.codex_config.exists())
+
+    def test_cli_check_writes_nothing(self) -> None:
+        root = self.home / "cli-root"
+        environment = {
+            **os.environ,
+            "HOME": str(self.home),
+            "XDG_CONFIG_HOME": str(self.xdg),
+        }
+        checked = subprocess.run(
+            [
+                sys.executable,
+                str(CLI),
+                "setup",
+                "--check",
+                "--worktree-root",
+                str(root),
+                "--config",
+                str(self.codex_config),
+            ],
+            cwd=self.home,
+            env=environment,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(checked.returncode, 0, checked.stderr)
+        self.assertIn("codex-profile: unconfigured", checked.stdout)
+        self.assertIn("worktree-root-source: --worktree-root", checked.stdout)
+        self.assertFalse(root.exists())
+        self.assertFalse(self.xdg.exists())
+        self.assertFalse(self.codex_config.exists())
+
+    def test_apply_creates_private_default_root_without_user_config_and_is_idempotent(self) -> None:
+        first = meridian.plan_setup(
+            None, self.codex_config, environment=self.environment, home=self.home
+        )
+        self.assertTrue(meridian.apply_setup(first))
+        root = self.home / ".meridian/worktrees"
+        self.assertTrue(root.is_dir())
+        self.assertEqual(stat.S_IMODE(root.stat().st_mode), 0o700)
+        self.assertFalse(self.user_config.exists())
+        self.assertEqual(
+            tomllib.loads(self.codex_config.read_text(encoding="utf-8"))["permissions"]
+            ["meridian-worktrees"]["workspace_roots"],
+            {str(root): True},
+        )
+        second = meridian.plan_setup(
+            None, self.codex_config, environment=self.environment, home=self.home
+        )
+        self.assertEqual((second.directory_state, second.codex_state, second.changes), ("ready", "ready", ("none",)))
+        self.assertFalse(meridian.apply_setup(second))
+
+    def test_custom_root_is_persisted_and_private_permissions_are_repaired(self) -> None:
+        root = self.home / "custom"
+        root.mkdir(mode=0o755)
+        plan = meridian.plan_setup(
+            root, self.codex_config, environment=self.environment, home=self.home
+        )
+        self.assertEqual(plan.directory_state, "repair-required")
+        self.assertTrue(meridian.apply_setup(plan))
+        self.assertEqual(stat.S_IMODE(root.stat().st_mode), 0o700)
+        self.assertEqual(
+            json.loads(self.user_config.read_text(encoding="utf-8")),
+            {"version": 1, "worktreeRoot": str(root)},
+        )
+        self.assertEqual(stat.S_IMODE(self.user_config.stat().st_mode), 0o600)
+
+    def test_apply_refuses_a_non_directory_root_before_any_write(self) -> None:
+        root = self.home / "not-a-directory"
+        root.write_text("keep\n", encoding="utf-8")
+        plan = meridian.plan_setup(
+            root, self.codex_config, environment=self.environment, home=self.home
+        )
+        self.assertEqual(plan.directory_state, "blocked")
+        self.assertEqual(plan.changes, ("none; setup is blocked before mutation",))
+        with self.assertRaisesRegex(meridian.MeridianError, "not a directory"):
+            meridian.apply_setup(plan)
+        self.assertEqual(root.read_text(encoding="utf-8"), "keep\n")
+        self.assertFalse(self.user_config.exists())
+        self.assertFalse(self.codex_config.exists())
+
+    def test_every_codex_setup_state_and_divergent_damaged_refusal(self) -> None:
+        root = self.home / "root"
+        root.mkdir(mode=0o700)
+        unconfigured = meridian.plan_setup(root, self.codex_config, environment=self.environment, home=self.home)
+        self.assertEqual(unconfigured.codex_state, "unconfigured")
+        meridian.apply_setup(unconfigured)
+        self.assertEqual(
+            meridian.plan_setup(root, self.codex_config, environment=self.environment, home=self.home).codex_state,
+            "ready",
+        )
+
+        text = self.codex_config.read_text(encoding="utf-8")
+        self.codex_config.write_text(text.replace(meridian.CODEX_MANAGED_END + "\n", ""), encoding="utf-8")
+        self.assertEqual(
+            meridian.plan_setup(root, self.codex_config, environment=self.environment, home=self.home).codex_state,
+            "repair-required",
+        )
+
+        other = self.home / "other"
+        self.codex_config.write_text(meridian._codex_managed_block(other) + "\n", encoding="utf-8")
+        different = meridian.plan_setup(root, self.codex_config, environment=self.environment, home=self.home)
+        self.assertEqual(different.codex_state, "different-root")
+        self.assertIn("profile=", meridian.codex_profile_root_mismatch(self.codex_config, root) or "")
+
+        damaged = self.codex_config.read_text(encoding="utf-8").replace(meridian.CODEX_MANAGED_END + "\n", "")
+        self.codex_config.write_text(damaged, encoding="utf-8")
+        blocked = meridian.plan_setup(root, self.codex_config, environment=self.environment, home=self.home)
+        self.assertEqual(blocked.codex_state, "blocked")
+        self.assertIn("workspace_roots", blocked.codex_detail)
+        with self.assertRaisesRegex(meridian.MeridianError, "setup is blocked"):
+            meridian.apply_setup(blocked)
+        self.assertEqual(self.codex_config.read_text(encoding="utf-8"), damaged)
 
 
 class CodexProfileRepairTest(unittest.TestCase):
@@ -4373,7 +4570,7 @@ class CodexProfileRepairTest(unittest.TestCase):
             self.assertIn(fragment, contract)
         for mode in ("lean-delivery", "governed-sdd"):
             workflow = (ROOT / f"templates/workflows/{mode}/PROJECT_WORKFLOW.md").read_text(encoding="utf-8")
-            region = workflow.split("capability=codex-worktree-access v2 -->", 1)[1].split("<!-- MERIDIAN:END -->", 1)[0]
+            region = workflow.split("capability=codex-worktree-access v3 -->", 1)[1].split("<!-- MERIDIAN:END -->", 1)[0]
             for fragment in ("repair-required", "`--apply` only", "BLOCKED", "fresh session"):
                 self.assertIn(fragment, region, mode)
 
@@ -4384,6 +4581,14 @@ class CodexProfileRepairTest(unittest.TestCase):
         self.assertEqual(report["profile-ownership"], "repair-required")
         self.assertEqual(report["worktree-root-write"], "ready")
         self.assertIn("git-metadata", report)
+
+        other_root = self.root / "other-root"
+        self.config.write_text(meridian._codex_managed_block(other_root) + "\n", encoding="utf-8")
+        different = meridian.codex_doctor(self.root, self.config, self.worktrees)
+        self.assertEqual(
+            different["codex-root-mismatch"],
+            f"profile={other_root} resolved={self.worktrees}",
+        )
 
         self.config.write_text(self.rewritten(tables=self.profile_tables(extends='":read-only"')), encoding="utf-8")
         blocked = meridian.codex_doctor(self.root, self.config, self.worktrees)
@@ -5460,6 +5665,28 @@ class WorktreeLifecycleCliTest(unittest.TestCase):
         self.assertEqual(alias.returncode, 0, alias.stderr)
         self.assertEqual(current.stdout, alias.stdout)
         self.assertIn("DEPRECATED", alias.stderr)
+
+    def test_worktree_and_codex_commands_accept_the_resolved_root_without_an_option(self) -> None:
+        environment = {**os.environ, "MERIDIAN_WORKTREE_ROOT": str(self.worktree_root)}
+        worktree = subprocess.run(
+            [sys.executable, str(CLI), "worktree", "path", "056", "--project", str(self.project)],
+            cwd=self.project,
+            env=environment,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        codex = subprocess.run(
+            [sys.executable, str(CLI), "codex", "worktree-path", "056", "--project", str(self.project)],
+            cwd=self.project,
+            env=environment,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(worktree.returncode, 0, worktree.stderr)
+        self.assertEqual(codex.returncode, 0, codex.stderr)
+        self.assertEqual(worktree.stdout, codex.stdout)
 
     def test_prepare_and_worker_check_json_exit_codes(self) -> None:
         prepared = self.run_cli(
