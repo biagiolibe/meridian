@@ -26,14 +26,14 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
-from console_workflow import latest_review_verdict
-
 
 # `bin/meridian` dispatches this file through runpy, which retains bin/ rather
 # than scripts/ on sys.path. Host hook adapters live beside this entry point.
 SCRIPTS_ROOT = Path(__file__).resolve().parent
 if str(SCRIPTS_ROOT) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_ROOT))
+
+from console_workflow import latest_review_verdict  # noqa: E402 (needs SCRIPTS_ROOT on sys.path)
 
 
 MANIFEST_PATH = Path(".meridian/manifest.json")
