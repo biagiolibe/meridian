@@ -15,6 +15,12 @@ records which release moved it.
 
 ## [Unreleased]
 
+### Fixed
+
+- `meridian worktree integrate stage` accepts the exact archive rename of a
+  task record after validation while continuing to reject other task-record
+  changes. This is a CLI-only fix.
+
 ### Changed
 
 - `scripts/release.py publish` now validates the release state rather than a
