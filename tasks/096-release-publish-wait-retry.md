@@ -53,7 +53,7 @@ the tag exists.
   the unchanged failure path.
 - [ ] `CONTRIBUTING.md` describes the wait, the timeout message, and `verify`,
   and `release.py --help` lists `verify` as read-only.
-- [ ] `CHANGELOG.md` records the fix under `[Unreleased]`.
+- [ ] `changelog.d/096.md` records the fix.
 - [ ] `python3 scripts/check_repository.py` and the unit tests pass.
 
 ## Relevant Files
