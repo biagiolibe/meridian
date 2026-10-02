@@ -868,6 +868,67 @@ def _integration_evidence(path: Path) -> dict[str, object]:
     return evidence
 
 
+def record_task_evidence(
+    task_id: str,
+    worktree_root: Path | None,
+    validation_commands: list[str],
+    validation_exit_codes: list[int],
+    *,
+    accepted: bool,
+    task_dependencies: list[str],
+    task_behavioral_surfaces: list[str],
+    main_advanced_dependencies: list[str],
+    main_advanced_behavioral_surfaces: list[str],
+    full_validation_required: bool,
+    supplied_project: Path | None = None,
+) -> dict[str, object]:
+    """Record Git-derived task-validation facts without running validation."""
+    if len(validation_commands) != len(validation_exit_codes):
+        raise MeridianError("each --validation-command requires one --validation-exit-code")
+    if not validation_commands or any(not command.strip() for command in validation_commands):
+        raise MeridianError("at least one non-empty --validation-command is required")
+    project_root = _verified_lifecycle_project(supplied_project)
+    identity = resolve_task_identity(project_root, task_id, "existing")
+    inspection, ready = inspect_task_worktree(
+        identity.canonical_id, worktree_root, project_root
+    )
+    if not ready:
+        raise MeridianError(f"task worktree is not ready: {', '.join(inspection['errors'])}")
+    state_path, _lease, _integration = _lifecycle_paths(project_root, identity)
+    state = _read_json_object(state_path, "worktree lifecycle state")
+    task_commit = str(inspection["task_commit"])
+    base_commit = str(state["base_commit"])
+    task_paths = tuple(filter(None, git_output(
+        project_root, "diff", "--name-only", base_commit, task_commit
+    ).splitlines()))
+    evidence_path = state_path.with_suffix(".evidence.json")
+    evidence = {
+        "accepted": accepted,
+        "validation_passed": all(code == 0 for code in validation_exit_codes),
+        "validated_task_commit": task_commit,
+        "validated_base_commit": base_commit,
+        "full_validation_required": full_validation_required,
+        "interaction_assessment_complete": True,
+        "task_paths": list(task_paths),
+        "task_dependencies": task_dependencies,
+        "task_behavioral_surfaces": task_behavioral_surfaces,
+        "main_advanced_dependencies": main_advanced_dependencies,
+        "main_advanced_behavioral_surfaces": main_advanced_behavioral_surfaces,
+        "validation_commands": validation_commands,
+        "validation_exit_codes": validation_exit_codes,
+    }
+    _write_json_atomic(evidence_path, evidence)
+    return {
+        "version": 1,
+        "task_id": identity.canonical_id,
+        "evidence": str(evidence_path),
+        "validated_task_commit": task_commit,
+        "validated_base_commit": base_commit,
+        "task_paths": list(task_paths),
+        "validation_passed": evidence["validation_passed"],
+    }
+
+
 def _remove_owned_file(path: Path) -> None:
     try:
         path.unlink()
@@ -1001,6 +1062,9 @@ def stage_task_integration(
         if offending:
             raise MeridianError(f"paths changed after validation: {', '.join(offending)}")
     current_main = git_output(project_root, "rev-parse", "main")
+    task_paths = tuple(filter(None, git_output(
+        project_root, "diff", "--name-only", validated_base, validated_task
+    ).splitlines()))
     main_paths = tuple(
         filter(None, git_output(project_root, "diff", "--name-only", validated_base, current_main).splitlines())
     ) if current_main != validated_base else ()
@@ -1015,7 +1079,7 @@ def stage_task_integration(
         validated_task_is_current_ancestor=validated_is_ancestor,
         relevant_tree_unchanged_after_validation=relevant_unchanged,
         interaction_assessment_complete=bool(evidence["interaction_assessment_complete"]),
-        task_paths=_string_tuple(evidence["task_paths"], "task_paths"),
+        task_paths=tuple(sorted(set(task_paths) | set(_string_tuple(evidence["task_paths"], "task_paths")))),
         main_advanced_paths=main_paths,
         task_dependencies=_string_tuple(evidence["task_dependencies"], "task_dependencies"),
         main_advanced_dependencies=_string_tuple(evidence["main_advanced_dependencies"], "main_advanced_dependencies"),
@@ -1049,6 +1113,8 @@ def stage_task_integration(
         "task_commit": task_commit,
         "validated_task_commit": validated_task,
         "validated_base_commit": validated_base,
+        "task_paths": list(task_paths),
+        "main_advanced_paths": list(main_paths),
         "decision": decision.outcome.value,
         "reason": decision.reason,
         "candidate_tree": candidate_tree,
@@ -7056,6 +7122,21 @@ def main() -> int:
     worktree_check.add_argument("--project", type=Path)
     worktree_check.add_argument("--worktree-root", type=Path)
     worktree_check.add_argument("--format", choices=("json",), required=True)
+    worktree_evidence = worktree_sub.add_parser(
+        "evidence", help="record Git-derived task validation evidence without running commands"
+    )
+    worktree_evidence.add_argument("task_id")
+    worktree_evidence.add_argument("--project", type=Path)
+    worktree_evidence.add_argument("--worktree-root", type=Path)
+    worktree_evidence.add_argument("--accepted", action="store_true")
+    worktree_evidence.add_argument("--validation-command", action="append", default=[])
+    worktree_evidence.add_argument("--validation-exit-code", action="append", type=int, default=[])
+    worktree_evidence.add_argument("--task-dependency", action="append", default=[])
+    worktree_evidence.add_argument("--task-behavioral-surface", action="append", default=[])
+    worktree_evidence.add_argument("--main-advanced-dependency", action="append", default=[])
+    worktree_evidence.add_argument("--main-advanced-behavioral-surface", action="append", default=[])
+    worktree_evidence.add_argument("--full-validation-required", action="store_true")
+    worktree_evidence.add_argument("--format", choices=("json",), required=True)
     worktree_closure_status = worktree_sub.add_parser(
         "closure-status", help="report the next closure step without changing lifecycle state"
     )
@@ -7352,6 +7433,20 @@ def main() -> int:
                 print(json.dumps(report, sort_keys=True))
                 if not ready:
                     return 2
+            elif arguments.worktree_command == "evidence":
+                print(json.dumps(record_task_evidence(
+                    arguments.task_id,
+                    arguments.worktree_root,
+                    arguments.validation_command,
+                    arguments.validation_exit_code,
+                    accepted=arguments.accepted,
+                    task_dependencies=arguments.task_dependency,
+                    task_behavioral_surfaces=arguments.task_behavioral_surface,
+                    main_advanced_dependencies=arguments.main_advanced_dependency,
+                    main_advanced_behavioral_surfaces=arguments.main_advanced_behavioral_surface,
+                    full_validation_required=arguments.full_validation_required,
+                    supplied_project=project_root,
+                ), sort_keys=True))
             elif arguments.worktree_command == "closure-status":
                 report, ready = closure_status(
                     arguments.task_id,

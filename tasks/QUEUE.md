@@ -60,7 +60,7 @@ reasons, and creates the implementation follow-ups.
 |--------|----|-------|----------|------------|------|
 | `[x]` | 100 | Design hands-off task closure | 🔴 P1 | 088, 097, 099 | [100](done/100-design-hands-off-task-closure.md) |
 | `[x]` | 101 | Add `meridian worktree closure-status` | 🟡 P2 | 100 | [101](done/101-closure-status-command.md) |
-| `[ ]` | 102 | Add the evidence command and recompute main-advance facts in `integrate stage` | 🟡 P2 | 100 | [102](102-evidence-command-and-main-advance-facts.md) |
+| `[x]` | 102 | Add the evidence command and recompute main-advance facts in `integrate stage` | 🟡 P2 | 100 | [102](done/102-evidence-command-and-main-advance-facts.md) |
 | `[ ]` | 103 | Apply queue and plan row status during `integrate stage` | 🟡 P2 | 100, 102 | [103](103-apply-queue-and-plan-rows-at-integration.md) |
 | `[ ]` | 104 | Apply phase archival during `integrate stage` | 🟡 P2 | 100, 103 | [104](104-apply-phase-archival-at-integration.md) |
 | `[ ]` | 105 | Derive `[/]` and show closure stop reasons in the console | 🟡 P2 | 101, 103 | [105](105-console-derive-in-progress-and-closure-stops.md) |
