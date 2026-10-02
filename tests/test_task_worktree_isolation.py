@@ -371,6 +371,15 @@ class BoundedWorktreeLifecycleTest(unittest.TestCase):
         self.assertTrue(correct["clean"])
 
     def test_stage_finalize_and_verified_cleanup(self) -> None:
+        queue = self.primary / "tasks/QUEUE.md"
+        queue.write_text(
+            "### Phase 1 — Closing\n\n"
+            "| Status | ID | Title |\n|---|---|---|\n| `[ ]` | 056 | Lifecycle |\n",
+            encoding="utf-8",
+        )
+        self.git("add", "tasks/QUEUE.md")
+        self.git("commit", "-m", "add closing phase")
+        self.base = self.git("rev-parse", "HEAD").stdout.strip()
         prepared = self.prepare()
         task_worktree = Path(str(prepared["worktree"]))
         (task_worktree / "feature.txt").write_text("implemented\n", encoding="utf-8")
@@ -398,6 +407,8 @@ class BoundedWorktreeLifecycleTest(unittest.TestCase):
             "056", self.worktree_root, evidence_path, self.primary
         )
         self.assertEqual(staged["decision"], "REUSE")
+        self.assertFalse(queue.read_text(encoding="utf-8").strip())
+        self.assertIn("### Phase 1 — Closing", (self.primary / "tasks/QUEUE_ARCHIVE.md").read_text(encoding="utf-8"))
         self.assertEqual(
             meridian.stage_task_integration("056", self.worktree_root, evidence_path, self.primary),
             staged,
@@ -609,6 +620,65 @@ class BoundedWorktreeLifecycleTest(unittest.TestCase):
             meridian._apply_task_completion_rows(self.primary, identity)
 
         self.assertEqual(queue.read_text(encoding="utf-8"), original_queue)
+
+    def test_completion_rows_archive_a_closing_phase_and_create_the_archive(self) -> None:
+        identity = meridian.resolve_task_identity(self.primary, "056", "existing")
+        queue = self.primary / "tasks/QUEUE.md"
+        queue.write_text(
+            "### Phase 1 — Closing\n\n"
+            "| Status | ID | Title |\n|---|---|---|\n| `[ ]` | 056 | Lifecycle |\n",
+            encoding="utf-8",
+        )
+        meridian._apply_task_completion_rows(self.primary, identity)
+        archive = self.primary / "tasks/QUEUE_ARCHIVE.md"
+        self.assertEqual(queue.read_text(encoding="utf-8"), "\n")
+        self.assertIn("### Phase 1 — Closing", archive.read_text(encoding="utf-8"))
+        self.assertIn("| `[x]` | 056 | Lifecycle |", archive.read_text(encoding="utf-8"))
+
+    def test_completed_queue_archival_leaves_an_open_phase_in_place(self) -> None:
+        queue = self.primary / "tasks/QUEUE.md"
+        contents = (
+            "### Phase 1 — Open\n\n"
+            "| Status | ID | Title |\n|---|---|---|\n"
+            "| `[x]` | 056 | Lifecycle |\n| `[ ]` | 057 | Follow-up |\n"
+        )
+        queue.write_text(contents, encoding="utf-8")
+        archived, archive_contents = meridian._archive_completed_queue_sections(
+            contents, queue, self.primary / "tasks/QUEUE_ARCHIVE.md"
+        )
+        self.assertEqual(archived, contents)
+        self.assertIsNone(archive_contents)
+
+    def test_completed_queue_archival_is_idempotent_on_rerun(self) -> None:
+        queue = self.primary / "tasks/QUEUE.md"
+        contents = (
+            "### Phase 1 — Closing\n\n"
+            "| Status | ID | Title |\n|---|---|---|\n| `[x]` | 056 | Lifecycle |\n"
+        )
+        archived, archive_contents = meridian._archive_completed_queue_sections(
+            contents, queue, self.primary / "tasks/QUEUE_ARCHIVE.md"
+        )
+        archive = self.primary / "tasks/QUEUE_ARCHIVE.md"
+        archive.write_text(archive_contents or "", encoding="utf-8")
+        repeated_queue, repeated_archive = meridian._archive_completed_queue_sections(
+            archived, queue, archive
+        )
+        self.assertEqual(repeated_queue, archived)
+        self.assertIsNone(repeated_archive)
+
+    def test_completion_rows_reject_unknown_section_shape_without_editing(self) -> None:
+        identity = meridian.resolve_task_identity(self.primary, "056", "existing")
+        queue = self.primary / "tasks/QUEUE.md"
+        contents = (
+            "### Phase 1 — Current\n\n"
+            "| Status | ID | Title |\n|---|---|---|\n| `[ ]` | 056 | Lifecycle |\n\n"
+            "### Phase 2 — Malformed\n\n"
+            "| Status | ID | Title |\n|---|---|---|\n| [x] | 057 | Malformed status |\n"
+        )
+        queue.write_text(contents, encoding="utf-8")
+        with self.assertRaisesRegex(meridian.MeridianError, "unrecognized queue section shape"):
+            meridian._apply_task_completion_rows(self.primary, identity)
+        self.assertEqual(queue.read_text(encoding="utf-8"), contents)
 
     def test_stage_blocks_invalid_archive_before_creating_lifecycle_state(self) -> None:
         prepared = self.prepare()
