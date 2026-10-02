@@ -32,6 +32,22 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, 25, 26, 27, 28, 31, 32, 34, 36, and 42
 are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 
+### Phase 45 — Closure blockers found at Task 101
+
+Fixes the two causes found while closing Task 101: `integrate stage` blocking
+the archive rename, and a required validation that exceeds the agent host's
+command limit. Execution order: 111, 101, 102, 112, 113, 114, 115, then the
+remaining Phase 44 tasks (see `docs/TASK_CLOSURE_DESIGN.md` once Task 115
+records it).
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 111 | Let `integrate stage` accept the exact archive rename of the task record | 🔴 P1 | 055, 063 | [111](111-stage-accepts-exact-task-archive-rename.md) |
+| `[ ]` | 112 | Add a sharded test runner with a coverage proof | 🟡 P2 | 100 | [112](112-sharded-test-runner.md) |
+| `[ ]` | 113 | Add the validation evidence record and a read-only verifier | 🟡 P2 | 112 | [113](113-validation-evidence-record-and-verifier.md) |
+| `[ ]` | 114 | Validate task branches in CI and capture the result as evidence | 🟡 P2 | 113 | [114](114-ci-on-task-branches-and-evidence-lookup.md) |
+| `[ ]` | 115 | Record the validation-timeout and stage-whitelist decisions in the closure design | 🟡 P2 | 100, 101 | [115](115-closure-design-addendum-validation-and-stage.md) |
+
 ### Phase 44 — Hands-off task closure design
 
 Designs how an assigned task runs through implementation, validation,
