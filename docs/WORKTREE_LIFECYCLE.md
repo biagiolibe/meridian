@@ -75,6 +75,30 @@ on the machines that share that hash. `check` also accepts a legacy absolute
 
 ## Evidence boundary
 
+### External validation evidence
+
+`schemas/validation-evidence-v1.schema.json` defines an attestation for a
+validation run that completed outside the agent host. Verify it without running
+the recorded command with:
+
+```text
+meridian validation check <record.json> --project <primary> [--commit <sha>] --format json
+```
+
+The command uses only read-only Git plumbing and returns JSON with one of
+`VALIDATION_PASSED`, `VALIDATION_RUNNING`, `VALIDATION_UNAVAILABLE`, or
+`VALIDATION_FAILED`, its level, and field-specific reasons. Passed exits zero;
+running or unavailable exits one; failed or invalid exits two.
+
+Every record binds its command, result, test count, commit, and commit tree.
+Its state is `running`, `unavailable`, `failed`, or `passed`. The three levels
+are `T1_CI` (a successful CI run for that commit), `T2_SHARDED` (a complete,
+consistent shard coverage proof), and `T3_ATTESTED` (a dated developer
+statement). Each level states what evidence was supplied; none is an
+unforgeable proof. A passed record also requires exit code zero, a positive test
+count, and level-specific evidence: CI conclusion and head SHA, complete shard
+indexes and matching digest/total, or a developer/date/statement respectively.
+
 Stage evidence is a JSON object with these required fields:
 
 ```json
