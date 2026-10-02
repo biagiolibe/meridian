@@ -15,10 +15,10 @@ Authority: `docs/TASK_CLOSURE_DESIGN.md`.
 
 ## Acceptance Criteria
 
-- [ ] A task with a canonical branch and registered worktree but a `[ ]` queue row displays as in progress.
-- [ ] The detail pane shows the stop reason and resume command for each stop in the design, including `REVIEW_REQUIRED`.
-- [ ] Refresh latency does not regress: tests or a timing check cover the added reads (see task 078).
-- [ ] `python3 scripts/check_repository.py` passes, and the unit tests pass unless the change is documentation-only.
+- [x] A task with a canonical branch and registered worktree but a `[ ]` queue row displays as in progress.
+- [x] The detail pane shows the stop reason and resume command for each stop in the design, including `REVIEW_REQUIRED`.
+- [x] Refresh latency does not regress: tests or a timing check cover the added reads (see task 078).
+- [x] `python3 scripts/check_repository.py` passes, and the unit tests pass unless the change is documentation-only.
 
 ## Relevant Files
 
