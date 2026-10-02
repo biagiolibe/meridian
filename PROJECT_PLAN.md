@@ -83,7 +83,7 @@
 - `[x]` 113 — Add the validation evidence record and a read-only verifier.
 - `[ ]` 114 — Validate task branches in CI and capture the result as evidence.
 - `[ ]` 115 — Record the validation-timeout and stage-whitelist decisions in the closure design.
-- `[/]` 116 — Replace edits to `[Unreleased]` with per-task changelog fragments.
+- `[x]` 116 — Replace edits to `[Unreleased]` with per-task changelog fragments.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.
 - `[x]` 053 — Remove machine-specific absolute paths from tracked records.

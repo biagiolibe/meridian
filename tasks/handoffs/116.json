@@ -1,0 +1,29 @@
+{
+  "accepted": true,
+  "validation_passed": true,
+  "validated_task_commit": "947e0a6b00d12976c88151b0a9935a3912bd16e5",
+  "validated_base_commit": "a19ffdc3faee9e46361a2e735ba5cbd3743c6b87",
+  "full_validation_required": false,
+  "interaction_assessment_complete": true,
+  "task_paths": [
+    "CONTRIBUTING.md",
+    "PROJECT_PLAN.md",
+    "changelog.d/116.md",
+    "changelog.d/README.md",
+    "scripts/check_repository.py",
+    "scripts/release.py",
+    "tasks/096-release-publish-wait-retry.md",
+    "tasks/114-ci-on-task-branches-and-evidence-lookup.md",
+    "tasks/QUEUE.md",
+    "tasks/done/116-changelog-fragments.md",
+    "tasks/handoffs/116.json",
+    "tasks/handoffs/116.md",
+    "tests/test_release.py"
+  ],
+  "task_dependencies": ["093", "095", "098"],
+  "task_behavioral_surfaces": [
+    "release changelog fragment validation, deterministic rendering, release preparation, and rollback"
+  ],
+  "main_advanced_dependencies": [],
+  "main_advanced_behavioral_surfaces": []
+}
