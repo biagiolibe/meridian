@@ -2,7 +2,7 @@
 
 Use this procedure only for `Proceed with <TASK-ID>` after the entry-point router has applied its always-loaded invariants.
 
-<!-- MERIDIAN:BEGIN capability=task-worktree-boundary v5 -->
+<!-- MERIDIAN:BEGIN capability=task-worktree-boundary v6 -->
 Choose exactly one start mode before reading the task, its handoff,
 implementation files, or any diff. The task ID is taken only from the
 `Proceed with <TASK-ID>` trigger; never infer it from a branch, directory, or
@@ -31,6 +31,28 @@ return `BLOCKED`, name that exact directory, and tell the developer to restart
 the session there; never fall back to the primary checkout. Run every later
 read, implementation, validation, status, and handoff operation in the same
 verified worktree, never the primary checkout.
+
+`Proceed with <TASK-ID>` is standing authority for the complete gated lifecycle:
+validation, completion and archive records, staging and candidate validation,
+finalize or abort, one plain `git push origin main`, and cleanup. It also
+authorizes one plain `git push origin task-<TASK-ID>` only to obtain `T1_CI`
+for that task commit. It never authorizes tags or releases; force, deleting, or
+mirroring pushes; history rewrites; forced worktree removal; bypassing a
+required independent review; textual conflict resolution; or another task.
+Do not ask for confirmation within that boundary.
+
+After acceptance criteria and required validation pass, commit the completion
+and exact archive records. `Review: REQUIRED` then stops at
+`REVIEW_REQUIRED`; it is a gate, not a request for authorization. Leave the
+clean worktree for the fresh reviewer-integrator, who resumes C4 through C10
+after approval. `Review: NOT_REQUIRED` proceeds through C10. The remaining
+stops are `ACCEPTANCE_UNMET`, `VALIDATION_FAILED`, `WRONG_WORKTREE`,
+`EVIDENCE_INCOMPLETE`, `PRIMARY_DIRTY`, `MAIN_BEHIND_ORIGIN`, `LEASE_HELD`,
+`INTEGRATION_CONFLICT`, `CANDIDATE_VALIDATION_FAILED`, `EVIDENCE_MISMATCH`,
+`PUSH_REJECTED`, and `CLEANUP_BLOCKED`; report each once with its resume
+command. A test-reported sandbox skip is not `VALIDATION_FAILED` only when no
+acceptance criterion depends solely on it; record it as `Validation skips:` in
+the handoff.
 <!-- MERIDIAN:END -->
 
 <!-- MERIDIAN:BEGIN capability=manual-verification-precondition v3 -->If the task declares `Manual verification: required`, check its `Manual verification rationale` first, before any probe: if it is missing, or names a property readable as a value anywhere in the program (a tier-1 structural or tier-2 derived-value property per `docs/CONTEXT_BUDGET_POLICY.md`'s evidence tiers), return `BLOCKED` asking for the task to be re-scoped as a deterministic check instead — do not run the probe. Only once the rationale names a genuine tier-3 perceptual property, confirm evidence availability before any implementation, not after: run an end-to-end probe that actually succeeds and produces the exact evidence channel the task will record, confirmed readable by the responsible agent or reviewer. A visible terminal entry, a launched process, or a presumed ability to automate an application window is not evidence availability; the probe must actually locate the application window and acquire its image, or otherwise produce and open the real artifact. If no such probe succeeds before implementation, return `BLOCKED` immediately; do not implement in the hope the channel will become available later. A probe that has been attempted and failed is positive evidence about the environment: report it and request the evidence channel from the developer before continuing, whatever the evidence tier — never respond to a failed probe by exploring the local environment for an alternative. When a deterministic test can serve as the change's primary acceptance evidence (for example, a geometry or layout assertion), it suspends only the requirement to *capture* manual or visual confirmation as the sole gate; it never suspends the requirement to stop on a probe that has already been attempted and failed.<!-- MERIDIAN:END -->

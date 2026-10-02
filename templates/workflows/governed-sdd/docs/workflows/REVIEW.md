@@ -2,7 +2,7 @@
 
 Use this procedure only for `Review <TASK-ID>` after the entry-point router has applied its always-loaded invariants.
 
-<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v7 -->
+<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v8 -->
 ## Mandatory task-worktree preflight
 
 This is the first review action. Before reading the assigned task,
@@ -58,6 +58,24 @@ permitted lifecycle records in the intervening diff. Current `main` may have
 advanced; reuse evidence, run the bounded gate, select full validation, or
 return `BLOCKED` only through that transaction's deterministic decision.
 Independent review, acceptance evidence, and forge gates remain mandatory.
+
+`Proceed with <TASK-ID>` already authorizes the gated task lifecycle through
+candidate validation, finalize or abort, one plain `git push origin main`, and
+cleanup; it also authorizes one plain task-branch push only for `T1_CI`.
+It never authorizes tags, releases, force/deleting/mirroring pushes, history
+rewrites, forced worktree removal, bypassing this independent review, textual
+conflict resolution, or work on another task. This review is the gate:
+`Review: REQUIRED` stops at `REVIEW_REQUIRED`, not to ask whether review may be
+skipped. After `APPROVE`, the reviewer-integrator performs C6 through C10.
+`Review: NOT_REQUIRED` needs no reviewer and proceeds through C10.
+
+The closure stops are `ACCEPTANCE_UNMET`, `VALIDATION_FAILED`,
+`REVIEW_REQUIRED`, `WRONG_WORKTREE`, `EVIDENCE_INCOMPLETE`, `PRIMARY_DIRTY`,
+`MAIN_BEHIND_ORIGIN`, `LEASE_HELD`, `INTEGRATION_CONFLICT`,
+`CANDIDATE_VALIDATION_FAILED`, `EVIDENCE_MISMATCH`, `PUSH_REJECTED`, and
+`CLEANUP_BLOCKED`; each reports once with its resume command. A named,
+test-reported sandbox skip is accepted only when no acceptance criterion
+depends solely on it and the handoff records it as `Validation skips:`.
 <!-- MERIDIAN:END -->
 
 <!-- MERIDIAN:BEGIN capability=review-mode-boundary v1 -->

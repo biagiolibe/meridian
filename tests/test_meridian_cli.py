@@ -291,7 +291,7 @@ class MeridianCliTest(unittest.TestCase):
             "",
         ))
         previous_implementation = re.sub(
-            r"<!-- MERIDIAN:BEGIN capability=task-worktree-boundary v5 -->.*?<!-- MERIDIAN:END -->\n",
+            r"<!-- MERIDIAN:BEGIN capability=task-worktree-boundary v6 -->.*?<!-- MERIDIAN:END -->\n",
             legacy_implementation,
             current_implementation,
             count=1,
@@ -1100,10 +1100,10 @@ class MeridianCliTest(unittest.TestCase):
         self.assertIn("MIGRATION 047-codex-worktree-access", checked.stdout)
         applied = self.run_cli("upgrade", "--apply")
         self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
-        self.assertIn("capability=git-workflow v7", project_workflow.read_text(encoding="utf-8"))
+        self.assertIn("capability=git-workflow v8", project_workflow.read_text(encoding="utf-8"))
         self.assertIn("Consumer-owned note.", project_workflow.read_text(encoding="utf-8"))
         self.assertIn(
-            "capability=task-worktree-boundary v5",
+            "capability=task-worktree-boundary v6",
             (self.project / "docs/workflows/IMPLEMENTATION.md").read_text(encoding="utf-8"),
         )
         report = (self.project / "docs/COMPLETION_REPORT_TEMPLATE.md").read_text(encoding="utf-8")
@@ -1131,7 +1131,7 @@ class MeridianCliTest(unittest.TestCase):
             for relative in changed_paths
         }
         previous_versions = {
-            "git-workflow": (7, 2),
+            "git-workflow": (8, 2),
             "lifecycle-orchestration": (7, 4),
             "task-worktree-review": (4, 1),
             "task-worktree-integration": (3, 1),
@@ -1172,7 +1172,7 @@ class MeridianCliTest(unittest.TestCase):
         self.assertIn("MIGRATION 047-codex-worktree-access", checked.stdout)
         applied = self.run_cli("upgrade", "--apply")
         self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
-        self.assertIn("capability=git-workflow v7", project_workflow.read_text(encoding="utf-8"))
+        self.assertIn("capability=git-workflow v8", project_workflow.read_text(encoding="utf-8"))
         self.assertIn("Consumer-owned note.", project_workflow.read_text(encoding="utf-8"))
         self.assertIn(
             "capability=task-worktree-handoff v4",
@@ -1237,7 +1237,7 @@ worktree before the branch only after validated integration succeeds.
 
         previous = current.copy()
         previous["docs/workflows/REVIEW.md"] = re.sub(
-            r"<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v5 -->.*?<!-- MERIDIAN:END -->",
+            r"<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v8 -->.*?<!-- MERIDIAN:END -->",
             legacy_preflight,
             previous["docs/workflows/REVIEW.md"],
             count=1,
@@ -1254,7 +1254,7 @@ worktree before the branch only after validated integration succeeds.
             "capability=task-worktree-review v4", "capability=task-worktree-review v2"
         )
         previous["PROJECT_WORKFLOW.md"] = previous["PROJECT_WORKFLOW.md"].replace(
-            "capability=git-workflow v7", "capability=git-workflow v4"
+            "capability=git-workflow v8", "capability=git-workflow v4"
         )
         previous["docs/LIFECYCLE_ORCHESTRATION.md"] = previous[
             "docs/LIFECYCLE_ORCHESTRATION.md"
@@ -1284,7 +1284,7 @@ worktree before the branch only after validated integration succeeds.
 
         upgraded = review.read_text(encoding="utf-8")
         self.assertIn("capability=implementer-reviewer-handoff v3", upgraded)
-        self.assertIn("capability=task-worktree-review-procedure v7", upgraded)
+        self.assertIn("capability=task-worktree-review-procedure v8", upgraded)
         self.assertIn("Consumer-owned review note.", upgraded)
         self.assertNotIn("uses that same primary checkout", upgraded)
         self.assertNotIn("git switch <task-branch>", upgraded)
@@ -1357,7 +1357,7 @@ worktree before the branch only after validated integration succeeds.
         applied = self.run_cli("upgrade", "--apply")
         self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
 
-        self.assertIn("capability=task-worktree-boundary v5", implementation.read_text(encoding="utf-8"))
+        self.assertIn("capability=task-worktree-boundary v6", implementation.read_text(encoding="utf-8"))
         self.assertIn("**Manually triggered.**", implementation.read_text(encoding="utf-8"))
         upgraded_workflow = project_workflow.read_text(encoding="utf-8")
         self.assertIn("capability=bounded-worktree-lifecycle v4", upgraded_workflow)
@@ -1389,7 +1389,7 @@ worktree before the branch only after validated integration succeeds.
         current = {relative: (workflow / relative).read_text(encoding="utf-8") for relative in paths}
         previous = {
             relative: text.replace("task-worktree-handoff v4", "task-worktree-handoff v3").replace(
-                "task-worktree-review-procedure v7", "task-worktree-review-procedure v6"
+                "task-worktree-review-procedure v8", "task-worktree-review-procedure v6"
             )
             for relative, text in current.items()
         }
@@ -1417,7 +1417,7 @@ worktree before the branch only after validated integration succeeds.
         self.assertIn("created after this report", upgraded_report)
         self.assertIn("Consumer-owned handoff note.", upgraded_report)
         upgraded_review = (self.project / "docs/workflows/REVIEW.md").read_text(encoding="utf-8")
-        self.assertIn("capability=task-worktree-review-procedure v7", upgraded_review)
+        self.assertIn("capability=task-worktree-review-procedure v8", upgraded_review)
         self.assertIn("resolve it to the registered task branch `HEAD`", upgraded_review)
         manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
         self.assertEqual(manifest["workflowBaselineVersion"], "1.1.55")
@@ -1468,6 +1468,73 @@ worktree before the branch only after validated integration succeeds.
         manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
         self.assertEqual(manifest["workflowBaselineVersion"], "1.2.4")
         self.assertEqual(manifest["appliedMigrations"][-1], "058-lean-closure-procedure")
+
+    def test_upgrade_installs_governed_closure_procedure_and_preserves_consumer_text(self) -> None:
+        workflow = self.framework / "templates/workflows/governed-sdd"
+        paths = (
+            "PROJECT_WORKFLOW.md",
+            "docs/workflows/IMPLEMENTATION.md",
+            "docs/workflows/REVIEW.md",
+        )
+        current = {relative: (workflow / relative).read_text(encoding="utf-8") for relative in paths}
+        previous = {
+            "PROJECT_WORKFLOW.md": re.sub(
+                r"\n<!-- MERIDIAN:BEGIN capability=git-workflow v8 -->.*?<!-- MERIDIAN:END -->\n",
+                "\n",
+                current["PROJECT_WORKFLOW.md"],
+                flags=re.DOTALL,
+            ),
+            "docs/workflows/IMPLEMENTATION.md": re.sub(
+                r"\n<!-- MERIDIAN:BEGIN capability=task-worktree-boundary v6 -->.*?<!-- MERIDIAN:END -->\n",
+                "\n",
+                current["docs/workflows/IMPLEMENTATION.md"],
+                flags=re.DOTALL,
+            ),
+            "docs/workflows/REVIEW.md": re.sub(
+                r"\n<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v8 -->.*?<!-- MERIDIAN:END -->\n",
+                "\n",
+                current["docs/workflows/REVIEW.md"],
+                flags=re.DOTALL,
+            ),
+        }
+        for relative, text in previous.items():
+            (workflow / relative).write_text(text, encoding="utf-8")
+        for path in workflow.rglob("*"):
+            if path.is_file():
+                destination = self.project / path.relative_to(workflow)
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(path, destination)
+        (self.framework / "VERSION").write_text("1.2.4\n", encoding="utf-8")
+        self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
+
+        implementation = self.project / "docs/workflows/IMPLEMENTATION.md"
+        implementation.write_text(
+            implementation.read_text(encoding="utf-8") + "\nConsumer-owned closure note.\n",
+            encoding="utf-8",
+        )
+
+        for relative, text in current.items():
+            (workflow / relative).write_text(text, encoding="utf-8")
+        (self.framework / "VERSION").write_text("1.2.5\n", encoding="utf-8")
+        checked = self.run_cli("upgrade", "--check")
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+        self.assertIn("MIGRATION 059-governed-closure-procedure", checked.stdout)
+        applied = self.run_cli("upgrade", "--apply")
+        self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+
+        upgraded_workflow = (self.project / "PROJECT_WORKFLOW.md").read_text(encoding="utf-8")
+        upgraded_implementation = implementation.read_text(encoding="utf-8")
+        upgraded_review = (self.project / "docs/workflows/REVIEW.md").read_text(encoding="utf-8")
+        self.assertIn("capability=git-workflow v8", upgraded_workflow)
+        self.assertIn("Review: REQUIRED` is a gate, not a request for authorization", upgraded_workflow)
+        self.assertIn("capability=task-worktree-boundary v6", upgraded_implementation)
+        self.assertIn("REVIEW_REQUIRED`; it is a gate", upgraded_implementation)
+        self.assertIn("capability=task-worktree-review-procedure v8", upgraded_review)
+        self.assertIn("reviewer-integrator performs C6 through C10", upgraded_review)
+        self.assertIn("Consumer-owned closure note.", upgraded_implementation)
+        manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual(manifest["workflowBaselineVersion"], "1.2.5")
+        self.assertEqual(manifest["appliedMigrations"][-1], "059-governed-closure-procedure")
 
     def test_upgrade_downgrades_cosmetic_conflict_to_verified(self) -> None:
         """Phase 3 of migrations/CAPABILITY_MARKERS.md: a conflict outside a
@@ -3802,7 +3869,7 @@ class CapabilityMarkerTest(unittest.TestCase):
 
     def test_manual_proceed_migration_leaves_review_and_remediation_bytes_unchanged(self) -> None:
         expected = {
-            "REVIEW.md": "3b9e03268a94905d3f1d37a8416267cd032fe88f8b02bd051750f9f03af73d9e",
+            "REVIEW.md": "0859ffdd979b0514efd1b10d72c9be39642564a3eff0f671839c9babfbbae4f5",
             "REMEDIATION.md": "d995a711720865d1d1694654e6415fd699d159e487a211e36b035741e907f47e",
         }
         for name, digest in expected.items():
@@ -3995,7 +4062,7 @@ class CapabilityMarkerTest(unittest.TestCase):
         }
         expected["execution-assets"] = "2"
         expected["roles"] = "2"
-        expected["git-workflow"] = "7"
+        expected["git-workflow"] = "8"
         expected["bounded-worktree-lifecycle"] = "4"
         expected["codex-worktree-access"] = "3"
         expected["task-identity-policy"] = "1"
@@ -4035,7 +4102,7 @@ class CapabilityMarkerTest(unittest.TestCase):
         self.assertIn(("review-mode-boundary", "1"), review)
         self.assertIn(("implementer-reviewer-handoff", "3"), review)
         self.assertIn(("reviewer-integrator-identity", "1"), review)
-        self.assertIn(("task-worktree-review-procedure", "7"), review)
+        self.assertIn(("task-worktree-review-procedure", "8"), review)
 
     def test_review_preflight_fails_closed_before_substantive_inspection(self) -> None:
         review = (self.WORKFLOW / "docs/workflows/REVIEW.md").read_text(encoding="utf-8")
