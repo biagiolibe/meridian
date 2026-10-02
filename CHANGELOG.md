@@ -17,6 +17,8 @@ records which release moved it.
 
 ### Added
 
+- `meridian validation check` verifies a versioned, commit-and-tree-bound
+  external validation evidence record without running its recorded command.
 - `scripts/run_tests.py` runs the unittest suite in deterministic, disjoint
   shards and prints a full-suite SHA-256 coverage proof for each shard.
 
