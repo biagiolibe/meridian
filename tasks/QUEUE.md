@@ -36,7 +36,8 @@ are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 
 Fixes the two causes found while closing Task 101: `integrate stage` blocking
 the archive rename, and a required validation that exceeds the agent host's
-command limit. Execution order: 111, 101, 102, 112, 113, 114, 115, then the
+command limit, and adds changelog fragments so parallel tasks stop sharing
+`[Unreleased]`. Execution order: 111, 101, 102, 116, 112, 113, 114, 115, then the
 remaining Phase 44 tasks (see `docs/TASK_CLOSURE_DESIGN.md` once Task 115
 records it).
 
@@ -47,6 +48,7 @@ records it).
 | `[ ]` | 113 | Add the validation evidence record and a read-only verifier | 🟡 P2 | 112 | [113](113-validation-evidence-record-and-verifier.md) |
 | `[ ]` | 114 | Validate task branches in CI and capture the result as evidence | 🟡 P2 | 113 | [114](114-ci-on-task-branches-and-evidence-lookup.md) |
 | `[ ]` | 115 | Record the validation-timeout and stage-whitelist decisions in the closure design | 🟡 P2 | 100, 101 | [115](115-closure-design-addendum-validation-and-stage.md) |
+| `[ ]` | 116 | Replace edits to `[Unreleased]` with per-task changelog fragments | 🟡 P2 | 093, 095, 098 | [116](116-changelog-fragments.md) |
 
 ### Phase 44 — Hands-off task closure design
 
