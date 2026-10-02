@@ -1334,7 +1334,8 @@ def abort_task_integration(task_id: str, supplied_project: Path | None = None) -
     project_root = _verified_lifecycle_project(supplied_project)
     if Path.cwd().resolve() != project_root:
         raise MeridianError("integration abort must run from the canonical primary checkout")
-    identity = resolve_task_identity(project_root, task_id, "existing")
+    # Abort must stay possible when the queue link is stale, so it skips link checks.
+    identity = resolve_task_identity(project_root, task_id, "existing", check_queue_links=False)
     _task_state, lease_path, integration_path = _lifecycle_paths(project_root, identity)
     lease = _read_json_object(lease_path, "integration lease")
     staged = _read_json_object(integration_path, "staged integration state") if integration_path.is_file() else None
@@ -6307,7 +6308,13 @@ def _identity_derivations(canonical_id: str, kind: str) -> tuple[str, str, dict[
     return branch, artifact, semantic
 
 
-def resolve_task_identity(project_root: Path, supplied_id: str, intent: str) -> ResolvedTaskIdentity:
+def resolve_task_identity(
+    project_root: Path,
+    supplied_id: str,
+    intent: str,
+    *,
+    check_queue_links: bool = True,
+) -> ResolvedTaskIdentity:
     if intent not in ("existing", "new"):
         raise MeridianError(f"unsupported task identity intent: {intent!r}")
     project_root = project_root.resolve()
@@ -6350,13 +6357,14 @@ def resolve_task_identity(project_root: Path, supplied_id: str, intent: str) -> 
     if authority is not None:
         if len(authority.task_paths) > 1 or authority.queue_records > 1 or len(authority.queue_links) > 1:
             raise MeridianError(f"ambiguous authoritative artifacts for task {canonical}")
-        linked_existing = tuple(path for path in authority.queue_links if path.is_file())
-        if authority.queue_links and len(linked_existing) != len(authority.queue_links):
-            raise MeridianError(f"queue link for task {canonical} does not resolve to an existing task file")
-        if linked_existing and not authority.task_paths:
-            raise MeridianError(f"queue and task authorities disagree for {canonical}")
-        if authority.task_paths and linked_existing and authority.task_paths[0] != linked_existing[0]:
-            raise MeridianError(f"task and queue authorities disagree for {canonical}")
+        if check_queue_links:
+            linked_existing = tuple(path for path in authority.queue_links if path.is_file())
+            if authority.queue_links and len(linked_existing) != len(authority.queue_links):
+                raise MeridianError(f"queue link for task {canonical} does not resolve to an existing task file")
+            if linked_existing and not authority.task_paths:
+                raise MeridianError(f"queue and task authorities disagree for {canonical}")
+            if authority.task_paths and linked_existing and authority.task_paths[0] != linked_existing[0]:
+                raise MeridianError(f"task and queue authorities disagree for {canonical}")
         paths = authority.task_paths
         if not paths:
             raise MeridianError(f"task {canonical} has no authoritative task file")

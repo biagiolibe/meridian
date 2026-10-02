@@ -685,6 +685,28 @@ class BoundedWorktreeLifecycleTest(unittest.TestCase):
         self.assertFalse(lease_path.exists())
         self.assertEqual(self.git("rev-parse", "HEAD").stdout.strip(), self.base)
 
+    def test_abort_recovers_when_the_queue_link_is_stale(self) -> None:
+        self.prepare()
+        identity = meridian.resolve_task_identity(self.primary, "056", "existing")
+        _task_state, lease_path, _integration_path = meridian._lifecycle_paths(self.primary, identity)
+        meridian._write_json_atomic(
+            lease_path,
+            {"version": 1, "task_id": "056", "branch": "task-056", "project": str(self.primary)},
+            exclusive=True,
+        )
+        queue = self.primary / "tasks/QUEUE.md"
+        queue.write_text(
+            queue.read_text(encoding="utf-8").replace(
+                "| 056 |", "| [056](missing/056-lifecycle.md) |"
+            ),
+            encoding="utf-8",
+        )
+        with self.assertRaisesRegex(meridian.MeridianError, "queue link for task 056"):
+            meridian.resolve_task_identity(self.primary, "056", "existing")
+        recovered = meridian.abort_task_integration("056", self.primary)
+        self.assertEqual(recovered["status"], "aborted")
+        self.assertFalse(lease_path.exists())
+
     def test_missing_validation_evidence_is_blocked(self) -> None:
         decision = meridian.decide_integration_validation(
             evidence_complete=False,
