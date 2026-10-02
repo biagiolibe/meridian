@@ -20,7 +20,9 @@ Authority: `docs/TASK_CLOSURE_DESIGN.md` (Decision 2, Decision 9).
 - [ ] A Governed project without `PROJECT_PLAN.md` stages without a plan edit; a missing plan is not an error in that mode.
 - [ ] An unrecognized or ambiguous Governed row keeps the existing `unrecognized completion row` block and leaves no lease or merge behind.
 - [ ] Phase archival moves only fully accepted rows to `tasks/QUEUE_ARCHIVE.md` in the Governed table shape, and leaves the queue unchanged when any row in the section is open.
-- [ ] A task whose `Review` is `REQUIRED` is not set to `ACCEPTED` by `stage`; the task records the decision and its reasoning in the handoff.
+- [ ] A Governed task whose `Review` is `REQUIRED` is set to `ACCEPTED` only when its merged review record's latest attempt is `APPROVE`; missing, malformed, `CHANGES_REQUESTED`, or `BLOCKED` records leave it unchanged and report the reason in the stage result.
+- [ ] Every recognized Governed row relinks an archived task record even when a required review prevents acceptance; section archival remains conditional on every row being `ACCEPTED`.
+- [ ] The completion matrix covers the corresponding Lean states, links, task-record locations, and plan-row presence as well as Governed SDD.
 - [ ] A parametrized matrix test drives the completion step through every realistic task-branch state in both modes, so a new variant fails a test instead of a real integration: starting status (`[ ]`, `[/]`, `[x]` in Lean; the Governed statuses in Governed), queue link (active path, already under `tasks/done/`, absent), task record (active, archived by exact rename), and plan row present or absent. Each combination either reaches the completed state with a correct link or blocks with `unrecognized completion row`, never with a stale link and never leaving a lease or merge behind.
 - [ ] Regression tests build a Governed fixture from `templates/workflows/governed-sdd` and cover: success, missing plan, unrecognized row, a closed phase, an open phase, and the archive link rewrite.
 - [ ] `python3 scripts/check_repository.py` passes, and the unit tests pass.

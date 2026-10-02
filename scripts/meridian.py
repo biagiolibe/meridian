@@ -26,6 +26,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
+from console_workflow import latest_review_verdict
+
 
 # `bin/meridian` dispatches this file through runpy, which retains bin/ rather
 # than scripts/ on sys.path. Host hook adapters live beside this entry point.
@@ -1172,18 +1174,30 @@ _GOVERNED_QUEUE_TASK_ROW = re.compile(
 )
 
 
-def _governed_completion_row(contents: str, task_id: str, path: Path) -> tuple[str, bool]:
+def _governed_completion_row(
+    contents: str, identity: ResolvedTaskIdentity, path: Path
+) -> tuple[str, bool, str]:
     """Return a recognized Governed queue row and whether it may be accepted."""
     matches = [
         match for match in _GOVERNED_QUEUE_TASK_ROW.finditer(contents)
-        if match.group("id").strip().strip("`") == task_id
+        if match.group("id").strip().strip("`") == identity.canonical_id
     ]
     if len(matches) != 1:
-        raise MeridianError(f"unrecognized completion row for task {task_id} in {path}")
+        raise MeridianError(f"unrecognized completion row for task {identity.canonical_id} in {path}")
     match = matches[0]
     if match.group("review") == "REQUIRED":
-        return contents, False
-    return f"{contents[:match.start('status')]}ACCEPTED{contents[match.end('status'):]}", True
+        review_path = identity.review_path
+        verdict = latest_review_verdict(
+            review_path.read_text(encoding="utf-8") if review_path.is_file() else None
+        )
+        if verdict != "APPROVE":
+            reason = "review record is missing or malformed" if verdict is None else f"latest review verdict is {verdict}"
+            return contents, False, reason
+    return (
+        f"{contents[:match.start('status')]}ACCEPTED{contents[match.end('status'):]}",
+        True,
+        "review not required" if match.group("review") == "NOT_REQUIRED" else "latest review verdict is APPROVE",
+    )
 
 
 def _archive_completed_queue_sections(
@@ -1260,7 +1274,7 @@ def _relink_archived_task_row(contents: str, queue_path: Path, identity: Resolve
     return f"{contents[:row.start()]}{relinked}{contents[row.end():]}"
 
 
-def _apply_task_completion_rows(project_root: Path, identity: ResolvedTaskIdentity) -> None:
+def _apply_task_completion_rows(project_root: Path, identity: ResolvedTaskIdentity) -> dict[str, str]:
     """Set known completion rows and archive fully complete queue sections."""
     queue_path = identity.queue_path
     archive_path = queue_path.with_name("QUEUE_ARCHIVE.md")
@@ -1268,10 +1282,12 @@ def _apply_task_completion_rows(project_root: Path, identity: ResolvedTaskIdenti
     queue_contents = queue_path.read_text(encoding="utf-8")
     mode = detect_mode(project_root)
     if mode == "governed-sdd":
-        queue_completed, accepted = _governed_completion_row(queue_contents, task_id, queue_path)
-        if not accepted:
-            return
+        queue_completed, accepted, reason = _governed_completion_row(queue_contents, identity, queue_path)
         queue_completed = _relink_archived_task_row(queue_completed, queue_path, identity)
+        if not accepted:
+            if queue_completed != queue_contents:
+                queue_path.write_text(queue_completed, encoding="utf-8")
+            return {"status": "REVIEW_PENDING", "reason": reason}
         archived_queue, archive_contents = _archive_completed_queue_sections(
             queue_completed, queue_path, archive_path, mode
         )
@@ -1279,9 +1295,9 @@ def _apply_task_completion_rows(project_root: Path, identity: ResolvedTaskIdenti
             queue_path.write_text(archived_queue, encoding="utf-8")
         if archive_contents is not None:
             archive_path.write_text(archive_contents, encoding="utf-8")
-        return
+        return {"status": "COMPLETED", "reason": reason}
     plan_path = project_root / "PROJECT_PLAN.md"
-    plan_contents = plan_path.read_text(encoding="utf-8")
+    plan_contents = plan_path.read_text(encoding="utf-8") if plan_path.is_file() else ""
     queue_completed = _completed_task_row(
         queue_contents,
         task_id,
@@ -1304,6 +1320,7 @@ def _apply_task_completion_rows(project_root: Path, identity: ResolvedTaskIdenti
         plan_path.write_text(plan_completed, encoding="utf-8")
     if archive_contents is not None:
         archive_path.write_text(archive_contents, encoding="utf-8")
+    return {"status": "COMPLETED", "reason": "lean completion rows updated"}
 
 
 def stage_task_integration(
@@ -1431,7 +1448,7 @@ def stage_task_integration(
             _remove_owned_file(lease_path)
         raise MeridianError("integration conflict was aborted; task branch and worktree were retained")
     try:
-        _apply_task_completion_rows(project_root, identity)
+        completion = _apply_task_completion_rows(project_root, identity)
         lifecycle_paths = [str(identity.queue_path.relative_to(project_root))]
         if detect_mode(project_root) == "lean-delivery":
             lifecycle_paths.append("PROJECT_PLAN.md")
@@ -1463,6 +1480,7 @@ def stage_task_integration(
         "reason": decision.reason,
         "candidate_tree": candidate_tree,
         "next_action": "validate-candidate",
+        "completion": completion,
     }
     _write_json_atomic(integration_path, staged, exclusive=True)
     return staged
