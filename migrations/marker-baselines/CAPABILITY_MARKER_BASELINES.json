@@ -39,8 +39,8 @@
       "version": 1
     },
     "git-workflow": {
-      "sha256": "87ef96cbd6f7b4ce3f794681c0736ba98e81ad70b777a788e84006d051a9f14b",
-      "version": 7
+      "sha256": "eb2f641ae7af6f51eb1e455e1a6a04131a74ef12dfd825540ad505a356481b34",
+      "version": 8
     },
     "review-policy": {
       "sha256": "129c502cf2a684ea1fedce822a7a4a39f507c2d66a1a9746f3055d0d71102a09",
@@ -195,8 +195,8 @@
       "version": 1
     },
     "task-worktree-boundary": {
-      "sha256": "67c357bb0e0b765dd2fc431ca280c7c290c457e3636772d96a89134bde11f695",
-      "version": 5
+      "sha256": "3010c4bc6ea5ac2cc228d50670a5fc88bff1a9a385a9a26bc9e012b5599fdcb6",
+      "version": 6
     },
     "validation-scoping": {
       "sha256": "447faaddb875883d676be4c53abf218fc555325cbb591e411412249f7077012d",
@@ -249,8 +249,8 @@
       "version": 1
     },
     "task-worktree-review-procedure": {
-      "sha256": "3f4212acd6e4178a1c1ce1048f1ae380b66b2e2f38eeb36a3ad2fbebb3324e05",
-      "version": 7
+      "sha256": "9cc10dbe093335ba9193feb3ca49fa9d20176fe62daa5022198450dc9c24eed4",
+      "version": 8
     }
   },
   "templates/workflows/governed-sdd/tasks/TASK_BLUEPRINT.md": {

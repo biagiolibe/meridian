@@ -15,11 +15,11 @@ Authority: `docs/TASK_CLOSURE_DESIGN.md`.
 
 ## Acceptance Criteria
 
-- [ ] The Governed `PROJECT_WORKFLOW.md`, implementation and review procedures state the authority rule, the exclusion list, and the stop reasons in bumped capability blocks.
-- [ ] The text states that a required review is a gate and not a request for authorization.
-- [ ] A migration, marker baselines, and upgrade tests follow the pattern of migrations 056 and 057.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
-- [ ] `python3 scripts/check_repository.py` passes, and the unit tests pass unless the change is documentation-only.
+- [x] The Governed `PROJECT_WORKFLOW.md`, implementation and review procedures state the authority rule, the exclusion list, and the stop reasons in bumped capability blocks.
+- [x] The text states that a required review is a gate and not a request for authorization.
+- [x] A migration, marker baselines, and upgrade tests follow the pattern of migrations 056 and 057.
+- [x] `python3 scripts/check_repository.py` and the unit tests pass.
+- [x] `python3 scripts/check_repository.py` passes, and the unit tests pass unless the change is documentation-only.
 
 ## Relevant Files
 

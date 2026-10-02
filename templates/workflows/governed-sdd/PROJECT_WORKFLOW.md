@@ -172,8 +172,32 @@ record that names the worktree uses the `handoff_worktree` value returned by
 absolute path.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=git-workflow v7 -->
+<!-- MERIDIAN:BEGIN capability=git-workflow v8 -->
 ## Git workflow
+
+### Authority of `Proceed with`
+
+`Proceed with <TASK-ID>` authorizes that task's whole lifecycle when every gate
+passes: implementation and validation on the task branch; completion and
+archive records; `meridian worktree integrate stage`, the selected candidate
+validation, and `integrate finalize` or `abort`; one plain `git push origin
+main` of the resulting integration; and `meridian worktree cleanup`. Do not
+ask for confirmation at any of these steps. When a gate fails, stop once with
+`BLOCKED <reason>` and the resume command.
+
+It also authorizes one plain `git push origin task-<TASK-ID>` when needed to
+obtain `T1_CI` validation for that task commit. It never authorizes creating,
+moving, or pushing a tag; publishing a release; a force push or a push that
+deletes or mirrors references; rewriting history (amend of pushed commits,
+rebase, reset, cherry-pick); deleting an unmerged branch or force-removing a
+worktree; bypassing a required independent review; resolving a textual
+conflict; or work on another task.
+
+- `Review: REQUIRED` is a gate, not a request for authorization: after C3,
+  stop at `REVIEW_REQUIRED`. A fresh reviewer-integrator must approve before
+  continuing at C4, and performs C6 through C10 after approval.
+- `Review: NOT_REQUIRED` tasks proceed through C10 after their validation and
+  accepted-status commit. No reviewer session is required.
 
 - One writer at a time owns each task worktree. `meridian worktree prepare` consumes the shared task-identity resolver and repository-qualified path derivation, rejects partial or mismatched state, and returns the only branch and path workers may use.
 - Before any task read or mutation, the worker runs `meridian worktree check` from the exact prepared path. A host-created checkout, the primary checkout, or any sibling path is `BLOCKED` even when its branch and HEAD appear correct.
@@ -182,10 +206,25 @@ absolute path.
 - For `Review: REQUIRED`, the reviewer-integrator must never push the task branch. On `CHANGES_REQUESTED`, it creates a local review-handoff commit containing only the review record and the matching task/queue transition to `IN_PROGRESS`; it does not edit implementation artifacts. The implementer resolves that record, creates the next implementation commit, and pushes the branch once for the next review attempt. After `APPROVE`, create the local review-and-status `ACCEPTED` commit on the task branch.
 - For `Review: NOT_REQUIRED`, the implementer creates the same `ACCEPTED` status commit after validation. Neither path rebases, amends, cherry-picks, or force-pushes reviewed task commits.
 - Final integration is serialized in the primary checkout through `meridian worktree integrate stage`. That command verifies accepted evidence, owns the lease and prescribed no-commit merge, and returns the deterministic decision and candidate tree without running project code. Run the selected bounded or full gate separately in the ordinary sandbox, bind successful evidence to that tree, and call `integrate finalize`; call `integrate abort` after failure. Stale, incomplete, or mismatched evidence is `BLOCKED`.
-- Reservation, completion, review, and archive changes occur on the task branch. Concurrent tasks edit only their own queue row and task records, without reordering shared files, changing shared timestamps, or archiving a phase. Phase archival occurs only after all rows are integrated. A shared-governance conflict aborts integration; never choose one task's state over another.
+- Task branches do not edit `tasks/QUEUE.md`, `tasks/QUEUE_ARCHIVE.md`, or `PROJECT_PLAN.md`. They edit only their own task record, its exact archive under `tasks/done/`, and its handoff. `integrate stage` applies queue and plan status and phase archival once on the merged candidate tree. A shared-governance conflict aborts integration; never choose one task's state over another.
 - Only after successful validated integration and any required `main` push, use `meridian worktree cleanup`. Failure, requested changes, cancellation, or blocked integration retains both; exceptional cleanup remains explicitly authorized and outside the bounded command.
 - Owner acceptance is an explicit exception: it updates only statuses and does not automatically integrate the branch.
 - A forge approval cannot be supplied by the same identity that authored the PR. If an external approval is required but unavailable, leave the PR open and report `BLOCKED`.
+
+Close a validated task in order: verify acceptance criteria; run task and
+baseline validation; commit completion and archive records; then stop at
+`REVIEW_REQUIRED` if its declared review is required. Otherwise, or after the
+reviewer-integrator approves, run `worktree check`; record machine evidence;
+stage from a clean primary checkout at `origin/main`; validate the candidate;
+finalize; push `origin main`; and clean up. Stop respectively with
+`ACCEPTANCE_UNMET`, `VALIDATION_FAILED`, `REVIEW_REQUIRED`,
+`WRONG_WORKTREE`, `EVIDENCE_INCOMPLETE`, `PRIMARY_DIRTY`,
+`MAIN_BEHIND_ORIGIN`, `LEASE_HELD`, `INTEGRATION_CONFLICT`,
+`CANDIDATE_VALIDATION_FAILED`, `EVIDENCE_MISMATCH`, `PUSH_REJECTED`, or
+`CLEANUP_BLOCKED`; resume with the named command. A named sandbox skip is not
+a validation failure only when the test itself reports it and no acceptance
+criterion depends solely on that test. Record its test name, reason, and
+reporting command as `Validation skips:` in the handoff.
 
 ### Reviewer-integrator identity on a single-operator project
 
