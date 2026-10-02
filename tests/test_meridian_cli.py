@@ -6422,5 +6422,17 @@ class WorktreeLifecycleCliTest(unittest.TestCase):
         )
 
 
+class LauncherTest(unittest.TestCase):
+    def test_the_bin_launcher_starts_outside_the_scripts_directory(self) -> None:
+        # runpy.run_path keeps bin/ on sys.path, so every script-local import
+        # must resolve after the entry point adds scripts/ itself.
+        result = subprocess.run(
+            [sys.executable, str(ROOT / "bin" / "meridian"), "--version"],
+            cwd=tempfile.gettempdir(), capture_output=True, text=True, check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), (ROOT / "VERSION").read_text(encoding="utf-8").strip())
+
+
 if __name__ == "__main__":
     unittest.main()
