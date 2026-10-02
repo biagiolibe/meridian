@@ -77,7 +77,7 @@
 - `[x]` 107 — Block `integrate stage` when `main` is behind `origin` and report a pending push.
 - `[x]` 108 — Add the `Validation skips` handoff field and its check.
 - `[x]` 109 — Ship the Lean Delivery closure rules and migration.
-- `[ ]` 110 — Ship the Governed SDD closure rules and migration.
+- `[x]` 110 — Ship the Governed SDD closure rules and migration.
 - `[x]` 111 — Let `integrate stage` accept the exact archive rename of the task record.
 - `[x]` 112 — Add a sharded test runner with a coverage proof.
 - `[x]` 113 — Add the validation evidence record and a read-only verifier.

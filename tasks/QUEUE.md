@@ -50,7 +50,7 @@ reasons, and creates the implementation follow-ups.
 | `[x]` | 107 | Block `integrate stage` when `main` is behind `origin` and report a pending push | 🟡 P2 | 100, 101 | [107](done/107-block-stage-when-main-behind-origin.md) |
 | `[x]` | 108 | Add the `Validation skips` handoff field and its check | 🟡 P2 | 099, 100, 113 | [108](done/108-validation-skips-handoff-field.md) |
 | `[x]` | 109 | Ship the Lean Delivery closure rules and migration | 🟡 P2 | 100, 101, 102, 103, 104, 106, 107, 108, 113 | [109](done/109-ship-lean-closure-rules-and-migration.md) |
-| `[ ]` | 110 | Ship the Governed SDD closure rules and migration | 🟡 P2 | 109, 113, 117 | [110](110-ship-governed-closure-rules-and-migration.md) |
+| `[x]` | 110 | Ship the Governed SDD closure rules and migration | 🟡 P2 | 109, 113, 117 | [110](done/110-ship-governed-closure-rules-and-migration.md) |
 | `[x]` | 117 | Make `integrate stage` completion mode-aware for Governed SDD | 🟡 P2 | 103, 104 | [117](done/117-make-stage-completion-governed-aware.md) |
 | `[ ]` | 118 | Show the running framework version and root in the project console | 🟢 P3 | 105 | [118](118-console-show-framework-version.md) |
 
