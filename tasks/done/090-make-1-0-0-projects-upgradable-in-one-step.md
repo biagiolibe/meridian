@@ -48,6 +48,10 @@ With migrations capped at `037` (`VERSION` `1.1.34`), `adopt --from 1.0.0
 baseline. The existing test `test_adopt_applies_packaged_legacy_migrations`
 passes only because its framework stops at `1.1.0`.
 
+## Resolution
+
+Cancelled on 2026-10-03 by the developer. No project outside the maintainer's own adopts Meridian, so no published `1.0.0` project is waiting for a single-step upgrade, and the conflicts at migrations `037` and `038` are not worth the investigation cost now. The narrower upgrade window from `v1.1.49` stays; projects older than that use `meridian adopt` on a best-effort basis, as `README.md` and `docs/DISTRIBUTION_AND_UPDATE_DESIGN.md` already state. Reopen the task if a real `1.0.0` project appears.
+
 ## Dependencies
 
 - **Depends on**: 068 (evidence), 049
