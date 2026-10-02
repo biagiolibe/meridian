@@ -75,7 +75,7 @@
 - `[x]` 105 — Derive `[/]` and show closure stop reasons in the console.
 - `[x]` 106 — Narrow the Codex push rule and offer a Claude Code allowlist.
 - `[x]` 107 — Block `integrate stage` when `main` is behind `origin` and report a pending push.
-- `[ ]` 108 — Add the `Validation skips` handoff field and its check.
+- `[x]` 108 — Add the `Validation skips` handoff field and its check.
 - `[ ]` 109 — Ship the Lean Delivery closure rules and migration.
 - `[ ]` 110 — Ship the Governed SDD closure rules and migration.
 - `[x]` 111 — Let `integrate stage` accept the exact archive rename of the task record.
