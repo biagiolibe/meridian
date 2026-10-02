@@ -57,7 +57,7 @@
 - `[x]` 087 — Read the review policy from the task record in the console.
 - `[x]` 088 — Define how a completion handoff names commits that cannot contain their own SHA.
 - `[x]` 089 — Prepare release 1.2.0.
-- `[ ]` 090 — Make a 1.0.0 project reach the current release in one step.
+- `[x]` 090 — Make a 1.0.0 project reach the current release in one step (cancelled, see `tasks/done/090-make-1-0-0-projects-upgradable-in-one-step.md`).
 - `[x]` 091 — Record the 1.2.0 marketplace install evidence.
 - `[x]` 092 — Link the Codex skills in `meridian setup` and check them in `codex doctor`.
 - `[x]` 093 — Add `scripts/release.py prepare`.
