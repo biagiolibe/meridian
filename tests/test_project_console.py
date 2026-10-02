@@ -687,13 +687,54 @@ class LeanEffectiveStateTest(RepoCase):
         self.assertEqual(task.worktree, str(self.root / "wt-task-001"))
         self.assertIn("[ ]", (self.project / "tasks/QUEUE.md").read_text(encoding="utf-8"))
 
-    def test_clean_prepared_worktree_is_registered_but_stays_todo(self) -> None:
+    def test_clean_prepared_worktree_derives_in_progress_without_queue_write(self) -> None:
         self.setup_project({"001": " "})
         self.worktree("task-001")
         task = self.load()["001"]
-        self.assertEqual((task.readiness, task.lifecycle, task.source), ("READY", "todo", "main"))
+        self.assertEqual((task.readiness, task.lifecycle, task.source),
+                         ("IN PROGRESS", "in_progress", "branch task-001"))
         self.assertFalse(task.active_writer)
         self.assertEqual(task.markers, ("registered worktree",))
+        self.assertIn("[ ]", (self.project / "tasks/QUEUE.md").read_text(encoding="utf-8"))
+
+    def test_closure_status_is_shown_in_the_detail_pane(self) -> None:
+        self.setup_project({"001": " "})
+        self.worktree("task-001")
+        report = {"stop_reason": "REVIEW_REQUIRED", "resume": "After approval, continue at C4"}
+        with mock.patch.object(console, "closure_status", return_value=(report, False)):
+            task = self.load()["001"]
+        self.assertEqual(task.closure_stop_reason, "REVIEW_REQUIRED")
+        self.assertEqual(task.closure_resume, "After approval, continue at C4")
+        palette = {name: 0 for name in (
+            "base", "text", "title", "ready", "working", "muted", "line", "action", "blocked"
+        )}
+        lines = [value for value, _ in console._detail_lines(task, 60, palette)]
+        self.assertIn("Closure stop: REVIEW_REQUIRED", lines)
+        self.assertIn("Resume: After approval, continue at C4", lines)
+
+    def test_every_closure_stop_is_rendered_without_special_cases(self) -> None:
+        palette = {name: 0 for name in (
+            "base", "text", "title", "ready", "working", "muted", "line", "action", "blocked"
+        )}
+        reasons = (
+            "ACCEPTANCE_UNMET", "VALIDATION_FAILED", "REVIEW_REQUIRED", "WRONG_WORKTREE",
+            "EVIDENCE_INCOMPLETE", "PRIMARY_DIRTY", "MAIN_BEHIND_ORIGIN", "LEASE_HELD",
+            "INTEGRATION_CONFLICT", "CANDIDATE_VALIDATION_FAILED", "EVIDENCE_MISMATCH",
+            "PUSH_REJECTED", "CLEANUP_BLOCKED",
+        )
+        for reason in reasons:
+            task = console.Task("001", "Task", "IN_PROGRESS", (), (), None, (), (),
+                                readiness="IN PROGRESS", lifecycle="in_progress",
+                                closure_stop_reason=reason, closure_resume="resume command")
+            lines = [value for value, _ in console._detail_lines(task, 60, palette)]
+            self.assertIn(f"Closure stop: {reason}", lines)
+            self.assertIn("Resume: resume command", lines)
+
+    def test_queued_tasks_do_not_read_closure_status(self) -> None:
+        self.setup_project({"001": " ", "002": " "})
+        with mock.patch.object(console, "closure_status") as status:
+            self.load()
+        status.assert_not_called()
 
     def test_uncommitted_in_progress_row_supersedes_committed_todo(self) -> None:
         self.setup_project({"001": " "})
