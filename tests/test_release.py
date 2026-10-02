@@ -147,6 +147,139 @@ class ReleasePrepareTest(unittest.TestCase):
         files = self.git("show", "--format=", "--name-only", "HEAD").stdout.splitlines()
         self.assertEqual(files, [".claude-plugin/plugin.json", "CHANGELOG.md", "VERSION", "releases/1.0.1.json"])
 
+    def add_fragment(self, name: str = "116.md", text: str = "### Added\n\n- Fragment.\n") -> Path:
+        directory = self.root / "changelog.d"
+        directory.mkdir(exist_ok=True)
+        path = directory / name
+        path.write_text(text, encoding="utf-8")
+        return path
+
+    def test_prepare_accepts_fragments_only_and_consumes_them(self) -> None:
+        self.write_changelog("")
+        fragment = self.add_fragment()
+        self.git("add", ".")
+        self.git("commit", "-qm", "fragment")
+        with mock.patch.object(release, "validate", return_value=(0, [])):
+            self.assertEqual(self.invoke("--version", "1.0.1"), 0)
+        self.assertFalse(fragment.exists())
+        self.assertIn("### Added\n\n- Fragment.", (self.root / "CHANGELOG.md").read_text(encoding="utf-8"))
+
+    def test_prepare_renders_legacy_before_fragments_and_reports_both(self) -> None:
+        self.add_fragment(text="### Fixed\n\n- Fragment fix.\n")
+        self.git("add", ".")
+        self.git("commit", "-qm", "fragment")
+        output = io.StringIO()
+        with redirect_stdout(output):
+            self.assertEqual(self.invoke("--version", "1.0.1", "--dry-run"), 0)
+        text = output.getvalue()
+        self.assertLess(text.index("- New command."), text.index("- Fragment fix."))
+        self.assertIn("uses both legacy", text)
+
+    def test_prepare_rejects_no_legacy_body_or_fragments(self) -> None:
+        self.write_changelog("")
+        self.git("add", "CHANGELOG.md")
+        self.git("commit", "-qm", "empty")
+        with mock.patch("sys.stderr") as stderr:
+            self.assertEqual(self.invoke("--version", "1.0.1"), 1)
+        self.assertIn("changelog.d has no fragments", "".join(str(call) for call in stderr.write.call_args_list))
+
+    def test_rollback_restores_consumed_fragments(self) -> None:
+        self.write_changelog("")
+        fragment = self.add_fragment()
+        self.git("add", ".")
+        self.git("commit", "-qm", "fragment")
+        with mock.patch.object(release, "validate", return_value=(7, ["test", "failure"])):
+            self.assertEqual(self.invoke("--version", "1.0.1"), 7)
+        self.assertEqual(fragment.read_text(encoding="utf-8"), "### Added\n\n- Fragment.\n")
+
+
+class ChangelogFragmentTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name)
+        (self.root / "changelog.d").mkdir()
+
+    def fragment(self, name: str, text: str) -> Path:
+        path = self.root / "changelog.d" / name
+        path.write_text(text, encoding="utf-8")
+        return path
+
+    def test_rendering_is_ordered_and_deterministic(self) -> None:
+        self.fragment("20.md", "### Fixed\n\n- Later fix.\n\n### Added\n\n- Later addition.\n")
+        self.fragment("10.md", "### Added\n\n- Earlier addition.\n")
+        first, paths = release.render_fragments(self.root)
+        second, _ = release.render_fragments(self.root)
+        self.assertEqual(first, second)
+        self.assertEqual([path.name for path in paths], ["10.md", "20.md"])
+        self.assertEqual(first, "### Added\n\n- Earlier addition.\n- Later addition.\n\n### Fixed\n\n- Later fix.")
+
+    def test_malformed_fragments_are_rejected(self) -> None:
+        cases = (
+            ("bad-name.txt", "### Added\n\n- Item.\n"),
+            ("1.md", "# Added\n\n- Item.\n"),
+            ("1.md", "## Added\n\n- Item.\n"),
+            ("1.md", "### Other\n\n- Item.\n"),
+        )
+        for name, text in cases:
+            with self.subTest(name=name, text=text):
+                for path in (self.root / "changelog.d").iterdir():
+                    path.unlink()
+                self.fragment(name, text)
+                with self.assertRaises(release.FragmentError):
+                    release.render_fragments(self.root)
+        for text in ("### Added\n", "### Added\n\n- One.\n\n### Added\n\n- Two.\n", "outside\n\n### Added\n\n- One.\n", "### Added\n\nnot a bullet\n"):
+            with self.subTest(text=text):
+                for path in (self.root / "changelog.d").iterdir():
+                    path.unlink()
+                self.fragment("1.md", text)
+                with self.assertRaises(release.FragmentError):
+                    release.render_fragments(self.root)
+
+    def test_changelog_render_prints_and_write_consumes_fragments(self) -> None:
+        (self.root / "CHANGELOG.md").write_text("# Changelog\n\n## [Unreleased]\n\n", encoding="utf-8")
+        path = self.fragment("1.md", "### Documentation\n\n- Document it.\n")
+        output = io.StringIO()
+        with redirect_stdout(output):
+            self.assertEqual(release.main(["changelog", "render", "--version", "1.0.1", "--root", str(self.root)]), 0)
+        self.assertIn("### Documentation", output.getvalue())
+        self.assertTrue(path.exists())
+        self.assertEqual(release.main(["changelog", "render", "--version", "1.0.1", "--write", "--root", str(self.root)]), 0)
+        self.assertFalse(path.exists())
+        self.assertIn("### Documentation", (self.root / "CHANGELOG.md").read_text(encoding="utf-8"))
+
+    def test_fragments_merge_without_conflict_while_unreleased_edits_conflict(self) -> None:
+        root = self.root
+        (root / "CHANGELOG.md").write_text("## [Unreleased]\n\n- base\n", encoding="utf-8")
+        (root / "changelog.d" / "README.md").write_text("metadata\n", encoding="utf-8")
+        def git(*args: str) -> None:
+            subprocess.run(["git", *args], cwd=root, check=True, capture_output=True)
+        git("init", "-q", "-b", "main")
+        git("config", "user.name", "Meridian Test")
+        git("config", "user.email", "meridian@example.invalid")
+        git("add", ".")
+        git("commit", "-qm", "initial")
+        git("checkout", "-qb", "one")
+        self.fragment("1.md", "### Added\n\n- One.\n")
+        git("add", ".")
+        git("commit", "-qm", "one")
+        git("checkout", "-q", "main")
+        git("checkout", "-qb", "two")
+        self.fragment("2.md", "### Added\n\n- Two.\n")
+        git("add", ".")
+        git("commit", "-qm", "two")
+        self.assertEqual(subprocess.run(["git", "merge", "--no-commit", "one"], cwd=root, capture_output=True).returncode, 0)
+        git("merge", "--abort")
+        git("checkout", "-q", "main")
+        git("checkout", "-qb", "legacy-one")
+        (root / "CHANGELOG.md").write_text("## [Unreleased]\n\n- one\n", encoding="utf-8")
+        git("commit", "-am", "legacy one")
+        git("checkout", "-q", "main")
+        git("checkout", "-qb", "legacy-two")
+        (root / "CHANGELOG.md").write_text("## [Unreleased]\n\n- two\n", encoding="utf-8")
+        git("commit", "-am", "legacy two")
+        self.assertNotEqual(subprocess.run(["git", "merge", "--no-commit", "legacy-one"], cwd=root, capture_output=True).returncode, 0)
+
 
 class ReleasePublishTest(unittest.TestCase):
     def setUp(self) -> None:

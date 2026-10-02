@@ -50,7 +50,7 @@ record.
   covered by the standing authorization is a decision recorded in
   `docs/TASK_CLOSURE_DESIGN.md` (Task 115); until then a missing run is reported
   as `unavailable`, not worked around.
-- [ ] `CHANGELOG.md` records both changes under `[Unreleased]`.
+- [ ] `changelog.d/114.md` records both changes.
 - [ ] `python3 scripts/check_repository.py` and the unit tests pass.
 
 ## Relevant Files

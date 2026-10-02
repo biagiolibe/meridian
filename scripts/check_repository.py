@@ -14,6 +14,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 import meridian  # noqa: E402
+import release  # noqa: E402
 
 # Deliberately not directly inside migrations/: `meridian.py`'s
 # capability_requirements() and migration_ids() glob `migrations/*.json`
@@ -92,6 +93,18 @@ def check_required_files() -> None:
     for name in REQUIRED_FILES:
         if not (ROOT / name).is_file():
             fail(f"required file is missing: {name}")
+
+
+def check_changelog_fragments(root: Path = ROOT) -> None:
+    directory = root / "changelog.d"
+    if not directory.is_dir():
+        fail("changelog.d is missing")
+    if not (directory / "README.md").is_file():
+        fail("changelog.d/README.md is missing")
+    try:
+        release.render_fragments(root)
+    except release.FragmentError as error:
+        fail(str(error))
 
 
 def check_language_policy() -> None:
@@ -480,6 +493,7 @@ def main() -> None:
         print(f"Wrote {MARKER_BASELINE_PATH.relative_to(ROOT)}.")
         return
     check_required_files()
+    check_changelog_fragments()
     check_language_policy()
     check_governed_review_worktree_contract()
     check_json()
