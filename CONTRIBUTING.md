@@ -72,6 +72,15 @@ tests` remains the canonical full test run.
 
 The check validates JSON metadata, Bash syntax, required public-repository files, and links between the repository's Markdown documents.
 
+CI runs the same validation suite on pull requests, pushes to `main`, and
+pushes to `task-*` branches. Runs are on Linux, so macOS-only tests are skipped.
+Push a task branch before expecting a CI run, then use
+`python3 scripts/ci_evidence.py --commit <sha> --task <TASK-ID> --output <path>`
+to capture a successful exact-commit run as T1 CI evidence. Add `--wait SECONDS`
+to poll for a new run. Until Task 115 records whether task-branch pushes are
+covered by standing authorization, a missing run remains `unavailable`; do not
+work around it by pushing the branch.
+
 For changes under `bin/`, `migrations/`, or `scripts/meridian.py`, also run:
 
 ```bash
