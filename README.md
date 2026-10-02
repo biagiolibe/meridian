@@ -297,7 +297,7 @@ meridian setup --apply
 
 `meridian codex doctor` reports the current `permission-model`,
 `profile-ownership`, `project-trust`, `command-policy`,
-`lifecycle-command-policy`, `worktree-root-write`, `git-metadata`,
+`claude-project-allowlist`, `lifecycle-command-policy`, `worktree-root-write`, `git-metadata`,
 `skill-links`, and `MERIDIAN_ROOT` states. Use it to inspect the machine
 profile before allowing `setup --apply`; it does not modify the profile or
 links.
@@ -314,7 +314,8 @@ meridian upgrade --check   # from the project; apply with --apply on a dedicated
 The skill symlinks follow the checkout, so no relinking is needed. Meridian does
 not publish tags or move an adopter automatically.
 
-Then review and apply the machine-level worktree setup once, and restart Codex:
+Then review and apply the worktree, Codex, and project-local Claude Code setup
+once, and restart the applicable host:
 
 ```bash
 meridian setup --check
@@ -322,7 +323,11 @@ meridian setup --apply
 ```
 
 The default root is `~/.meridian/worktrees`; a custom root is stored in the
-versioned user configuration. Claude Code needs no corresponding host setup.
+versioned user configuration. With explicit `setup --apply`, Meridian also
+adds its bounded command allowlist to the ignored
+`.claude/settings.local.json` for the selected project (the current directory
+by default, or `--project <path>`). It never writes that allowlist during
+`setup --check`; `codex doctor` reports whether the project still needs it.
 For a new project, run `meridian init` (or `/meridian-init`) and lifecycle
 commands resolve this root automatically. For an existing project, use
 `meridian upgrade --check` and the consented `--apply` to receive current

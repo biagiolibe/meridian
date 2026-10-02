@@ -7,6 +7,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -14,6 +15,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 RULES = ROOT / "templates/workflows/governed-sdd/.codex/rules/meridian.rules"
 LEAN_RULES = ROOT / "templates/workflows/lean-delivery/.codex/rules/meridian.rules"
+PROJECT_RULES = ROOT / ".codex/rules/meridian.rules"
 PREFIX_RULE = re.compile(
     r'^prefix_rule\(pattern=\[[^\n]+\], decision="(allow|prompt|forbidden)"\)$'
 )
@@ -32,13 +34,21 @@ class CodexRulesTemplateTest(unittest.TestCase):
         self.assertIn(Path(".codex/rules/meridian.rules"), lean)
 
     def test_prefix_rules_are_single_line_and_well_formed(self) -> None:
-        for path in (RULES, LEAN_RULES):
+        for path in (RULES, LEAN_RULES, PROJECT_RULES):
             lines = path.read_text(encoding="utf-8").splitlines()
             rules = [line for line in lines if line.startswith("prefix_rule(")]
             self.assertGreaterEqual(len(rules), 9)
             for line in rules:
                 self.assertRegex(line, PREFIX_RULE)
                 self.assertNotIn("\n", line)
+
+    def test_only_origin_main_is_allowlisted_for_pushes(self) -> None:
+        exact = 'prefix_rule(pattern=["git", "push", "origin", "main"], decision="allow")'
+        broad = 'prefix_rule(pattern=["git", "push"], decision="allow")'
+        for path in (RULES, LEAN_RULES, PROJECT_RULES):
+            text = path.read_text(encoding="utf-8")
+            self.assertIn(exact, text)
+            self.assertNotIn(broad, text)
 
     @unittest.skipUnless(shutil.which("codex"), "codex is not on PATH; cannot evaluate execpolicy decisions")
     def test_decision_table_with_codex_execpolicy(self) -> None:
@@ -55,8 +65,10 @@ class CodexRulesTemplateTest(unittest.TestCase):
             (["git", "commit", "-m", "x"], "allow"),
             (["git", "commit", "--author=override", "-m", "y"], None),
             (["git", "commit", "--amend", "-m", "x"], None),
-            (["git", "push", "-u", "origin", "x"], "allow"),
+            (["git", "push", "-u", "origin", "x"], None),
             (["git", "push", "origin", "main"], "allow"),
+            (["git", "push", "origin", "feature"], None),
+            (["git", "push", "--tags"], None),
             (["git", "push", "--force", "origin", "main"], "forbidden"),
             (["git", "push", "-f", "origin", "main"], "forbidden"),
             (["git", "push", "--force-with-lease", "origin", "main"], "forbidden"),
@@ -99,6 +111,25 @@ class CodexRulesTemplateTest(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                 actual = json.loads(result.stdout).get("decision")
                 self.assertEqual(actual, expected)
+
+    @unittest.skipUnless(shutil.which("codex"), "codex is not on PATH; cannot evaluate execpolicy decisions")
+    def test_broad_prompt_overrides_the_narrow_push_allow(self) -> None:
+        """Observed with Codex CLI: restrictive matching ranks prompt above allow."""
+        with tempfile.TemporaryDirectory() as temporary:
+            rules = Path(temporary) / "meridian.rules"
+            rules.write_text(
+                RULES.read_text(encoding="utf-8")
+                + '\nprefix_rule(pattern=["git", "push"], decision="prompt")\n',
+                encoding="utf-8",
+            )
+            result = subprocess.run(
+                ["codex", "execpolicy", "check", "--rules", str(rules), "--", "git", "push", "origin", "main"],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(json.loads(result.stdout).get("decision"), "prompt")
 
 
 if __name__ == "__main__":
