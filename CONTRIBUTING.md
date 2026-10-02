@@ -87,6 +87,21 @@ For a change to a template or workflow rule, also manually trace the affected pa
 
 ## Release procedure
 
+## Changelog fragments
+
+When a task makes a user-visible change, add exactly one fragment named
+`changelog.d/<TASK-ID>.md`; add none when there is no user-visible change. A
+fragment contains only the headings and bullets described in
+[changelog.d/README.md](changelog.d/README.md). Do not edit the shared
+`[Unreleased]` section for new work.
+
+`python3 scripts/release.py prepare` validates and groups fragments in a fixed
+heading and file-name order, consumes them in its release commit, and continues
+to render an existing non-empty `[Unreleased]` body first during the migration.
+Use `python3 scripts/release.py changelog render --version X.Y.Z` to inspect
+the rendered body, or add `--write` to put it in `[Unreleased]` and consume the
+fragments without making a Git commit.
+
 For a **CLI-only release**, `python3 scripts/release.py prepare --bump patch`
 (or `--bump minor`, `--bump major`, or `--version X.Y.Z`) is the repeatable
 local preparation command. It derives the release kind from migrations, writes
