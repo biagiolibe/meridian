@@ -1150,7 +1150,7 @@ def _completed_task_row(contents: str, task_id: str, path: Path, pattern: str) -
 
 _QUEUE_SECTION_HEADING = re.compile(r"^### .+\n?$", re.MULTILINE)
 _QUEUE_TABLE_DIVIDER = re.compile(r"^\|(?:\s*:?-{3,}:?\s*\|)+\s*$")
-_QUEUE_TASK_ROW = re.compile(r"^\| `(?P<status>\[[ x]\])` \| [^|]+ \|.*$")
+_QUEUE_TASK_ROW = re.compile(r"^\| `(?P<status>\[[ /x]\])` \| [^|]+ \|.*$")
 _QUEUE_ARCHIVE_HEADER = (
     "# Task Execution Queue — Archive\n\n"
     "Closed phases and sections moved out of `tasks/QUEUE.md` once every row in them is\n"
@@ -1204,7 +1204,7 @@ def _relink_archived_task_row(contents: str, queue_path: Path, identity: Resolve
     archive_record = active_record.parent / "done" / active_record.name
     if active_record.exists() or not archive_record.is_file():
         return contents
-    row = re.search(rf"^\| `\[[ x]\]` \| \[?{re.escape(identity.canonical_id)}\b.*$", contents, flags=re.MULTILINE)
+    row = re.search(rf"^\| `\[[ /x]\]` \| \[?{re.escape(identity.canonical_id)}\b.*$", contents, flags=re.MULTILINE)
     if row is None:
         return contents
     new_target = Path(os.path.relpath(archive_record, queue_path.parent)).as_posix()
@@ -1233,13 +1233,13 @@ def _apply_task_completion_rows(project_root: Path, identity: ResolvedTaskIdenti
         queue_contents,
         task_id,
         queue_path,
-        rf"^\| `(?P<status>\[[ x]\])` \| {re.escape(task_id)} \|.*$",
+        rf"^\| `(?P<status>\[[ /x]\])` \| {re.escape(task_id)} \|.*$",
     )
     plan_completed = _completed_task_row(
         plan_contents,
         task_id,
         plan_path,
-        rf"^- `(?P<status>\[[ x]\])` {re.escape(task_id)} — .*$",
+        rf"^- `(?P<status>\[[ /x]\])` {re.escape(task_id)} — .*$",
     )
     queue_completed = _relink_archived_task_row(queue_completed, queue_path, identity)
     archived_queue, archive_contents = _archive_completed_queue_sections(

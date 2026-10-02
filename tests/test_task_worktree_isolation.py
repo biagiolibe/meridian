@@ -689,6 +689,32 @@ class BoundedWorktreeLifecycleTest(unittest.TestCase):
         self.assertEqual(archived, contents)
         self.assertIsNone(archive_contents)
 
+    def test_completion_rows_complete_an_in_progress_task(self) -> None:
+        identity = meridian.resolve_task_identity(self.primary, "056", "existing")
+        queue = self.primary / "tasks/QUEUE.md"
+        plan = self.primary / "PROJECT_PLAN.md"
+        queue.write_text(
+            queue.read_text(encoding="utf-8").replace("`[ ]`", "`[/]`"), encoding="utf-8"
+        )
+        plan.write_text("- `[/]` 056 — Lifecycle\n", encoding="utf-8")
+        meridian._apply_task_completion_rows(self.primary, identity)
+        self.assertIn("| `[x]` | 056 | Lifecycle |", queue.read_text(encoding="utf-8"))
+        self.assertEqual(plan.read_text(encoding="utf-8"), "- `[x]` 056 — Lifecycle\n")
+
+    def test_completed_queue_archival_keeps_a_section_with_an_in_progress_row(self) -> None:
+        queue = self.primary / "tasks/QUEUE.md"
+        contents = (
+            "### Phase 1 — Open\n\n"
+            "| Status | ID | Title |\n|---|---|---|\n"
+            "| `[x]` | 056 | Lifecycle |\n| `[/]` | 057 | Follow-up |\n"
+        )
+        queue.write_text(contents, encoding="utf-8")
+        archived, archive_contents = meridian._archive_completed_queue_sections(
+            contents, queue, self.primary / "tasks/QUEUE_ARCHIVE.md"
+        )
+        self.assertEqual(archived, contents)
+        self.assertIsNone(archive_contents)
+
     def test_completed_queue_archival_is_idempotent_on_rerun(self) -> None:
         queue = self.primary / "tasks/QUEUE.md"
         contents = (

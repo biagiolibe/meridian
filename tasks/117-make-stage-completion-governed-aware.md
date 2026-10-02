@@ -21,6 +21,7 @@ Authority: `docs/TASK_CLOSURE_DESIGN.md` (Decision 2, Decision 9).
 - [ ] An unrecognized or ambiguous Governed row keeps the existing `unrecognized completion row` block and leaves no lease or merge behind.
 - [ ] Phase archival moves only fully accepted rows to `tasks/QUEUE_ARCHIVE.md` in the Governed table shape, and leaves the queue unchanged when any row in the section is open.
 - [ ] A task whose `Review` is `REQUIRED` is not set to `ACCEPTED` by `stage`; the task records the decision and its reasoning in the handoff.
+- [ ] A parametrized matrix test drives the completion step through every realistic task-branch state in both modes, so a new variant fails a test instead of a real integration: starting status (`[ ]`, `[/]`, `[x]` in Lean; the Governed statuses in Governed), queue link (active path, already under `tasks/done/`, absent), task record (active, archived by exact rename), and plan row present or absent. Each combination either reaches the completed state with a correct link or blocks with `unrecognized completion row`, never with a stale link and never leaving a lease or merge behind.
 - [ ] Regression tests build a Governed fixture from `templates/workflows/governed-sdd` and cover: success, missing plan, unrecognized row, a closed phase, an open phase, and the archive link rewrite.
 - [ ] `python3 scripts/check_repository.py` passes, and the unit tests pass.
 
@@ -38,6 +39,7 @@ Authority: `docs/TASK_CLOSURE_DESIGN.md` (Decision 2, Decision 9).
 Verified on 2026-10-02 against `main` at `7c131be`, with a Governed fixture copied from `templates/workflows/governed-sdd`, one task, a committed change on its task branch, and valid stage evidence:
 
 - **Current behavior**: `stage_task_integration` fails with `[Errno 2] No such file or directory: .../PROJECT_PLAN.md`, because the Governed template ships no plan file. With a plan file added, it fails with `unrecognized completion row for task TASK-001 in .../tasks/QUEUE.md`, because the row pattern only matches the Lean shape `| \`[ ]\` | <id> |`. In both cases the stage is aborted cleanly: no merge in progress and no lease.
+- **Recurring class**: tasks 104, 105, and 107 each blocked at `stage` on a branch state the fixtures did not model (stale queue link after the archive rename, and a `[/]` row that `PROJECT_WORKFLOW.md` still allows). Task-branch rows may be `[ ]`, `[/]`, or `[x]`; the staging code must accept all three and the matrix criterion above keeps the next variant from reaching a real task.
 - **Desired behavior**: a Governed task integrates through the same command, with Governed statuses and row shape, under the same read-only-to-project-code boundary: the step is deterministic text editing of known row shapes by Meridian's own code and executes no project-provided command.
 
 Review gates stay as Decision 9 defines them: a required independent review stops closure at C3 with `REVIEW_REQUIRED`, and the reviewer-integrator runs C6 to C10 after approval. This task does not change that gate; it only ensures that `stage` cannot mark a `REQUIRED` task accepted.
