@@ -36,7 +36,8 @@ are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 
 Fixes the two causes found while closing Task 101: `integrate stage` blocking
 the archive rename, and a required validation that exceeds the agent host's
-command limit. Execution order: 111, 101, 102, 112, 113, 114, 115, then the
+command limit, and adds changelog fragments so parallel tasks stop sharing
+`[Unreleased]`. Execution order: 111, 101, 102, 116, 112, 113, 114, 115, then the
 remaining Phase 44 tasks (see `docs/TASK_CLOSURE_DESIGN.md` once Task 115
 records it).
 
@@ -47,6 +48,7 @@ records it).
 | `[ ]` | 113 | Add the validation evidence record and a read-only verifier | 🟡 P2 | 112 | [113](113-validation-evidence-record-and-verifier.md) |
 | `[ ]` | 114 | Validate task branches in CI and capture the result as evidence | 🟡 P2 | 113 | [114](114-ci-on-task-branches-and-evidence-lookup.md) |
 | `[ ]` | 115 | Record the validation-timeout and stage-whitelist decisions in the closure design | 🟡 P2 | 100, 101 | [115](115-closure-design-addendum-validation-and-stage.md) |
+| `[ ]` | 116 | Replace edits to `[Unreleased]` with per-task changelog fragments | 🟡 P2 | 093, 095, 098 | [116](116-changelog-fragments.md) |
 
 ### Phase 44 — Hands-off task closure design
 
@@ -57,7 +59,7 @@ reasons, and creates the implementation follow-ups.
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
 | `[x]` | 100 | Design hands-off task closure | 🔴 P1 | 088, 097, 099 | [100](done/100-design-hands-off-task-closure.md) |
-| `[ ]` | 101 | Add `meridian worktree closure-status` | 🟡 P2 | 100 | [101](101-closure-status-command.md) |
+| `[x]` | 101 | Add `meridian worktree closure-status` | 🟡 P2 | 100 | [101](done/101-closure-status-command.md) |
 | `[x]` | 102 | Add the evidence command and recompute main-advance facts in `integrate stage` | 🟡 P2 | 100 | [102](done/102-evidence-command-and-main-advance-facts.md) |
 | `[ ]` | 103 | Apply queue and plan row status during `integrate stage` | 🟡 P2 | 100, 102 | [103](103-apply-queue-and-plan-rows-at-integration.md) |
 | `[ ]` | 104 | Apply phase archival during `integrate stage` | 🟡 P2 | 100, 103 | [104](104-apply-phase-archival-at-integration.md) |
