@@ -257,7 +257,9 @@ class BoundedWorktreeLifecycleTest(unittest.TestCase):
         (self.primary / "QUEUE.md").write_text(
             "Task 051: TODO\nshared context\nTask 052: TODO\n", encoding="utf-8"
         )
-        (self.primary / "PROJECT_PLAN.md").write_text("Task 056: TODO\n", encoding="utf-8")
+        (self.primary / "PROJECT_PLAN.md").write_text(
+            "- `[ ]` 056 — Lifecycle\n", encoding="utf-8"
+        )
         (self.primary / "README.md").write_text("base\n", encoding="utf-8")
         self.git("add", ".")
         self.git("commit", "-m", "initial")
@@ -494,6 +496,43 @@ class BoundedWorktreeLifecycleTest(unittest.TestCase):
         self.assertEqual(staged["decision"], "BOUNDED")
         meridian.abort_task_integration("056", self.primary)
 
+    def test_stage_completes_rows_after_main_registration_advance(self) -> None:
+        prepared = self.prepare()
+        task_worktree = Path(str(prepared["worktree"]))
+        (task_worktree / "feature.txt").write_text("implemented\n", encoding="utf-8")
+        self.git("add", "feature.txt", cwd=task_worktree)
+        self.git("commit", "-m", "implement task", cwd=task_worktree)
+        task_commit = self.git("rev-parse", "HEAD", cwd=task_worktree).stdout.strip()
+        queue = self.primary / "tasks/QUEUE.md"
+        queue.write_text(
+            queue.read_text(encoding="utf-8") + "".join(
+                f"| `[ ]` | {index:03d} | Registered |\n" for index in range(10)
+            ),
+            encoding="utf-8",
+        )
+        plan = self.primary / "PROJECT_PLAN.md"
+        plan.write_text(
+            plan.read_text(encoding="utf-8") + "- `[ ]` 999 — Registered\n",
+            encoding="utf-8",
+        )
+        self.git("add", "tasks/QUEUE.md", "PROJECT_PLAN.md")
+        self.git("commit", "-m", "register tasks on main")
+        evidence_path = self.root / "integration-evidence.json"
+        evidence_path.write_text(json.dumps({
+            "accepted": True, "validation_passed": True,
+            "validated_task_commit": task_commit, "validated_base_commit": self.base,
+            "full_validation_required": False, "interaction_assessment_complete": True,
+            "task_paths": ["feature.txt"], "task_dependencies": [],
+            "task_behavioral_surfaces": [], "main_advanced_dependencies": [],
+            "main_advanced_behavioral_surfaces": [],
+        }), encoding="utf-8")
+
+        staged = meridian.stage_task_integration("056", self.worktree_root, evidence_path, self.primary)
+        self.assertEqual(staged["decision"], "BOUNDED")
+        self.assertIn("| `[x]` | 056 | Lifecycle |", queue.read_text(encoding="utf-8"))
+        self.assertIn("- `[x]` 056 — Lifecycle", plan.read_text(encoding="utf-8"))
+        meridian.abort_task_integration("056", self.primary)
+
     def test_stage_accepts_exact_task_record_archive_after_validation(self) -> None:
         prepared = self.prepare()
         task_worktree = Path(str(prepared["worktree"]))
@@ -505,7 +544,7 @@ class BoundedWorktreeLifecycleTest(unittest.TestCase):
         queue = task_worktree / "tasks/QUEUE.md"
         queue.write_text(queue.read_text(encoding="utf-8").replace("`[ ]`", "`[x]`"), encoding="utf-8")
         plan = task_worktree / "PROJECT_PLAN.md"
-        plan.write_text("Task 056: DONE\n", encoding="utf-8")
+        plan.write_text("- `[x]` 056 — Lifecycle\n", encoding="utf-8")
         handoff = task_worktree / "tasks/handoffs/056.md"
         handoff.parent.mkdir()
         handoff.write_text("validated\n", encoding="utf-8")
@@ -559,6 +598,17 @@ class BoundedWorktreeLifecycleTest(unittest.TestCase):
                 )
                 self.assertFalse(unchanged)
                 self.assertTrue(offending)
+
+    def test_completion_rows_reject_unknown_shape_without_editing_queue(self) -> None:
+        identity = meridian.resolve_task_identity(self.primary, "056", "existing")
+        queue = self.primary / "tasks/QUEUE.md"
+        original_queue = queue.read_text(encoding="utf-8")
+        (self.primary / "PROJECT_PLAN.md").write_text("Task 056: TODO\n", encoding="utf-8")
+
+        with self.assertRaisesRegex(meridian.MeridianError, r"unrecognized completion row"):
+            meridian._apply_task_completion_rows(self.primary, identity)
+
+        self.assertEqual(queue.read_text(encoding="utf-8"), original_queue)
 
     def test_stage_blocks_invalid_archive_before_creating_lifecycle_state(self) -> None:
         prepared = self.prepare()
