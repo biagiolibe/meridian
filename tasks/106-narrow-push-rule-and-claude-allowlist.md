@@ -16,7 +16,7 @@ Authority: `docs/TASK_CLOSURE_DESIGN.md`.
 ## Acceptance Criteria
 
 - [ ] `.codex/rules/meridian.rules` allows `git push origin main` and leaves other pushes, including tag pushes, to prompt; the task tests how the rule engine ranks a narrow allow against a broader prompt rule and records the observed result, or marks it unverified.
-- [ ] `meridian setup` can add a project-scoped Claude Code allowlist for `git push origin main` and `meridian worktree integrate stage|finalize|abort|cleanup` only after consent, and never writes silently.
+- [ ] `meridian setup` can add a project-scoped Claude Code allowlist only after consent, and never writes silently. It covers `git push origin main`; every lifecycle command an integrating agent runs (`meridian worktree path|prepare|check|evidence|closure-status|cleanup` and `meridian worktree integrate stage|finalize|abort`), in both the `meridian` and `python3 scripts/meridian.py` forms; the project validation commands `python3 scripts/check_repository.py` and `python3 -m unittest discover -s tests`; and the routine Git commands the Codex rules already allow. It excludes tag pushes, force pushes, `rebase`, `reset`, `branch -D`, and `git worktree add|remove|prune`.
 - [ ] The existing `forbidden` rules for force, delete, and mirror pushes are unchanged.
 - [ ] `python3 scripts/check_repository.py` passes, and the unit tests pass unless the change is documentation-only.
 
