@@ -63,7 +63,7 @@ reasons, and creates the implementation follow-ups.
 | `[x]` | 102 | Add the evidence command and recompute main-advance facts in `integrate stage` | 🟡 P2 | 100, 111 | [102](done/102-evidence-command-and-main-advance-facts.md) |
 | `[x]` | 103 | Apply queue and plan row status during `integrate stage` | 🟡 P2 | 100, 102 | [103](done/103-apply-queue-and-plan-rows-at-integration.md) |
 | `[ ]` | 104 | Apply phase archival during `integrate stage` | 🟡 P2 | 100, 103 | [104](104-apply-phase-archival-at-integration.md) |
-| `[ ]` | 105 | Derive `[/]` and show closure stop reasons in the console | 🟡 P2 | 101, 103 | [105](105-console-derive-in-progress-and-closure-stops.md) |
+| `[ ]` | 105 | Derive `[/]` and show closure stop reasons in the console | 🟡 P2 | 101, 103 | [105](done/105-console-derive-in-progress-and-closure-stops.md) |
 | `[ ]` | 106 | Narrow the Codex push rule and offer a Claude Code allowlist | 🟡 P2 | 100 | [106](106-narrow-push-rule-and-claude-allowlist.md) |
 | `[ ]` | 107 | Block `integrate stage` when `main` is behind `origin` and report a pending push | 🟡 P2 | 100, 101 | [107](107-block-stage-when-main-behind-origin.md) |
 | `[ ]` | 108 | Add the `Validation skips` handoff field and its check | 🟡 P2 | 099, 100, 113 | [108](108-validation-skips-handoff-field.md) |
