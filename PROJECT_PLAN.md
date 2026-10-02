@@ -68,7 +68,7 @@
 - `[x]` 098 — Let `release.py publish` release an already-prepared template-changing release.
 - `[x]` 099 — Skip the AppleScript compile test when `osacompile` cannot run.
 - `[x]` 100 — Design hands-off task closure.
-- `[ ]` 101 — Add `meridian worktree closure-status`.
+- `[x]` 101 — Add `meridian worktree closure-status`.
 - `[ ]` 102 — Add the evidence command and recompute main-advance facts in `integrate stage`.
 - `[ ]` 103 — Apply queue and plan row status during `integrate stage`.
 - `[ ]` 104 — Apply phase archival during `integrate stage`.
