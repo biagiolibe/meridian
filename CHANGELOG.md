@@ -15,6 +15,11 @@ records which release moved it.
 
 ## [Unreleased]
 
+### Added
+
+- `scripts/run_tests.py` runs the unittest suite in deterministic, disjoint
+  shards and prints a full-suite SHA-256 coverage proof for each shard.
+
 ### Fixed
 
 - `meridian worktree integrate stage` accepts the exact archive rename of a

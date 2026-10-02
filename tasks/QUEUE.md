@@ -44,7 +44,7 @@ records it).
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
 | `[x]` | 111 | Let `integrate stage` accept the exact archive rename of the task record | 🔴 P1 | 055, 063 | [111](done/111-stage-accepts-exact-task-archive-rename.md) |
-| `[ ]` | 112 | Add a sharded test runner with a coverage proof | 🟡 P2 | 100 | [112](112-sharded-test-runner.md) |
+| `[/]` | 112 | Add a sharded test runner with a coverage proof | 🟡 P2 | 100 | [112](112-sharded-test-runner.md) |
 | `[ ]` | 113 | Add the validation evidence record and a read-only verifier | 🟡 P2 | 112 | [113](113-validation-evidence-record-and-verifier.md) |
 | `[ ]` | 114 | Validate task branches in CI and capture the result as evidence | 🟡 P2 | 113 | [114](114-ci-on-task-branches-and-evidence-lookup.md) |
 | `[ ]` | 115 | Record the validation-timeout and stage-whitelist decisions in the closure design | 🟡 P2 | 100, 101 | [115](115-closure-design-addendum-validation-and-stage.md) |
