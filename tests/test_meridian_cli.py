@@ -1423,6 +1423,52 @@ worktree before the branch only after validated integration succeeds.
         self.assertEqual(manifest["workflowBaselineVersion"], "1.1.55")
         self.assertEqual(manifest["appliedMigrations"][-1], "057-self-referential-handoff-commits")
 
+    def test_upgrade_installs_lean_closure_procedure_and_preserves_consumer_text(self) -> None:
+        workflow = self.framework / "templates/workflows/lean-delivery"
+        paths = ("PROJECT_WORKFLOW.md", "AGENTS.md", "CLAUDE.md")
+        current = {relative: (workflow / relative).read_text(encoding="utf-8") for relative in paths}
+        previous = {
+            relative: re.sub(
+                r"\n<!-- MERIDIAN:BEGIN capability=git-workflow v8 -->.*?<!-- MERIDIAN:END -->\n",
+                "\n",
+                text,
+                flags=re.DOTALL,
+            )
+            for relative, text in current.items()
+        }
+        for relative, text in previous.items():
+            (workflow / relative).write_text(text, encoding="utf-8")
+        for path in workflow.rglob("*"):
+            if path.is_file():
+                destination = self.project / path.relative_to(workflow)
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(path, destination)
+        (self.framework / "VERSION").write_text("1.2.3\n", encoding="utf-8")
+        self.assertEqual(self.run_cli("lock", "--mode", "lean-delivery").returncode, 0)
+
+        for relative, text in previous.items():
+            self.assertEqual((self.project / relative).read_text(encoding="utf-8"), text)
+        agents = self.project / "AGENTS.md"
+        agents.write_text(agents.read_text(encoding="utf-8") + "\nConsumer-owned closure note.\n", encoding="utf-8")
+
+        for relative, text in current.items():
+            (workflow / relative).write_text(text, encoding="utf-8")
+        (self.framework / "VERSION").write_text("1.2.4\n", encoding="utf-8")
+        checked = self.run_cli("upgrade", "--check")
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+        self.assertIn("MIGRATION 058-lean-closure-procedure", checked.stdout)
+        applied = self.run_cli("upgrade", "--apply")
+        self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+
+        for relative in paths:
+            upgraded = (self.project / relative).read_text(encoding="utf-8")
+            self.assertIn("MERIDIAN:BEGIN capability=git-workflow v8", upgraded)
+            self.assertIn("Task branches do not edit `tasks/QUEUE.md`", upgraded)
+        self.assertIn("Consumer-owned closure note.", agents.read_text(encoding="utf-8"))
+        manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual(manifest["workflowBaselineVersion"], "1.2.4")
+        self.assertEqual(manifest["appliedMigrations"][-1], "058-lean-closure-procedure")
+
     def test_upgrade_downgrades_cosmetic_conflict_to_verified(self) -> None:
         """Phase 3 of migrations/CAPABILITY_MARKERS.md: a conflict outside a
         satisfied capability marker is cosmetic and should be left untouched,
