@@ -29,6 +29,12 @@ The explicit option remains available for finishing a worktree in an old root.
   state, handoff-state consistency, active integration state, errors, and the
   next action. `wrong-worktree` is distinct from registration, branch, state,
   and cleanliness failures.
+- `meridian worktree evidence <TASK-ID> --project <primary>
+  --validation-command <command> --validation-exit-code <code> --accepted
+  --format json` records the task and base commits plus changed paths from Git
+  in an untracked lifecycle-state JSON file. Repeat each validation option for
+  every completed command. It records results supplied by the agent and never
+  executes a validation command.
 - `meridian worktree integrate stage <TASK-ID> --project <primary>
   --evidence <handoff.json> --format json` atomically
   acquires the repository integration lease, verifies the task and accepted
@@ -82,6 +88,13 @@ Stage evidence is a JSON object with these required fields:
   "main_advanced_behavioral_surfaces": []
 }
 ```
+
+`worktree evidence` also writes `validation_commands` and
+`validation_exit_codes`. These fields are optional for hand-written legacy
+evidence. During staging, Git is authoritative for task paths and paths that
+`main` changed since the validated base. Declared task paths can expand that
+surface; typed `main_advanced_*` fields can require `FULL` validation but
+cannot reduce the scope selected from Git.
 
 Candidate validation runs outside the lifecycle command in the ordinary
 sandbox. Its JSON object contains the returned `candidate_tree`, `passed:

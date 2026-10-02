@@ -420,6 +420,80 @@ class BoundedWorktreeLifecycleTest(unittest.TestCase):
         repeated = meridian.cleanup_task_worktree("056", self.worktree_root, self.primary)
         self.assertTrue(repeated["already_cleaned"])
 
+    def test_evidence_command_records_git_facts_without_running_validation(self) -> None:
+        prepared = self.prepare()
+        task_worktree = Path(str(prepared["worktree"]))
+        (task_worktree / "feature.txt").write_text("implemented\n", encoding="utf-8")
+        self.git("add", "feature.txt", cwd=task_worktree)
+        self.git("commit", "-m", "implement task", cwd=task_worktree)
+        previous = Path.cwd()
+        try:
+            os.chdir(task_worktree)
+            recorded = meridian.record_task_evidence(
+                "056", self.worktree_root, ["python3 -m unittest"], [0],
+                accepted=True,
+                task_dependencies=[], task_behavioral_surfaces=[],
+                main_advanced_dependencies=[], main_advanced_behavioral_surfaces=[],
+                full_validation_required=False, supplied_project=self.primary,
+            )
+        finally:
+            os.chdir(previous)
+        evidence = json.loads(Path(str(recorded["evidence"])).read_text(encoding="utf-8"))
+        self.assertEqual(evidence["validated_task_commit"], self.git("rev-parse", "HEAD", cwd=task_worktree).stdout.strip())
+        self.assertEqual(evidence["validated_base_commit"], self.base)
+        self.assertEqual(evidence["task_paths"], ["feature.txt"])
+        self.assertEqual(evidence["validation_commands"], ["python3 -m unittest"])
+        self.assertEqual(evidence["validation_exit_codes"], [0])
+
+    def test_stage_recomputes_main_path_overlap_to_require_full_validation(self) -> None:
+        (self.primary / "feature.txt").write_text("first\nmiddle\nlast\n", encoding="utf-8")
+        self.git("add", "feature.txt")
+        self.git("commit", "-m", "add feature base")
+        self.base = self.git("rev-parse", "HEAD").stdout.strip()
+        prepared = self.prepare()
+        task_worktree = Path(str(prepared["worktree"]))
+        (task_worktree / "feature.txt").write_text("task\nmiddle\nlast\n", encoding="utf-8")
+        self.git("add", "feature.txt", cwd=task_worktree)
+        self.git("commit", "-m", "implement task", cwd=task_worktree)
+        task_commit = self.git("rev-parse", "HEAD", cwd=task_worktree).stdout.strip()
+        (self.primary / "feature.txt").write_text("first\nmiddle\nmain\n", encoding="utf-8")
+        self.git("add", "feature.txt")
+        self.git("commit", "-m", "advance main")
+        evidence_path = self.root / "integration-evidence.json"
+        evidence_path.write_text(json.dumps({
+            "accepted": True, "validation_passed": True,
+            "validated_task_commit": task_commit, "validated_base_commit": self.base,
+            "full_validation_required": False, "interaction_assessment_complete": True,
+            "task_paths": [], "task_dependencies": [], "task_behavioral_surfaces": [],
+            "main_advanced_dependencies": [], "main_advanced_behavioral_surfaces": [],
+        }), encoding="utf-8")
+        staged = meridian.stage_task_integration("056", self.worktree_root, evidence_path, self.primary)
+        self.assertEqual(staged["decision"], "FULL")
+        self.assertEqual(staged["main_advanced_paths"], ["feature.txt"])
+        meridian.abort_task_integration("056", self.primary)
+
+    def test_stage_keeps_independent_main_advance_bounded(self) -> None:
+        prepared = self.prepare()
+        task_worktree = Path(str(prepared["worktree"]))
+        (task_worktree / "feature.txt").write_text("task\n", encoding="utf-8")
+        self.git("add", "feature.txt", cwd=task_worktree)
+        self.git("commit", "-m", "implement task", cwd=task_worktree)
+        task_commit = self.git("rev-parse", "HEAD", cwd=task_worktree).stdout.strip()
+        (self.primary / "independent.txt").write_text("main\n", encoding="utf-8")
+        self.git("add", "independent.txt")
+        self.git("commit", "-m", "advance main independently")
+        evidence_path = self.root / "integration-evidence.json"
+        evidence_path.write_text(json.dumps({
+            "accepted": True, "validation_passed": True,
+            "validated_task_commit": task_commit, "validated_base_commit": self.base,
+            "full_validation_required": False, "interaction_assessment_complete": True,
+            "task_paths": ["feature.txt"], "task_dependencies": [], "task_behavioral_surfaces": [],
+            "main_advanced_dependencies": [], "main_advanced_behavioral_surfaces": [],
+        }), encoding="utf-8")
+        staged = meridian.stage_task_integration("056", self.worktree_root, evidence_path, self.primary)
+        self.assertEqual(staged["decision"], "BOUNDED")
+        meridian.abort_task_integration("056", self.primary)
+
     def test_stage_accepts_exact_task_record_archive_after_validation(self) -> None:
         prepared = self.prepare()
         task_worktree = Path(str(prepared["worktree"]))
