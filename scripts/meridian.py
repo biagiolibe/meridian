@@ -748,6 +748,80 @@ def inspect_task_worktree(
     return result, not errors
 
 
+def closure_status(
+    task_id: str,
+    worktree_root: Path | None,
+    supplied_project: Path | None = None,
+) -> tuple[dict[str, object], bool]:
+    """Report the next closure step without changing Git or lifecycle state."""
+    project_root = _verified_lifecycle_project(supplied_project)
+    root = _effective_worktree_root(worktree_root)
+    identity = resolve_task_identity(project_root, task_id, "existing")
+    expected = _task_worktree_path_for_identity(project_root, root, identity)
+    state_path, lease_path, integration_path = _lifecycle_paths(project_root, identity)
+    records = _git_worktrees(project_root)
+    registered = next((item for item in records if Path(item["worktree"]).resolve() == expected), None)
+    branch_commit = _branch_commit(project_root, identity.branch_name)
+    project = str(project_root)
+
+    def report(step: str, stop_reason: str | None, resume: str | None) -> tuple[dict[str, object], bool]:
+        return ({
+            "version": 1,
+            "task_id": identity.canonical_id,
+            "step": step,
+            "stop_reason": stop_reason,
+            "resume": resume,
+        }, stop_reason is None)
+
+    if not state_path.is_file() or registered is None or branch_commit is None:
+        if identity.handoff_path.is_file() and registered is None and branch_commit is None:
+            return report("C10", None, None)
+        return report(
+            "C4",
+            "WRONG_WORKTREE",
+            f"meridian worktree prepare {identity.canonical_id} --project {project} --format json",
+        )
+
+    if lease_path.exists() and not integration_path.exists():
+        return report(
+            "C6",
+            "LEASE_HELD",
+            f"meridian worktree integrate abort {identity.canonical_id} --project {project} --format json",
+        )
+    if integration_path.exists():
+        return report("C7", None, "run the selected candidate validation")
+
+    state = _read_json_object(state_path, "worktree lifecycle state")
+    if state.get("base_commit") == branch_commit:
+        return report("C1", "ACCEPTANCE_UNMET", "complete the task and rerun task validation")
+
+    if _run_git(project_root, "merge-base", "--is-ancestor", branch_commit, "main").returncode == 0:
+        origin = _run_git(project_root, "remote", "get-url", "origin")
+        remote_main = _run_git(project_root, "rev-parse", "--verify", "refs/remotes/origin/main")
+        if origin.returncode != 0 or (
+            remote_main.returncode == 0
+            and _run_git(project_root, "merge-base", "--is-ancestor", "main", "refs/remotes/origin/main").returncode == 0
+        ):
+            return report(
+                "C10",
+                None,
+                f"meridian worktree cleanup {identity.canonical_id} --project {project} --format json",
+            )
+        return report(
+            "C9",
+            None,
+            "git push origin main",
+        )
+
+    if git_output(project_root, "status", "--porcelain"):
+        return report(
+            "C6",
+            "PRIMARY_DIRTY",
+            "clean the primary checkout and run integration stage",
+        )
+    return report("C5", "EVIDENCE_INCOMPLETE", "record machine evidence")
+
+
 def _string_tuple(value: object, label: str) -> tuple[str, ...]:
     if not isinstance(value, list) or not all(isinstance(item, str) and item for item in value):
         raise MeridianError(f"integration evidence field {label!r} must be an array of non-empty strings")
@@ -6924,6 +6998,13 @@ def main() -> int:
     worktree_check.add_argument("--project", type=Path)
     worktree_check.add_argument("--worktree-root", type=Path)
     worktree_check.add_argument("--format", choices=("json",), required=True)
+    worktree_closure_status = worktree_sub.add_parser(
+        "closure-status", help="report the next closure step without changing lifecycle state"
+    )
+    worktree_closure_status.add_argument("task_id")
+    worktree_closure_status.add_argument("--project", type=Path)
+    worktree_closure_status.add_argument("--worktree-root", type=Path)
+    worktree_closure_status.add_argument("--format", choices=("json",))
     worktree_integrate = worktree_sub.add_parser("integrate", help="stage, finalize, or abort one owned integration")
     integrate_sub = worktree_integrate.add_subparsers(dest="integrate_command", required=True)
     integrate_stage = integrate_sub.add_parser("stage", help="lease and stage the prescribed no-commit merge")
@@ -7211,6 +7292,20 @@ def main() -> int:
                     project_root,
                 )
                 print(json.dumps(report, sort_keys=True))
+                if not ready:
+                    return 2
+            elif arguments.worktree_command == "closure-status":
+                report, ready = closure_status(
+                    arguments.task_id,
+                    arguments.worktree_root,
+                    project_root,
+                )
+                if arguments.format == "json":
+                    print(json.dumps(report, sort_keys=True))
+                elif report["stop_reason"] is not None:
+                    print(f"BLOCKED {report['stop_reason']}; resume: {report['resume']}")
+                else:
+                    print(f"{report['step']}; resume: {report['resume'] or 'none'}")
                 if not ready:
                     return 2
             elif arguments.worktree_command == "integrate":

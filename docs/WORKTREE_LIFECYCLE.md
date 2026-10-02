@@ -29,6 +29,10 @@ The explicit option remains available for finishing a worktree in an old root.
   state, handoff-state consistency, active integration state, errors, and the
   next action. `wrong-worktree` is distinct from registration, branch, state,
   and cleanliness failures.
+- `meridian worktree closure-status <TASK-ID> --project <primary> [--format json]`
+  is read-only. It reports the next closure `step`, any `stop_reason`, and a
+  `resume` command from the registered worktree, lifecycle files, and Git
+  history. Text-mode blocked results print `BLOCKED <REASON>; resume: <command>`.
 - `meridian worktree integrate stage <TASK-ID> --project <primary>
   --evidence <handoff.json> --format json` atomically
   acquires the repository integration lease, verifies the task and accepted
