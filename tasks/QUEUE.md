@@ -29,7 +29,7 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 
 ## 🏃 Active Queue
 
-Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, 25, 26, 27, 28, 31, 32, 34, 36, and 42
+Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, 25, 26, 27, 28, 31, 32, 34, 35, 36, and 42
 are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 
 ### Phase 44 — Hands-off task closure design
@@ -64,11 +64,3 @@ pushed.
 |--------|----|-------|----------|------------|------|
 | `[ ]` | 096 | Retry the workflow lookup in `release.py publish` and add `verify` | 🟡 P2 | 094, 095 | [096](096-release-publish-wait-retry.md) |
 
-### Phase 35 — Single-step upgrade from the 1.0.0 baseline
-
-Found by task 068: a pristine `1.0.0` project does not reach the current
-release without conflicts, contradicting Decision 6.
-
-| Status | ID | Title | Priority | Depends on | File |
-|--------|----|-------|----------|------------|------|
-| `[ ]` | 090 | Make a 1.0.0 project reach the current release in one step | 🟡 P2 | 068 | [090](090-make-1-0-0-projects-upgradable-in-one-step.md) |

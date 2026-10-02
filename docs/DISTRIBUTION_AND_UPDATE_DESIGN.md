@@ -222,7 +222,8 @@ ledger:
   and packaged baselines are never removed while this policy holds.
   Amended by task 068: the original `1.0.0` window does not hold, because a
   pristine `1.0.0` project adopts with conflicts at migrations `037` and `038`
-  (task 090). Projects older than `v1.1.49` use `meridian adopt` best-effort.
+  (task 090, cancelled on 2026-10-03: the narrower window stays). Projects older than
+  `v1.1.49` use `meridian adopt` best-effort.
 - **Skipping releases** is supported; adopters need not step through
   intermediate releases.
 - **Fixes land only in the newest release.** There are no backport branches; a

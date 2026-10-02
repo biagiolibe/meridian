@@ -486,6 +486,17 @@ task 002 filled the `[policy]` placeholder with a default number, and task 004
 committed the `AGENTS.md` change-summary line as its own drift proof case,
 then folded it into the regenerated `CLAUDE.md`.
 
+### Phase 35 — Single-step upgrade from the 1.0.0 baseline
+
+Found by task 068: a pristine `1.0.0` project does not reach the current
+release without conflicts, contradicting Decision 6.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 090 | Make a 1.0.0 project reach the current release in one step (cancelled) | 🟡 P2 | 068 | [090](done/090-make-1-0-0-projects-upgradable-in-one-step.md) |
+
+Cancelled on 2026-10-03: the narrower upgrade window from `v1.1.49` stays.
+
 All completed task and phase records are in `tasks/QUEUE_ARCHIVE.md`; this
 operational queue contains only non-terminal work.
 
