@@ -74,7 +74,7 @@
 - `[x]` 104 — Apply phase archival during `integrate stage`.
 - `[x]` 105 — Derive `[/]` and show closure stop reasons in the console.
 - `[x]` 106 — Narrow the Codex push rule and offer a Claude Code allowlist.
-- `[ ]` 107 — Block `integrate stage` when `main` is behind `origin` and report a pending push.
+- `[x]` 107 — Block `integrate stage` when `main` is behind `origin` and report a pending push.
 - `[ ]` 108 — Add the `Validation skips` handoff field and its check.
 - `[ ]` 109 — Ship the Lean Delivery closure rules and migration.
 - `[ ]` 110 — Ship the Governed SDD closure rules and migration.
