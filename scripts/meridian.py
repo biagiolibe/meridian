@@ -1107,6 +1107,42 @@ def _lifecycle_changes_after_validation(
     return not offending, tuple(sorted(offending))
 
 
+def _completed_task_row(contents: str, task_id: str, path: Path, pattern: str) -> str:
+    """Return one known task row with its status set to complete."""
+    matches = list(re.finditer(pattern, contents, flags=re.MULTILINE))
+    if len(matches) != 1:
+        raise MeridianError(
+            f"unrecognized completion row for task {task_id} in {path}"
+        )
+    match = matches[0]
+    return f"{contents[:match.start(1)]}[x]{contents[match.end(1):]}"
+
+
+def _apply_task_completion_rows(project_root: Path, identity: ResolvedTaskIdentity) -> None:
+    """Set the task's known queue and plan rows to complete after a staged merge."""
+    queue_path = identity.queue_path
+    plan_path = project_root / "PROJECT_PLAN.md"
+    task_id = identity.canonical_id
+    queue_contents = queue_path.read_text(encoding="utf-8")
+    plan_contents = plan_path.read_text(encoding="utf-8")
+    queue_completed = _completed_task_row(
+        queue_contents,
+        task_id,
+        queue_path,
+        rf"^\| `(?P<status>\[[ x]\])` \| {re.escape(task_id)} \|.*$",
+    )
+    plan_completed = _completed_task_row(
+        plan_contents,
+        task_id,
+        plan_path,
+        rf"^- `(?P<status>\[[ x]\])` {re.escape(task_id)} — .*$",
+    )
+    if queue_completed != queue_contents:
+        queue_path.write_text(queue_completed, encoding="utf-8")
+    if plan_completed != plan_contents:
+        plan_path.write_text(plan_completed, encoding="utf-8")
+
+
 def stage_task_integration(
     task_id: str,
     worktree_root: Path | None,
@@ -1216,6 +1252,22 @@ def stage_task_integration(
         if aborted.returncode == 0:
             _remove_owned_file(lease_path)
         raise MeridianError("integration conflict was aborted; task branch and worktree were retained")
+    try:
+        _apply_task_completion_rows(project_root, identity)
+        staged_rows = _run_git(
+            project_root,
+            "add",
+            "--",
+            str(identity.queue_path.relative_to(project_root)),
+            "PROJECT_PLAN.md",
+        )
+        if staged_rows.returncode != 0:
+            raise MeridianError(staged_rows.stderr.strip() or "could not stage completion rows")
+    except (OSError, MeridianError) as error:
+        aborted = _run_git(project_root, "merge", "--abort")
+        if aborted.returncode == 0:
+            _remove_owned_file(lease_path)
+        raise MeridianError(str(error)) from error
     candidate_tree = git_output(project_root, "write-tree")
     staged = {
         **lease,
