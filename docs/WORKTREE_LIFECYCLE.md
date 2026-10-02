@@ -48,9 +48,14 @@ The explicit option remains available for finishing a worktree in an old root.
   --evidence <handoff.json> --format json` atomically
   acquires the repository integration lease, verifies the task and accepted
   validation evidence, performs `git merge --no-ff --no-commit`, then
-  deterministically marks the task rows in `tasks/QUEUE.md` and
-  `PROJECT_PLAN.md` as complete, then moves any fully closed queue section to
-  `tasks/QUEUE_ARCHIVE.md` (creating it when needed). It returns `REUSE`,
+  reads the project's `PROJECT_WORKFLOW.md` mode lock, then deterministically
+  completes its known queue rows. Lean Delivery also completes the matching
+  `PROJECT_PLAN.md` row; Governed SDD has no plan requirement and changes a
+  `NOT_REQUIRED` review row to `ACCEPTED`. A `REQUIRED` row becomes `ACCEPTED`
+  only when its merged review record's latest attempt is `APPROVE`; otherwise
+  stage reports `REVIEW_PENDING`, retains its status, and still relinks an
+  archived task record. Any fully closed section moves to `tasks/QUEUE_ARCHIVE.md`
+  using that mode's table shape, creating it when needed. It returns `REUSE`,
   `BOUNDED`, or `FULL` with the exact candidate tree. Unknown row or section
   shapes are blocked without changing the candidate's lifecycle records.
 - `meridian worktree integrate finalize <TASK-ID> --project <primary>
