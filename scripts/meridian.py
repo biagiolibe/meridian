@@ -35,6 +35,10 @@ if str(SCRIPTS_ROOT) not in sys.path:
 
 
 MANIFEST_PATH = Path(".meridian/manifest.json")
+VALIDATION_EVIDENCE_SCHEMA_PATH = Path("schemas/validation-evidence-v1.schema.json")
+VALIDATION_EXIT_PASSED = 0
+VALIDATION_EXIT_PENDING = 1
+VALIDATION_EXIT_FAILED = 2
 CAPABILITY_CATALOG_VERSION = 1
 CAPABILITY_CATALOG_PATH = Path("capabilities/catalog-v1.json")
 BASELINES_PATH = Path(".meridian/baselines")
@@ -440,6 +444,111 @@ def _run_git(project_root: Path, *arguments: str) -> subprocess.CompletedProcess
         capture_output=True,
         check=False,
     )
+
+
+def _validation_reason(reasons: list[str], condition: bool, reason: str) -> None:
+    if not condition:
+        reasons.append(reason)
+
+
+def validation_evidence_reasons(record: object) -> list[str]:
+    """Return schema-shaped errors without running a project command."""
+    if not isinstance(record, dict):
+        return ["record: must be an object"]
+    reasons: list[str] = []
+    required = ("version", "task_id", "status", "level", "commit", "tree", "command", "tests_run", "produced_at")
+    for field in required:
+        _validation_reason(reasons, field in record, f"{field}: is required")
+    _validation_reason(reasons, record.get("version") == 1, "version: must be 1")
+    _validation_reason(reasons, isinstance(record.get("task_id"), str) and bool(record.get("task_id")), "task_id: must be a non-empty string")
+    _validation_reason(reasons, record.get("status") in {"running", "unavailable", "failed", "passed"}, "status: unknown value")
+    _validation_reason(reasons, record.get("level") in {"T1_CI", "T2_SHARDED", "T3_ATTESTED"}, "level: unknown value")
+    for field in ("commit", "tree", "produced_at"):
+        _validation_reason(reasons, isinstance(record.get(field), str) and bool(record.get(field)), f"{field}: must be a non-empty string")
+    _validation_reason(reasons, isinstance(record.get("command"), list) and all(isinstance(item, str) and item for item in record.get("command", [])), "command: must be an array of non-empty strings")
+    _validation_reason(reasons, isinstance(record.get("tests_run"), int) and not isinstance(record.get("tests_run"), bool), "tests_run: must be an integer")
+    status = record.get("status")
+    if status == "running":
+        for field in ("started_at", "log"):
+            _validation_reason(reasons, isinstance(record.get(field), str) and bool(record.get(field)), f"{field}: is required for running")
+    elif status == "unavailable":
+        _validation_reason(reasons, isinstance(record.get("reason"), str) and bool(record.get("reason")), "reason: is required for unavailable")
+    elif status in {"failed", "passed"}:
+        _validation_reason(reasons, isinstance(record.get("exit_code"), int) and not isinstance(record.get("exit_code"), bool), f"exit_code: is required for {status}")
+    level = record.get("level")
+    if level == "T1_CI":
+        ci = record.get("ci")
+        _validation_reason(reasons, isinstance(ci, dict), "ci: is required for T1_CI")
+        if isinstance(ci, dict):
+            for field in ("run_id", "run_url", "workflow", "conclusion", "head_sha"):
+                _validation_reason(reasons, isinstance(ci.get(field), str) and bool(ci.get(field)), f"ci.{field}: is required for T1_CI")
+    elif level == "T2_SHARDED":
+        shards = record.get("shards")
+        _validation_reason(reasons, isinstance(shards, list) and bool(shards), "shards: is required for T2_SHARDED")
+        for field in ("total", "digest"):
+            _validation_reason(reasons, field in record, f"{field}: is required for T2_SHARDED")
+        if isinstance(shards, list):
+            for number, shard in enumerate(shards, 1):
+                _validation_reason(reasons, isinstance(shard, dict), f"shards[{number}]: must be an object")
+                if isinstance(shard, dict):
+                    for field in ("index", "count", "exit_code", "tests_run", "digest", "total"):
+                        _validation_reason(reasons, field in shard, f"shards[{number}].{field}: is required")
+    elif level == "T3_ATTESTED":
+        _validation_reason(reasons, record.get("attested_by") == "developer", "attested_by: must be developer for T3_ATTESTED")
+        _validation_reason(reasons, isinstance(record.get("attested_on"), str) and bool(record.get("attested_on")), "attested_on: is required for T3_ATTESTED")
+        _validation_reason(reasons, isinstance(record.get("statement"), str) and bool(record.get("statement").strip()), "statement: is required for T3_ATTESTED")
+    return reasons
+
+
+def check_validation_evidence(record_path: Path, project_root: Path, expected_commit: str | None) -> tuple[dict[str, object], int]:
+    """Read an external validation attestation using Git plumbing only."""
+    reasons: list[str] = []
+    try:
+        schema = json.loads((Path(__file__).resolve().parents[1] / VALIDATION_EVIDENCE_SCHEMA_PATH).read_text(encoding="utf-8"))
+        if not isinstance(schema, dict) or schema.get("$id") != "https://meridian.local/schemas/validation-evidence-v1.schema.json":
+            reasons.append("schema: validation-evidence-v1 is invalid")
+    except (OSError, json.JSONDecodeError) as error:
+        reasons.append(f"schema: {error}")
+    try:
+        record = json.loads(record_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        record = None
+        reasons.append(f"record: {error}")
+    reasons.extend(validation_evidence_reasons(record))
+    if not isinstance(record, dict):
+        return {"status": "VALIDATION_FAILED", "level": None, "reasons": reasons}, VALIDATION_EXIT_FAILED
+    status, level = record.get("status"), record.get("level")
+    if status == "running" and not reasons:
+        return {"status": "VALIDATION_RUNNING", "level": level, "reasons": []}, VALIDATION_EXIT_PENDING
+    if status == "unavailable" and not reasons:
+        return {"status": "VALIDATION_UNAVAILABLE", "level": level, "reasons": []}, VALIDATION_EXIT_PENDING
+    if status != "passed":
+        reasons.append("status: is not passed")
+    try:
+        branch = resolve_task_identity(project_root, str(record.get("task_id", "")), "existing").branch_name
+        target = expected_commit or git_output(project_root, "rev-parse", branch)
+        resolved = git_output(project_root, "rev-parse", f"{record.get('commit', '')}^{{commit}}")
+        _validation_reason(reasons, resolved == target, "commit: does not equal the expected commit")
+        _validation_reason(reasons, git_output(project_root, "rev-parse", f"{resolved}^{{tree}}") == record.get("tree"), "tree: does not equal commit tree")
+    except MeridianError as error:
+        reasons.append(f"commit: {error}")
+    _validation_reason(reasons, record.get("exit_code") == 0, "exit_code: must be 0")
+    _validation_reason(reasons, isinstance(record.get("tests_run"), int) and record.get("tests_run", 0) > 0, "tests_run: must be above 0")
+    if level == "T1_CI" and isinstance(record.get("ci"), dict):
+        ci = record["ci"]
+        _validation_reason(reasons, ci.get("conclusion") == "success", "ci.conclusion: must be success")
+        _validation_reason(reasons, ci.get("head_sha") == record.get("commit"), "ci.head_sha: must equal commit")
+    elif level == "T2_SHARDED" and isinstance(record.get("shards"), list):
+        shards = record["shards"]
+        counts = {shard.get("count") for shard in shards if isinstance(shard, dict)}
+        count = next(iter(counts)) if len(counts) == 1 else None
+        indexes = [shard.get("index") for shard in shards if isinstance(shard, dict)]
+        _validation_reason(reasons, isinstance(count, int) and sorted(indexes) == list(range(1, count + 1)), "shards.index: must contain 1..count exactly once")
+        _validation_reason(reasons, all(isinstance(shard, dict) and shard.get("exit_code") == 0 for shard in shards), "shards.exit_code: every shard must be 0")
+        _validation_reason(reasons, sum(shard.get("tests_run", 0) for shard in shards if isinstance(shard, dict)) == record.get("total"), "total: must equal shard tests_run sum")
+        _validation_reason(reasons, all(isinstance(shard, dict) and shard.get("digest") == record.get("digest") and shard.get("total") == record.get("total") for shard in shards), "shards.digest: every shard must carry the record digest and total")
+    report_status = "VALIDATION_PASSED" if not reasons else "VALIDATION_FAILED"
+    return {"status": report_status, "level": level, "reasons": reasons}, VALIDATION_EXIT_PASSED if not reasons else VALIDATION_EXIT_FAILED
 
 
 def _git_worktrees(project_root: Path) -> list[dict[str, str]]:
@@ -7167,6 +7276,14 @@ def main() -> int:
     worktree_cleanup.add_argument("--worktree-root", type=Path)
     worktree_cleanup.add_argument("--format", choices=("json",), required=True)
 
+    validation = subparsers.add_parser("validation", help="read and verify an external validation evidence record")
+    validation_sub = validation.add_subparsers(dest="validation_command", required=True)
+    validation_check = validation_sub.add_parser("check", help="verify a record without running validation")
+    validation_check.add_argument("record", type=Path)
+    validation_check.add_argument("--project", type=Path, default=Path.cwd())
+    validation_check.add_argument("--commit")
+    validation_check.add_argument("--format", choices=("json",), required=True)
+
     task = subparsers.add_parser("task", help="inspect task records and identities")
     task_sub = task.add_subparsers(dest="task_command", required=True)
     identity = task_sub.add_parser("identity", help="resolve the project-selected task identity policy")
@@ -7487,6 +7604,12 @@ def main() -> int:
         elif arguments.command == "task":
             resolved = resolve_task_identity(project_root, arguments.task_id, "existing")
             print(json.dumps(task_identity_json(project_root, resolved), sort_keys=True))
+        elif arguments.command == "validation":
+            report, exit_code = check_validation_evidence(
+                arguments.record, canonical_project_root(project_root), arguments.commit
+            )
+            print(json.dumps(report, sort_keys=True))
+            return exit_code
         elif arguments.command == "adr":
             print(adr_show(project_root, arguments.adr_id))
         elif arguments.command == "context":
