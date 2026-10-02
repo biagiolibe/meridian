@@ -9,6 +9,7 @@ import unittest
 import json
 import os
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -256,6 +257,7 @@ class BoundedWorktreeLifecycleTest(unittest.TestCase):
         (self.primary / "QUEUE.md").write_text(
             "Task 051: TODO\nshared context\nTask 052: TODO\n", encoding="utf-8"
         )
+        (self.primary / "PROJECT_PLAN.md").write_text("Task 056: TODO\n", encoding="utf-8")
         (self.primary / "README.md").write_text("base\n", encoding="utf-8")
         self.git("add", ".")
         self.git("commit", "-m", "initial")
@@ -417,6 +419,105 @@ class BoundedWorktreeLifecycleTest(unittest.TestCase):
         self.assertNotEqual(self.git("show-ref", "--verify", "refs/heads/task-056", check=False).returncode, 0)
         repeated = meridian.cleanup_task_worktree("056", self.worktree_root, self.primary)
         self.assertTrue(repeated["already_cleaned"])
+
+    def test_stage_accepts_exact_task_record_archive_after_validation(self) -> None:
+        prepared = self.prepare()
+        task_worktree = Path(str(prepared["worktree"]))
+        (task_worktree / "feature.txt").write_text("implemented\n", encoding="utf-8")
+        self.git("add", "feature.txt", cwd=task_worktree)
+        self.git("commit", "-m", "implement task", cwd=task_worktree)
+        validated_task = self.git("rev-parse", "HEAD", cwd=task_worktree).stdout.strip()
+
+        queue = task_worktree / "tasks/QUEUE.md"
+        queue.write_text(queue.read_text(encoding="utf-8").replace("`[ ]`", "`[x]`"), encoding="utf-8")
+        plan = task_worktree / "PROJECT_PLAN.md"
+        plan.write_text("Task 056: DONE\n", encoding="utf-8")
+        handoff = task_worktree / "tasks/handoffs/056.md"
+        handoff.parent.mkdir()
+        handoff.write_text("validated\n", encoding="utf-8")
+        archive = task_worktree / "tasks/done"
+        archive.mkdir()
+        self.git("mv", "tasks/056-lifecycle.md", "tasks/done/056-lifecycle.md", cwd=task_worktree)
+        self.git("add", "tasks/QUEUE.md", "PROJECT_PLAN.md", "tasks/handoffs/056.md", cwd=task_worktree)
+        self.git("commit", "-m", "close task", cwd=task_worktree)
+
+        evidence_path = self.root / "integration-evidence.json"
+        evidence_path.write_text(json.dumps({
+            "accepted": True,
+            "validation_passed": True,
+            "validated_task_commit": validated_task,
+            "validated_base_commit": self.base,
+            "full_validation_required": False,
+            "interaction_assessment_complete": True,
+            "task_paths": ["feature.txt"],
+            "task_dependencies": [],
+            "task_behavioral_surfaces": [],
+            "main_advanced_dependencies": [],
+            "main_advanced_behavioral_surfaces": [],
+        }), encoding="utf-8")
+
+        staged = meridian.stage_task_integration("056", self.worktree_root, evidence_path, self.primary)
+        self.assertEqual(staged["decision"], "REUSE")
+        meridian.abort_task_integration("056", self.primary)
+
+    def test_lifecycle_change_parser_rejects_inexact_task_record_changes(self) -> None:
+        identity = meridian.resolve_task_identity(self.primary, "056", "existing")
+        active = "tasks/056-lifecycle.md"
+        archive = "tasks/done/056-lifecycle.md"
+        invalid_diffs = {
+            "deletion": f"D\0{active}\0",
+            "separate archive addition": f"A\0{archive}\0",
+            "changed-content rename": f"R099\0{active}\0{archive}\0",
+            "wrong archive destination": f"R100\0{active}\0tasks/done/other.md\0",
+            "different task path": "A\0tasks/done/057-other.md\0",
+        }
+        for label, diff in invalid_diffs.items():
+            with self.subTest(label=label), mock.patch.object(
+                meridian,
+                "_run_git",
+                side_effect=(
+                    subprocess.CompletedProcess([], 0, diff, ""),
+                    subprocess.CompletedProcess([], 1, "", ""),
+                ),
+            ):
+                unchanged, offending = meridian._lifecycle_changes_after_validation(
+                    self.primary, identity, "validated", "current"
+                )
+                self.assertFalse(unchanged)
+                self.assertTrue(offending)
+
+    def test_stage_blocks_invalid_archive_before_creating_lifecycle_state(self) -> None:
+        prepared = self.prepare()
+        task_worktree = Path(str(prepared["worktree"]))
+        (task_worktree / "feature.txt").write_text("implemented\n", encoding="utf-8")
+        self.git("add", "feature.txt", cwd=task_worktree)
+        self.git("commit", "-m", "implement task", cwd=task_worktree)
+        validated_task = self.git("rev-parse", "HEAD", cwd=task_worktree).stdout.strip()
+        archive = task_worktree / "tasks/done"
+        archive.mkdir()
+        self.git("mv", "tasks/056-lifecycle.md", "tasks/done/other.md", cwd=task_worktree)
+        self.git("commit", "-am", "archive to wrong destination", cwd=task_worktree)
+        evidence_path = self.root / "integration-evidence.json"
+        evidence_path.write_text(json.dumps({
+            "accepted": True, "validation_passed": True,
+            "validated_task_commit": validated_task, "validated_base_commit": self.base,
+            "full_validation_required": False, "interaction_assessment_complete": True,
+            "task_paths": ["feature.txt"], "task_dependencies": [],
+            "task_behavioral_surfaces": [], "main_advanced_dependencies": [],
+            "main_advanced_behavioral_surfaces": [],
+        }), encoding="utf-8")
+        identity = meridian.resolve_task_identity(self.primary, "056", "existing")
+        state_path, lease_path, integration_path = meridian._lifecycle_paths(self.primary, identity)
+        references = self.git("show-ref").stdout
+        worktree_state = state_path.read_text(encoding="utf-8")
+        with self.assertRaisesRegex(meridian.MeridianError, r"paths changed after validation: .*other.md"):
+            meridian.stage_task_integration("056", self.worktree_root, evidence_path, self.primary)
+        self.assertEqual(self.git("rev-parse", "HEAD").stdout.strip(), self.base)
+        self.assertEqual(self.git("show-ref").stdout, references)
+        self.assertEqual(state_path.read_text(encoding="utf-8"), worktree_state)
+        self.assertFalse(lease_path.exists())
+        self.assertFalse(integration_path.exists())
+        self.assertFalse((self.primary / ".git/MERGE_HEAD").exists())
 
     def test_abort_requires_owned_state_and_preserves_task(self) -> None:
         prepared = self.prepare()

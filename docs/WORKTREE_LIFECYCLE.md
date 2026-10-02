@@ -95,3 +95,12 @@ directory. Interruptions retain enough ownership and candidate identity for
 `check`, `integrate abort`, or an idempotent retry. Stale leases, force deletes,
 abandoned branches, and arbitrary paths have no routine command and require an
 explicitly authorized exceptional recovery outside the allowlisted surface.
+
+After validation, `integrate stage` permits lifecycle changes only to the task
+record, its queue row, handoff, review record, `PROJECT_PLAN.md`, and
+`tasks/QUEUE_ARCHIVE.md`. A task record may be archived only as an exact
+100%-similarity Git rename from its active path to `tasks/done/` with the same
+file name. A task already archived at validation needs no rename; an active
+task may otherwise change only its active record path. Deletions, separate
+additions, changed-content renames, other destinations, and records belonging
+to another task are blocked before lifecycle state is written.
