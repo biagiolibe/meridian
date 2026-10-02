@@ -6870,12 +6870,15 @@ SPIKE_PREFLIGHT_FIELDS = ("Question", "Budget", "Deliverable")
 HANDOFF_FIELDS = (
     "Files changed",
     "Validation",
+    "Validation skips",
     "Manual verification",
     "Acceptance criteria",
     "Budget usage",
     "Isolated exploration",
     "Blockers/deviations",
 )
+TASK_099_SKIP_TEST = "AgentLaunchTest.test_split_payload_compiles_as_applescript"
+TASK_099_SKIP_REASON = "osacompile cannot resolve the iTerm2 dictionary in this environment:"
 EXECUTION_EVIDENCE_PATH = Path(".meridian/execution-evidence.json")
 HOST_IMPACT_STATES = ("enforced", "advisory", "unsupported", "unverified")
 HOST_IMPACT_EVIDENCE_CATEGORIES = ("Static", "Host execution", "Manual activation")
@@ -7090,6 +7093,37 @@ def execution_entries(project_root: Path, task_id: str) -> list[dict[str, object
     return entries
 
 
+def verify_validation_skips(report_text: str) -> None:
+    """Accept only Task 099's named sandbox skip in a completion handoff."""
+    reported = re.search(r"^- Validation skips:\s*(.+)$", report_text, re.MULTILINE)
+    assert reported is not None  # HANDOFF_FIELDS has already checked its presence.
+    value = reported.group(1).strip()
+    validation = re.search(r"^- Validation:\s*(.+)$", report_text, re.MULTILINE)
+    assert validation is not None  # HANDOFF_FIELDS has already checked its presence.
+    failed_validation = re.search(r"\bexit\s+[1-9][0-9]*\b", validation.group(1))
+
+    if value.lower() == "none":
+        if failed_validation:
+            raise MeridianError(
+                "handoff check BLOCKED: report declares a failing validation without a named skip"
+            )
+        return
+
+    if (
+        TASK_099_SKIP_TEST not in value
+        or TASK_099_SKIP_REASON not in value
+        or "reported by `" not in value
+    ):
+        raise MeridianError(
+            "handoff check BLOCKED: Validation skips must name "
+            f"{TASK_099_SKIP_TEST}, its test-reported reason, and the reporting command"
+        )
+    if failed_validation:
+        raise MeridianError(
+            "handoff check BLOCKED: a named skip does not make a failing validation pass"
+        )
+
+
 def verify_execution_evidence(project_root: Path, task_id: str, report_text: str) -> None:
     """Require report claims to be backed by durable, task-declared evidence."""
     task_text = find_task_file(project_root, task_id).read_text(encoding="utf-8")
@@ -7148,6 +7182,7 @@ def check_handoff(project_root: Path, task_id: str, report: Path) -> str:
     canonical_id = resolve_task_identity(project_root, task_id, "existing").canonical_id
     if f"Completion Report — {canonical_id}" not in text:
         raise MeridianError(f"handoff check BLOCKED: report does not identify {canonical_id}")
+    verify_validation_skips(text)
     verify_execution_evidence(project_root, task_id, text)
     return f"Handoff evidence complete for {task_id}: {report}"
 

@@ -32,6 +32,7 @@ the handoff record, push the task branch once, then begin the next review
 attempt. Amend and force-push remain prohibited.
 <!-- MERIDIAN:END -->
 - Validation: `<exact commands run with their exit status, or the CI check run and its conclusion for this exact commit — not a bare "passed">`
+- Validation skips: `<none | test name — test-reported reason; reported by `command`>`
 - Manual verification: `<none | screenshot path — view checked — result>`
 - Acceptance criteria: `<all met | list criterion IDs/status>`
 - Budget usage: `<diagnostics used/cap; captures used/cap by criterion; context expansions used/cap; investigation scope used/cap>`
@@ -40,6 +41,10 @@ attempt. Amend and force-push remain prohibited.
 ```
 
 Do not claim completion when validation fails or an acceptance criterion is unresolved. For reviews, retain the same four fields in `tasks/reviews/<TASK-ID>.md` and add the required verdict from `docs/CODE_REVIEW_PROMPT.md`. For `CHANGES_REQUESTED`, name that review-record path and its local handoff commit in the concise chat report; the record itself remains the canonical evidence.
+
+A named sandbox skip is not a passing result for an unrelated failure. Record a
+skip only when the test itself names it, including the test-reported reason and
+the command that reported it; otherwise treat validation as failed.
 
 <!-- MERIDIAN:BEGIN capability=manual-verification-record v1 -->
 When the task declares `Manual verification: required`, name the screenshot

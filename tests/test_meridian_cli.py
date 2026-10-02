@@ -3374,6 +3374,7 @@ Evidence plan:
         report = self.project / "ready.md"
         report.write_text(
             "## Completion Report — TASK-020\n\n- Files changed: none\n- Validation: exit 0\n"
+            "- Validation skips: none\n"
             "- Manual verification: none\n- Acceptance criteria: all met\n- Budget usage: 0/3\n"
             "- Isolated exploration: none\n- Blockers/deviations: none\n",
             encoding="utf-8",
@@ -3468,6 +3469,7 @@ Evidence plan:
         report.write_text(
             "## Completion Report — TASK-009\n\n"
             "- Files changed: `a.rs`\n- Validation: `cargo test` exit 0\n"
+            "- Validation skips: none\n"
             "- Manual verification: none\n- Acceptance criteria: all met\n"
             "- Blockers/deviations: none\n",
             encoding="utf-8",
@@ -3487,6 +3489,7 @@ Evidence plan:
         report = self.project / "ready.md"
         report.write_text(
             "## Completion Report — TASK-012\n\n- Files changed: none\n- Validation: exit 0\n"
+            "- Validation skips: none\n"
             "- Manual verification: none\n- Acceptance criteria: all met\n- Budget usage: 0/3\n"
             "- Isolated exploration: none\n"
             "- Blockers/deviations: none\n",
@@ -3512,6 +3515,7 @@ Evidence plan:
         report.write_text(
             "## Completion Report — TASK-013\n\n- Files changed: none\n"
             "- Validation: `printf validation-ok` exit 0\n- Manual verification: none\n"
+            "- Validation skips: none\n"
             "- Acceptance criteria: all met\n- Budget usage: 0/3\n"
             "- Isolated exploration: none\n- Blockers/deviations: none\n",
             encoding="utf-8",
@@ -3539,6 +3543,38 @@ Evidence plan:
             encoding="utf-8",
         )
         self.assertEqual(self.run_cli("execution", "handoff-check", "TASK-013", str(report)).returncode, 0)
+
+    def test_handoff_accepts_task_099_named_skip_and_rejects_an_unnamed_failure(self) -> None:
+        self.write_task("TASK-009", "IN_PROGRESS")
+        report = self.project / "validation-skips.md"
+        report.write_text(
+            "## Completion Report — TASK-009\n\n- Files changed: none\n"
+            "- Validation: `python3 -m unittest discover -s tests -v` exit 0\n"
+            "- Validation skips: AgentLaunchTest.test_split_payload_compiles_as_applescript — "
+            "osacompile cannot resolve the iTerm2 dictionary in this environment: "
+            "Connection invalid; reported by `python3 -m unittest discover -s tests -v`\n"
+            "- Manual verification: none\n- Acceptance criteria: all met\n"
+            "- Budget usage: 0/3\n- Isolated exploration: none\n"
+            "- Blockers/deviations: none\n",
+            encoding="utf-8",
+        )
+        accepted = self.run_cli("execution", "handoff-check", "TASK-009", str(report))
+        self.assertEqual(accepted.returncode, 0, accepted.stderr)
+
+        report.write_text(
+            report.read_text(encoding="utf-8").replace(
+                "- Validation: `python3 -m unittest discover -s tests -v` exit 0\n"
+                "- Validation skips: AgentLaunchTest.test_split_payload_compiles_as_applescript — "
+                "osacompile cannot resolve the iTerm2 dictionary in this environment: "
+                "Connection invalid; reported by `python3 -m unittest discover -s tests -v`\n",
+                "- Validation: `python3 -m unittest discover -s tests -v` exit 1\n"
+                "- Validation skips: none\n",
+            ),
+            encoding="utf-8",
+        )
+        rejected = self.run_cli("execution", "handoff-check", "TASK-009", str(report))
+        self.assertNotEqual(rejected.returncode, 0)
+        self.assertIn("failing validation without a named skip", rejected.stderr)
 
     def test_validation_runs_only_a_declared_literal_command_and_records_status(self) -> None:
         (self.project / "docs").mkdir()
