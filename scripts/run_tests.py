@@ -26,7 +26,9 @@ def iter_tests(suite: unittest.TestSuite) -> Iterable[unittest.TestCase]:
 
 def discover_tests(tests_directory: Path = TESTS_DIRECTORY) -> list[unittest.TestCase]:
     """Discover tests and return them sorted by their stable unittest id."""
-    discovered = unittest.defaultTestLoader.discover(str(tests_directory))
+    # A fresh loader avoids the top-level directory that Python 3.11 keeps on
+    # the shared default loader after an earlier discovery in the same process.
+    discovered = unittest.TestLoader().discover(str(tests_directory))
     return sorted(iter_tests(discovered), key=lambda test: test.id())
 
 
