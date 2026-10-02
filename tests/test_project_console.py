@@ -720,7 +720,7 @@ class LeanEffectiveStateTest(RepoCase):
             "ACCEPTANCE_UNMET", "VALIDATION_FAILED", "REVIEW_REQUIRED", "WRONG_WORKTREE",
             "EVIDENCE_INCOMPLETE", "PRIMARY_DIRTY", "MAIN_BEHIND_ORIGIN", "LEASE_HELD",
             "INTEGRATION_CONFLICT", "CANDIDATE_VALIDATION_FAILED", "EVIDENCE_MISMATCH",
-            "PUSH_REJECTED", "CLEANUP_BLOCKED",
+            "PUSH_PENDING", "PUSH_REJECTED", "CLEANUP_BLOCKED",
         )
         for reason in reasons:
             task = console.Task("001", "Task", "IN_PROGRESS", (), (), None, (), (),
