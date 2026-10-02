@@ -15,10 +15,10 @@ Authority: `docs/TASK_CLOSURE_DESIGN.md`.
 
 ## Acceptance Criteria
 
-- [ ] The completion report templates for both workflow modes gain a `Validation skips:` line; this task changes the repository's own copies and leaves the managed shipping to tasks 109 and 110.
-- [ ] `meridian execution handoff-check` accepts a recorded named skip and rejects a handoff that reports a failing check without one.
-- [ ] Tests cover task 099's `test_split_payload_compiles_as_applescript` skip text.
-- [ ] `python3 scripts/check_repository.py` passes, and the unit tests pass unless the change is documentation-only.
+- [x] The completion report templates for both workflow modes gain a `Validation skips:` line; this task changes the repository's own copies and leaves the managed shipping to tasks 109 and 110.
+- [x] `meridian execution handoff-check` accepts a recorded named skip and rejects a handoff that reports a failing check without one.
+- [x] Tests cover task 099's `test_split_payload_compiles_as_applescript` skip text.
+- [x] `python3 scripts/check_repository.py` passes, and the unit tests pass unless the change is documentation-only.
 
 ## Relevant Files
 
