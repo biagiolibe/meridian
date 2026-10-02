@@ -6084,6 +6084,82 @@ class WorktreeLifecycleCliTest(unittest.TestCase):
         result = self.run_cli("worktree", "prepare", "056")
         self.assertEqual(result.returncode, 64)
 
+    def test_closure_status_covers_lifecycle_states_without_mutation(self) -> None:
+        def snapshot(*roots: Path) -> dict[str, str]:
+            return {
+                f"{root.name}/{path.relative_to(root)}": hashlib.sha256(path.read_bytes()).hexdigest()
+                for root in roots
+                for path in root.rglob("*")
+                if path.is_file()
+            }
+
+        def status(expected_step: str, expected_reason: str | None, *, text: bool = False) -> None:
+            before = snapshot(self.project, worktree)
+            result = self.run_cli(
+                "worktree", "closure-status", "056", "--project", str(self.project),
+                "--worktree-root", str(self.worktree_root),
+                *( () if text else ("--format", "json") ),
+            )
+            self.assertEqual(snapshot(self.project, worktree), before)
+            self.assertEqual(result.returncode, 2 if expected_reason else 0, result.stderr)
+            if text:
+                self.assertRegex(
+                    result.stdout.strip(),
+                    rf"^BLOCKED {expected_reason}; resume: meridian worktree prepare 056 --project .+ --format json$",
+                )
+                return
+            report = json.loads(result.stdout)
+            self.assertEqual(report["step"], expected_step)
+            self.assertEqual(report["stop_reason"], expected_reason)
+            self.assertIn("resume", report)
+
+        worktree = self.worktree_root / "unused"
+        status("C4", "WRONG_WORKTREE", text=True)
+
+        remote = self.root / "origin.git"
+        subprocess.run(["git", "init", "--bare", str(remote)], check=True, capture_output=True)
+        (self.project / "tasks/handoffs").mkdir()
+        (self.project / "tasks/handoffs/056.md").write_text("# Completion Report — 056\n", encoding="utf-8")
+        subprocess.run(["git", "add", "."], cwd=self.project, check=True)
+        subprocess.run(["git", "commit", "-m", "handoff"], cwd=self.project, check=True, capture_output=True)
+        subprocess.run(["git", "remote", "add", "origin", str(remote)], cwd=self.project, check=True)
+        subprocess.run(["git", "push", "-u", "origin", "main"], cwd=self.project, check=True, capture_output=True)
+
+        prepared = self.run_cli(
+            "worktree", "prepare", "056", "--project", str(self.project),
+            "--worktree-root", str(self.worktree_root), "--format", "json",
+        )
+        self.assertEqual(prepared.returncode, 0, prepared.stderr)
+        worktree = Path(json.loads(prepared.stdout)["worktree"])
+        status("C1", "ACCEPTANCE_UNMET")
+
+        (worktree / "implementation.txt").write_text("done\n", encoding="utf-8")
+        subprocess.run(["git", "add", "implementation.txt"], cwd=worktree, check=True)
+        subprocess.run(["git", "commit", "-m", "complete task"], cwd=worktree, check=True, capture_output=True)
+        status("C5", "EVIDENCE_INCOMPLETE")
+
+        identity = meridian.resolve_task_identity(self.project, "056", "existing")
+        _state, lease, integration = meridian._lifecycle_paths(self.project, identity)
+        lease.write_text(json.dumps({"task_id": identity.canonical_id}), encoding="utf-8")
+        integration.write_text(json.dumps({"task_id": identity.canonical_id}), encoding="utf-8")
+        status("C7", None)
+        integration.unlink()
+        status("C6", "LEASE_HELD")
+        lease.unlink()
+
+        subprocess.run(["git", "merge", "--no-ff", "task-056", "-m", "integrate"], cwd=self.project, check=True)
+        status("C9", None)
+        subprocess.run(["git", "push", "origin", "main"], cwd=self.project, check=True, capture_output=True)
+        status("C10", None)
+
+        cleaned = self.run_cli(
+            "worktree", "cleanup", "056", "--project", str(self.project),
+            "--worktree-root", str(self.worktree_root), "--format", "json",
+        )
+        self.assertEqual(cleaned.returncode, 0, cleaned.stderr)
+        worktree = self.worktree_root / "removed"
+        status("C10", None)
+
     def run_console(self, *arguments: str) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
             [

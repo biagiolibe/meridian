@@ -68,7 +68,7 @@
 - `[x]` 098 — Let `release.py publish` release an already-prepared template-changing release.
 - `[x]` 099 — Skip the AppleScript compile test when `osacompile` cannot run.
 - `[x]` 100 — Design hands-off task closure.
-- `[ ]` 101 — Add `meridian worktree closure-status`.
+- `[x]` 101 — Add `meridian worktree closure-status`.
 - `[x]` 102 — Add the evidence command and recompute main-advance facts in `integrate stage`.
 - `[ ]` 103 — Apply queue and plan row status during `integrate stage`.
 - `[ ]` 104 — Apply phase archival during `integrate stage`.
@@ -83,6 +83,7 @@
 - `[ ]` 113 — Add the validation evidence record and a read-only verifier.
 - `[ ]` 114 — Validate task branches in CI and capture the result as evidence.
 - `[ ]` 115 — Record the validation-timeout and stage-whitelist decisions in the closure design.
+- `[ ]` 116 — Replace edits to `[Unreleased]` with per-task changelog fragments.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.
 - `[x]` 053 — Remove machine-specific absolute paths from tracked records.
