@@ -44,9 +44,10 @@ The explicit option remains available for finishing a worktree in an old root.
   acquires the repository integration lease, verifies the task and accepted
   validation evidence, performs `git merge --no-ff --no-commit`, then
   deterministically marks the task rows in `tasks/QUEUE.md` and
-  `PROJECT_PLAN.md` as complete. It returns `REUSE`, `BOUNDED`, or `FULL`
-  with the exact candidate tree. Unknown row shapes are blocked without
-  changing either row.
+  `PROJECT_PLAN.md` as complete, then moves any fully closed queue section to
+  `tasks/QUEUE_ARCHIVE.md` (creating it when needed). It returns `REUSE`,
+  `BOUNDED`, or `FULL` with the exact candidate tree. Unknown row or section
+  shapes are blocked without changing the candidate's lifecycle records.
 - `meridian worktree integrate finalize <TASK-ID> --project <primary>
   --evidence <candidate-validation.json> --format json` creates the fixed merge
   commit only when successful evidence matches the staged candidate and

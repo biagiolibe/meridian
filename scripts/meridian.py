@@ -1118,10 +1118,61 @@ def _completed_task_row(contents: str, task_id: str, path: Path, pattern: str) -
     return f"{contents[:match.start(1)]}[x]{contents[match.end(1):]}"
 
 
+_QUEUE_SECTION_HEADING = re.compile(r"^### .+\n?$", re.MULTILINE)
+_QUEUE_TABLE_DIVIDER = re.compile(r"^\|(?:\s*:?-{3,}:?\s*\|)+\s*$")
+_QUEUE_TASK_ROW = re.compile(r"^\| `(?P<status>\[[ x]\])` \| [^|]+ \|.*$")
+_QUEUE_ARCHIVE_HEADER = (
+    "# Task Execution Queue — Archive\n\n"
+    "Closed phases and sections moved out of `tasks/QUEUE.md` once every row in them is\n"
+    "`[x]`, to keep that file's reading cost low. Mirrors `QUEUE.md`'s own table\n"
+    "structure.\n"
+)
+
+
+def _archive_completed_queue_sections(queue_contents: str, queue_path: Path, archive_path: Path) -> tuple[str, str | None]:
+    """Move fully complete, recognized queue sections to the archive in memory."""
+    headings = list(_QUEUE_SECTION_HEADING.finditer(queue_contents))
+    completed_sections: list[tuple[int, int, str]] = []
+    for index, heading in enumerate(headings):
+        section_end = headings[index + 1].start() if index + 1 < len(headings) else len(queue_contents)
+        section = queue_contents[heading.start():section_end]
+        lines = section.splitlines(keepends=True)
+        table_index = next((
+            line_index for line_index, line in enumerate(lines)
+            if line.rstrip("\n").startswith("| Status |")
+        ), None)
+        if table_index is None:
+            continue
+        if table_index + 2 >= len(lines) or not _QUEUE_TABLE_DIVIDER.fullmatch(lines[table_index + 1].rstrip("\n")):
+            raise MeridianError(f"unrecognized queue section shape in {queue_path}: {lines[0].strip()}")
+        task_rows: list[str] = []
+        for line in lines[table_index + 2:]:
+            if not line.startswith("|"):
+                break
+            task_rows.append(line)
+        if not task_rows or any(_QUEUE_TASK_ROW.fullmatch(row.rstrip("\n")) is None for row in task_rows):
+            raise MeridianError(f"unrecognized queue section shape in {queue_path}: {lines[0].strip()}")
+        if all(_QUEUE_TASK_ROW.fullmatch(row.rstrip("\n")).group("status") == "[x]" for row in task_rows):
+            completed_sections.append((heading.start(), section_end, section))
+    if not completed_sections:
+        return queue_contents, None
+    archived = "".join(section.rstrip("\n") + "\n" for _, _, section in completed_sections)
+    retained: list[str] = []
+    cursor = 0
+    for start, end, _section in completed_sections:
+        retained.append(queue_contents[cursor:start])
+        cursor = end
+    retained.append(queue_contents[cursor:])
+    updated_queue = "".join(retained).rstrip("\n") + "\n"
+    archive_contents = archive_path.read_text(encoding="utf-8") if archive_path.exists() else _QUEUE_ARCHIVE_HEADER
+    return updated_queue, archive_contents.rstrip("\n") + "\n\n" + archived
+
+
 def _apply_task_completion_rows(project_root: Path, identity: ResolvedTaskIdentity) -> None:
-    """Set the task's known queue and plan rows to complete after a staged merge."""
+    """Set known completion rows and archive fully complete queue sections."""
     queue_path = identity.queue_path
     plan_path = project_root / "PROJECT_PLAN.md"
+    archive_path = queue_path.with_name("QUEUE_ARCHIVE.md")
     task_id = identity.canonical_id
     queue_contents = queue_path.read_text(encoding="utf-8")
     plan_contents = plan_path.read_text(encoding="utf-8")
@@ -1137,10 +1188,15 @@ def _apply_task_completion_rows(project_root: Path, identity: ResolvedTaskIdenti
         plan_path,
         rf"^- `(?P<status>\[[ x]\])` {re.escape(task_id)} — .*$",
     )
-    if queue_completed != queue_contents:
-        queue_path.write_text(queue_completed, encoding="utf-8")
+    archived_queue, archive_contents = _archive_completed_queue_sections(
+        queue_completed, queue_path, archive_path
+    )
+    if archived_queue != queue_contents:
+        queue_path.write_text(archived_queue, encoding="utf-8")
     if plan_completed != plan_contents:
         plan_path.write_text(plan_completed, encoding="utf-8")
+    if archive_contents is not None:
+        archive_path.write_text(archive_contents, encoding="utf-8")
 
 
 def stage_task_integration(
@@ -1254,12 +1310,18 @@ def stage_task_integration(
         raise MeridianError("integration conflict was aborted; task branch and worktree were retained")
     try:
         _apply_task_completion_rows(project_root, identity)
+        lifecycle_paths = [
+            str(identity.queue_path.relative_to(project_root)),
+            "PROJECT_PLAN.md",
+        ]
+        archive_path = identity.queue_path.with_name("QUEUE_ARCHIVE.md")
+        if archive_path.exists():
+            lifecycle_paths.append(str(archive_path.relative_to(project_root)))
         staged_rows = _run_git(
             project_root,
             "add",
             "--",
-            str(identity.queue_path.relative_to(project_root)),
-            "PROJECT_PLAN.md",
+            *lifecycle_paths,
         )
         if staged_rows.returncode != 0:
             raise MeridianError(staged_rows.stderr.strip() or "could not stage completion rows")
