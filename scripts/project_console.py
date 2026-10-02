@@ -21,7 +21,7 @@ from pathlib import Path
 sys.dont_write_bytecode = True
 from meridian import (
     TASK_IDENTITY_PATH, MeridianError, ResolvedTaskIdentity, detect_mode,
-    resolve_project_locations, resolve_task_identity,
+    closure_status, resolve_project_locations, resolve_task_identity,
 )
 from console_workflow import (
     ID_PATTERN, PROFILES, BranchFacts, ConsoleError, QueueRow, Profile, effective_state,
@@ -58,6 +58,8 @@ class Task:
     review: str | None = None
     dependency_states: tuple[tuple[str, str], ...] = ()
     workflow: str = "lean-delivery"
+    closure_stop_reason: str | None = None
+    closure_resume: str | None = None
 
     @property
     def launch_command(self) -> str | None:
@@ -85,6 +87,10 @@ class Task:
 
     @property
     def next_action(self) -> str:
+        if self.closure_stop_reason:
+            return f"{self.closure_stop_reason}: {self.closure_resume or 'no resume command'}"
+        if self.closure_resume:
+            return self.closure_resume
         if self.record_problem and self.readiness != "MISMATCH":
             return f"Resolve the task record: {self.record_problem}"
         if self.readiness == "READY":
@@ -454,6 +460,8 @@ def _branch_facts(project: Path, profile: Profile, task_id: str, queue: str,
         handoff=handoff_status(show(_relative(project, identity.handoff_path))),
         review_verdict=latest_review_verdict(review), ahead=ahead,
         worktree=worktree, dirty=dirty, working_row=working_row,
+        record_path=record_path,
+        worktree_available=bool(worktree and Path(worktree).is_dir()),
     )
     return facts, record, record_path, worktree
 
@@ -505,6 +513,18 @@ def load_snapshot(project: Path, identities: IdentityCache | None = None) -> Sna
                               and facts.row.status != row.status else primary_text)
         review = row.review if row.review is not None else record_review(branch_policy_text)
         effective = effective_state(profile, row, record_status(primary_text), facts, review)
+        closure_reason = closure_resume = None
+        # The lifecycle command is authoritative for closure guidance.  Restrict
+        # the extra read to registered active worktrees; queued tasks retain the
+        # constant-cost refresh path established by task 078.
+        if facts and facts.worktree and effective.lifecycle == "in_progress":
+            try:
+                closure, _ready = closure_status(row.task_id, None, project)
+                closure_reason = closure["stop_reason"]
+                closure_resume = closure["resume"]
+            except (MeridianError, OSError, ValueError):
+                # A transient lifecycle read must not make the entire dashboard stale.
+                pass
         from_branch = facts is not None and branch_text is not None and effective.source != "main"
         task_text = branch_text if from_branch else primary_text
         problem = None if task_text is not None else (main_problem or "task record not found")
@@ -545,6 +565,8 @@ def load_snapshot(project: Path, identities: IdentityCache | None = None) -> Sna
             ),
             record_problem=problem, review=review,
             workflow=profile.name,
+            closure_stop_reason=closure_reason,
+            closure_resume=closure_resume,
             dependency_states=tuple(
                 (item, {
                     "done": "Done", "in_progress": "Working",
@@ -648,6 +670,10 @@ def one_shot(state: ConsoleState) -> str:
             lines.append(f"  State from: {task.source}")
         if task.mismatch:
             lines.append(f"  Mismatch: {task.mismatch}")
+        if task.closure_stop_reason:
+            lines.append(f"  Closure stop: {task.closure_stop_reason}")
+        if task.closure_resume:
+            lines.append(f"  Resume: {task.closure_resume}")
         if task.markers:
             lines.append(f"  Markers: {', '.join(task.markers)}")
         if task.record_problem:
@@ -854,6 +880,10 @@ def _detail_lines(task: Task, width: int, palette: dict[str, int],
         add(f"● {marker.capitalize()}", "working")
     if task.record_problem:
         add(task.record_problem[:1].upper() + task.record_problem[1:], "blocked")
+    if task.closure_stop_reason:
+        add(f"Closure stop: {task.closure_stop_reason}", "blocked")
+    if task.closure_resume:
+        add(f"Resume: {task.closure_resume}", "action")
     add("")
     add("Dependencies", "muted")
     states = dict(task.dependency_states)

@@ -197,6 +197,8 @@ class BranchFacts:
     worktree: str | None
     dirty: bool
     working_row: QueueRow | None = None
+    record_path: str | None = None
+    worktree_available: bool = False
 
 
 @dataclass(frozen=True)
@@ -240,6 +242,12 @@ def effective_state(profile: Profile, primary: QueueRow, primary_record: str | N
             if working_phase > committed_phase:
                 row = facts.working_row
                 source = f"uncommitted {facts.branch}"
+        if (profile.name == "lean-delivery" and primary.status == "TODO"
+                and row.status == "TODO" and facts.worktree_available
+                and facts.record_path and not facts.record_path.startswith("tasks/done/")):
+            # Lean Delivery keeps [/] derived: reserving the canonical branch and
+            # worktree starts the task without a shared queue-file edit.
+            return Effective("in_progress", "IN_PROGRESS", source, active_writer=writer)
         if row.status == primary.status:
             source = "main"
 
