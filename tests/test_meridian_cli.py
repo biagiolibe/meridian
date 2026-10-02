@@ -6262,7 +6262,7 @@ class WorktreeLifecycleCliTest(unittest.TestCase):
         lease.unlink()
 
         subprocess.run(["git", "merge", "--no-ff", "task-056", "-m", "integrate"], cwd=self.project, check=True)
-        status("C9", None)
+        status("C9", "PUSH_PENDING")
         subprocess.run(["git", "push", "origin", "main"], cwd=self.project, check=True, capture_output=True)
         status("C10", None)
 
@@ -6273,6 +6273,59 @@ class WorktreeLifecycleCliTest(unittest.TestCase):
         self.assertEqual(cleaned.returncode, 0, cleaned.stderr)
         worktree = self.worktree_root / "removed"
         status("C10", None)
+
+    def test_integrate_stage_blocks_when_fetched_origin_main_is_ahead(self) -> None:
+        remote = self.root / "origin.git"
+        subprocess.run(["git", "init", "--bare", str(remote)], check=True, capture_output=True)
+        subprocess.run(["git", "remote", "add", "origin", str(remote)], cwd=self.project, check=True)
+        subprocess.run(["git", "push", "-u", "origin", "main"], cwd=self.project, check=True, capture_output=True)
+        prepared = self.run_cli(
+            "worktree", "prepare", "056", "--project", str(self.project),
+            "--worktree-root", str(self.worktree_root), "--format", "json",
+        )
+        self.assertEqual(prepared.returncode, 0, prepared.stderr)
+        worktree = Path(json.loads(prepared.stdout)["worktree"])
+        (worktree / "implementation.txt").write_text("done\n", encoding="utf-8")
+        subprocess.run(["git", "add", "implementation.txt"], cwd=worktree, check=True)
+        subprocess.run(["git", "commit", "-m", "complete task"], cwd=worktree, check=True, capture_output=True)
+        identity = meridian.resolve_task_identity(self.project, "056", "existing")
+        state, _lease, _integration = meridian._lifecycle_paths(self.project, identity)
+        task_commit = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=worktree, check=True, capture_output=True, text=True
+        ).stdout.strip()
+        validated_base = subprocess.run(
+            ["git", "rev-parse", "main"], cwd=self.project, check=True, capture_output=True, text=True
+        ).stdout.strip()
+        state.with_suffix(".evidence.json").write_text(json.dumps({
+            "accepted": True,
+            "validation_passed": True,
+            "validated_task_commit": task_commit,
+            "validated_base_commit": validated_base,
+            "full_validation_required": False,
+            "interaction_assessment_complete": True,
+            "task_paths": [],
+            "task_dependencies": [],
+            "task_behavioral_surfaces": [],
+            "main_advanced_dependencies": [],
+            "main_advanced_behavioral_surfaces": [],
+        }), encoding="utf-8")
+        clone = self.root / "origin-writer"
+        subprocess.run(["git", "clone", str(remote), str(clone)], check=True, capture_output=True)
+        subprocess.run(["git", "config", "user.name", "Meridian Test"], cwd=clone, check=True)
+        subprocess.run(["git", "config", "user.email", "meridian@example.invalid"], cwd=clone, check=True)
+        (clone / "upstream.txt").write_text("upstream\n", encoding="utf-8")
+        subprocess.run(["git", "add", "upstream.txt"], cwd=clone, check=True)
+        subprocess.run(["git", "commit", "-m", "upstream advance"], cwd=clone, check=True, capture_output=True)
+        subprocess.run(["git", "push", "origin", "main"], cwd=clone, check=True, capture_output=True)
+        subprocess.run(["git", "fetch", "origin"], cwd=self.project, check=True, capture_output=True)
+
+        result = self.run_cli(
+            "worktree", "integrate", "stage", "056", "--project", str(self.project),
+            "--worktree-root", str(self.worktree_root), "--evidence", str(state.with_suffix(".evidence.json")),
+            "--format", "json",
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("BLOCKED: MAIN_BEHIND_ORIGIN", result.stderr)
 
     def run_console(self, *arguments: str) -> subprocess.CompletedProcess[str]:
         return subprocess.run(

@@ -39,6 +39,8 @@ The explicit option remains available for finishing a worktree in an old root.
   is read-only. It reports the next closure `step`, any `stop_reason`, and a
   `resume` command from the registered worktree, lifecycle files, and Git
   history. Text-mode blocked results print `BLOCKED <REASON>; resume: <command>`.
+  After finalization, it reports `PUSH_PENDING` at C9 when local `main` is
+  ahead of the already fetched `origin/main`.
   When the recorded `<id>.evidence.json` is accepted, passed, and names the
   branch's current commit, it reports step `C6` with the `integrate stage`
   command instead of `EVIDENCE_INCOMPLETE`.
