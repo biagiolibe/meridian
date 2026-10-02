@@ -928,6 +928,24 @@ def closure_status(
             "PRIMARY_DIRTY",
             "clean the primary checkout and run integration stage",
         )
+    evidence_path = state_path.with_suffix(".evidence.json")
+    if evidence_path.is_file():
+        try:
+            evidence = _integration_evidence(evidence_path)
+        except MeridianError:
+            evidence = None
+        if (
+            evidence is not None
+            and evidence["accepted"] is True
+            and evidence["validation_passed"] is True
+            and evidence["validated_task_commit"] == branch_commit
+        ):
+            return report(
+                "C6",
+                None,
+                f"meridian worktree integrate stage {identity.canonical_id} --project {project} "
+                f"--evidence {evidence_path} --format json",
+            )
     return report("C5", "EVIDENCE_INCOMPLETE", "record machine evidence")
 
 

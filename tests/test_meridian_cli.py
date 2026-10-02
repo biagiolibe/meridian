@@ -6139,7 +6139,29 @@ class WorktreeLifecycleCliTest(unittest.TestCase):
         status("C5", "EVIDENCE_INCOMPLETE")
 
         identity = meridian.resolve_task_identity(self.project, "056", "existing")
-        _state, lease, integration = meridian._lifecycle_paths(self.project, identity)
+        state, lease, integration = meridian._lifecycle_paths(self.project, identity)
+        task_commit = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=worktree, check=True, capture_output=True, text=True
+        ).stdout.strip()
+        evidence = {
+            "accepted": True,
+            "validation_passed": True,
+            "validated_task_commit": task_commit,
+            "validated_base_commit": task_commit,
+            "full_validation_required": False,
+            "interaction_assessment_complete": True,
+            "task_paths": [],
+            "task_dependencies": [],
+            "task_behavioral_surfaces": [],
+            "main_advanced_dependencies": [],
+            "main_advanced_behavioral_surfaces": [],
+        }
+        evidence_path = state.with_suffix(".evidence.json")
+        evidence_path.write_text(json.dumps({**evidence, "validated_task_commit": "0" * 40}), encoding="utf-8")
+        status("C5", "EVIDENCE_INCOMPLETE")
+        evidence_path.write_text(json.dumps(evidence), encoding="utf-8")
+        status("C6", None)
+        evidence_path.unlink()
         lease.write_text(json.dumps({"task_id": identity.canonical_id}), encoding="utf-8")
         integration.write_text(json.dumps({"task_id": identity.canonical_id}), encoding="utf-8")
         status("C7", None)
