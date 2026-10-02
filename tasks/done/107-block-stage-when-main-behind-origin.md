@@ -15,10 +15,10 @@ Authority: `docs/TASK_CLOSURE_DESIGN.md`.
 
 ## Acceptance Criteria
 
-- [ ] The check uses the already fetched remote ref and never runs `git push`, `git pull`, or `git fetch` inside the lifecycle command; the agent fetches first.
-- [ ] A repository without an origin skips the check.
-- [ ] `closure-status` reports `PUSH_PENDING` when local `main` is ahead of `origin/main` after finalize.
-- [ ] `python3 scripts/check_repository.py` passes, and the unit tests pass unless the change is documentation-only.
+- [x] The check uses the already fetched remote ref and never runs `git push`, `git pull`, or `git fetch` inside the lifecycle command; the agent fetches first.
+- [x] A repository without an origin skips the check.
+- [x] `closure-status` reports `PUSH_PENDING` when local `main` is ahead of `origin/main` after finalize.
+- [x] `python3 scripts/check_repository.py` passes, and the unit tests pass unless the change is documentation-only.
 
 ## Relevant Files
 

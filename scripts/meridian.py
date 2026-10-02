@@ -930,7 +930,9 @@ def closure_status(
             )
         return report(
             "C9",
-            None,
+            "PUSH_PENDING" if remote_main.returncode == 0 and _run_git(
+                project_root, "merge-base", "--is-ancestor", "refs/remotes/origin/main", "main"
+            ).returncode == 0 else None,
             "git push origin main",
         )
 
@@ -1297,6 +1299,21 @@ def stage_task_integration(
         raise MeridianError("primary checkout must be on main")
     if git_output(project_root, "status", "--porcelain"):
         raise MeridianError("primary checkout must be clean")
+    origin = _run_git(project_root, "remote", "get-url", "origin")
+    remote_main = _run_git(project_root, "rev-parse", "--verify", "refs/remotes/origin/main")
+    if (
+        origin.returncode == 0
+        and remote_main.returncode == 0
+        and _run_git(
+            project_root, "merge-base", "--is-ancestor", "main", "refs/remotes/origin/main"
+        ).returncode == 0
+        and git_output(project_root, "rev-parse", "main") != git_output(
+            project_root, "rev-parse", "refs/remotes/origin/main"
+        )
+    ):
+        raise MeridianError(
+            "MAIN_BEHIND_ORIGIN: local main lacks commits from the already fetched origin/main"
+        )
     evidence = _integration_evidence(evidence_path)
     if not evidence["accepted"] or not evidence["validation_passed"]:
         raise MeridianError("accepted, successful task validation evidence is required")
