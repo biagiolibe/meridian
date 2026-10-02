@@ -259,6 +259,18 @@
       "version": 12
     }
   },
+  "templates/workflows/lean-delivery/AGENTS.md": {
+    "git-workflow": {
+      "sha256": "4b7dfaf91e500b1d941a87f2c6414113b408f749f4aac9a689c9090c557056c7",
+      "version": 8
+    }
+  },
+  "templates/workflows/lean-delivery/CLAUDE.md": {
+    "git-workflow": {
+      "sha256": "4b7dfaf91e500b1d941a87f2c6414113b408f749f4aac9a689c9090c557056c7",
+      "version": 8
+    }
+  },
   "templates/workflows/lean-delivery/LANGUAGE_POLICY.md": {
     "language-policy": {
       "sha256": "71a8ada0767ac92c3b6a4030b8b911fc58b23f7473fd1a96af1fe85f84645985",
@@ -273,6 +285,10 @@
     "codex-worktree-access": {
       "sha256": "0317a096f55d591d66408601de6eddc2b29e2e39e9231216a1e5c60e73fb0901",
       "version": 3
+    },
+    "git-workflow": {
+      "sha256": "4b7dfaf91e500b1d941a87f2c6414113b408f749f4aac9a689c9090c557056c7",
+      "version": 8
     },
     "task-identity-policy": {
       "sha256": "78df2cd565b113a06771de7572bd260667aa8a687aa3b6066d12b4578d510221",
