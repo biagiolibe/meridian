@@ -67,7 +67,17 @@
 - `[x]` 097 — Let a manually typed `Proceed with` prepare its own worktree in Governed SDD.
 - `[x]` 098 — Let `release.py publish` release an already-prepared template-changing release.
 - `[x]` 099 — Skip the AppleScript compile test when `osacompile` cannot run.
-- `[ ]` 100 — Design hands-off task closure.
+- `[x]` 100 — Design hands-off task closure.
+- `[ ]` 101 — Add `meridian worktree closure-status`.
+- `[ ]` 102 — Add the evidence command and recompute main-advance facts in `integrate stage`.
+- `[ ]` 103 — Apply queue and plan row status during `integrate stage`.
+- `[ ]` 104 — Apply phase archival during `integrate stage`.
+- `[ ]` 105 — Derive `[/]` and show closure stop reasons in the console.
+- `[ ]` 106 — Narrow the Codex push rule and offer a Claude Code allowlist.
+- `[ ]` 107 — Block `integrate stage` when `main` is behind `origin` and report a pending push.
+- `[ ]` 108 — Add the `Validation skips` handoff field and its check.
+- `[ ]` 109 — Ship the Lean Delivery closure rules and migration.
+- `[ ]` 110 — Ship the Governed SDD closure rules and migration.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.
 - `[x]` 053 — Remove machine-specific absolute paths from tracked records.
