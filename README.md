@@ -585,9 +585,9 @@ is in [CONTRIBUTING.md](CONTRIBUTING.md#release-procedure).
 
 ## Roadmap
 
-The immediate goals are the open queue items: make a 1.0.0 project upgrade to
-the current release in one step, and define the completion-handoff evidence for
-commits that cannot contain their own SHA.
+The immediate goals are the open queue items, starting with the hands-off task closure
+follow-ups and the completion-handoff evidence for commits that cannot contain
+their own SHA.
 
 ## License
 
