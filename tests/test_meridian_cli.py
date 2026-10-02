@@ -4338,12 +4338,15 @@ class WorktreeRootSetupTest(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
         self.home = Path(self.temporary.name).resolve()
+        self.cwd_patch = mock.patch.object(meridian.Path, "cwd", return_value=self.home)
+        self.cwd_patch.start()
         self.xdg = self.home / "xdg"
         self.user_config = self.xdg / "meridian/config.json"
         self.codex_config = self.home / "codex/config.toml"
         self.environment = {"XDG_CONFIG_HOME": str(self.xdg)}
 
     def tearDown(self) -> None:
+        self.cwd_patch.stop()
         self.temporary.cleanup()
 
     def resolve(self, explicit: Path | None = None, **environment: str) -> meridian.ResolvedWorktreeRoot:
@@ -4597,6 +4600,95 @@ class WorktreeRootSetupTest(unittest.TestCase):
                     framework_root=ROOT,
                 )
                 self.assertEqual(plan.meridian_root_state, expected)
+
+    def test_setup_adds_the_project_claude_allowlist_only_after_apply(self) -> None:
+        project = self.home / "project"
+        settings = project / ".claude/settings.local.json"
+        settings.parent.mkdir(parents=True)
+        settings.write_text(
+            json.dumps({"permissions": {"allow": ["Bash(existing command)"]}, "preserve": True}),
+            encoding="utf-8",
+        )
+        root = self.home / "root"
+
+        plan = meridian.plan_setup(
+            root,
+            self.codex_config,
+            environment=self.environment,
+            home=self.home,
+            project_root=project,
+        )
+
+        self.assertEqual(plan.claude_state, "approval-required")
+        self.assertIn("project Claude Code command allowlist", "\n".join(plan.changes))
+        self.assertEqual(json.loads(settings.read_text(encoding="utf-8"))["permissions"]["allow"], ["Bash(existing command)"])
+        self.assertTrue(meridian.apply_setup(plan))
+        configured = json.loads(settings.read_text(encoding="utf-8"))
+        self.assertTrue(configured["preserve"])
+        self.assertEqual(
+            configured["permissions"]["allow"],
+            ["Bash(existing command)", *meridian.CLAUDE_PROJECT_ALLOWLIST],
+        )
+        repeated = meridian.plan_setup(
+            root,
+            self.codex_config,
+            environment=self.environment,
+            home=self.home,
+            project_root=project,
+        )
+        self.assertEqual(repeated.claude_state, "ready")
+        self.assertFalse(meridian.apply_setup(repeated))
+
+    def test_malformed_claude_settings_block_setup_before_mutation(self) -> None:
+        project = self.home / "project"
+        settings = project / ".claude/settings.local.json"
+        settings.parent.mkdir(parents=True)
+        settings.write_text("not json\n", encoding="utf-8")
+        root = self.home / "root"
+
+        plan = meridian.plan_setup(
+            root,
+            self.codex_config,
+            environment=self.environment,
+            home=self.home,
+            project_root=project,
+        )
+
+        self.assertEqual(plan.claude_state, "blocked")
+        self.assertEqual(plan.changes, ("none; setup is blocked before mutation",))
+        with self.assertRaisesRegex(meridian.MeridianError, "malformed Claude settings"):
+            meridian.apply_setup(plan)
+        self.assertFalse(root.exists())
+        self.assertFalse(self.codex_config.exists())
+        self.assertEqual(settings.read_text(encoding="utf-8"), "not json\n")
+
+    def test_codex_doctor_reports_the_claude_project_allowlist_gap(self) -> None:
+        project = self.home / "project"
+        project.mkdir()
+        root = self.home / "root"
+        root.mkdir()
+
+        missing = meridian.codex_doctor(project, self.codex_config, root, home=self.home)
+        self.assertEqual(missing["claude-project-allowlist"], "approval-required")
+        claude_plan = meridian.plan_claude_project_allowlist(project)
+        self.assertTrue(meridian.apply_claude_project_allowlist(claude_plan))
+        ready = meridian.codex_doctor(project, self.codex_config, root, home=self.home)
+        self.assertEqual(ready["claude-project-allowlist"], "ready")
+
+    def test_claude_allowlist_covers_only_the_declared_command_surface(self) -> None:
+        allowlist = set(meridian.CLAUDE_PROJECT_ALLOWLIST)
+        for command in (
+            "Bash(git push origin main)",
+            "Bash(meridian worktree evidence:*)",
+            "Bash(meridian worktree closure-status:*)",
+            "Bash(meridian worktree integrate stage:*)",
+            "Bash(python3 scripts/meridian.py worktree integrate finalize:*)",
+            "Bash(python3 scripts/check_repository.py)",
+            "Bash(python3 -m unittest discover -s tests)",
+        ):
+            self.assertIn(command, allowlist)
+        for forbidden in ("--tags", "--force", "rebase", "reset", "branch -D", "worktree add", "worktree remove", "worktree prune"):
+            self.assertFalse(any(forbidden in command for command in allowlist), forbidden)
 
 
 class CodexProfileRepairTest(unittest.TestCase):
