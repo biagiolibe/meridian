@@ -573,6 +573,46 @@ class BoundedWorktreeLifecycleTest(unittest.TestCase):
         self.assertEqual(staged["decision"], "REUSE")
         meridian.abort_task_integration("056", self.primary)
 
+    def test_stage_relinks_the_queue_row_to_the_archived_task_record(self) -> None:
+        queue = self.primary / "tasks/QUEUE.md"
+        queue.write_text(
+            "| Status | ID | Title | Task file |\n|---|---|---|---|\n"
+            "| `[ ]` | 056 | Lifecycle | [056](056-lifecycle.md) |\n",
+            encoding="utf-8",
+        )
+        self.git("add", "tasks/QUEUE.md")
+        self.git("commit", "-m", "link the task row")
+        base = self.git("rev-parse", "HEAD").stdout.strip()
+        prepared = self.prepare()
+        task_worktree = Path(str(prepared["worktree"]))
+        (task_worktree / "feature.txt").write_text("implemented\n", encoding="utf-8")
+        self.git("add", "feature.txt", cwd=task_worktree)
+        self.git("commit", "-m", "implement task", cwd=task_worktree)
+        validated_task = self.git("rev-parse", "HEAD", cwd=task_worktree).stdout.strip()
+        (task_worktree / "tasks/done").mkdir()
+        self.git("mv", "tasks/056-lifecycle.md", "tasks/done/056-lifecycle.md", cwd=task_worktree)
+        self.git("commit", "-m", "archive task record", cwd=task_worktree)
+        evidence_path = self.root / "integration-evidence.json"
+        evidence_path.write_text(json.dumps({
+            "accepted": True,
+            "validation_passed": True,
+            "validated_task_commit": validated_task,
+            "validated_base_commit": base,
+            "full_validation_required": False,
+            "interaction_assessment_complete": True,
+            "task_paths": ["feature.txt"],
+            "task_dependencies": [],
+            "task_behavioral_surfaces": [],
+            "main_advanced_dependencies": [],
+            "main_advanced_behavioral_surfaces": [],
+        }), encoding="utf-8")
+
+        meridian.stage_task_integration("056", self.worktree_root, evidence_path, self.primary)
+        row = [line for line in queue.read_text(encoding="utf-8").splitlines() if "| 056 |" in line][0]
+        self.assertEqual(row, "| `[x]` | 056 | Lifecycle | [056](done/056-lifecycle.md) |")
+        self.assertTrue((self.primary / "tasks/done/056-lifecycle.md").is_file())
+        meridian.abort_task_integration("056", self.primary)
+
     def test_lifecycle_change_parser_rejects_inexact_task_record_changes(self) -> None:
         identity = meridian.resolve_task_identity(self.primary, "056", "existing")
         active = "tasks/056-lifecycle.md"
