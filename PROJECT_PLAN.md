@@ -81,7 +81,7 @@
 - `[x]` 111 — Let `integrate stage` accept the exact archive rename of the task record.
 - `[x]` 112 — Add a sharded test runner with a coverage proof.
 - `[x]` 113 — Add the validation evidence record and a read-only verifier.
-- `[ ]` 114 — Validate task branches in CI and capture the result as evidence.
+- `[x]` 114 — Validate task branches in CI and capture the result as evidence.
 - `[ ]` 115 — Record the validation-timeout and stage-whitelist decisions in the closure design.
 - `[x]` 116 — Replace edits to `[Unreleased]` with per-task changelog fragments.
 - `[x]` 069 — Document Codex install from a tagged checkout.
