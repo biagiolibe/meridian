@@ -78,7 +78,7 @@
 - `[ ]` 108 — Add the `Validation skips` handoff field and its check.
 - `[ ]` 109 — Ship the Lean Delivery closure rules and migration.
 - `[ ]` 110 — Ship the Governed SDD closure rules and migration.
-- `[ ]` 111 — Let `integrate stage` accept the exact archive rename of the task record.
+- `[x]` 111 — Let `integrate stage` accept the exact archive rename of the task record.
 - `[ ]` 112 — Add a sharded test runner with a coverage proof.
 - `[ ]` 113 — Add the validation evidence record and a read-only verifier.
 - `[ ]` 114 — Validate task branches in CI and capture the result as evidence.
