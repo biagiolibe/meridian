@@ -49,6 +49,27 @@ Run the repository checks before proposing a change:
 python3 scripts/check_repository.py
 ```
 
+When the full test suite exceeds the host command limit, run its deterministic
+test shards instead. The measured default is 8 shards:
+
+```bash
+python3 scripts/run_tests.py --list
+python3 scripts/run_tests.py --shard 1/8
+python3 scripts/run_tests.py --shard 2/8
+python3 scripts/run_tests.py --shard 3/8
+python3 scripts/run_tests.py --shard 4/8
+python3 scripts/run_tests.py --shard 5/8
+python3 scripts/run_tests.py --shard 6/8
+python3 scripts/run_tests.py --shard 7/8
+python3 scripts/run_tests.py --shard 8/8
+```
+
+`--list` prints the full-suite `total` and SHA-256 `digest`; each shard prints
+the same coverage fields together with its selected count. A sharded run is
+complete only when every shard for the chosen count ran against the same tree
+and reported the same `total` and `digest`. `python3 -m unittest discover -s
+tests` remains the canonical full test run.
+
 The check validates JSON metadata, Bash syntax, required public-repository files, and links between the repository's Markdown documents.
 
 For changes under `bin/`, `migrations/`, or `scripts/meridian.py`, also run:
