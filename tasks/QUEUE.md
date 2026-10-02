@@ -48,7 +48,7 @@ records it).
 | `[x]` | 113 | Add the validation evidence record and a read-only verifier | 🟡 P2 | 112 | [113](done/113-validation-evidence-record-and-verifier.md) |
 | `[ ]` | 114 | Validate task branches in CI and capture the result as evidence | 🟡 P2 | 113 | [114](114-ci-on-task-branches-and-evidence-lookup.md) |
 | `[ ]` | 115 | Record the validation-timeout and stage-whitelist decisions in the closure design | 🟡 P2 | 100, 101 | [115](115-closure-design-addendum-validation-and-stage.md) |
-| `[ ]` | 116 | Replace edits to `[Unreleased]` with per-task changelog fragments | 🟡 P2 | 093, 095, 098 | [116](116-changelog-fragments.md) |
+| `[/]` | 116 | Replace edits to `[Unreleased]` with per-task changelog fragments | 🟡 P2 | 093, 095, 098 | [116](116-changelog-fragments.md) |
 
 ### Phase 44 — Hands-off task closure design
 

@@ -18,10 +18,18 @@ ROOT = Path(__file__).resolve().parents[1]
 VERSION = re.compile(r"\d+\.\d+\.\d+\Z")
 CLI_ONLY = "CLI-only release"
 TEMPLATE_CHANGING = "Template-changing release"
+CHANGELOG_HEADINGS = (
+    "Added", "Changed", "Deprecated", "Removed", "Fixed", "Security",
+    "Documentation", "Upgrade notes",
+)
 
 
 class ReleaseError(Exception):
     """A release precondition is not satisfied."""
+
+
+class FragmentError(ReleaseError):
+    """A changelog fragment does not follow the required format."""
 
 
 def version_key(value: str) -> tuple[int, int, int]:
@@ -58,7 +66,7 @@ def read_migrations(root: Path) -> list[dict[str, object]]:
     return result
 
 
-def unreleased_body(changelog: str) -> tuple[int, int, str]:
+def unreleased_body(changelog: str, *, required: bool = True) -> tuple[int, int, str]:
     match = re.search(r"^## \[Unreleased\]\s*$", changelog, re.MULTILINE)
     if not match:
         raise ReleaseError("CHANGELOG.md has no '## [Unreleased]' heading")
@@ -66,9 +74,81 @@ def unreleased_body(changelog: str) -> tuple[int, int, str]:
     following = re.search(r"^## \[", changelog[body_start:], re.MULTILINE)
     body_end = body_start + following.start() if following else len(changelog)
     body = changelog[body_start:body_end].strip()
-    if not body:
+    if required and not body:
         raise ReleaseError("CHANGELOG.md '## [Unreleased]' has an empty body")
     return body_start, body_end, body
+
+
+def fragment_paths(root: Path) -> list[Path]:
+    directory = root / "changelog.d"
+    if not directory.exists():
+        return []
+    paths = []
+    for path in directory.iterdir():
+        if path.name == "README.md":
+            continue
+        if not path.is_file() or not re.fullmatch(r"[0-9]+\.md", path.name):
+            raise FragmentError(f"{path.relative_to(root)}: filename must be <TASK-ID>.md")
+        paths.append(path)
+    return sorted(paths, key=lambda path: path.name)
+
+
+def parse_fragment(path: Path) -> dict[str, list[str]]:
+    sections: dict[str, list[str]] = {}
+    heading: str | None = None
+    bullet: list[str] | None = None
+    for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        match = re.fullmatch(r"### (.+)", line)
+        if match:
+            name = match.group(1)
+            if name not in CHANGELOG_HEADINGS:
+                raise FragmentError(f"{path}: line {number}: heading must be one of {', '.join(CHANGELOG_HEADINGS)}")
+            if name in sections:
+                raise FragmentError(f"{path}: line {number}: duplicate {name} heading")
+            sections[name] = []
+            heading, bullet = name, None
+            continue
+        if line.startswith("#"):
+            raise FragmentError(f"{path}: line {number}: only ### subsection headings are allowed")
+        if not line.strip():
+            continue
+        if line.startswith("- "):
+            if heading is None:
+                raise FragmentError(f"{path}: line {number}: text outside a subsection")
+            bullet = [line]
+            sections[heading].append("\n".join(bullet))
+            continue
+        if line[:1].isspace() and bullet is not None:
+            bullet.append(line)
+            sections[heading][-1] = "\n".join(bullet)
+            continue
+        if heading is None:
+            raise FragmentError(f"{path}: line {number}: text outside a subsection")
+        raise FragmentError(f"{path}: line {number}: subsection content must be a bullet or an indented bullet continuation")
+    for name, bullets in sections.items():
+        if not bullets:
+            raise FragmentError(f"{path}: {name} subsection has no bullet")
+    if not sections:
+        raise FragmentError(f"{path}: fragment has no subsection")
+    return sections
+
+
+def render_fragments(root: Path) -> tuple[str, list[Path]]:
+    parsed = [(path, parse_fragment(path)) for path in fragment_paths(root)]
+    blocks = []
+    for heading in CHANGELOG_HEADINGS:
+        bullets = [bullet for _path, sections in parsed for bullet in sections.get(heading, [])]
+        if bullets:
+            blocks.append(f"### {heading}\n\n" + "\n".join(bullets))
+    return "\n\n".join(blocks), [path for path, _sections in parsed]
+
+
+def release_body(root: Path, changelog: str) -> tuple[str, list[Path], bool, bool]:
+    _start, _end, legacy = unreleased_body(changelog, required=False)
+    fragments, paths = render_fragments(root)
+    if not legacy and not fragments:
+        raise ReleaseError("CHANGELOG.md '[Unreleased]' has an empty body and changelog.d has no fragments")
+    return "\n\n".join(part for part in (legacy, fragments) if part), paths, bool(legacy), bool(fragments)
 
 
 def has_upgrade_notes(body: str) -> bool:
@@ -118,7 +198,7 @@ def preflight(root: Path, new_version: str) -> tuple[dict[str, object], str, str
     tag = run_git(root, "tag", "--list", f"v{new_version}")
     if tag.returncode or tag.stdout.strip():
         raise ReleaseError(f"preflight failed: local tag v{new_version} already exists")
-    _start, _end, body = unreleased_body((root / "CHANGELOG.md").read_text(encoding="utf-8"))
+    body, _paths, _legacy, _fragments = release_body(root, (root / "CHANGELOG.md").read_text(encoding="utf-8"))
     kind, migrations, baseline = derive_release(root, new_version, previous, body)
     protocol = protocol_version(root)
     old_protocol = previous.get("protocolVersion")
@@ -154,7 +234,7 @@ def protocol_version(root: Path) -> int:
 
 
 def render_changelog(changelog: str, version: str, kind: str, body: str) -> str:
-    start, end, _ = unreleased_body(changelog)
+    start, end, _ = unreleased_body(changelog, required=False)
     section = render_release_section(version, kind, body)
     return changelog[:start] + "\n\n" + section + changelog[end:].lstrip("\n")
 
@@ -164,7 +244,7 @@ def render_release_section(version: str, kind: str, body: str) -> str:
     return f"## [{version}]\n\n{kind}: {summary}\n\n{body}\n\n"
 
 
-def write_release(root: Path, version: str, date: str, kind: str, migrations: list[str], baseline: str, protocol: int, body: str) -> list[Path]:
+def write_release(root: Path, version: str, date: str, kind: str, migrations: list[str], baseline: str, protocol: int, body: str, fragments: list[Path]) -> list[Path]:
     version_path = root / "VERSION"
     plugin_path = root / ".claude-plugin" / "plugin.json"
     ledger_path = root / "releases" / f"{version}.json"
@@ -175,7 +255,9 @@ def write_release(root: Path, version: str, date: str, kind: str, migrations: li
     plugin_path.write_text(json.dumps(plugin, indent=2) + "\n", encoding="utf-8")
     ledger_path.write_text(json.dumps({"version": version, "releaseDate": date, "gitTag": f"v{version}", "protocolVersion": protocol, "workflowBaselineVersion": baseline, "baselineChanged": bool(migrations), "migrations": migrations}, indent=2) + "\n", encoding="utf-8")
     changelog_path.write_text(render_changelog(changelog_path.read_text(encoding="utf-8"), version, kind, body), encoding="utf-8")
-    return [version_path, plugin_path, ledger_path, changelog_path]
+    for fragment in fragments:
+        fragment.unlink()
+    return [version_path, plugin_path, ledger_path, changelog_path, *fragments]
 
 
 def restore(root: Path, paths: list[Path]) -> None:
@@ -228,6 +310,7 @@ def prepare_main(argv: list[str] | None = None) -> int:
         date = args.date or dt.date.today().isoformat()
         dt.date.fromisoformat(date)
         previous, body, kind, migrations, baseline, protocol = preflight(root, new_version)
+        _combined, fragments, used_legacy, used_fragments = release_body(root, (root / "CHANGELOG.md").read_text(encoding="utf-8"))
         if protocol != previous.get("protocolVersion") and not args.protocol_reviewed:
             raise ReleaseError("BLOCKED: PROTOCOL_VERSION changed; use --protocol-reviewed only after CONTRIBUTING.md compatibility tests are added")
         if args.dry_run:
@@ -235,10 +318,12 @@ def prepare_main(argv: list[str] | None = None) -> int:
             print(f"Version: {new_version}")
             print("Would write: VERSION, .claude-plugin/plugin.json, " f"releases/{new_version}.json, CHANGELOG.md")
             print(render_release_section(new_version, kind, body), end="")
+            if used_legacy and used_fragments:
+                print("Release changelog uses both legacy [Unreleased] content and fragments.")
             return 0
         if protocol == previous.get("protocolVersion"):
             print("Manifest comparison remains a manual check; this command does not perform it.")
-        paths = write_release(root, new_version, date, kind, migrations, baseline, protocol, body)
+        paths = write_release(root, new_version, date, kind, migrations, baseline, protocol, body, fragments)
         status, command = validate(root, new_version)
         if status:
             restore(root, paths)
@@ -257,6 +342,30 @@ def prepare_main(argv: list[str] | None = None) -> int:
         return 0
     except (ReleaseError, OSError, ValueError, json.JSONDecodeError) as error:
         print(f"release prepare failed: {error}", file=sys.stderr)
+        return 1
+
+
+def changelog_render_main(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(description="Render changelog fragments without making a release commit.")
+    parser.add_argument("--version", required=True)
+    parser.add_argument("--write", action="store_true")
+    parser.add_argument("--root", type=Path, default=ROOT, help=argparse.SUPPRESS)
+    args = parser.parse_args(argv)
+    try:
+        version_key(args.version)
+        root = args.root.resolve()
+        changelog_path = root / "CHANGELOG.md"
+        changelog = changelog_path.read_text(encoding="utf-8")
+        body, fragments, _legacy, _fragment_source = release_body(root, changelog)
+        print(body)
+        if args.write:
+            start, end, _old = unreleased_body(changelog, required=False)
+            changelog_path.write_text(changelog[:start] + "\n\n" + body + "\n\n" + changelog[end:].lstrip("\n"), encoding="utf-8")
+            for fragment in fragments:
+                fragment.unlink()
+        return 0
+    except (ReleaseError, OSError, ValueError) as error:
+        print(f"changelog render failed: {error}", file=sys.stderr)
         return 1
 
 
@@ -472,12 +581,18 @@ def main(argv: list[str] | None = None) -> int:
         subcommands = parser.add_subparsers(title="commands")
         subcommands.add_parser("prepare", help="prepare a local release without publishing")
         subcommands.add_parser("publish", help="publish a prepared release by pushing main and the tag")
+        subcommands.add_parser("changelog", help="render changelog fragments")
         parser.print_help()
         return 0
     if values and values[0] == "prepare":
         return prepare_main(values[1:])
     if values and values[0] == "publish":
         return publish_main(values[1:])
+    if values and values[0] == "changelog":
+        if len(values) < 2 or values[1] != "render":
+            print("release changelog requires the 'render' command", file=sys.stderr)
+            return 1
+        return changelog_render_main(values[2:])
     return prepare_main(values)
 
 
