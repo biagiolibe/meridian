@@ -43,6 +43,49 @@ discard, or commit them; report the conflict and stop.
   fix. Report actionable findings; do not silently correct implementation code
   during review.
 
+<!-- MERIDIAN:BEGIN capability=git-workflow v8 -->
+## Authority of `Proceed with`
+
+`Proceed with <TASK-ID>` authorizes that task's whole lifecycle when every gate
+passes: implementation and validation on the task branch; completion and
+archive records; `meridian worktree integrate stage`, the selected candidate
+validation, and `integrate finalize` or `abort`; one plain `git push origin
+main` of the resulting integration; and `meridian worktree cleanup`. Do not ask
+for confirmation at any of these steps. When a gate fails, stop once with
+`BLOCKED <reason>` and the resume command.
+
+It also authorizes one plain `git push origin task-<TASK-ID>` when needed to
+obtain `T1_CI` validation for that task commit. It never authorizes creating,
+moving, or pushing a tag; publishing a release; a force push or a push that
+deletes or mirrors references; rewriting history (amend of pushed commits,
+rebase, reset, cherry-pick); deleting an unmerged branch or force-removing a
+worktree; bypassing a required independent review; resolving a textual
+conflict; or work on another task.
+
+## Governance-file ownership and closure
+
+Task branches do not edit `tasks/QUEUE.md`, `tasks/QUEUE_ARCHIVE.md`, or
+`PROJECT_PLAN.md`. They edit only their own task record, its exact archive under
+`tasks/done/`, and its handoff. `integrate stage` applies queue and plan status
+and phase archival once on the merged candidate tree. The queue retains `[ ]`
+until then; in-progress state is derived from the canonical branch, registered
+worktree, and unarchived record.
+
+Close a validated task in order: verify acceptance criteria; run task and
+baseline validation; commit its completion record and handoff; run `worktree
+check`; record machine evidence; stage from a clean primary checkout at
+`origin/main`; run the selected candidate validation; finalize with
+candidate-bound evidence; push `origin main`; and clean up. Respectively stop
+with `ACCEPTANCE_UNMET`, `VALIDATION_FAILED`, `REVIEW_REQUIRED`,
+`WRONG_WORKTREE`, `EVIDENCE_INCOMPLETE`, `PRIMARY_DIRTY`,
+`MAIN_BEHIND_ORIGIN`, `LEASE_HELD`, or `INTEGRATION_CONFLICT`,
+`CANDIDATE_VALIDATION_FAILED`, `EVIDENCE_MISMATCH`, `PUSH_REJECTED`, or
+`CLEANUP_BLOCKED`; resume with the named command. A named sandbox skip is not a
+validation failure only when the test itself reports it and no acceptance
+criterion depends solely on that test. Record its test name, reason, and
+reporting command as `Validation skips:` in the handoff.
+<!-- MERIDIAN:END -->
+
 ## Command triggers
 
 - `Proceed with <TASK-ID>` — implement only that task using Lean Delivery.
