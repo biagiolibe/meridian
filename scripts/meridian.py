@@ -189,6 +189,15 @@ class CodexConfigurationPlan:
 
 
 @dataclass(frozen=True)
+class ClaudeConfigurationPlan:
+    status: str
+    settings_path: Path
+    proposed_settings: dict[str, object] | None
+    detail: str
+    current_text: str | None = None
+
+
+@dataclass(frozen=True)
 class SetupPlan:
     resolution: ResolvedWorktreeRoot
     codex_config: Path
@@ -196,6 +205,9 @@ class SetupPlan:
     codex_state: str
     codex_plan: CodexConfigurationPlan | None
     codex_detail: str
+    claude_state: str
+    claude_plan: ClaudeConfigurationPlan | None
+    claude_detail: str
     config_action: str
     framework_root: Path
     skill_links: tuple[tuple[str, Path, str, str], ...]
@@ -1975,6 +1987,101 @@ def codex_profile_root_mismatch(config_path: Path, resolved_root: Path) -> str |
     return None
 
 
+CLAUDE_PROJECT_ALLOWLIST = (
+    "Bash(git status:*)",
+    "Bash(git diff:*)",
+    "Bash(git log:*)",
+    "Bash(git show:*)",
+    "Bash(git rev-parse:*)",
+    "Bash(git merge-base:*)",
+    "Bash(git branch --show-current)",
+    "Bash(git add:*)",
+    "Bash(git switch:*)",
+    "Bash(git commit -m:*)",
+    "Bash(git merge --ff-only:*)",
+    "Bash(git push origin main)",
+    "Bash(git worktree list:*)",
+    "Bash(meridian worktree path:*)",
+    "Bash(meridian worktree prepare:*)",
+    "Bash(meridian worktree check:*)",
+    "Bash(meridian worktree evidence:*)",
+    "Bash(meridian worktree closure-status:*)",
+    "Bash(meridian worktree cleanup:*)",
+    "Bash(meridian worktree integrate stage:*)",
+    "Bash(meridian worktree integrate finalize:*)",
+    "Bash(meridian worktree integrate abort:*)",
+    "Bash(python3 scripts/meridian.py worktree path:*)",
+    "Bash(python3 scripts/meridian.py worktree prepare:*)",
+    "Bash(python3 scripts/meridian.py worktree check:*)",
+    "Bash(python3 scripts/meridian.py worktree evidence:*)",
+    "Bash(python3 scripts/meridian.py worktree closure-status:*)",
+    "Bash(python3 scripts/meridian.py worktree cleanup:*)",
+    "Bash(python3 scripts/meridian.py worktree integrate stage:*)",
+    "Bash(python3 scripts/meridian.py worktree integrate finalize:*)",
+    "Bash(python3 scripts/meridian.py worktree integrate abort:*)",
+    "Bash(python3 scripts/check_repository.py)",
+    "Bash(python3 -m unittest discover -s tests)",
+)
+
+
+def plan_claude_project_allowlist(project_root: Path) -> ClaudeConfigurationPlan:
+    """Plan one explicit, project-local Claude Code command allowlist update."""
+    settings_path = project_root.expanduser().resolve() / ".claude/settings.local.json"
+    if settings_path.exists() and not settings_path.is_file():
+        return ClaudeConfigurationPlan(
+            "blocked", settings_path, None, "Claude settings path is not a regular file"
+        )
+    current_text = settings_path.read_text(encoding="utf-8") if settings_path.is_file() else ""
+    try:
+        settings = json.loads(current_text) if current_text else {}
+    except json.JSONDecodeError as error:
+        return ClaudeConfigurationPlan(
+            "blocked", settings_path, None, f"malformed Claude settings: {error}", current_text
+        )
+    if not isinstance(settings, dict):
+        return ClaudeConfigurationPlan(
+            "blocked", settings_path, None, "Claude settings must contain a JSON object", current_text
+        )
+    permissions = settings.get("permissions", {})
+    if not isinstance(permissions, dict):
+        return ClaudeConfigurationPlan(
+            "blocked", settings_path, None, "Claude settings permissions must contain an object", current_text
+        )
+    allow = permissions.get("allow", [])
+    if not isinstance(allow, list) or not all(isinstance(item, str) for item in allow):
+        return ClaudeConfigurationPlan(
+            "blocked", settings_path, None, "Claude settings permissions.allow must contain strings", current_text
+        )
+    missing = [item for item in CLAUDE_PROJECT_ALLOWLIST if item not in allow]
+    if not missing:
+        return ClaudeConfigurationPlan(
+            "ready", settings_path, None, "project command allowlist is already effective", current_text
+        )
+    proposed = copy.deepcopy(settings)
+    proposed_permissions = copy.deepcopy(permissions)
+    proposed_permissions["allow"] = [*allow, *missing]
+    proposed["permissions"] = proposed_permissions
+    return ClaudeConfigurationPlan(
+        "approval-required",
+        settings_path,
+        proposed,
+        "explicit --apply adds the missing project command allowlist entries",
+        current_text,
+    )
+
+
+def apply_claude_project_allowlist(plan: ClaudeConfigurationPlan) -> bool:
+    if plan.status == "blocked":
+        raise MeridianError(f"Claude project allowlist is blocked: {plan.detail}")
+    if plan.proposed_settings is None:
+        return False
+    current_text = plan.settings_path.read_text(encoding="utf-8") if plan.settings_path.is_file() else ""
+    if current_text != plan.current_text:
+        raise MeridianError("Claude settings changed since they were planned; rerun --check")
+    _write_json_atomic(plan.settings_path, plan.proposed_settings)
+    return True
+
+
 def plan_setup(
     worktree_root: Path | None,
     codex_config: Path,
@@ -1983,9 +2090,11 @@ def plan_setup(
     home: Path | None = None,
     user_config: Path | None = None,
     framework_root: Path | None = None,
+    project_root: Path | None = None,
 ) -> SetupPlan:
     home = (home or Path.home()).expanduser().resolve()
     framework_root = (framework_root or Path(__file__).resolve().parents[1]).expanduser().resolve()
+    project_root = (project_root or Path.cwd()).expanduser().resolve()
     environment = environment or os.environ
     resolution = resolve_worktree_root(
         worktree_root,
@@ -2023,6 +2132,10 @@ def plan_setup(
         codex_state = "blocked"
         codex_detail = str(error)
 
+    claude_plan = plan_claude_project_allowlist(project_root)
+    claude_state = claude_plan.status
+    claude_detail = claude_plan.detail
+
     changes: list[str] = []
     if directory_state != "ready":
         changes.append(directory_change)
@@ -2033,7 +2146,9 @@ def plan_setup(
     if codex_plan is not None and codex_plan.proposed_text is not None:
         verb = "repair" if codex_state in ("repair-required", "repair-and-replace-required") else "configure"
         changes.append(f"{verb} Codex permission profile in {codex_config} for {resolution.path}")
-    if directory_state == "blocked" or codex_state == "blocked":
+    if claude_plan.proposed_settings is not None:
+        changes.append(f"add project Claude Code command allowlist in {claude_plan.settings_path}")
+    if directory_state == "blocked" or codex_state == "blocked" or claude_state == "blocked":
         changes = ["none; setup is blocked before mutation"]
     elif not changes:
         changes.append("none")
@@ -2075,6 +2190,9 @@ def plan_setup(
         codex_state,
         codex_plan,
         codex_detail,
+        claude_state,
+        claude_plan,
+        claude_detail,
         config_action,
         framework_root,
         skill_links,
@@ -2093,6 +2211,8 @@ def print_setup_plan(plan: SetupPlan) -> None:
     print(f"directory: {plan.directory_state}")
     print(f"codex-profile: {plan.codex_state}")
     print(f"codex-detail: {plan.codex_detail}")
+    print(f"claude-project-allowlist: {plan.claude_state}")
+    print(f"claude-detail: {plan.claude_detail}")
     mismatch = codex_profile_root_mismatch(
         plan.codex_config,
         plan.resolution.path,
@@ -2116,6 +2236,7 @@ def apply_setup(plan: SetupPlan) -> bool:
     if (
         plan.directory_state == "blocked"
         or plan.codex_state == "blocked"
+        or plan.claude_state == "blocked"
         or plan.skill_links_state in ("blocked", "conflict")
         or plan.codex_plan is None
     ):
@@ -2124,6 +2245,8 @@ def apply_setup(plan: SetupPlan) -> bool:
             if plan.skill_links_state in ("blocked", "conflict")
             else plan.codex_detail
             if plan.codex_state == "blocked"
+            else plan.claude_detail
+            if plan.claude_state == "blocked"
             else _directory_setup_state(plan.resolution.path)[1]
         )
         raise MeridianError(f"setup is blocked: {detail}")
@@ -2146,6 +2269,7 @@ def apply_setup(plan: SetupPlan) -> bool:
         plan.resolution.config_path.unlink()
         changed = True
     changed = apply_codex_configuration(plan.codex_plan) or changed
+    changed = apply_claude_project_allowlist(plan.claude_plan) or changed
     missing_links = [
         (path, plan.framework_root / "skills" / name)
         for name, path, state, _ in plan.skill_links
@@ -2203,6 +2327,8 @@ def codex_doctor(
     result["project-trust"] = "ready" if trusted else "approval-required"
     rules = project_root / ".codex/rules/meridian.rules"
     result["command-policy"] = "ready" if rules.is_file() and trusted else ("approval-required" if rules.is_file() else "blocked")
+    claude_plan = plan_claude_project_allowlist(project_root)
+    result["claude-project-allowlist"] = claude_plan.status
     lifecycle_policy = "approval-required"
     codex_executable = shutil.which("codex")
     if result["command-policy"] == "ready" and codex_executable:
@@ -7352,11 +7478,12 @@ def main() -> int:
     locations.add_argument("--project", type=Path, default=Path.cwd())
     locations.add_argument("--field", choices=("queue", "task-roots"))
 
-    setup = subparsers.add_parser("setup", help="plan or apply machine-level worktree and Codex setup")
+    setup = subparsers.add_parser("setup", help="plan or apply worktree, Codex, and project Claude Code setup")
     setup_group = setup.add_mutually_exclusive_group(required=True)
     setup_group.add_argument("--check", action="store_true")
     setup_group.add_argument("--apply", action="store_true")
     setup.add_argument("--worktree-root", type=Path)
+    setup.add_argument("--project", type=Path, default=Path.cwd())
     setup.add_argument("--config", type=Path, default=Path.home() / ".codex/config.toml", help=argparse.SUPPRESS)
 
     codex = subparsers.add_parser("codex", help="configure and diagnose Codex task-worktree access")
@@ -7634,6 +7761,7 @@ def main() -> int:
                 arguments.worktree_root,
                 arguments.config.expanduser().resolve(),
                 framework_root=framework_root,
+                project_root=arguments.project,
             )
             print_setup_plan(plan)
             if arguments.apply:

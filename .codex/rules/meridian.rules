@@ -7,7 +7,7 @@ prefix_rule(pattern=["git", ["status", "diff", "log", "show", "rev-parse", "merg
 prefix_rule(pattern=["git", "switch"], decision="allow")
 prefix_rule(pattern=["git", "commit", "-m"], decision="allow")
 prefix_rule(pattern=["git", "merge", "--ff-only"], decision="allow")
-prefix_rule(pattern=["git", "push"], decision="allow")
+prefix_rule(pattern=["git", "push", "origin", "main"], decision="allow")
 prefix_rule(pattern=["git", "worktree", "list"], decision="allow")
 prefix_rule(pattern=["git", "worktree", ["add", "remove", "prune"]], decision="prompt")
 
