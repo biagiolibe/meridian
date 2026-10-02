@@ -79,7 +79,7 @@
 - `[ ]` 109 — Ship the Lean Delivery closure rules and migration.
 - `[ ]` 110 — Ship the Governed SDD closure rules and migration.
 - `[x]` 111 — Let `integrate stage` accept the exact archive rename of the task record.
-- `[/]` 112 — Add a sharded test runner with a coverage proof.
+- `[x]` 112 — Add a sharded test runner with a coverage proof.
 - `[ ]` 113 — Add the validation evidence record and a read-only verifier.
 - `[ ]` 114 — Validate task branches in CI and capture the result as evidence.
 - `[ ]` 115 — Record the validation-timeout and stage-whitelist decisions in the closure design.
