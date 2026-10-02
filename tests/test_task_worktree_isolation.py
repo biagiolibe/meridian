@@ -260,6 +260,9 @@ class BoundedWorktreeLifecycleTest(unittest.TestCase):
         (self.primary / "PROJECT_PLAN.md").write_text(
             "- `[ ]` 056 — Lifecycle\n", encoding="utf-8"
         )
+        (self.primary / "PROJECT_WORKFLOW.md").write_text(
+            "# Workflow\n\nThis file selects `LEAN_DELIVERY` exclusively.\n", encoding="utf-8"
+        )
         (self.primary / "README.md").write_text("base\n", encoding="utf-8")
         self.git("add", ".")
         self.git("commit", "-m", "initial")
@@ -909,6 +912,140 @@ class BoundedWorktreeLifecycleTest(unittest.TestCase):
 
         decision = self.validation_decision(task_commit, assessment_complete=False)
         self.assertEqual(decision.outcome, meridian.IntegrationValidationOutcome.BLOCKED)
+
+
+class GovernedCompletionRowsTest(unittest.TestCase):
+    """Completion rows use the shipped Governed template's table shape."""
+
+    def setUp(self) -> None:
+        BoundedWorktreeLifecycleTest.setUp(self)
+        template = ROOT / "templates/workflows/governed-sdd"
+        (self.primary / "PROJECT_WORKFLOW.md").write_text(
+            (template / "PROJECT_WORKFLOW.md").read_text(encoding="utf-8"), encoding="utf-8"
+        )
+        (self.primary / "tasks/QUEUE.md").write_text(
+            "### Phase 1 — Governed\n\n"
+            "| Order | ID | Priority | Status | Review | Dependencies | Task file |\n"
+            "|---:|---|---|---|---|---|---|\n"
+            "| 1 | 056 | P0 | QUEUED | NOT_REQUIRED | — | [056](056-lifecycle.md) |\n",
+            encoding="utf-8",
+        )
+        (self.primary / "PROJECT_PLAN.md").unlink()
+        self.git("add", "-A")
+        self.git("commit", "-m", "configure governed fixture")
+        self.base = self.git("rev-parse", "HEAD").stdout.strip()
+
+    def tearDown(self) -> None:
+        BoundedWorktreeLifecycleTest.tearDown(self)
+
+    def git(self, *arguments: str, cwd: Path | None = None, check: bool = True) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            ["git", *arguments], cwd=cwd or self.primary, text=True,
+            capture_output=True, check=check,
+        )
+
+    def prepare(self) -> dict[str, object]:
+        return meridian.prepare_task_worktree("056", self.worktree_root, self.primary)
+
+    def test_governed_stage_succeeds_without_project_plan(self) -> None:
+        prepared = self.prepare()
+        task_worktree = Path(str(prepared["worktree"]))
+        (task_worktree / "feature.txt").write_text("implemented\n", encoding="utf-8")
+        self.git("add", "feature.txt", cwd=task_worktree)
+        self.git("commit", "-m", "implement task", cwd=task_worktree)
+        task_commit = self.git("rev-parse", "HEAD", cwd=task_worktree).stdout.strip()
+        evidence_path = self.root / "integration-evidence.json"
+        evidence_path.write_text(json.dumps({
+            "accepted": True, "validation_passed": True,
+            "validated_task_commit": task_commit, "validated_base_commit": self.base,
+            "full_validation_required": False, "interaction_assessment_complete": True,
+            "task_paths": ["feature.txt"], "task_dependencies": [],
+            "task_behavioral_surfaces": [], "main_advanced_dependencies": [],
+            "main_advanced_behavioral_surfaces": [],
+        }), encoding="utf-8")
+        staged = meridian.stage_task_integration("056", self.worktree_root, evidence_path, self.primary)
+        self.assertEqual(staged["decision"], "REUSE")
+        self.assertIn(
+            "| ACCEPTED | NOT_REQUIRED |",
+            (self.primary / "tasks/QUEUE_ARCHIVE.md").read_text(encoding="utf-8"),
+        )
+        meridian.abort_task_integration("056", self.primary)
+
+    def test_governed_completion_matrix_relinks_archives_and_ignores_plan(self) -> None:
+        statuses = ("QUEUED", "IN_PROGRESS", "CHANGES_REQUESTED", "READY_FOR_REVIEW", "ACCEPTED")
+        links = {
+            "active": "[056](056-lifecycle.md)",
+            "archived": "[056](done/056-lifecycle.md)",
+            "absent": "—",
+        }
+        for status in statuses:
+            for link_name, link in links.items():
+                for archived_record in (False, True):
+                    for plan_present in (False, True):
+                        with self.subTest(status=status, link=link_name, archived=archived_record, plan=plan_present):
+                            queue = self.primary / "tasks/QUEUE.md"
+                            queue.write_text(
+                                "### Phase 1 — Governed\n\n"
+                                "| Order | ID | Priority | Status | Review | Dependencies | Task file |\n"
+                                "|---:|---|---|---|---|---|---|\n"
+                                f"| 1 | 056 | P0 | {status} | NOT_REQUIRED | — | {link} |\n"
+                                "| 2 | 057 | P1 | QUEUED | NOT_REQUIRED | — | [057](057.md) |\n",
+                                encoding="utf-8",
+                            )
+                            plan = self.primary / "PROJECT_PLAN.md"
+                            if plan_present:
+                                plan.write_text("unrelated plan\n", encoding="utf-8")
+                            elif plan.exists():
+                                plan.unlink()
+                            active = self.primary / "tasks/056-lifecycle.md"
+                            done = self.primary / "tasks/done/056-lifecycle.md"
+                            done.parent.mkdir(exist_ok=True)
+                            if not active.exists():
+                                done.rename(active)
+                            identity = meridian.resolve_task_identity(
+                                self.primary, "056", "existing", check_queue_links=False
+                            )
+                            if archived_record:
+                                active.rename(done)
+                            meridian._apply_task_completion_rows(self.primary, identity)
+                            row = next(line for line in queue.read_text(encoding="utf-8").splitlines() if "| 056 |" in line)
+                            self.assertIn("| ACCEPTED | NOT_REQUIRED |", row)
+                            if link_name != "absent":
+                                expected_link = "done/056-lifecycle.md" if archived_record else "056-lifecycle.md"
+                                self.assertIn(f"[056]({expected_link})", row)
+                            self.assertFalse((self.primary / ".git/MERGE_HEAD").exists())
+
+    def test_governed_required_review_is_not_accepted(self) -> None:
+        queue = self.primary / "tasks/QUEUE.md"
+        original = queue.read_text(encoding="utf-8").replace("NOT_REQUIRED", "REQUIRED")
+        queue.write_text(original, encoding="utf-8")
+        identity = meridian.resolve_task_identity(self.primary, "056", "existing")
+        meridian._apply_task_completion_rows(self.primary, identity)
+        self.assertEqual(queue.read_text(encoding="utf-8"), original)
+
+    def test_governed_archive_requires_every_row_accepted(self) -> None:
+        queue = self.primary / "tasks/QUEUE.md"
+        queue.write_text(
+            "### Phase 1 — Governed\n\n"
+            "| Order | ID | Priority | Status | Review | Dependencies | Task file |\n"
+            "|---:|---|---|---|---|---|---|\n"
+            "| 1 | 056 | P0 | QUEUED | NOT_REQUIRED | — | [056](056-lifecycle.md) |\n"
+            "| 2 | 057 | P1 | QUEUED | NOT_REQUIRED | — | [057](057.md) |\n",
+            encoding="utf-8",
+        )
+        identity = meridian.resolve_task_identity(self.primary, "056", "existing")
+        meridian._apply_task_completion_rows(self.primary, identity)
+        self.assertIn("| ACCEPTED |", queue.read_text(encoding="utf-8"))
+        self.assertFalse((self.primary / "tasks/QUEUE_ARCHIVE.md").exists())
+
+    def test_governed_unrecognized_row_blocks_without_queue_edit(self) -> None:
+        queue = self.primary / "tasks/QUEUE.md"
+        original = queue.read_text(encoding="utf-8").replace("| 1 | 056 | P0 | QUEUED |", "| 1 | 056 | P0 | UNKNOWN |")
+        queue.write_text(original, encoding="utf-8")
+        identity = meridian.resolve_task_identity(self.primary, "056", "existing")
+        with self.assertRaisesRegex(meridian.MeridianError, "unrecognized completion row"):
+            meridian._apply_task_completion_rows(self.primary, identity)
+        self.assertEqual(queue.read_text(encoding="utf-8"), original)
 
 
 if __name__ == "__main__":
