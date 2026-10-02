@@ -1,6 +1,7 @@
 # Task 111 — Let `integrate stage` accept the exact archive rename of the task record
 
 > **ID**: `111`
+> **Status**: `DONE`
 > **Category**: Bugfix
 > **Priority**: 🔴 P1
 > **Estimate**: ~1.5h
