@@ -6310,7 +6310,7 @@ class WorktreeLifecycleCliTest(unittest.TestCase):
             "main_advanced_behavioral_surfaces": [],
         }), encoding="utf-8")
         clone = self.root / "origin-writer"
-        subprocess.run(["git", "clone", str(remote), str(clone)], check=True, capture_output=True)
+        subprocess.run(["git", "clone", "--branch", "main", str(remote), str(clone)], check=True, capture_output=True)
         subprocess.run(["git", "config", "user.name", "Meridian Test"], cwd=clone, check=True)
         subprocess.run(["git", "config", "user.email", "meridian@example.invalid"], cwd=clone, check=True)
         (clone / "upstream.txt").write_text("upstream\n", encoding="utf-8")
