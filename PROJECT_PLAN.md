@@ -71,7 +71,7 @@
 - `[x]` 101 — Add `meridian worktree closure-status`.
 - `[x]` 102 — Add the evidence command and recompute main-advance facts in `integrate stage`.
 - `[x]` 103 — Apply queue and plan row status during `integrate stage`.
-- `[ ]` 104 — Apply phase archival during `integrate stage`.
+- `[x]` 104 — Apply phase archival during `integrate stage`.
 - `[x]` 105 — Derive `[/]` and show closure stop reasons in the console.
 - `[ ]` 106 — Narrow the Codex push rule and offer a Claude Code allowlist.
 - `[ ]` 107 — Block `integrate stage` when `main` is behind `origin` and report a pending push.
