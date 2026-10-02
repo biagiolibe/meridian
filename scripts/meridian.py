@@ -1168,6 +1168,29 @@ def _archive_completed_queue_sections(queue_contents: str, queue_path: Path, arc
     return updated_queue, archive_contents.rstrip("\n") + "\n\n" + archived
 
 
+def _relink_archived_task_row(contents: str, queue_path: Path, identity: ResolvedTaskIdentity) -> str:
+    """Point the task's queue row at its record when the merge archived it under done/."""
+    active_record = identity.task_path
+    archive_record = active_record.parent / "done" / active_record.name
+    if active_record.exists() or not archive_record.is_file():
+        return contents
+    row = re.search(rf"^\| `\[[ x]\]` \| \[?{re.escape(identity.canonical_id)}\b.*$", contents, flags=re.MULTILINE)
+    if row is None:
+        return contents
+    new_target = Path(os.path.relpath(archive_record, queue_path.parent)).as_posix()
+
+    def retarget(link: re.Match[str]) -> str:
+        target = link.group(1)
+        if "://" in target or target.startswith("#"):
+            return link.group(0)
+        if (queue_path.parent / target.split("#", 1)[0]).resolve() != active_record:
+            return link.group(0)
+        return f"]({new_target})"
+
+    relinked = re.sub(r"\]\(([^)]*)\)", retarget, row.group(0))
+    return f"{contents[:row.start()]}{relinked}{contents[row.end():]}"
+
+
 def _apply_task_completion_rows(project_root: Path, identity: ResolvedTaskIdentity) -> None:
     """Set known completion rows and archive fully complete queue sections."""
     queue_path = identity.queue_path
@@ -1188,6 +1211,7 @@ def _apply_task_completion_rows(project_root: Path, identity: ResolvedTaskIdenti
         plan_path,
         rf"^- `(?P<status>\[[ x]\])` {re.escape(task_id)} — .*$",
     )
+    queue_completed = _relink_archived_task_row(queue_completed, queue_path, identity)
     archived_queue, archive_contents = _archive_completed_queue_sections(
         queue_completed, queue_path, archive_path
     )
