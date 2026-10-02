@@ -58,6 +58,8 @@ Each handoff was then read for the lines the commands matched.
 | S7 | The `release.py publish` workflow lookup races the workflow run and reports a false failure after `main` and the tag are pushed | 1 (the v1.2.1 release) | Reported | Task 096 (open). It affects release publication, not task closure; it is listed because it ends the same push sequence with a misleading failure. |
 | S8 | The agent stops to ask for authorization before integrating or pushing | not countable | Reported | No handoff records the agent asking. Recorded developer authorizations at closure: conflict resolution (015, 063, 097) and test-environment confirmation (094, 095, 097, 098). Task 054's authorization was for `--apply` on user configuration and is not counted. `PROJECT_WORKFLOW.md` contains no sentence that `Proceed with` authorizes integration or the push of `main`. Observed on this machine: `.codex/rules/meridian.rules` allows `git push` and `meridian worktree integrate stage\|finalize\|abort`, while `~/.claude/settings.json` has no `permissions` and the project's ignored `.claude/settings.local.json` allows only three setup commands, so neither command is allowlisted for Claude Code here. That Claude Code then prompts is Unverified; it is the documented default and was not run. |
 | S9 | Closure leaves residue | 15 merged local task branches still exist; 3 task worktrees (067, 094, 099) are still registered | Observed | `cleanup` was not run or not recorded for them. The reason is Unverified. At survey time `main` equals `origin/main`, so no push was pending. |
+| S10 | Required validation exceeds the host command limit and is interrupted without an exit status | 1 (101) | Reported | Task 101 reports a host limit of about 30 seconds against a full suite of about 90 seconds; its handoff records a developer-run full suite at 105.431 seconds. This task did not measure the host limit or detached-process survival. |
+| S11 | `integrate stage` blocks the task-record archive rename required by the workflow | 1 (101) | Observed | Task 101's recorded `stage` block named the task-relevant tree change; Task 111's regression sequence reproduces the archive-rename cause and implements the exact-rename bridge. Task 063's earlier `BLOCKED` integration was a related but different shared-governance-file conflict (S2), not another archive-whitelist count. |
 
 ### Hypothesis: new tasks committed to `main` drive the governance conflicts
 
@@ -89,6 +91,9 @@ Rule text for `PROJECT_WORKFLOW.md` (both workflow modes):
 > main` of the resulting integration; and `meridian worktree cleanup`. Do not
 > ask for confirmation at any of these steps. When a gate fails, stop once with
 > `BLOCKED <reason>` and the resume command.
+>
+> `Proceed with <TASK-ID>` also authorizes one plain `git push origin
+> task-<TASK-ID>` when needed to obtain `T1_CI` validation for that task commit.
 >
 > The authorization never covers: creating, moving, or pushing a tag;
 > publishing a release; a force push or any push that deletes or mirrors
@@ -193,8 +198,8 @@ what Git and lifecycle state show is undone.
 | Step | Action | Stop reason | Resume |
 |------|--------|-------------|--------|
 | C1 | Verify acceptance criteria | `ACCEPTANCE_UNMET` | Fix, rerun C1 |
-| C2 | Run task validation and baseline in the task worktree | `VALIDATION_FAILED` (a named sandbox skip is not a failure; Decision 6) | Fix, rerun C2 |
-| C3 | Commit completion records on the task branch (task file to `tasks/done/`, handoff) | `REVIEW_REQUIRED` when an independent review is declared (Decision 7) | After approval, continue at C4 |
+| C2 | Run task validation and baseline in the task worktree | `VALIDATION_FAILED` (a named sandbox skip is not a failure; Decision 6; timeout evidence follows Decision 7) | Fix, rerun C2 |
+| C3 | Commit completion records on the task branch (task file to `tasks/done/`, handoff) | `REVIEW_REQUIRED` when an independent review is declared (Decision 9) | After approval, continue at C4 |
 | C4 | `meridian worktree check` from the prepared worktree | `WRONG_WORKTREE` | Restart in the path `prepare` returned |
 | C5 | Record machine evidence (Decision 4) | `EVIDENCE_INCOMPLETE` | Record the missing field |
 | C6 | In the primary checkout, require a clean tree and `main` equal to `origin/main`; `integrate stage` | `PRIMARY_DIRTY`, `MAIN_BEHIND_ORIGIN`, `LEASE_HELD`, `INTEGRATION_CONFLICT` | Resolve the named condition; an active integration is resumed at C7 or aborted |
@@ -233,7 +238,67 @@ the result it is recorded as a dated line in the handoff. An unnamed failure,
 for example an unexpected `osacompile` error that the skip does not match, still
 stops closure.
 
-## Decision 7 — Review gates
+## Decision 7 — Validation states and proof levels
+
+Task 101 reported a host command limit of about 30 seconds, while its required
+full suite took about 90 seconds. The host interruption returned no exit status.
+This is **Reported** host behavior, not a measured host limit. It is distinct
+from an observed failed test and from Decision 6's named, test-specific sandbox
+skip. Whether a detached process survives such an interruption is **Unverified**.
+
+The verifier reports one of these states:
+
+| State | Meaning | Integration consequence |
+|-------|---------|-------------------------|
+| `VALIDATION_RUNNING` | A recorded run has started but has no terminal result. | Never integrates. |
+| `VALIDATION_UNAVAILABLE` | Required validation cannot currently be obtained, for example because CI has no run or the host interrupted the command without an exit status. | Never integrates unless a later permitted proof produces `VALIDATION_PASSED`. |
+| `VALIDATION_FAILED` | A terminal validation result is non-zero, invalid, or incomplete. | Never integrates. |
+| `VALIDATION_PASSED` | A verifier accepted a terminal, commit- and tree-bound record at a permitted proof level. | May integrate, subject to every other closure gate. |
+
+The permitted proof levels are ordered by what they establish, not by trust in a
+sentence:
+
+| Level | What it proves | What it does not prove | Integration |
+|-------|----------------|------------------------|-------------|
+| `T1_CI` | The repository's configured CI reported success for the exact commit and tree. | It does not prove tests omitted by that CI environment, such as macOS-only tests on Linux. | Allowed. A task may use the authorized single `git push origin task-<TASK-ID>` from Decision 1 to obtain it. |
+| `T2_SHARDED` | Every deterministic shard for one tree completed successfully with the same total and digest, covering the discovered suite. | It does not prove that a different tree, undiscovered tests, or an external environment passed. | Allowed. |
+| `T3_ATTESTED` | The developer made a dated statement about the exact commit and tree. | It is not independently executed, cryptographically signed, or unforgeable proof. | Allowed only when both `T1_CI` and `T2_SHARDED` are impossible; the handoff must label the result `T3_ATTESTED` and state why those levels were impossible. |
+
+A partial run, a targeted test, or an interrupted run with no exit status never
+passes at any level. They remain `VALIDATION_RUNNING`,
+`VALIDATION_UNAVAILABLE`, or `VALIDATION_FAILED` according to their record; they
+cannot be renamed into a skip or a pass.
+
+Meridian provides a read-only verifier and a deterministic sharded test runner;
+it provides no generic `meridian validation run` command or other generic
+command executor. Its evidence is an attestation bound to a commit and its Git
+tree, not unforgeable proof. The verifier checks the supplied record and Git
+facts without running a test, shell, hook, network call, or project command.
+
+## Decision 8 — Post-validation lifecycle boundary
+
+After validation, allowed lifecycle paths are derived from the resolved task
+identity, never from an evidence file. The active task record may be retained,
+or archived only as one exact 100% Git rename to its matching
+`tasks/done/<same-file-name>` path. An already archived record is idempotently
+accepted. Every other deletion, addition, cross-task path, destination, or
+content-changing rename is blocked. The evidence fields remain input to
+interaction analysis; they cannot widen this lifecycle boundary.
+
+`integrate stage` computes this boundary read-only before it acquires its lease.
+On a blocked comparison it creates no lease or lifecycle state, changes no ref,
+and starts no merge. This is a bridge only: Tasks 103 and 104 will move queue,
+plan, and phase-archive edits from task branches into `stage`, removing those
+post-validation task-branch changes.
+
+There is one bootstrap for records that must archive themselves. Until the
+unfixed `stage` can accept the archive rename, Task 111 and Task 101 close with
+the archive applied in a record-only commit on `main` after integration, or by
+an alternative explicitly recorded by the developer. This one-time sequence is
+not a bypass of the boundary and does not authorize a different deletion or
+addition.
+
+## Decision 9 — Review gates
 
 A task that declares an independent review requirement (`Review: REQUIRED` in
 Governed SDD, or an equivalent declaration in a Lean task record) stops at C3
@@ -247,7 +312,7 @@ action (for example `review pending`, `integration-conflict`, `push-rejected`,
 agent's final report. The Governed reviewer-integrator keeps its existing
 role: it performs C6 to C10 after approving.
 
-## Decision 8 — Rollout
+## Decision 10 — Rollout
 
 | Surface | Change |
 |---------|--------|
@@ -275,6 +340,10 @@ developer can retire them one task at a time with the existing `cleanup`.
 | `merge=union` attribute for the governance files | Union merging concatenates both sides of a row edit, so two tasks closing different rows silently produce duplicated or contradictory rows, and a `[ ]`/`[x]` disagreement on one row is kept as two rows. It hides exactly the conflict the workflow must surface, and it does not help archival moves. |
 | Letting the agent rebase | The rule forbids `rebase`, `reset`, and `cherry-pick`. A rebase rewrites the validated commit, invalidating every SHA in the evidence (S3), and the merge path already integrates a moved `main` without it. |
 | One lifecycle command that runs the tests and closes the task | Lifecycle commands never execute project-provided code; that boundary is what lets hosts allowlist them safely. A command that runs tests would need the sandbox escapes S1 shows are already a problem. |
+| A generic `meridian validation run` executor | It would execute an arbitrary project command inside a lifecycle tool, defeating the read-only verifier and the command boundary. |
+| Allowing any post-validation change under `tasks/` | It would turn a task archive exception into permission to add, delete, or alter another task's records. The identity-derived exact rename is the narrow bridge. |
+| Taking the stage whitelist from an evidence file | Evidence is supplied by the task and describes interaction analysis; it cannot authorize mutable paths. Identity and Git's rename-aware comparison remain authoritative. |
+| Treating a timeout as a pass or a skip | A host interruption with no exit status proves neither success nor a named test-specific skip. It must remain unavailable or running until permitted evidence exists. |
 | A fresh developer confirmation at every closure step | It is the failure being fixed (S8). One standing authorization with an explicit exclusion list keeps the dangerous actions gated and removes the rest. |
 | The agent resolving governance conflicts by reading both sides | It chooses one task's state over another's, which the workflow forbids; Decision 2 makes the conflict structurally impossible instead. |
 
@@ -284,16 +353,25 @@ Each task is at most about two hours and is queued in Phase 44.
 
 | ID | Task | Depends on | Notes |
 |----|------|------------|-------|
-| 101 | Add read-only `meridian worktree closure-status` that reports the closure step, stop reason, and resume command | 100 | Decision 5; no mutation |
-| 102 | Add the evidence command and make `integrate stage` recompute main-advance facts from Git | 100 | Decisions 3 and 4 |
+| 111 | Let `integrate stage` accept the exact archive rename of the task record | 055, 063 | First: it unblocks Task 101's archive bootstrap and establishes Decision 8's narrow comparison. |
+| 101 | Add read-only `meridian worktree closure-status` that reports the closure step, stop reason, and resume command | 100, 111 | After 111 so its own closure can use the archive bridge. |
+| 102 | Add the evidence command and make `integrate stage` recompute main-advance facts from Git | 100, 111 | After 101 in the rollout order; 111 and 102 touch the same stage function, so 111's archive boundary lands first. |
+| 112 | Add a sharded test runner with a coverage proof | 100 | After 102 in the rollout order; it provides `T2_SHARDED`. |
+| 113 | Add the validation evidence record and a read-only verifier | 112 | It verifies the shard proof and defines the four states. |
+| 114 | Validate task branches in CI and capture the result as evidence | 113 | It produces `T1_CI` records in the schema that 113 verifies. |
 | 103 | Apply queue and plan row status deterministically during `integrate stage` | 102 | Decision 2; idempotent |
 | 104 | Apply phase archival to `QUEUE_ARCHIVE.md` during `integrate stage` | 103 | Decision 2 |
-| 105 | Derive `[/]` and show closure stop reasons in the console | 101, 103 | Decisions 2 and 7 |
-| 106 | Narrow the Codex push rule and offer the Claude Code allowlist through `meridian setup` | 100 | Decision 1; test rule precedence |
-| 107 | Block `integrate stage` when `main` is behind `origin` and report a pending push | 101 | Decision 5, C6 and C9 |
-| 108 | Add the `Validation skips` handoff field and its check | 099, 100 | Decision 6 |
-| 109 | Ship the Lean Delivery rules and migration | 101, 102, 103, 104, 106, 107, 108 | Decisions 1, 2, 5, 6; template-changing |
-| 110 | Ship the Governed SDD rules and migration | 109 | Decision 7; keeps `REVIEW_REQUIRED` as a gate |
+| 108 | Add the `Validation skips` handoff field and its check | 099, 100, 113 | After 113 so handoffs can distinguish the new validation evidence from named skips. |
+| 105 | Derive `[/]` and show closure stop reasons in the console | 101, 103 | Decisions 2 and 9; after 108 in the rollout order so validation states are stable. |
+| 106 | Narrow the Codex push rule and offer the Claude Code allowlist through `meridian setup` | 100 | After 105 in the rollout order; it implements the branch-push authorization boundary from Decision 1. |
+| 107 | Block `integrate stage` when `main` is behind `origin` and report a pending push | 101 | After 106 in the rollout order; it completes the closure authority path before rules ship. |
+| 109 | Ship the Lean Delivery rules and migration | 101, 102, 103, 104, 106, 107, 108, 113 | Decisions 1, 2, 5, 6, 7, 8; template-changing |
+| 110 | Ship the Governed SDD rules and migration | 109, 113 | Decision 9; keeps `REVIEW_REQUIRED` as a gate |
+
+The required execution order is 111, then 101, then 102, 112, 113, 114, 103,
+104, 108, 105, 106, 107, 109, and 110. The dependency and rollout reasons in
+the table constrain this order; tasks with fewer declared prerequisites remain
+ordered here to keep the validation and closure semantics coherent.
 
 ## Out of scope
 

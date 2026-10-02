@@ -82,7 +82,7 @@
 - `[x]` 112 — Add a sharded test runner with a coverage proof.
 - `[x]` 113 — Add the validation evidence record and a read-only verifier.
 - `[x]` 114 — Validate task branches in CI and capture the result as evidence.
-- `[ ]` 115 — Record the validation-timeout and stage-whitelist decisions in the closure design.
+- `[x]` 115 — Record the validation-timeout and stage-whitelist decisions in the closure design.
 - `[x]` 116 — Replace edits to `[Unreleased]` with per-task changelog fragments.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.
