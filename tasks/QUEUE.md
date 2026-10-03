@@ -52,3 +52,5 @@ are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 | `[ ]` | 134 | Add `meridian context size` to measure the startup read set | 🟡 P2 | — | [134](134-context-size-command.md) |
 | `[ ]` | 135 | Report measured token usage of agent sessions | 🟡 P2 | — | [135](135-session-usage-report.md) |
 | `[ ]` | 136 | Load workflow context by phase and point agents to bounded readers | 🟡 P2 | 134, 135 | [136](136-per-phase-context-loading.md) |
+| `[ ]` | 137 | Tell Codex agents to wait once for long commands | 🟡 P2 | — | [137](137-codex-wait-guidance-for-long-commands.md) |
+| `[ ]` | 138 | Run the unit suite in parallel without changing what it covers | 🟡 P2 | — | [138](138-parallel-test-runner.md) |

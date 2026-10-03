@@ -104,6 +104,8 @@
 - `[ ]` 134 — Add `meridian context size` to measure the startup read set.
 - `[ ]` 135 — Report measured token usage of agent sessions.
 - `[ ]` 136 — Load workflow context by phase and point agents to bounded readers.
+- `[ ]` 137 — Tell Codex agents to wait once for long commands.
+- `[ ]` 138 — Run the unit suite in parallel without changing what it covers.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.
 - `[x]` 053 — Remove machine-specific absolute paths from tracked records.
