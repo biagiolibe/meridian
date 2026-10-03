@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import curses
+import json
 import os
 import re
 import shlex
@@ -14,6 +15,7 @@ import sys
 import textwrap
 import threading
 import time
+import tomllib
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -33,6 +35,80 @@ from console_workflow import (
 UUID_PATTERN = (r"[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-"
                 r"[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}")
 ITERM_SESSION_ID_PATTERN = re.compile(r"w\d+t\d+p\d+:(" + UUID_PATTERN + r")")
+
+
+@dataclass(frozen=True)
+class FrameworkIdentity:
+    version: str
+    root: Path
+
+    @property
+    def label(self) -> str:
+        version = "version unknown" if self.version == "unknown" else f"v{self.version}"
+        return f"{version} | {self.root_label}"
+
+    @property
+    def root_label(self) -> str:
+        try:
+            relative = self.root.relative_to(Path.home().resolve())
+            return "~" if relative == Path(".") else "~/" + str(relative)
+        except ValueError:
+            return str(self.root)
+
+
+@dataclass(frozen=True)
+class AgentDefaults:
+    model: str = "unknown"
+    effort: str = "unknown"
+
+    @property
+    def label(self) -> str:
+        return f"configured default: model {self.model}; effort {self.effort}"
+
+
+def _framework_identity(script_path: Path | None = None) -> FrameworkIdentity:
+    """Read this running framework's identity once; identity lookup must not block the console."""
+    root = (script_path or Path(__file__)).resolve().parent.parent
+    try:
+        version = (root / "VERSION").read_text(encoding="utf-8").strip()
+    except (OSError, UnicodeError):
+        version = "unknown"
+    return FrameworkIdentity(version or "unknown", root)
+
+
+def _agent_defaults(home: Path | None = None) -> dict[str, AgentDefaults]:
+    """Return only supported local default fields, never failing a launch on config problems."""
+    home = home or Path.home()
+    unknown = AgentDefaults()
+    try:
+        codex_data = tomllib.loads((home / ".codex" / "config.toml").read_text(encoding="utf-8"))
+        codex = AgentDefaults(
+            codex_data.get("model") if isinstance(codex_data.get("model"), str) else "unknown",
+            codex_data.get("model_reasoning_effort")
+            if isinstance(codex_data.get("model_reasoning_effort"), str) else "unknown",
+        )
+    except (OSError, UnicodeError, tomllib.TOMLDecodeError):
+        codex = unknown
+    try:
+        claude_data = json.loads((home / ".claude" / "settings.json").read_text(encoding="utf-8"))
+        claude = AgentDefaults(
+            claude_data.get("model") if isinstance(claude_data, dict)
+            and isinstance(claude_data.get("model"), str) else "unknown",
+            claude_data.get("effort") if isinstance(claude_data, dict)
+            and isinstance(claude_data.get("effort"), str) else "unknown",
+        )
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        claude = unknown
+    return {"claude": claude, "codex": codex}
+
+
+def _set_terminal_title(project: Path) -> None:
+    """Best-effort terminal title that intentionally contains no project path."""
+    try:
+        sys.stdout.write(f"\033]0;Meridian console — {project.name}\007")
+        sys.stdout.flush()
+    except OSError:
+        pass
 
 
 @dataclass(frozen=True)
@@ -203,6 +279,15 @@ def _start_launch(request: LaunchRequest) -> tuple[bool, str]:
         return False, (f"iTerm2 is unavailable or rejected launch: {detail}; [copy] remains available"
                        if detail else "iTerm2 launch failed; [copy] remains available")
     return True, f"Started {request.agent} in a new iTerm2 split pane"
+
+
+def _launch_selected(task: Task, project: Path, agent: str) -> tuple[bool, str]:
+    """Revalidate and launch in the one keypress that selects an agent."""
+    request, error = _launch_request(task, project, agent)
+    if error:
+        return False, error
+    assert request is not None
+    return _start_launch(request)
 
 
 @dataclass(frozen=True)
@@ -593,6 +678,8 @@ class ConsoleState:
 
     def __init__(self, project: Path):
         self.project = project
+        self.framework = _framework_identity()
+        self.agent_defaults = _agent_defaults()
         self.snapshot: Snapshot | None = None
         self.last_success: datetime | None = None
         self.error: str | None = None
@@ -657,7 +744,8 @@ def one_shot(state: ConsoleState) -> str:
         return "No project snapshot available"
     stamp = state.last_success.strftime("%Y-%m-%d %H:%M:%S %Z") if state.last_success else "unknown"
     lines = [
-        f"MERIDIAN | {snapshot.project} | {snapshot.branch} | {snapshot.git_summary}",
+        (f"MERIDIAN | {state.framework.label} | {snapshot.project} | {snapshot.branch}"
+         f" | {snapshot.git_summary}"),
         f"Updated: {stamp} | Open: {len(snapshot.tasks)} | Done: {snapshot.done_count}",
     ]
     for task in snapshot.tasks:
@@ -856,6 +944,14 @@ def _clip(value: str, width: int) -> str:
     return value if len(value) <= width else value[:max(0, width - 1)] + "…"
 
 
+def _header_framework_label(identity: FrameworkIdentity, width: int,
+                            project_name: str, branch: str) -> str:
+    """Keep the watched project and branch visible by shortening the framework root first."""
+    version = "version unknown" if identity.version == "unknown" else f"v{identity.version}"
+    fixed = len("Project command center      ") + len(version) + len(project_name) + len(branch)
+    return f"{version} | {_clip(identity.root_label, max(8, width - fixed))}"
+
+
 def _detail_lines(task: Task, width: int, palette: dict[str, int],
                   compact: bool = False) -> list[tuple[str, int]]:
     lines: list[tuple[str, int]] = []
@@ -936,7 +1032,8 @@ def _draw_header(screen, state: ConsoleState, palette: dict[str, int],
     project_name = snapshot.project.name if snapshot else state.project.name
     branch = snapshot.branch.split("...", 1)[0] if snapshot else "unavailable"
     summary = snapshot.git_summary if snapshot else "unknown"
-    left = f"Project command center  {project_name}  {branch}"
+    framework = _header_framework_label(state.framework, width, project_name, branch)
+    left = f"Project command center  {framework}  {project_name}  {branch}"
     _put(screen, 0, 1, left, width - 2, palette["text"])
     ahead = re.search(r"\[ahead (\d+)", snapshot.branch) if snapshot else None
     local = f"↑ {ahead.group(1)} local · " if ahead else ""
@@ -1103,33 +1200,35 @@ def _draw_detail(screen, task: Task | None, x: int, top: int, width: int,
     }
 
 
-def _draw_launch_prompt(screen, width: int, height: int, agent: str | None,
-                        request: LaunchRequest | None, palette: dict[str, int]) -> None:
-    """Draw the two explicit steps required before starting a mutable agent."""
-    if agent is None and request is None:
+def _draw_launch_prompt(screen, width: int, height: int, task: Task | None,
+                        project: Path, defaults: dict[str, AgentDefaults],
+                        palette: dict[str, int]) -> None:
+    """Draw an opaque, single-choice launch panel over the console."""
+    if task is None:
         return
     lines = (
         ("Launch agent", "title"),
         ("This starts an agent that may modify the project.", "blocked"),
+        (f"Task: {task.task_id} — {task.title}", "text"),
+        (f"Directive: {task.launch_command or 'unavailable'}", "text"),
+        (f"Project: {project.name}", "text"),
+        (f"1 Claude Code — {defaults['claude'].label}", "text"),
+        (f"2 Codex — {defaults['codex'].label}", "text"),
+        ("Esc cancels. Nothing has started.", "muted"),
     )
-    if agent is not None:
-        lines += (
-            ("Choose an agent: 1 Claude Code   2 Codex", "text"),
-            ("Esc cancels. Nothing has started.", "muted"),
-        )
-    else:
-        assert request is not None
-        lines += (
-            (f"Agent: {request.agent}", "text"),
-            (f"Directive: {request.directive}", "text"),
-            (f"Directory: {request.directory}", "text"),
-            ("Enter launches and assigns this task; Esc cancels.", "action"),
-        )
-    panel_width = min(width - 8, max(len(value) for value, _ in lines) + 4)
-    top = max(4, (height - len(lines) - 2) // 2)
+    panel_width = min(width - 4, max(len(value) for value, _ in lines) + 4)
+    top = max(3, (height - len(lines) - 2) // 2)
     left = max(2, (width - panel_width) // 2)
+    for y in range(top, min(height - 1, top + len(lines) + 2)):
+        _fill(screen, y, left, panel_width, palette["base"])
+    _put(screen, top, left, "┌" + "─" * (panel_width - 2) + "┐", panel_width, palette["line"])
     for index, (value, style) in enumerate(lines):
-        _put(screen, top + index, left, value, panel_width, palette[style])
+        y = top + index + 1
+        _put(screen, y, left, "│", 1, palette["line"])
+        _put(screen, y, left + 2, value, panel_width - 4, palette[style])
+        _put(screen, y, left + panel_width - 1, "│", 1, palette["line"])
+    _put(screen, top + len(lines) + 1, left,
+         "└" + "─" * (panel_width - 2) + "┘", panel_width, palette["line"])
 
 
 def run_terminal(screen, state: ConsoleState, interval: float) -> None:
@@ -1157,8 +1256,7 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
     last_poll = 0.0
     notice = ""
     notice_until = 0.0
-    launch_agent: str | None = None
-    launch_request: LaunchRequest | None = None
+    launch_task: Task | None = None
     while True:
         now = time.monotonic()
         state.apply_pending()
@@ -1187,13 +1285,13 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
                     "Enter  Open full task details", "Esc  Return to task list",
                     "/  Search task ID or title", "[ / ]  Scroll task details",
                     "c or click [copy]  Copy a permitted task directive",
-                    "l  Choose Claude Code or Codex, then confirm an iTerm2 split pane",
+                    "l  Choose Claude Code or Codex to launch an iTerm2 split pane",
                     "Tab  Cycle All and nonempty states; click any tab",
                     "r  Refresh now", "q  Quit", "",
                     "Project state is read-only; copy writes to the clipboard.",
                     "Updated is the last committed change to the task file.",
                     "Agent activity is unavailable without a verified source.",
-                    "Launching uses macOS iTerm2 only after explicit confirmation.",
+                    "Launching uses macOS iTerm2 after selecting an agent.",
                 )
                 for y, line in enumerate(help_lines, 4):
                     _put(screen, y, 2, line, width - 4, palette["text"] if y == 4 else palette["base"])
@@ -1223,7 +1321,8 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
                                                width - left_width - 2, height,
                                                detail_offset, palette)
                     action_bounds = (detail_x, width - 3, action_rows)
-            _draw_launch_prompt(screen, width, height, launch_agent, launch_request, palette)
+            _draw_launch_prompt(screen, width, height, launch_task, state.project,
+                                state.agent_defaults, palette)
             if notice and time.monotonic() < notice_until:
                 footer = notice
             elif state.error:
@@ -1243,25 +1342,15 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
         key = screen.getch()
         if key == -1:
             continue
-        if launch_agent is not None:
+        if launch_task is not None:
             if key == 27:
-                launch_agent = None
+                launch_task = None
                 notice, notice_until = "Launch cancelled", time.monotonic() + 2
             elif key in (ord("1"), ord("2")):
                 selected = "claude" if key == ord("1") else "codex"
-                launch_request, error = _launch_request(selected_task, state.project, selected) if selected_task else (
-                    None, "No task selected")
-                launch_agent = None
-                if error:
-                    notice, notice_until = error, time.monotonic() + 3
-            continue
-        if launch_request is not None:
-            if key == 27:
-                launch_request = None
-                notice, notice_until = "Launch cancelled", time.monotonic() + 2
-            elif key in (10, 13):
-                success, message = _start_launch(launch_request)
-                launch_request = None
+                task_to_launch = launch_task
+                launch_task = None
+                success, message = _launch_selected(task_to_launch, state.project, selected)
                 notice, notice_until = message, time.monotonic() + (3 if success else 5)
             continue
         if key == curses.KEY_MOUSE:
@@ -1363,7 +1452,7 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
             notice_until = time.monotonic() + 2
         elif key in (ord("l"), ord("L")) and selected_task and not help_visible:
             if selected_task.launch_command:
-                launch_agent = "choose"
+                launch_task = selected_task
             else:
                 notice, notice_until = "No eligible directive for this task", time.monotonic() + 2
         elif key == ord("?"):
@@ -1386,6 +1475,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1 if state.error else 0
     if not sys.stdin.isatty() or not sys.stdout.isatty():
         parser.error("interactive mode requires a terminal; use --once")
+    _set_terminal_title(args.project)
     curses.wrapper(run_terminal, state, args.interval)
     return 0
 

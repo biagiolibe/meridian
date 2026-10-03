@@ -137,6 +137,41 @@ class ProjectConsoleTest(unittest.TestCase):
         self.assertIn("Open:", result.stdout)
         self.assertIn("Agent activity: unavailable", result.stdout)
 
+    def test_framework_identity_reads_version_and_shortens_a_home_root(self) -> None:
+        home = self.project / "home"
+        root = home / "framework"
+        script = root / "scripts" / "project_console.py"
+        script.parent.mkdir(parents=True)
+        (root / "VERSION").write_text("9.8.7\n", encoding="utf-8")
+        self.write_queue()
+        with mock.patch.object(console.Path, "home", return_value=home):
+            identity = console._framework_identity(script)
+            self.assertEqual(identity.version, "9.8.7")
+            self.assertEqual(identity.root_label, "~/framework")
+            state = console.ConsoleState(self.project)
+            state.framework = identity
+            state.snapshot = self.snapshot()
+            output = console.one_shot(state)
+            self.assertTrue(output.startswith("MERIDIAN | v9.8.7 | ~/framework |"))
+
+    def test_framework_identity_missing_version_is_nonfatal(self) -> None:
+        identity = console._framework_identity(self.project / "framework" / "scripts" / "console.py")
+        self.assertEqual(identity.version, "unknown")
+        self.assertIn("version unknown", identity.label)
+        self.write_queue()
+        state = console.ConsoleState(self.project)
+        state.framework = identity
+        state.snapshot = self.snapshot()
+        self.assertIn("MERIDIAN | version unknown |", console.one_shot(state))
+
+    def test_terminal_title_identifies_console_without_an_absolute_path(self) -> None:
+        output = mock.Mock()
+        with mock.patch.object(console.sys, "stdout", output):
+            console._set_terminal_title(Path("/private/project-name"))
+        self.assertIn("Meridian console", output.write.call_args.args[0])
+        self.assertIn("project-name", output.write.call_args.args[0])
+        self.assertNotIn("/private", output.write.call_args.args[0])
+
     def test_detail_pane_keeps_the_approved_content_hierarchy(self) -> None:
         self.write_queue()
         task = self.snapshot().tasks[0]
@@ -202,6 +237,7 @@ class ProjectConsoleTest(unittest.TestCase):
                             for y, x, value, *_ in writes))
         self.assertTrue(any(y == 2 and "━" in value
                             for y, x, value, *_ in writes))
+        self.assertTrue(any(y == 0 and "v" in value for y, x, value, *_ in writes))
 
     def test_tab_wraps_through_all_and_empty_tabs_remain_clickable(self) -> None:
         self.write_queue()
@@ -315,6 +351,60 @@ class AgentLaunchTest(unittest.TestCase):
             hostile, error = console._launch_request(self.task(task_id="001; rm -rf /"), Path("."), "codex")
         self.assertIsNone(hostile)
         self.assertIn("task ID", error or "")
+
+    def test_defaults_read_only_known_and_unknown_fallbacks(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            (home / ".codex").mkdir()
+            (home / ".claude").mkdir()
+            (home / ".codex" / "config.toml").write_text(
+                'model = "gpt-test"\nmodel_reasoning_effort = "high"\n', encoding="utf-8")
+            (home / ".claude" / "settings.json").write_text(
+                '{"model": "claude-test", "effort": "medium"}', encoding="utf-8")
+            defaults = console._agent_defaults(home)
+            self.assertEqual(defaults["codex"], console.AgentDefaults("gpt-test", "high"))
+            self.assertEqual(defaults["claude"], console.AgentDefaults("claude-test", "medium"))
+            (home / ".codex" / "config.toml").write_text("not = [valid", encoding="utf-8")
+            (home / ".claude" / "settings.json").write_text("{", encoding="utf-8")
+            defaults = console._agent_defaults(home)
+            self.assertEqual(defaults["codex"], console.AgentDefaults())
+            self.assertEqual(defaults["claude"], console.AgentDefaults())
+
+    def test_launch_panel_is_bordered_and_identifies_the_choice(self) -> None:
+        screen = FakeScreen(20, 100)
+        palette = {name: 0 for name in (
+            "base", "text", "title", "ready", "muted", "line", "action", "blocked",
+        )}
+        console._draw_launch_prompt(
+            screen, 100, 20, self.task(), Path("/project"),
+            {"claude": console.AgentDefaults("claude-test", "medium"),
+             "codex": console.AgentDefaults("gpt-test", "high")}, palette,
+        )
+        rendered = "\n".join(screen.row(y) for y in range(20))
+        self.assertIn("┌", rendered)
+        self.assertIn("Task: 001", rendered)
+        self.assertIn("Directive: Proceed with 001", rendered)
+        self.assertIn("1 Claude Code", rendered)
+        self.assertIn("2 Codex", rendered)
+        self.assertIn("Esc cancels", rendered)
+
+    def test_agent_selection_revalidates_and_launches_without_enter(self) -> None:
+        with mock.patch.object(console, "_launch_request") as request, \
+             mock.patch.object(console, "_start_launch", return_value=(True, "Started")) as start:
+            request.return_value = (
+                console.LaunchRequest("codex", "Proceed with 001", Path("/project"), "001",
+                                      "12345678-1234-1234-1234-123456789abc"), None)
+            self.assertEqual(console._launch_selected(self.task(), Path("/project"), "codex"),
+                             (True, "Started"))
+        request.assert_called_once_with(self.task(), Path("/project"), "codex")
+        start.assert_called_once()
+
+    def test_agent_selection_stops_on_revalidation_failure(self) -> None:
+        with mock.patch.object(console, "_launch_request", return_value=(None, "No longer eligible")), \
+             mock.patch.object(console, "_start_launch") as start:
+            self.assertEqual(console._launch_selected(self.task(), Path("/project"), "claude"),
+                             (False, "No longer eligible"))
+        start.assert_not_called()
 
     def test_request_refuses_missing_or_malformed_console_session(self) -> None:
         for session_id in (None, "w0t1p2:not-a-uuid", "wrong:12345678-1234-1234-1234-123456789abc"):
