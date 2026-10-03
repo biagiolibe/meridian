@@ -74,6 +74,10 @@ failing as the suite grows. See `WORKFLOW_GUIDE.md` for the measured example.
   project's own choice; record the chosen value and where it is applied:
   `[bound]`.
 
+Run a command expected to take longer than one minute in the foreground with a
+timeout of up to 600 seconds, or in a persistent terminal session; never
+detach it and poll for completion.
+
 ## Failure diagnostics
 
 - First targeted diagnostic or bounded-log procedure: `[procedure]`.

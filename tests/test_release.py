@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import json
 import io
+import os
 import subprocess
 import sys
 import tempfile
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest import mock
 
@@ -105,7 +106,8 @@ class ReleasePrepareTest(unittest.TestCase):
         (self.root / "migrations/001-test.json").write_text('{"id":"001-test","to":"1.0.1"}', encoding="utf-8")
         self.git("add", ".")
         self.git("commit", "-qm", "migration")
-        self.assertEqual(self.invoke("--version", "1.0.1"), 1)
+        with redirect_stderr(io.StringIO()):
+            self.assertEqual(self.invoke("--version", "1.0.1"), 1)
 
     def test_template_change_and_protocol_gate(self) -> None:
         (self.root / "migrations/001-test.json").write_text('{"id":"001-test","to":"1.0.1"}', encoding="utf-8")
@@ -113,7 +115,8 @@ class ReleasePrepareTest(unittest.TestCase):
         (self.root / "scripts/meridian.py").write_text("PROTOCOL_VERSION = 3\n", encoding="utf-8")
         self.git("add", ".")
         self.git("commit", "-qm", "migration")
-        self.assertEqual(self.invoke("--version", "1.0.1"), 1)
+        with redirect_stderr(io.StringIO()):
+            self.assertEqual(self.invoke("--version", "1.0.1"), 1)
         with mock.patch.object(release, "validate", return_value=(0, [])):
             self.assertEqual(self.invoke("--version", "1.0.1", "--protocol-reviewed"), 0)
         record = json.loads((self.root / "releases/1.0.1.json").read_text(encoding="utf-8"))
@@ -121,7 +124,7 @@ class ReleasePrepareTest(unittest.TestCase):
         self.assertTrue(record["baselineChanged"])
 
     def test_validation_failure_rolls_back(self) -> None:
-        with mock.patch.object(release, "validate", return_value=(7, ["test", "failure"])):
+        with mock.patch.object(release, "validate", return_value=(7, ["test", "failure"])), redirect_stderr(io.StringIO()):
             self.assertEqual(self.invoke("--version", "1.0.1"), 7)
         self.assertFalse((self.root / "releases/1.0.1.json").exists())
         self.assertEqual((self.root / "VERSION").read_text(encoding="utf-8"), "1.0.0\n")
@@ -188,7 +191,7 @@ class ReleasePrepareTest(unittest.TestCase):
         fragment = self.add_fragment()
         self.git("add", ".")
         self.git("commit", "-qm", "fragment")
-        with mock.patch.object(release, "validate", return_value=(7, ["test", "failure"])):
+        with mock.patch.object(release, "validate", return_value=(7, ["test", "failure"])), redirect_stderr(io.StringIO()):
             self.assertEqual(self.invoke("--version", "1.0.1"), 7)
         self.assertEqual(fragment.read_text(encoding="utf-8"), "### Added\n\n- Fragment.\n")
 
@@ -354,7 +357,7 @@ class ReleasePublishTest(unittest.TestCase):
 
     def test_confirmation_is_required_and_exact(self) -> None:
         for confirm in ([], ["--confirm", "v1.0.2"]):
-            with self.subTest(confirm=confirm), mock.patch.object(release, "validate") as validate:
+            with self.subTest(confirm=confirm), mock.patch.object(release, "validate") as validate, redirect_stderr(io.StringIO()):
                 self.assertEqual(self.invoke(*confirm), 1)
                 validate.assert_not_called()
                 self.assertEqual(self.git("ls-remote", "--tags", "origin").stdout, "")
@@ -413,7 +416,8 @@ class ReleasePublishTest(unittest.TestCase):
         self.git("push", "-q", "origin", "HEAD:main")
         self.git("checkout", "-q", "main")
         self.git("fetch", "-q", "origin")
-        self.assertEqual(self.invoke("--confirm", "v1.0.1"), 1)
+        with redirect_stderr(io.StringIO()):
+            self.assertEqual(self.invoke("--confirm", "v1.0.1"), 1)
 
     def test_push_order_and_no_forbidden_git_flags(self) -> None:
         commands: list[list[str]] = []
@@ -442,12 +446,12 @@ class ReleasePublishTest(unittest.TestCase):
                 return subprocess.CompletedProcess(command, 1, "", "rejected")
             return original(root, command)
 
-        with mock.patch.object(release, "validate", return_value=(0, [])), mock.patch.object(release, "run_command", side_effect=reject_main):
+        with mock.patch.object(release, "validate", return_value=(0, [])), mock.patch.object(release, "run_command", side_effect=reject_main), redirect_stderr(io.StringIO()):
             self.assertEqual(self.invoke("--confirm", "v1.0.1", "--no-wait"), 1)
         self.assertEqual(self.git("tag", "--list", "v1.0.1").stdout, "")
 
     def test_validation_failure_stops_before_push(self) -> None:
-        with mock.patch.object(release, "validate", return_value=(9, ["validation", "failed"])):
+        with mock.patch.object(release, "validate", return_value=(9, ["validation", "failed"])), redirect_stderr(io.StringIO()):
             self.assertEqual(self.invoke("--confirm", "v1.0.1", "--no-wait"), 1)
         self.assertEqual(self.git("ls-remote", "--heads", "origin", "main").stdout.count("refs/heads/main"), 1)
         self.assertEqual(self.git("tag", "--list", "v1.0.1").stdout, "")
@@ -524,9 +528,30 @@ class ReleasePublishTest(unittest.TestCase):
                 return subprocess.CompletedProcess(command, 1, "", "failed")
             return original(root, command)
 
-        with mock.patch.object(release, "validate", return_value=(0, [])), mock.patch.object(release.shutil, "which", return_value="gh"), mock.patch.object(release, "run_command", side_effect=gh):
+        with mock.patch.object(release, "validate", return_value=(0, [])), mock.patch.object(release.shutil, "which", return_value="gh"), mock.patch.object(release, "run_command", side_effect=gh), redirect_stderr(io.StringIO()):
             self.assertEqual(self.invoke("--confirm", "v1.0.1"), 1)
         self.assertEqual(self.git("rev-parse", "v1.0.1").stdout.strip(), self.git("rev-parse", "HEAD").stdout.strip())
+
+
+class FailureVisibilityProbe(unittest.TestCase):
+    def test_genuine_assertion_is_visible(self) -> None:
+        if os.environ.get("MERIDIAN_FAILURE_VISIBILITY_PROBE") == "1":
+            self.fail("intentional assertion failure visibility probe")
+
+
+class FailureVisibilityTest(unittest.TestCase):
+    def test_genuine_assertion_in_this_module_remains_visible(self) -> None:
+        environment = {**os.environ, "MERIDIAN_FAILURE_VISIBILITY_PROBE": "1"}
+        result = subprocess.run(
+            [sys.executable, "-m", "unittest", "tests.test_release.FailureVisibilityProbe.test_genuine_assertion_is_visible"],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+            env=environment,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("AssertionError: intentional assertion failure visibility probe", result.stderr)
 
 
 if __name__ == "__main__":
