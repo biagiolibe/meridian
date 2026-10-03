@@ -216,6 +216,11 @@ class SetupPlan:
     candidate_validation_state: str
     candidate_validation_path: Path
     candidate_validation_proposal: dict[str, object] | None
+    task_identity_mode: str | None
+    task_identity_state: str
+    task_identity_path: Path
+    task_identity_proposal: dict[str, object] | None
+    task_identity_detail: str
     config_action: str
     framework_root: Path
     skill_links: tuple[tuple[str, Path, str, str], ...]
@@ -2307,6 +2312,7 @@ def plan_setup(
     worktree_root: Path | None,
     codex_config: Path,
     *,
+    task_identity: str | None = None,
     environment: Mapping[str, str] | None = None,
     home: Path | None = None,
     user_config: Path | None = None,
@@ -2317,6 +2323,8 @@ def plan_setup(
     framework_root = (framework_root or Path(__file__).resolve().parents[1]).expanduser().resolve()
     project_root = (project_root or Path.cwd()).expanduser().resolve()
     environment = environment or os.environ
+    if task_identity not in (None, "opaque", "milestone"):
+        raise MeridianError(f"unsupported task identity mode: {task_identity!r}")
     resolution = resolve_worktree_root(
         worktree_root,
         environment=environment,
@@ -2369,6 +2377,34 @@ def plan_setup(
     except MeridianError:
         candidate_validation_state = "blocked"
 
+    task_identity_path = project_root / TASK_IDENTITY_PATH
+    task_identity_proposal: dict[str, object] | None = None
+    task_identity_detail = "no task-identity choice requested"
+    if task_identity is None:
+        task_identity_state = "not-requested"
+    elif task_identity_path.exists():
+        try:
+            existing_identity = read_task_identity_policy(project_root)
+        except MeridianError as error:
+            task_identity_state = "blocked"
+            task_identity_detail = str(error)
+        else:
+            if existing_identity.mode == task_identity:
+                task_identity_state = "already-set"
+                task_identity_detail = f"task identity is already set to {task_identity}"
+            else:
+                task_identity_state = "different"
+                task_identity_detail = (
+                    f"task identity is already set to {existing_identity.mode}; requested {task_identity}"
+                )
+    else:
+        task_identity_proposal = {"version": 1, "mode": task_identity}
+        # Validate the exact declaration that --apply will write using the
+        # resolver's closed-schema parser before any mutation is possible.
+        parse_task_identity_policy(task_identity_proposal)
+        task_identity_state = "planned"
+        task_identity_detail = f"write task identity declaration with mode {task_identity}"
+
     changes: list[str] = []
     if directory_state != "ready":
         changes.append(directory_change)
@@ -2385,7 +2421,15 @@ def plan_setup(
         changes.append(
             f"write candidate-validation declaration in {candidate_validation_path} after explicit --apply consent"
         )
-    if directory_state == "blocked" or codex_state == "blocked" or claude_state == "blocked" or candidate_validation_state == "blocked":
+    if task_identity_proposal is not None:
+        changes.append(f"write {task_identity_path} with task identity mode {task_identity}")
+    if (
+        directory_state == "blocked"
+        or codex_state == "blocked"
+        or claude_state == "blocked"
+        or candidate_validation_state == "blocked"
+        or task_identity_state == "blocked"
+    ):
         changes = ["none; setup is blocked before mutation"]
     elif not changes:
         changes.append("none")
@@ -2433,6 +2477,11 @@ def plan_setup(
         candidate_validation_state,
         candidate_validation_path,
         candidate_validation_proposal,
+        task_identity,
+        task_identity_state,
+        task_identity_path,
+        task_identity_proposal,
+        task_identity_detail,
         config_action,
         framework_root,
         skill_links,
@@ -2456,6 +2505,10 @@ def print_setup_plan(plan: SetupPlan) -> None:
     print(f"candidate-validation-commands: {plan.candidate_validation_state}")
     if plan.candidate_validation_proposal is not None:
         print("candidate-validation-proposal: " + json.dumps(plan.candidate_validation_proposal, sort_keys=True))
+    print(f"task-identity: {plan.task_identity_state}")
+    print(f"task-identity-detail: {plan.task_identity_detail}")
+    if plan.task_identity_proposal is not None:
+        print("task-identity-proposal: " + json.dumps(plan.task_identity_proposal, sort_keys=True))
     mismatch = codex_profile_root_mismatch(
         plan.codex_config,
         plan.resolution.path,
@@ -2481,6 +2534,7 @@ def apply_setup(plan: SetupPlan) -> bool:
         or plan.codex_state == "blocked"
         or plan.claude_state == "blocked"
         or plan.candidate_validation_state == "blocked"
+        or plan.task_identity_state == "blocked"
         or plan.skill_links_state in ("blocked", "conflict")
         or plan.codex_plan is None
     ):
@@ -2491,6 +2545,8 @@ def apply_setup(plan: SetupPlan) -> bool:
             if plan.codex_state == "blocked"
             else plan.claude_detail
             if plan.claude_state == "blocked"
+            else plan.task_identity_detail
+            if plan.task_identity_state == "blocked"
             else _directory_setup_state(plan.resolution.path)[1]
         )
         raise MeridianError(f"setup is blocked: {detail}")
@@ -2516,6 +2572,11 @@ def apply_setup(plan: SetupPlan) -> bool:
     changed = apply_claude_project_allowlist(plan.claude_plan) or changed
     if plan.candidate_validation_proposal is not None:
         _write_json_atomic(plan.candidate_validation_path, plan.candidate_validation_proposal)
+        changed = True
+    if plan.task_identity_proposal is not None:
+        if plan.task_identity_path.exists():
+            raise MeridianError("task identity declaration appeared since it was planned; rerun --check")
+        _write_json_atomic(plan.task_identity_path, plan.task_identity_proposal)
         changed = True
     missing_links = [
         (path, plan.framework_root / "skills" / name)
@@ -6791,14 +6852,8 @@ class _TaskAuthority:
     queue_records: int
 
 
-def read_task_identity_policy(project_root: Path) -> TaskIdentityPolicy:
-    path = project_root / TASK_IDENTITY_PATH
-    if not path.is_file():
-        return TaskIdentityPolicy(version=1, mode="opaque")
-    try:
-        declaration = json.loads(path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, UnicodeDecodeError) as error:
-        raise MeridianError(f"invalid task identity declaration: {path}") from error
+def parse_task_identity_policy(declaration: object) -> TaskIdentityPolicy:
+    """Validate the closed task-identity declaration schema."""
     if not isinstance(declaration, dict):
         raise MeridianError("task identity declaration must be a JSON object")
     if set(declaration) != {"version", "mode"}:
@@ -6808,6 +6863,19 @@ def read_task_identity_policy(project_root: Path) -> TaskIdentityPolicy:
     if declaration["mode"] not in ("opaque", "milestone"):
         raise MeridianError(f"unsupported task identity mode: {declaration['mode']!r}")
     return TaskIdentityPolicy(version=1, mode=str(declaration["mode"]))
+
+
+def read_task_identity_policy(project_root: Path) -> TaskIdentityPolicy:
+    path = project_root / TASK_IDENTITY_PATH
+    if not path.exists():
+        return TaskIdentityPolicy(version=1, mode="opaque")
+    if not path.is_file():
+        raise MeridianError(f"invalid task identity declaration: {path}")
+    try:
+        declaration = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError) as error:
+        raise MeridianError(f"invalid task identity declaration: {path}") from error
+    return parse_task_identity_policy(declaration)
 
 
 def _task_record_id(path: Path) -> str | None:
@@ -7933,6 +8001,11 @@ def main() -> int:
     setup_group.add_argument("--apply", action="store_true")
     setup.add_argument("--worktree-root", type=Path)
     setup.add_argument("--project", type=Path, default=Path.cwd())
+    setup.add_argument(
+        "--task-identity",
+        choices=("opaque", "milestone"),
+        help="record the project's task-identity choice without changing an existing declaration",
+    )
     setup.add_argument("--config", type=Path, default=Path.home() / ".codex/config.toml", help=argparse.SUPPRESS)
 
     codex = subparsers.add_parser("codex", help="configure and diagnose Codex task-worktree access")
@@ -8209,6 +8282,7 @@ def main() -> int:
             plan = plan_setup(
                 arguments.worktree_root,
                 arguments.config.expanduser().resolve(),
+                task_identity=arguments.task_identity,
                 framework_root=framework_root,
                 project_root=arguments.project,
             )

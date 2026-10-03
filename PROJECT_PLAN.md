@@ -96,7 +96,7 @@
 - `[x]` 126 — Let the console resume an interrupted task.
 - `[x]` 127 — Distribute `docs/WORKTREE_LIFECYCLE.md` to Lean Delivery projects.
 - `[x]` 128 — Upgrade a newly managed file that the project already has.
-- `[ ]` 129 — Choose the task-identity mode at project setup.
+- `[x]` 129 — Choose the task-identity mode at project setup.
 - `[ ]` 130 — Make task creation follow the project's task-identity mode.
 - `[ ]` 131 — Verify the latest release without the removed `isLatest` field.
 - `[ ]` 132 — Document the settings-pinned marketplace refusal and how to check the installed version.
