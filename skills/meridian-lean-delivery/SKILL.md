@@ -28,3 +28,10 @@ quick task only when it is small, reversible, and immediately verifiable.
 Follow project Git conventions rather than inferring governed-SDD branch,
 reviewer, author, or integration controls. A review is read-only unless the
 developer separately authorizes a fix.
+
+When bootstrapping a project, ask the developer to choose `opaque` or
+`milestone` task identity. Explain that `opaque` keeps task IDs as labels while
+`milestone` uses `M<milestone>-<WORKSTREAM>-<ordinal>` for new IDs. Never
+choose on the developer's behalf; pass the selected value to `meridian setup
+--apply --task-identity <choice>`, and explain that the file can later be
+edited to change the choice.
