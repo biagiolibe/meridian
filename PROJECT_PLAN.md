@@ -87,6 +87,9 @@
 - `[x]` 117 — Make `integrate stage` completion mode-aware for Governed SDD.
 - `[x]` 118 — Show the running framework version and root in the project console.
 - `[ ]` 119 — Show task elapsed time and lifecycle progress in the project console.
+- `[ ]` 120 — Quiet validation command and foreground rule for long checks.
+- `[ ]` 121 — Verify mandatory commands in candidate validation evidence.
+- `[ ]` 122 — Define the bounded gate per integration outcome.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.
 - `[x]` 053 — Remove machine-specific absolute paths from tracked records.
