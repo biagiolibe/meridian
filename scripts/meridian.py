@@ -114,6 +114,12 @@ STRUCTURED_TASK_ID = re.compile(
     r"(?P<ordinal>00[1-9]|0[1-9][0-9]|[1-9][0-9]{2})"
 )
 NUMERIC_TASK_ALIAS = re.compile(r"(?:task-)?([0-9]+)", re.IGNORECASE)
+# Candidate evidence records literal command strings. These required fragments
+# deliberately describe the repository baseline without executing it here.
+CANDIDATE_VALIDATION_COMMANDS = {
+    "repository_check": "scripts/check_repository.py",
+    "full_suite": "unittest discover",
+}
 
 
 @dataclass(frozen=True)
@@ -1539,6 +1545,12 @@ def finalize_task_integration(
     commands = validation.get("commands")
     if not isinstance(commands, list) or not commands or not all(isinstance(item, str) and item for item in commands):
         raise MeridianError("candidate validation evidence must name successful commands")
+    missing_commands = missing_candidate_validation_commands(staged["decision"], commands)
+    if missing_commands:
+        raise MeridianError(
+            "candidate validation evidence is missing mandatory command(s): "
+            + ", ".join(missing_commands)
+        )
     committed = _run_git(project_root, "commit", "-m", f"Integrate {identity.canonical_id}")
     if committed.returncode != 0:
         raise MeridianError(committed.stderr.strip() or "integration commit failed; staged state was retained")
@@ -1553,6 +1565,19 @@ def finalize_task_integration(
         "decision": staged["decision"],
         "next_action": "push-or-cleanup",
     }
+
+
+def missing_candidate_validation_commands(decision: object, commands: list[str]) -> tuple[str, ...]:
+    """Return mandatory command fragments absent from candidate evidence.
+
+    This is intentionally a pure string check.  It accepts the profile's
+    optional ``set -o pipefail;`` prefix and output-bounding pipelines because
+    the required fragment remains in the command entry.
+    """
+    required = [CANDIDATE_VALIDATION_COMMANDS["repository_check"]]
+    if decision == IntegrationValidationOutcome.FULL.value:
+        required.append(CANDIDATE_VALIDATION_COMMANDS["full_suite"])
+    return tuple(fragment for fragment in required if not any(fragment in command for command in commands))
 
 
 def abort_task_integration(task_id: str, supplied_project: Path | None = None) -> dict[str, object]:

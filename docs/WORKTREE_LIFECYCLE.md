@@ -143,10 +143,15 @@ cannot reduce the scope selected from Git.
 
 Candidate validation runs outside the lifecycle command in the ordinary
 sandbox. Its JSON object contains the returned `candidate_tree`, `passed:
-true`, `scope` (`bounded` or `full`), and a non-empty `commands` array. Missing,
-failed, stale, or mismatched evidence is blocked without creating a merge
-commit. Lifecycle commands never execute shell, hook, validation, smoke, or
-project-provided commands.
+true`, `scope` (`bounded` or `full`), and a non-empty `commands` array. Every
+decision requires a command entry containing `scripts/check_repository.py`;
+`FULL` additionally requires one containing `unittest discover`. `REUSE` and
+`BOUNDED` do not require the full suite. The comparison is literal and does not
+execute a command: it accepts the profile's `set -o pipefail;` prefix and an
+output-bounding pipeline such as `| tail -n 40` because both required fragments
+remain in the entry. Missing, failed, stale, or mismatched evidence is blocked
+without creating a merge commit. Lifecycle commands never execute shell, hook,
+validation, smoke, or project-provided commands.
 
 Lifecycle state is stored under the repository's absolute Git common
 directory. Interruptions retain enough ownership and candidate identity for

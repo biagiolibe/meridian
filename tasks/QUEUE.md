@@ -55,5 +55,5 @@ reasons, and creates the implementation follow-ups.
 | `[x]` | 118 | Show the running framework version and root in the project console | 🟢 P3 | 105 | [118](done/118-console-show-framework-version.md) |
 | `[x]` | 119 | Show task elapsed time and lifecycle progress in the project console | 🟢 P3 | 118 | [119](done/119-console-show-task-elapsed-time-and-progress.md) |
 | `[x]` | 120 | Quiet validation command and foreground rule for long checks | 🟡 P2 | — | [120](done/120-quiet-validation-command-and-foreground-rule.md) |
-| `[ ]` | 121 | Verify mandatory commands in candidate validation evidence | 🟡 P2 | 120 | [121](121-finalize-checks-candidate-validation-commands.md) |
+| `[x]` | 121 | Verify mandatory commands in candidate validation evidence | 🟡 P2 | 120 | [121](done/121-finalize-checks-candidate-validation-commands.md) |
 | `[ ]` | 122 | Define the bounded gate per integration outcome | 🟡 P2 | 121 | [122](122-define-bounded-gate-per-integration-outcome.md) |
