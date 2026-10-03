@@ -70,3 +70,24 @@ exit codes, and material results in the task handoff.
 
 Keep plans and updates short. Report state changes, material findings,
 validation outcomes, and blockers rather than replaying command transcripts.
+
+## Context-size policy v1
+
+`meridian context size --role <role> --format text` reports the startup read
+set using byte-derived token estimates (bytes / 4 to bytes / 3.3), not a claim
+of tokenizer accuracy. Set a per-file enforcement threshold in
+`.meridian/context-size.json` as `{ "version": 1, "fileBytesThreshold": 12000 }`,
+or pass `--threshold-bytes`; without either, the report is advisory.
+
+Template read-set ceilings are checked by `scripts/check_repository.py`:
+
+| Workflow | Role | Ceiling (bytes) |
+| --- | --- | ---: |
+| Lean Delivery | implementation | 100000 |
+| Lean Delivery | review | 100000 |
+| Governed SDD | status | 100000 |
+| Governed SDD | design | 100000 |
+| Governed SDD | implementation | 100000 |
+| Governed SDD | review | 100000 |
+| Governed SDD | remediation | 100000 |
+| Governed SDD | lifecycle | 100000 |

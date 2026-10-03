@@ -101,7 +101,7 @@
 - `[x]` 131 — Verify the latest release without the removed `isLatest` field.
 - `[x]` 132 — Document the settings-pinned marketplace refusal and how to check the installed version.
 - `[ ]` 133 — Let a confirmed Resume reach a dirty task worktree.
-- `[ ]` 134 — Add `meridian context size` to measure the startup read set.
+- `[x]` 134 — Add `meridian context size` to measure the startup read set.
 - `[ ]` 135 — Report measured token usage of agent sessions.
 - `[ ]` 136 — Load workflow context by phase and point agents to bounded readers.
 - `[ ]` 137 — Tell Codex agents to wait once for long commands.
