@@ -289,6 +289,19 @@ class CheckMigrationsVersionGateTest(unittest.TestCase):
 
         self.assertIn("not contiguous", output.getvalue())
 
+    def test_malformed_adopt_existing_paths_declaration_fails(self) -> None:
+        self.write_chain(("1.0.0", "1.0.1"), version="1.0.1")
+        path = self.root / "migrations/001-step.json"
+        record = json.loads(path.read_text(encoding="utf-8"))
+        record["adoptExistingPaths"] = "AGENTS.md"
+        path.write_text(json.dumps(record), encoding="utf-8")
+        output = io.StringIO()
+
+        with contextlib.redirect_stdout(output), self.assertRaises(SystemExit):
+            cr.check_migrations(self.root)
+
+        self.assertIn("adoptExistingPaths must be a list", output.getvalue())
+
 
 class CheckReleasesTest(unittest.TestCase):
     def setUp(self) -> None:
