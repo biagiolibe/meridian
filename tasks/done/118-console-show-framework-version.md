@@ -21,33 +21,33 @@ the user starts it.
 
 ## Acceptance Criteria
 
-- [ ] The first line of `python3 scripts/project_console.py --once` and the header of the interactive console include the framework version read from the `VERSION` file next to the running scripts, for example `v1.2.3`.
-- [ ] The same output includes the framework root the scripts were loaded from, shortened to a home-relative path when it lies under the home directory.
-- [ ] When the `VERSION` file is missing or unreadable, the console shows `version unknown` and keeps working; it never fails to start because of the version lookup.
-- [ ] The lookup is read-only, makes no network call, and runs once at startup, not on every refresh.
-- [ ] Tests cover a present version, a missing `VERSION` file, and the home-relative root, for both the `--once` output and the header text.
-- [ ] While the interactive console is running, its terminal title includes
+- [x] The first line of `python3 scripts/project_console.py --once` and the header of the interactive console include the framework version read from the `VERSION` file next to the running scripts, for example `v1.2.3`.
+- [x] The same output includes the framework root the scripts were loaded from, shortened to a home-relative path when it lies under the home directory.
+- [x] When the `VERSION` file is missing or unreadable, the console shows `version unknown` and keeps working; it never fails to start because of the version lookup.
+- [x] The lookup is read-only, makes no network call, and runs once at startup, not on every refresh.
+- [x] Tests cover a present version, a missing `VERSION` file, and the home-relative root, for both the `--once` output and the header text.
+- [x] While the interactive console is running, its terminal title includes
   `Meridian console` and the watched project name. The title update is safe on
   terminals that do not support it and contains no absolute path.
-- [ ] Pressing `l` opens a bordered, visually isolated launch panel that shows
+- [x] Pressing `l` opens a bordered, visually isolated launch panel that shows
   the selected task, directive, project, both agent choices, and the cancel
   action without leaving underlying console text visually mixed into the panel.
-- [ ] The launch flow has one decision after `l`: pressing `1` for Claude Code
+- [x] The launch flow has one decision after `l`: pressing `1` for Claude Code
   or `2` for Codex revalidates and immediately launches that agent; `Esc`
   cancels. There is no second Enter confirmation.
-- [ ] Each agent choice shows the configured default model and reasoning or
+- [x] Each agent choice shows the configured default model and reasoning or
   effort level when they can be resolved safely from supported local
   configuration, labelled as a configured default rather than a guaranteed
   effective value. Missing, malformed, ambiguous, or overridden configuration
   displays `unknown` and never prevents launch.
-- [ ] Model detection is read-only, reads only the named model and
+- [x] Model detection is read-only, reads only the named model and
   reasoning/effort settings, exposes no unrelated configuration or credential,
   makes no network call, and does not add model flags or otherwise override the
   user's agent configuration.
-- [ ] Launcher tests cover the bordered panel content, direct `1`/`2` launch,
+- [x] Launcher tests cover the bordered panel content, direct `1`/`2` launch,
   cancellation, revalidation failure, known defaults, and graceful `unknown`
   fallbacks.
-- [ ] `python3 scripts/check_repository.py` passes, and the unit tests pass.
+- [x] `python3 scripts/check_repository.py` passes, and the unit tests pass.
 
 ## Relevant Files
 
