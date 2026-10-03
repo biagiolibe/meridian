@@ -33,6 +33,9 @@ class Profile:
     tokens: dict[str, str]
     phases: dict[str, str]
     satisfying: frozenset[str]
+    # The queue status `integrate stage` applies; a task with this status can
+    # still be closing until cleanup removes its canonical worktree.
+    closing_status: str = ""
 
 
 PROFILES = {
@@ -41,6 +44,7 @@ PROFILES = {
         tokens={"[ ]": "TODO", "[/]": "IN_PROGRESS", "[x]": "DONE"},
         phases={"TODO": "todo", "IN_PROGRESS": "in_progress", "DONE": "done"},
         satisfying=frozenset({"DONE"}),
+        closing_status="DONE",
     ),
     "governed-sdd": Profile(
         name="governed-sdd",
@@ -54,6 +58,7 @@ PROFILES = {
             "ANSWERED": "done", "INCONCLUSIVE": "done",
         },
         satisfying=frozenset({"ACCEPTED", "ANSWERED"}),
+        closing_status="ACCEPTED",
     ),
 }
 
@@ -257,6 +262,22 @@ def effective_state(profile: Profile, primary: QueueRow, primary_record: str | N
     phase = profile.phases[row.status]
     if profile.name == "governed-sdd":
         review_value = row.review if review is None else review
+        if (facts is not None and primary.status == "QUEUED" and row.status == "QUEUED"
+                and facts.worktree_available and facts.record_path
+                and not facts.record_path.startswith("tasks/done/")
+                and record in (None, "QUEUED", "IN_PROGRESS", "READY_FOR_REVIEW")):
+            # Task branches never edit the shared queue, so a Governed task's
+            # in-branch state is derived from its record, like the Lean `[/]`.
+            derived = f"branch {facts.branch}"
+            if record == "READY_FOR_REVIEW":
+                if review_value not in (None, "REQUIRED"):
+                    return mismatch(f"queue QUEUED, Review {review_value or 'unset'}")
+                return Effective("ready_for_review", "READY_FOR_REVIEW", derived,
+                                 active_writer=writer)
+            return Effective(
+                "in_progress", "IN_PROGRESS", derived, active_writer=writer,
+                changes_requested=facts.review_verdict == "CHANGES_REQUESTED",
+            )
         if row.status == "READY_FOR_REVIEW" or record == "READY_FOR_REVIEW":
             if record != row.status:
                 return mismatch(f"queue {row.status}, task record {record or 'no status'}")
