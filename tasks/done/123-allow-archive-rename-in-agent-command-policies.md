@@ -31,70 +31,68 @@ Known gaps:
 
 ### Inventory
 
-- [x] Before changing any rule, build a catalogue of every command the closure
+- [ ] Before changing any rule, build a catalogue of every command the closure
   flow runs, taken from `docs/WORKTREE_LIFECYCLE.md`,
   `docs/EXECUTION_EVIDENCE_PROFILE.md`, `closure-status` resume actions, the
   shipped workflow documents, and the most recent task handoffs and
   transcripts. Include the inspection tools agents commonly use.
-- [x] Classify each command with `codex execpolicy check --rules ...` as
+- [ ] Classify each command with `codex execpolicy check --rules ...` as
   `allow`, `prompt`, or `forbidden` under the current rules, and record the
   result in the task handoff. A command that cannot be evaluated is listed as
   an evidence gap, not guessed.
 
 ### Rules
 
-- [x] Add an allow rule for the task-record archive rename and nothing broader.
+- [ ] Add an allow rule for the task-record archive rename and nothing broader.
   Decide and document whether the pattern can restrict the destination to
   `tasks/done/`; if execpolicy prefixes cannot, state the limitation and the
   residual risk instead of implying a narrower rule.
-- [x] Add `meridian worktree evidence` and `meridian worktree closure-status` to
+- [ ] Add `meridian worktree evidence` and `meridian worktree closure-status` to
   the Codex rules.
-- [x] Allow only commands that cannot write outside the task worktree or execute
+- [ ] Allow only commands that cannot write outside the task worktree or execute
   other programs: read-only inspection in forms that are safe, and the exact
   validation commands from the execution evidence profile. Forms that write
   or execute (for example `sed -i`, `rg --pre`, `find -exec`, `-delete`) stay
   prompting or forbidden, and each exclusion is stated with its reason.
-- [x] Where a command has no safe prefix form, leave it prompting and list it
+- [ ] Where a command has no safe prefix form, leave it prompting and list it
   in the documentation as an intentional approval point.
-- [x] No other command becomes allowed, and every existing `forbidden` and
+- [ ] No other command becomes allowed, and every existing `forbidden` and
   `prompt` rule is unchanged (`git reset`, `rebase`, `cherry-pick`, force push,
   branch deletion, `worktree add|remove|prune`).
-- [x] The rules are present in this repository's `.codex/rules/meridian.rules`
+- [ ] The rules are present in this repository's `.codex/rules/meridian.rules`
   and in both `templates/workflows/*/.codex/rules/meridian.rules`.
-- [x] `meridian codex doctor` probes every new rule with `execpolicy check` and
+- [ ] `meridian codex doctor` probes every new rule with `execpolicy check` and
   reports each as ready or as a named gap, like the existing rules.
-- [x] The Claude Code allowlist offered by `meridian setup` gains the equivalent
+- [ ] The Claude Code allowlist offered by `meridian setup` gains the equivalent
   entries (the `git mv` entry scoped to `tasks/`, and the safe inspection and
   validation commands), remains consent-based and additive, and is covered by
   the setup tests.
 
 ### Distribution
 
-- [x] A new migration under `migrations/` updates `.codex/rules/meridian.rules`
+- [ ] A new migration under `migrations/` updates `.codex/rules/meridian.rules`
   for both workflow modes, following the precedent of migrations `041`, `047`,
   and `051` (file left unmarked so project-local rules appended by adopters are
   preserved by the three-way merge).
-- [x] The release is template-changing: it raises `workflowBaselineVersion`,
-  adds a `release-baselines/` snapshot (not created: that directory is read only by
-  `adopt --from` for legacy releases and `upgrade` merges against the project's own
-  `.meridian/baselines`; tasks 109 and 110 added none), and its `CHANGELOG.md` section includes
+- [ ] The release is template-changing: it raises `workflowBaselineVersion`,
+  adds a `release-baselines/` snapshot, and its `CHANGELOG.md` section includes
   an Upgrade notes subsection naming the managed path, the required
   `meridian upgrade --apply`, the likely conflict when a project edited the same
   block, and the follow-up `meridian codex doctor`.
-- [x] The documentation states the two delivery paths: Codex rules arrive through
+- [ ] The documentation states the two delivery paths: Codex rules arrive through
   `meridian upgrade --check` and `--apply`; the Claude Code allowlist arrives
   through consented `meridian setup`.
-- [x] A test proves an existing adopter project with local rules appended
+- [ ] A test proves an existing adopter project with local rules appended
   receives the new rules by `upgrade --apply` without losing its local rules,
   and that the oldest supported baseline still upgrades in one apply.
 
 ### Hygiene
 
-- [x] Tests cover the rule text in each shipped file, each doctor probe result,
+- [ ] Tests cover the rule text in each shipped file, each doctor probe result,
   the allowlist entries, and that an unrelated `git mv`, `sed -i`, and
   `rg --pre` are not allowed.
-- [x] One changelog fragment is added per `CONTRIBUTING.md`.
-- [x] `python3 scripts/check_repository.py` and the unit tests pass.
+- [ ] One changelog fragment is added per `CONTRIBUTING.md`.
+- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
 
 ## Relevant Files
 
