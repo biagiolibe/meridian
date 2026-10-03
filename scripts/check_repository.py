@@ -107,6 +107,30 @@ def check_changelog_fragments(root: Path = ROOT) -> None:
         fail(str(error))
 
 
+def check_template_context_sizes() -> None:
+    """Keep the shipped role startup sets below their documented ceilings."""
+    labels = {"lean-delivery": "Lean Delivery", "governed-sdd": "Governed SDD"}
+    for mode, workflow_label in labels.items():
+        project = ROOT / "templates" / "workflows" / mode
+        policy = project / meridian.CONTEXT_SIZE_POLICY_PATH
+        if not policy.is_file():
+            fail(f"context-size policy is missing: {policy.relative_to(ROOT)}")
+        rows = {
+            role: int(ceiling)
+            for found_workflow, role, ceiling in re.findall(
+                r"^\| ([^|]+) \| ([a-z]+) \| ([0-9]+) \|$", policy.read_text(encoding="utf-8"), re.MULTILINE
+            )
+            if found_workflow == workflow_label
+        }
+        for role in meridian.CONTEXT_SIZE_ROLES[mode]:
+            if role not in rows:
+                fail(f"context-size ceiling is missing for {mode}/{role}")
+            report = meridian.context_size_report(project, role)
+            actual = int(report["total"]["bytes"])
+            if actual > rows[role]:
+                fail(f"context-size ceiling exceeded for {mode}/{role}: {actual} bytes > {rows[role]} bytes")
+
+
 def check_language_policy() -> None:
     for name in LANGUAGE_POLICY_FILES:
         path = ROOT / name
@@ -496,6 +520,7 @@ def main() -> None:
         return
     check_required_files()
     check_changelog_fragments()
+    check_template_context_sizes()
     check_language_policy()
     check_governed_review_worktree_contract()
     check_json()

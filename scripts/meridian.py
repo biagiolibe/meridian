@@ -95,6 +95,12 @@ ENTRY_ROUTER_SAFEGUARDS = {
     "lifecycle-accept": ("lifecycle", "accept"),
     "audit": ("audit",),
 }
+CONTEXT_SIZE_CONFIG_PATH = Path(".meridian/context-size.json")
+CONTEXT_SIZE_POLICY_PATH = Path("docs/CONTEXT_BUDGET_POLICY.md")
+CONTEXT_SIZE_ROLES = {
+    "governed-sdd": ("status", "design", "implementation", "review", "remediation", "lifecycle"),
+    "lean-delivery": ("implementation", "review"),
+}
 
 
 class MeridianError(RuntimeError):
@@ -7286,6 +7292,189 @@ def context_authority(project_root: Path, task_id: str, labels_only: bool = Fals
     return "\n".join(lines).rstrip("\n")
 
 
+def _context_path_references(text: str) -> list[Path]:
+    """Return safe project-relative Markdown paths cited by a document.
+
+    The workflow format uses both inline-code paths and Markdown links.  This
+    intentionally recognizes only Markdown documents: command examples and
+    arbitrary code literals are not startup reads.
+    """
+    raw = re.findall(r"`([^`]+\.md)`|\]\(([^)#]+\.md)(?:#[^)]+)?\)", text, re.IGNORECASE)
+    paths: list[Path] = []
+    for inline, link in raw:
+        candidate = Path(inline or link)
+        if candidate.is_absolute() or ".." in candidate.parts:
+            continue
+        if candidate not in paths:
+            paths.append(candidate)
+    return paths
+
+
+def _context_relative_references(path: Path, text: str) -> list[Path]:
+    """Resolve citations relative to the document that contains them."""
+    references: list[Path] = []
+    for candidate in _context_path_references(text):
+        # Workflow prose conventionally names canonical project locations
+        # (`docs/...`, `tasks/...`) from project root, while Markdown links
+        # such as `README.md` remain document-relative.
+        resolved = candidate if candidate.parts and candidate.parts[0] in {"docs", "tasks", ".meridian"} else path.parent / candidate
+        if resolved not in references:
+            references.append(resolved)
+    return references
+
+
+def _context_router(project_root: Path) -> Path:
+    for name in ("AGENTS.md", "CLAUDE.md"):
+        if (project_root / name).is_file():
+            return Path(name)
+    # Report the conventional router as missing instead of silently choosing a
+    # template or an unrelated project file.
+    return Path("AGENTS.md")
+
+
+def _context_routed_workflow(project_root: Path, mode: str, role: str, router: Path) -> Path:
+    if mode == "lean-delivery":
+        return Path("PROJECT_WORKFLOW.md")
+    text = (project_root / router).read_text(encoding="utf-8") if (project_root / router).is_file() else ""
+    patterns = {
+        "status": r"Status, project question, or tech-design alignment.*?`([^`]+\.md)`",
+        "design": r"Status, project question, or tech-design alignment.*?`([^`]+\.md)`",
+        "implementation": r"Proceed with <TASK-ID>.*?`([^`]+\.md)`",
+        "review": r"Review <TASK-ID>.*?`([^`]+\.md)`",
+        "remediation": r"Address review <TASK-ID>.*?`([^`]+\.md)`",
+        "lifecycle": r"(?:Run lifecycle|Accept) <TASK-ID>.*?`([^`]+\.md)`",
+    }
+    match = re.search(patterns[role], text)
+    if not match:
+        raise MeridianError(f"cannot resolve the {role} route from {router}")
+    path = Path(match.group(1))
+    if path.is_absolute() or ".." in path.parts:
+        raise MeridianError(f"unsafe {role} route in {router}: {path}")
+    return path
+
+
+def _context_file_record(project_root: Path, path: Path, category: str, label: str | None = None, text: str | None = None) -> dict[str, object]:
+    target = project_root / path
+    record: dict[str, object] = {"path": path.as_posix(), "label": label or path.as_posix(), "category": category}
+    if text is None and not target.is_file():
+        record.update({"status": "missing", "bytes": None, "lines": None, "estimated_tokens": None, "over_threshold": False})
+        return record
+    content = text if text is not None else target.read_text(encoding="utf-8")
+    byte_count = len(content.encode("utf-8"))
+    record.update({
+        "status": "present", "bytes": byte_count, "lines": len(content.splitlines()),
+        "estimated_tokens": {"low": round(byte_count / 4), "high": round(byte_count / 3.3)},
+        "over_threshold": False,
+    })
+    return record
+
+
+def _context_threshold(project_root: Path, override: int | None) -> int | None:
+    if override is not None:
+        return override
+    config = project_root / CONTEXT_SIZE_CONFIG_PATH
+    if not config.is_file():
+        return None
+    try:
+        value = json.loads(config.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        raise MeridianError(f"invalid context-size configuration {config}: {error}") from error
+    if not isinstance(value, dict) or value.get("version") != 1 or set(value) - {"version", "fileBytesThreshold"}:
+        raise MeridianError("context-size configuration must contain version 1 and optional fileBytesThreshold")
+    threshold = value.get("fileBytesThreshold")
+    if threshold is not None and (type(threshold) is not int or threshold < 0):
+        raise MeridianError("context-size fileBytesThreshold must be a non-negative integer")
+    return threshold
+
+
+def context_size_report(project_root: Path, role: str, task_id: str | None = None, threshold: int | None = None) -> dict[str, object]:
+    """Measure the documents a role is instructed to read without writing or executing a project command."""
+    mode = detect_mode(project_root)
+    if role not in CONTEXT_SIZE_ROLES[mode]:
+        allowed = ", ".join(CONTEXT_SIZE_ROLES[mode])
+        raise MeridianError(f"role {role!r} is not available for {mode}; choose: {allowed}")
+    effective_threshold = _context_threshold(project_root, threshold)
+    router = _context_router(project_root)
+    routed = _context_routed_workflow(project_root, mode, role, router)
+    roots: list[tuple[Path, str]] = [(router, "router"), (routed, "routed-workflow"), (Path("PROJECT_WORKFLOW.md"), "always-read"), (Path("LANGUAGE_POLICY.md"), "always-read")]
+    router_text = (project_root / router).read_text(encoding="utf-8") if (project_root / router).is_file() else ""
+    route_paths = {Path(value) for value in re.findall(r"(?:read|use) `([^`]+\.md)`", router_text)}
+    records: list[dict[str, object]] = []
+    seen: set[Path] = set()
+    pending = roots[:]
+    while pending:
+        path, category = pending.pop(0)
+        if path in seen:
+            continue
+        seen.add(path)
+        record = _context_file_record(project_root, path, category)
+        records.append(record)
+        target = project_root / path
+        # A startup document may name further material for later, conditional
+        # work.  Count only citations from the router and its selected route;
+        # recursively following every incidental documentation link would turn
+        # a bounded role read set into a repository crawl.
+        if category == "routed-workflow" and target.is_file():
+            for cited in _context_relative_references(path, target.read_text(encoding="utf-8")):
+                if cited not in seen:
+                    pending.append((cited, "cited"))
+        elif category == "router" and target.is_file():
+            for cited in _context_relative_references(path, router_text):
+                conditional_source_rule = cited.name == "CODE_ORGANIZATION.md" and role in {"status", "design", "lifecycle"}
+                if cited not in route_paths and cited not in seen and not conditional_source_rule:
+                    pending.append((cited, "cited"))
+    if task_id is not None:
+        task = find_task_file(project_root, task_id)
+        records.append(_context_file_record(project_root, task.relative_to(project_root), "task-record"))
+        for entry in authority_entries(task.read_text(encoding="utf-8")):
+            resolved, unresolved = resolve_authority_entry(project_root, entry)
+            for source, heading, excerpt in resolved:
+                records.append(_context_file_record(project_root, Path(source).relative_to(project_root) if Path(source).is_absolute() else Path(source), "authority-excerpt", f"{source} — {heading}", excerpt))
+            for item in unresolved:
+                records.append({"path": item, "label": item, "category": "authority-excerpt", "status": "missing", "bytes": None, "lines": None, "estimated_tokens": None, "over_threshold": False})
+    for record in records:
+        record["over_threshold"] = bool(effective_threshold is not None and isinstance(record["bytes"], int) and record["bytes"] > effective_threshold)
+    present = [record for record in records if isinstance(record["bytes"], int)]
+    total_bytes = sum(int(record["bytes"]) for record in present)
+    locations = resolve_project_locations(project_root)
+    unbounded = []
+    for path, note in ((locations.queue, "The routed workflow reads this only through the queue briefing."), (locations.adr_log, "The routed workflow reads this only through meridian context authority.")):
+        record = _context_file_record(project_root, path, "unbounded-reference")
+        record["note"] = note
+        record["over_threshold"] = bool(effective_threshold is not None and isinstance(record["bytes"], int) and record["bytes"] > effective_threshold)
+        unbounded.append(record)
+    exceeded = [str(record["label"]) for record in records if record["over_threshold"]]
+    return {
+        "mode": mode, "role": role, "task": task_id, "estimate": "Estimated token range: bytes / 4 to bytes / 3.3; this is not tokenizer-accurate.",
+        "threshold_bytes": effective_threshold, "files": records,
+        "total": {"bytes": total_bytes, "lines": sum(int(record["lines"]) for record in present), "estimated_tokens": {"low": round(total_bytes / 4), "high": round(total_bytes / 3.3)}},
+        "unbounded_documents": unbounded, "exceeded": exceeded,
+    }
+
+
+def format_context_size_report(report: dict[str, object]) -> str:
+    lines = [f"Context size — {report['mode']} / {report['role']}", str(report["estimate"])]
+    for record in report["files"]:  # type: ignore[index]
+        if record["status"] == "missing":
+            lines.append(f"MISSING {record['category']}: {record['label']}")
+        else:
+            tokens = record["estimated_tokens"]
+            flag = " OVER THRESHOLD" if record["over_threshold"] else ""
+            lines.append(f"{record['category']}: {record['label']} — {record['bytes']} bytes, {record['lines']} lines, estimated {tokens['low']}-{tokens['high']} tokens{flag}")
+    total = report["total"]  # type: ignore[assignment]
+    lines.append(f"TOTAL: {total['bytes']} bytes, {total['lines']} lines, estimated {total['estimated_tokens']['low']}-{total['estimated_tokens']['high']} tokens")
+    for record in report["unbounded_documents"]:  # type: ignore[index]
+        size = "missing" if record["status"] == "missing" else f"{record['bytes']} bytes"
+        lines.append(f"UNBOUNDED {record['path']}: {size}. {record['note']}")
+    if report["threshold_bytes"] is None:
+        lines.append("Threshold: advisory (no configured limit).")
+    elif report["exceeded"]:
+        lines.append("Threshold exceeded: " + ", ".join(report["exceeded"]))
+    else:
+        lines.append("Threshold: passed.")
+    return "\n".join(lines)
+
+
 def task_cap(project_root: Path, text: str, kind: str) -> int:
     raw = read_task_field(text, BUDGET_FIELD_NAMES[kind])
     if raw and raw.isdigit():
@@ -8151,7 +8340,7 @@ def main() -> int:
     adr_show_parser.add_argument("adr_id")
     adr_show_parser.add_argument("--project", type=Path, default=Path.cwd())
 
-    context = subparsers.add_parser("context", help="read exactly the ADR/spec sections a task cites")
+    context = subparsers.add_parser("context", help="inspect task authority or measure a role's startup read set")
     context_sub = context.add_subparsers(dest="context_command", required=True)
     context_authority_parser = context_sub.add_parser(
         "authority", help="print a task's Authority entries resolved to ADR/spec excerpts"
@@ -8161,6 +8350,12 @@ def main() -> int:
     context_authority_parser.add_argument(
         "--labels-only", action="store_true", help="print source + heading only, not excerpt bodies"
     )
+    context_size_parser = context_sub.add_parser("size", help="measure the documents a workflow role is instructed to read")
+    context_size_parser.add_argument("--role", required=True, help="workflow role (for example implementation or review)")
+    context_size_parser.add_argument("--task", dest="context_task_id")
+    context_size_parser.add_argument("--project", type=Path, default=Path.cwd())
+    context_size_parser.add_argument("--threshold-bytes", type=int, default=None, help="fail when an included file exceeds this size")
+    context_size_parser.add_argument("--format", choices=("json", "text"), default="text")
 
     budget = subparsers.add_parser(
         "budget",
@@ -8473,7 +8668,14 @@ def main() -> int:
         elif arguments.command == "adr":
             print(adr_show(project_root, arguments.adr_id))
         elif arguments.command == "context":
-            print(context_authority(project_root, arguments.task_id, arguments.labels_only))
+            if arguments.context_command == "authority":
+                print(context_authority(project_root, arguments.task_id, arguments.labels_only))
+            else:
+                if arguments.threshold_bytes is not None and arguments.threshold_bytes < 0:
+                    raise MeridianError("--threshold-bytes must be a non-negative integer")
+                report = context_size_report(project_root, arguments.role, arguments.context_task_id, arguments.threshold_bytes)
+                print(json.dumps(report, sort_keys=True) if arguments.format == "json" else format_context_size_report(report))
+                return 2 if report["exceeded"] else 0
         elif arguments.command == "budget":
             if arguments.budget_command == "show":
                 print(budget_show(project_root, arguments.task_id))
