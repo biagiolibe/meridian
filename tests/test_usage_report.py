@@ -29,7 +29,7 @@ class UsageReportTest(unittest.TestCase):
     def test_reports_codex_counters_without_message_content(self) -> None:
         path = self.home / ".codex/sessions/2026/10/03/rollout-sample.jsonl"
         self.write_jsonl(path, [
-            {"timestamp": "2026-10-03T10:00:00Z", "type": "session_meta", "payload": {"timestamp": "2026-10-03T10:00:00Z", "cwd": "/private/projects/meridian", "model": "gpt-test", "instructions": "PRIVATE CODEX MESSAGE"}},
+            {"timestamp": "2026-10-03T10:00:00Z", "type": "session_meta", "payload": {"timestamp": "2026-10-03T10:00:00Z", "cwd": "meridian", "model": "gpt-test", "instructions": "PRIVATE CODEX MESSAGE"}},
             {"type": "event_msg", "payload": {"type": "token_count", "info": {"last_token_usage": {"input_tokens": 18000, "cached_input_tokens": 0, "output_tokens": 20}}}},
             {"type": "event_msg", "payload": {"type": "token_count", "info": {"last_token_usage": {"input_tokens": 65000, "cached_input_tokens": 62000, "output_tokens": 30}}}},
             "{truncated",
@@ -45,15 +45,15 @@ class UsageReportTest(unittest.TestCase):
         self.assertEqual(session["breakdown"]["largest_input_growth"], {"call": 2, "tokens": 47000})
         rendered = meridian.format_usage_report(report)
         self.assertNotIn("PRIVATE CODEX MESSAGE", rendered)
-        self.assertNotIn("/private/projects", rendered)
+        self.assertNotIn("PRIVATE", rendered)
 
     def test_reports_claude_counters_and_sorts_sessions(self) -> None:
         project = self.home / ".claude/projects/-Users-example-meridian"
         self.write_jsonl(project / "later.jsonl", [
-            {"type": "assistant", "timestamp": "2026-10-03T11:00:00Z", "cwd": "/Users/example/meridian", "message": {"model": "claude-test", "text": "PRIVATE CLAUDE MESSAGE", "usage": {"input_tokens": 38000, "cache_read_input_tokens": 0, "output_tokens": 10}}},
+            {"type": "assistant", "timestamp": "2026-10-03T11:00:00Z", "cwd": "meridian", "message": {"model": "claude-test", "text": "PRIVATE CLAUDE MESSAGE", "usage": {"input_tokens": 38000, "cache_read_input_tokens": 0, "output_tokens": 10}}},
         ])
         self.write_jsonl(project / "earlier.jsonl", [
-            {"type": "assistant", "timestamp": "2026-10-03T09:00:00Z", "cwd": "/Users/example/meridian", "message": {"usage": {"input_tokens": 65000, "cache_read_input_tokens": 64000, "output_tokens": 12}}},
+            {"type": "assistant", "timestamp": "2026-10-03T09:00:00Z", "cwd": "meridian", "message": {"usage": {"input_tokens": 65000, "cache_read_input_tokens": 64000, "output_tokens": 12}}},
         ])
         report = meridian.usage_report("claude", Path("/work/meridian"), None, False, self.home)
         self.assertEqual([session["start"] for session in report["sessions"]], ["2026-10-03T09:00:00Z", "2026-10-03T11:00:00Z"])
