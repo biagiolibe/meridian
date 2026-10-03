@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 
@@ -22,6 +23,9 @@ CHANGELOG_HEADINGS = (
     "Added", "Changed", "Deprecated", "Removed", "Fixed", "Security",
     "Documentation", "Upgrade notes",
 )
+WORKFLOW_POLL_INTERVAL_SECONDS = 5
+WORKFLOW_LOOKUP_TIMEOUT_SECONDS = 120
+WORKFLOW_RUN_LIST_LIMIT = 50
 
 
 class ReleaseError(Exception):
@@ -393,6 +397,17 @@ def remote_tag_exists(root: Path, tag: str) -> bool:
     raise ReleaseError(f"could not check origin for tag {tag}: {result.stderr.strip()}")
 
 
+def remote_tag_head(root: Path, tag: str) -> str:
+    result = run_git(root, "ls-remote", "--tags", "origin", f"refs/tags/{tag}", f"refs/tags/{tag}^{{}}")
+    if result.returncode:
+        raise ReleaseError(f"could not check origin for tag {tag}: {result.stderr.strip()}")
+    entries = [line.split("\t", 1) for line in result.stdout.splitlines() if "\t" in line]
+    if not entries:
+        raise ReleaseError(f"verification failed: origin tag {tag} does not exist")
+    peeled = next((sha for sha, ref in entries if ref == f"refs/tags/{tag}^{{}}"), None)
+    return peeled or entries[0][0]
+
+
 def release_kind(root: Path, version: str) -> tuple[str, list[str]]:
     record_path = root / "releases" / f"{version}.json"
     try:
@@ -492,19 +507,63 @@ def run_checked(root: Path, command: list[str], label: str) -> subprocess.Comple
     return result
 
 
-def wait_for_publication(root: Path, version: str, repository: str | None) -> None:
+def manual_verification_commands(version: str, repository: str | None) -> tuple[str, str, str]:
+    repository_args = ["--repo", repository] if repository else []
+    run = command_text([
+        "gh", "run", "list", "--workflow", "Publish release", "--branch", f"v{version}",
+        "--limit", str(WORKFLOW_RUN_LIST_LIMIT), "--json", "databaseId,url,headSha,event", *repository_args,
+    ])
+    view = command_text(["gh", "release", "view", f"v{version}", *repository_args])
+    verify = f"python3 scripts/release.py verify --version {version}"
+    return run, view, verify
+
+
+def workflow_run(root: Path, version: str, tag_head: str, repository: str | None) -> tuple[str, str]:
+    deadline = time.monotonic() + WORKFLOW_LOOKUP_TIMEOUT_SECONDS
+    last_error: str | None = None
+    command = [
+        "gh", "run", "list", "--workflow", "Publish release", "--branch", f"v{version}",
+        "--limit", str(WORKFLOW_RUN_LIST_LIMIT), "--json", "databaseId,url,headSha,event",
+    ]
+    if repository:
+        command.extend(("--repo", repository))
+    while True:
+        result = run_command(root, command)
+        if result.returncode:
+            last_error = f"gh run list exited {result.returncode}"
+        else:
+            try:
+                entries = json.loads(result.stdout)
+            except json.JSONDecodeError:
+                last_error = "gh run list returned invalid JSON"
+            else:
+                if isinstance(entries, list):
+                    for entry in entries:
+                        if not isinstance(entry, dict):
+                            continue
+                        if entry.get("headSha") == tag_head and entry.get("event") == "push":
+                            run_id = entry.get("databaseId")
+                            if run_id is not None:
+                                return str(run_id), str(entry.get("url", "(workflow URL unavailable)"))
+                else:
+                    last_error = "gh run list returned invalid JSON"
+        if time.monotonic() >= deadline:
+            run, view, verify = manual_verification_commands(version, repository)
+            detail = f" Last lookup error: {last_error}." if last_error else ""
+            raise ReleaseError(
+                f"publication verification timed out: the push of main and tag v{version} completed, "
+                "but the Publish release workflow run was not observed; nothing was retried or moved."
+                f"{detail}\nContinue manually with:\n  {run}\n  {view}\n  {verify}"
+            )
+        time.sleep(WORKFLOW_POLL_INTERVAL_SECONDS)
+
+
+def wait_for_publication(root: Path, version: str, repository: str | None, tag_head: str) -> None:
     if not shutil.which("gh"):
         print("gh is unavailable; skipping automated workflow and release verification.")
         print_manual_urls(version, repository)
         return
-    runs = run_checked(root, ["gh", "run", "list", "--workflow", "Publish release", "--branch", f"v{version}", "--limit", "1", "--json", "databaseId,url"], "workflow lookup")
-    try:
-        entries = json.loads(runs.stdout)
-        run = entries[0]
-        run_id = str(run["databaseId"])
-        run_url = str(run.get("url", "(workflow URL unavailable)"))
-    except (json.JSONDecodeError, IndexError, KeyError, TypeError) as error:
-        raise ReleaseError(f"workflow lookup returned no Publish release run for v{version}: {error}") from error
+    run_id, run_url = workflow_run(root, version, tag_head, repository)
     watched = run_command(root, ["gh", "run", "watch", run_id, "--exit-status"])
     if watched.returncode:
         print(f"Publish release workflow failed: {run_url}. Nothing was published; the tag was left unchanged.", file=sys.stderr)
@@ -563,7 +622,7 @@ def publish_main(argv: list[str]) -> int:
         if args.no_wait:
             print_manual_urls(version, repository)
         else:
-            wait_for_publication(root, version, repository)
+            wait_for_publication(root, version, repository, head)
         print(adopter_steps())
         return 0
     except (ReleaseError, OSError, ValueError, json.JSONDecodeError) as error:
@@ -571,16 +630,35 @@ def publish_main(argv: list[str]) -> int:
         return 1
 
 
+def verify_main(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(description="Verify a published Meridian release without changing Git state.")
+    parser.add_argument("--version", required=True)
+    parser.add_argument("--root", type=Path, default=ROOT, help=argparse.SUPPRESS)
+    args = parser.parse_args(argv)
+    root = args.root.resolve()
+    try:
+        version_key(args.version)
+        tag = f"v{args.version}"
+        tag_head = remote_tag_head(root, tag)
+        remote = git_output(root, "remote", "get-url", "origin")
+        wait_for_publication(root, args.version, github_repository(remote), tag_head)
+        return 0
+    except (ReleaseError, OSError, ValueError, json.JSONDecodeError) as error:
+        print(f"release verify failed: {error}", file=sys.stderr)
+        return 1
+
+
 def main(argv: list[str] | None = None) -> int:
     values = list(sys.argv[1:] if argv is None else argv)
     if values == ["--help"]:
         parser = argparse.ArgumentParser(
-            description="Prepare or publish a Meridian release.",
-            epilog="prepare makes a local release commit; publish pushes main and the release tag.",
+            description="Prepare, publish, or verify a Meridian release.",
+            epilog="prepare makes a local release commit; publish pushes main and the release tag; verify is read-only.",
         )
         subcommands = parser.add_subparsers(title="commands")
         subcommands.add_parser("prepare", help="prepare a local release without publishing")
         subcommands.add_parser("publish", help="publish a prepared release by pushing main and the tag")
+        subcommands.add_parser("verify", help="read-only verification of an existing release tag")
         subcommands.add_parser("changelog", help="render changelog fragments")
         parser.print_help()
         return 0
@@ -588,6 +666,8 @@ def main(argv: list[str] | None = None) -> int:
         return prepare_main(values[1:])
     if values and values[0] == "publish":
         return publish_main(values[1:])
+    if values and values[0] == "verify":
+        return verify_main(values[1:])
     if values and values[0] == "changelog":
         if len(values) < 2 or values[1] != "render":
             print("release changelog requires the 'render' command", file=sys.stderr)
