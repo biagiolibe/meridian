@@ -311,7 +311,7 @@ class ProjectConsoleTest(unittest.TestCase):
         snapshot = self.snapshot()
         self.assertEqual(
             tuple(console._filter_counts(snapshot)),
-            ("Ready", "Working", "Blocked", "Unknown", "Review", "Mismatch"),
+            ("Ready", "Working", "Blocked", "Unknown", "Review", "Mismatch", "Closing"),
         )
 
 
@@ -1515,6 +1515,211 @@ class RefreshCostTest(RepoCase):
             cache.resolve(self.project, "999")
         self.write(self.project, "tasks/999-task.md", "# Task 999\n\n> **ID**: `999`\n")
         self.assertEqual(cache.resolve(self.project, "999").canonical_id, "999")
+
+
+class ClosingTaskMixin:
+    """Tasks stay listed as CLOSING from `integrate stage` until cleanup, in both workflows."""
+
+    done_id: str
+    open_id: str
+    done_token: str
+
+    def closing_project(self, worktree: bool = True, archived: bool = False) -> None:
+        raise NotImplementedError
+
+    def report(self, step: str, stop: str | None = None, resume: str | None = None):
+        return {"step": step, "stop_reason": stop, "resume": resume}, stop is None
+
+    def load_closing(self, report=None, error: Exception | None = None):
+        patcher = mock.patch.object(
+            console, "closure_status", return_value=report, side_effect=error)
+        with patcher as status:
+            tasks = self.load()
+        return tasks, status
+
+    def test_task_stays_visible_after_stage_with_derived_closing_state(self) -> None:
+        self.closing_project()
+        before = self.refs_and_status()
+        queue = (self.project / "tasks/QUEUE.md").read_text(encoding="utf-8")
+        tasks, _status = self.load_closing(
+            self.report("C7", None, "run the selected candidate validation"))
+        task = tasks[self.done_id]
+        self.assertEqual(self.refs_and_status(), before)
+        self.assertEqual((self.project / "tasks/QUEUE.md").read_text(encoding="utf-8"), queue)
+        self.assertEqual((task.readiness, task.lifecycle, task.status),
+                         ("CLOSING", "closing", self.done_token))
+        self.assertEqual(task.progress_phase, "candidate validation")
+        self.assertEqual(task.remaining_gates[0], "Stage integration")
+        self.assertEqual(task.closure_resume, "run the selected candidate validation")
+        self.assertEqual(task.next_action, "run the selected candidate validation")
+        self.assertIsNone(task.launch_command)
+        self.assertTrue(task.shows_progress)
+
+    def test_task_stays_visible_after_finalize_with_a_pending_push(self) -> None:
+        self.closing_project()
+        tasks, _status = self.load_closing(self.report("C9", "PUSH_PENDING", "git push origin main"))
+        task = tasks[self.done_id]
+        self.assertEqual(task.progress_phase, "push pending")
+        self.assertEqual(task.closure_stop_reason, "PUSH_PENDING")
+        self.assertEqual(task.next_action, "PUSH_PENDING: git push origin main")
+
+    def test_task_is_hidden_once_cleanup_has_completed(self) -> None:
+        self.closing_project()
+        tasks, _status = self.load_closing(self.report("C10", None, "meridian worktree cleanup 1"))
+        self.assertEqual(tasks[self.done_id].progress_phase, "cleanup pending")
+        tasks, _status = self.load_closing(self.report("C10"))
+        self.assertNotIn(self.done_id, tasks)
+        self.assertIn(self.open_id, tasks)
+
+    def test_completed_task_without_closure_work_is_hidden_without_reading_closure(self) -> None:
+        self.closing_project(worktree=False)
+        tasks, status = self.load_closing(self.report("C7"))
+        self.assertNotIn(self.done_id, tasks)
+        status.assert_not_called()
+
+    def test_closing_task_is_counted_and_filtered_as_closing_only(self) -> None:
+        self.closing_project()
+        with mock.patch.object(console, "closure_status", return_value=self.report("C7")):
+            snapshot = console.load_snapshot(self.project)
+        counts = console._filter_counts(snapshot)
+        self.assertEqual(counts["Closing"], 1)
+        self.assertEqual(counts["Ready"], 1)
+        self.assertEqual(snapshot.done_count, 0)
+        task = next(item for item in snapshot.tasks if item.task_id == self.done_id)
+        self.assertEqual(console._state_label(task), ("Closing", "working"))
+        self.assertEqual([item.task_id for item in console._visible_tasks(snapshot, "Closing", "")],
+                         [self.done_id])
+        self.assertNotIn(self.done_id, [
+            item.task_id for item in console._visible_tasks(snapshot, "Review", "")])
+        self.assertIsNotNone(console._tab_at(snapshot, 1, 1))
+
+    def test_closing_task_does_not_launch_and_does_not_change_dependent_readiness(self) -> None:
+        self.closing_project()
+        tasks, _status = self.load_closing(self.report("C7"))
+        self.assertIsNone(tasks[self.done_id].launch_command)
+        self.assertEqual(tasks[self.open_id].readiness, "READY")
+        self.assertEqual(tasks[self.open_id].dependency_states, ((self.done_id, "Done"),))
+
+    def test_lifecycle_read_failure_keeps_the_task_with_unavailable_progress(self) -> None:
+        self.closing_project()
+        for error in (console.MeridianError("boom"), OSError("boom"), ValueError("boom")):
+            with self.subTest(error=type(error).__name__):
+                tasks, _status = self.load_closing(error=error)
+                task = tasks[self.done_id]
+                self.assertEqual(task.readiness, "CLOSING")
+                self.assertEqual(task.progress_phase, "unavailable")
+                self.assertIn("Closure state unavailable", task.next_action)
+
+    def test_steps_that_are_not_closure_work_never_surface_a_prepare_resume(self) -> None:
+        self.closing_project()
+        tasks, _status = self.load_closing(self.report(
+            "C4", "WRONG_WORKTREE", "meridian worktree prepare 1"))
+        task = tasks[self.done_id]
+        self.assertIsNone(task.closure_resume)
+        self.assertIsNone(task.closure_stop_reason)
+        self.assertEqual(task.progress_phase, "unavailable")
+
+    def test_task_whose_phase_was_archived_at_stage_stays_visible(self) -> None:
+        self.closing_project(archived=True)
+        tasks, _status = self.load_closing(self.report("C9", None, "git push origin main"))
+        self.assertEqual(tasks[self.done_id].progress_phase, "push pending")
+
+    def test_once_output_lists_the_closing_task_with_the_same_facts(self) -> None:
+        self.closing_project()
+        state = console.ConsoleState(self.project)
+        with mock.patch.object(console, "closure_status", return_value=self.report(
+                "C9", "PUSH_PENDING", "git push origin main")), \
+             mock.patch.object(console, "lifecycle_started_at", return_value="2026-01-01T00:00:00Z"):
+            state.refresh()
+        text = console.one_shot(state)
+        self.assertIn("MERIDIAN | ", text)
+        self.assertIn(f"{self.done_id} [CLOSING]", text)
+        self.assertIn("  Closure stop: PUSH_PENDING", text)
+        self.assertIn("  Resume: git push origin main", text)
+        self.assertIn("  Progress: push pending", text)
+        self.assertIn("  Remaining gates: Push main, Clean up worktree", text)
+        self.assertNotIn("  Elapsed: unavailable", text)
+
+    def test_detail_pane_shows_closing_progress(self) -> None:
+        self.closing_project()
+        tasks, _status = self.load_closing(self.report("C7", None, "run the selected candidate validation"))
+        palette = {name: 0 for name in (
+            "base", "text", "title", "ready", "working", "muted", "line", "action", "blocked")}
+        lines = [value for value, _ in console._detail_lines(tasks[self.done_id], 80, palette)]
+        self.assertIn("○ Closing", lines)
+        self.assertIn("Lifecycle progress: candidate validation", lines)
+        self.assertTrue(any(line.startswith("Elapsed cycle time:") for line in lines))
+
+
+class LeanClosingTaskTest(ClosingTaskMixin, LeanEffectiveStateTest):
+    done_id, open_id, done_token = "001", "002", "DONE"
+
+    def closing_project(self, worktree: bool = True, archived: bool = False) -> None:
+        self.setup_project({"001": "x", "002": " "}, {"002": "001"})
+        if archived:
+            queue = (self.project / "tasks/QUEUE.md").read_text(encoding="utf-8")
+            lines = queue.splitlines(keepends=True)
+            done_row = next(line for line in lines if "| 001 |" in line)
+            self.write(self.project, "tasks/QUEUE.md", queue.replace(done_row, ""))
+            self.write(self.project, "tasks/QUEUE_ARCHIVE.md", HEADER + done_row)
+            self.commit(self.project, "archive")
+        if worktree:
+            self.worktree("task-001")
+
+
+class GovernedClosingTaskTest(ClosingTaskMixin, GovernedEffectiveStateTest):
+    done_id, open_id, done_token = "TASK-001", "TASK-002", "ACCEPTED"
+
+    def closing_project(self, worktree: bool = True, archived: bool = False) -> None:
+        self.setup_project([
+            ("TASK-001", "ACCEPTED", "REQUIRED", "—"),
+            ("TASK-002", "QUEUED", "REQUIRED", "TASK-001"),
+        ])
+        if archived:
+            queue = (self.project / "tasks/QUEUE.md").read_text(encoding="utf-8")
+            done_row = next(line for line in queue.splitlines(keepends=True) if "| TASK-001 |" in line)
+            self.write(self.project, "tasks/QUEUE.md", queue.replace(done_row, ""))
+            self.write(self.project, "tasks/QUEUE_ARCHIVE.md", self.header + done_row)
+            self.commit(self.project, "archive")
+        if worktree:
+            self.worktree("task-001")
+
+    def test_reserved_worktree_derives_in_progress_without_a_queue_edit(self) -> None:
+        self.setup_project([("TASK-001", "QUEUED", "REQUIRED", "—")])
+        self.worktree("task-001")
+        task = self.load()["TASK-001"]
+        self.assertEqual((task.readiness, task.lifecycle), ("IN PROGRESS", "in_progress"))
+        self.assertEqual(task.source, "branch task-001")
+        self.assertIn("QUEUED", (self.project / "tasks/QUEUE.md").read_text(encoding="utf-8"))
+
+    def test_record_ready_for_review_with_queued_row_is_derived_and_shows_progress(self) -> None:
+        self.setup_project([("TASK-001", "QUEUED", "REQUIRED", "—")])
+        wt = self.worktree("task-001")
+        self.write_record(wt, "TASK-001", "READY_FOR_REVIEW")
+        self.commit(wt, "ready")
+        with mock.patch.object(console, "closure_status") as status, \
+             mock.patch.object(console, "lifecycle_started_at",
+                               return_value="2026-01-01T00:00:00Z"):
+            task = self.load()["TASK-001"]
+        status.assert_not_called()
+        self.assertEqual((task.readiness, task.lifecycle),
+                         ("READY FOR REVIEW", "ready_for_review"))
+        self.assertEqual(task.launch_command, "Review TASK-001")
+        self.assertEqual(task.progress_phase, "review pending")
+        self.assertEqual(task.remaining_gates[0], "Independent review")
+        self.assertTrue(task.shows_progress)
+        self.assertNotEqual(console._elapsed(task.started_at), "unavailable")
+
+    def test_ready_for_review_without_a_worktree_shows_no_progress(self) -> None:
+        self.setup_project([("TASK-001", "READY_FOR_REVIEW", "REQUIRED", "—")])
+        task = self.load()["TASK-001"]
+        self.assertFalse(task.shows_progress)
+        self.assertEqual(task.progress_phase, "unavailable")
+
+    def test_review_gate_progress_phase(self) -> None:
+        phase, gates = console._lifecycle_progress("C3", True)
+        self.assertEqual(phase, "review pending")
+        self.assertEqual(gates[0], "Independent review")
 
 
 class BackgroundRefreshTest(unittest.TestCase):

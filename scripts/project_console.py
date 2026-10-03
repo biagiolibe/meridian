@@ -157,6 +157,14 @@ class Task:
         return None
 
     @property
+    def shows_progress(self) -> bool:
+        """Whether elapsed time and lifecycle progress apply to this task."""
+        return self.lifecycle in ("in_progress", "closing") or (
+            self.workflow == "governed-sdd" and self.lifecycle == "ready_for_review"
+            and self.worktree is not None
+        )
+
+    @property
     def markers(self) -> tuple[str, ...]:
         return (
             *(("changes requested",) if self.changes_requested else ()),
@@ -170,6 +178,8 @@ class Task:
             return f"{self.closure_stop_reason}: {self.closure_resume or 'no resume command'}"
         if self.closure_resume:
             return self.closure_resume
+        if self.readiness == "CLOSING":
+            return "Closure state unavailable: rerun meridian worktree closure-status"
         if self.record_problem and self.readiness != "MISMATCH":
             return f"Resolve the task record: {self.record_problem}"
         if self.readiness == "READY":
@@ -554,6 +564,90 @@ def _branch_facts(project: Path, profile: Profile, task_id: str, queue: str,
     return facts, record, record_path, worktree
 
 
+def _dependency_ids(row: QueueRow) -> tuple[str, ...]:
+    dependencies = tuple(
+        item.strip().strip("`") for item in row.dependencies.split(",")
+        if item.strip() not in ("", "—", "-")
+    )
+    if any(not ID_PATTERN.fullmatch(item) for item in dependencies):
+        raise ConsoleError(f"Task {row.task_id} has an invalid dependency")
+    return dependencies
+
+
+def _dependency_states(profile: Profile, by_id: dict[str, str],
+                       dependencies: tuple[str, ...]) -> tuple[tuple[str, str], ...]:
+    return tuple(
+        (item, {
+            "done": "Done", "in_progress": "Working",
+            "ready_for_review": "Review", "todo": "Open",
+        }[profile.phases[by_id[item]]])
+        for item in dependencies if item in by_id
+    )
+
+
+# closure-status steps that mean closure work remains after `integrate stage`.
+CLOSING_STEPS = frozenset({"C6", "C7", "C9", "C10"})
+
+
+def _closing_task(project: Path, profile: Profile, row: QueueRow, queue: Path,
+                  worktrees: dict[str, str], identities: IdentityCache | None,
+                  resolver: RecordResolver, by_id: dict[str, str]) -> Task | None:
+    """List a task whose queue row is done but whose closure is not cleaned up.
+
+    The queue keeps its real status; `CLOSING` is derived from the registered
+    canonical worktree and the lifecycle command, and nothing is written. The
+    check costs no subprocess for a done row without a registered worktree.
+    """
+    if row.status != profile.closing_status:
+        return None
+    needle = row.task_id.casefold()
+    if not any(needle in branch.casefold() for branch in worktrees):
+        return None
+    try:
+        identity = (identities or IdentityCache()).resolve(project, row.task_id)
+    except MeridianError:
+        return None
+    worktree = worktrees.get(identity.branch_name)
+    if worktree is None:
+        return None
+    closure: dict[str, object] | None = None
+    try:
+        report, _ready = closure_status(row.task_id, None, project)
+        if report.get("step") in CLOSING_STEPS:
+            closure = report
+    except (MeridianError, OSError, ValueError):
+        # A transient lifecycle read keeps the task listed with unavailable progress.
+        pass
+    if closure is not None and closure["step"] == "C10" and closure["resume"] is None:
+        return None
+    started_at = None
+    try:
+        started_at = lifecycle_started_at(row.task_id, project)
+    except (MeridianError, OSError, ValueError):
+        pass
+    progress_phase, remaining_gates = (
+        _lifecycle_progress(str(closure["step"]), True) if closure else ("unavailable", ()))
+    try:
+        path, _problem = _task_path(project, queue, row, resolver)
+        text = _read_text(path) if path else None
+    except ConsoleError:
+        path, text = None, None
+    dependencies = _dependency_ids(row)
+    return Task(
+        task_id=row.task_id, title=row.title or heading_title(text or "") or row.task_id,
+        status=row.status, phase=row.section, dependencies=dependencies, path=path,
+        objective=_section(text or "", "Objective", "Goal"),
+        criteria=_section(text or "", "Acceptance Criteria"),
+        worktree=worktree, readiness="CLOSING", lifecycle="closing", source="main",
+        registered_worktree=True, workflow=profile.name,
+        updated_at=_committed_update(project, _relative(project, path)) if path else None,
+        closure_stop_reason=closure["stop_reason"] if closure else None,
+        closure_resume=closure["resume"] if closure else None,
+        started_at=started_at, progress_phase=progress_phase, remaining_gates=remaining_gates,
+        dependency_states=_dependency_states(profile, by_id, dependencies),
+    )
+
+
 def load_snapshot(project: Path, identities: IdentityCache | None = None) -> Snapshot:
     project = project.expanduser().resolve()
     profile = _select_profile(project)
@@ -579,15 +673,24 @@ def load_snapshot(project: Path, identities: IdentityCache | None = None) -> Sna
     queue_relative = _relative(project, queue)
     resolver = RecordResolver(project, locations)
     tasks: list[Task] = []
+    closing_count = 0
+    # A phase archived by `integrate stage` leaves the active queue while its
+    # task still has closure work, so archived rows are checked too.
+    for row in archived_rows:
+        closing = _closing_task(project, profile, row, queue, worktrees, identities,
+                                resolver, by_id)
+        if closing:
+            tasks.append(closing)
+            closing_count += 1
     for row in active_rows:
         if profile.phases[row.status] == "done":
+            closing = _closing_task(project, profile, row, queue, worktrees, identities,
+                                    resolver, by_id)
+            if closing:
+                tasks.append(closing)
+                closing_count += 1
             continue
-        dependencies = tuple(
-            item.strip().strip("`") for item in row.dependencies.split(",")
-            if item.strip() not in ("", "—", "-")
-        )
-        if any(not ID_PATTERN.fullmatch(item) for item in dependencies):
-            raise ConsoleError(f"Task {row.task_id} has an invalid dependency")
+        dependencies = _dependency_ids(row)
         path, main_problem = _task_path(project, queue, row, resolver)
         primary_text = _read_text(path) if path else None
         if main_problem:
@@ -608,6 +711,15 @@ def load_snapshot(project: Path, identities: IdentityCache | None = None) -> Sna
         # The lifecycle command is authoritative for closure guidance.  Restrict
         # the extra read to registered active worktrees; queued tasks retain the
         # constant-cost refresh path established by task 078.
+        if (facts and facts.worktree and profile.name == "governed-sdd"
+                and effective.lifecycle == "ready_for_review"):
+            # A task waiting for approval stops at the review gate (C3), which
+            # closure-status never reports; keep its timing and gate visible.
+            progress_phase, remaining_gates = _lifecycle_progress("C3", True)
+            try:
+                started_at = lifecycle_started_at(row.task_id, project)
+            except (MeridianError, OSError, ValueError):
+                pass
         if facts and facts.worktree and effective.lifecycle == "in_progress":
             try:
                 closure, _ready = closure_status(row.task_id, None, project)
@@ -669,19 +781,13 @@ def load_snapshot(project: Path, identities: IdentityCache | None = None) -> Sna
             started_at=started_at,
             progress_phase=progress_phase,
             remaining_gates=remaining_gates,
-            dependency_states=tuple(
-                (item, {
-                    "done": "Done", "in_progress": "Working",
-                    "ready_for_review": "Review", "todo": "Open",
-                }[profile.phases[by_id[item]]])
-                for item in dependencies if item in by_id
-            ),
+            dependency_states=_dependency_states(profile, by_id, dependencies),
         ))
     return Snapshot(
         project=project, queue=queue, branch=branch_line,
         git_summary="clean" if len(status_lines) == 1 else f"{len(status_lines) - 1} changed paths",
         git_changes=len(status_lines) - 1, tasks=tuple(tasks),
-        done_count=sum(profile.phases[status] == "done" for status in by_id.values()),
+        done_count=sum(profile.phases[status] == "done" for status in by_id.values()) - closing_count,
     )
 
 
@@ -779,7 +885,7 @@ def one_shot(state: ConsoleState) -> str:
             lines.append(f"  Closure stop: {task.closure_stop_reason}")
         if task.closure_resume:
             lines.append(f"  Resume: {task.closure_resume}")
-        if task.lifecycle == "in_progress":
+        if task.shows_progress:
             lines.append(f"  Elapsed: {_elapsed(task.started_at)}")
             lines.append(f"  Progress: {task.progress_phase}")
             lines.append(f"  Remaining gates: {', '.join(task.remaining_gates) or 'none'}")
@@ -875,12 +981,14 @@ def _wrapped(lines: tuple[str, ...] | list[str], width: int) -> list[str]:
     return output
 
 
-FILTERS = ("Ready", "Working", "Blocked", "Unknown", "Review", "Mismatch")
+FILTERS = ("Ready", "Working", "Blocked", "Unknown", "Review", "Mismatch", "Closing")
 
 
 def _state_label(task: Task) -> tuple[str, str]:
     if task.readiness == "MISMATCH":
         return "Mismatch", "blocked"
+    if task.lifecycle == "closing":
+        return "Closing", "working"
     if task.lifecycle in ("ready_for_review", "done") and not task.readiness.startswith(
             ("BLOCKED", "UNKNOWN")):
         return "Review", "ready"
@@ -990,6 +1098,8 @@ def _lifecycle_progress(step: str, active: bool) -> tuple[str, tuple[str, ...]]:
              "Run candidate validation", "Push main", "Clean up worktree")
     if step == "C1":
         return "working", gates
+    if step == "C3":
+        return "review pending", ("Independent review", *gates[2:])
     if step == "C5":
         return "validation/evidence pending", gates
     if step in {"C6", "C7"}:
@@ -1041,7 +1151,7 @@ def _detail_lines(task: Task, width: int, palette: dict[str, int],
         add(f"Closure stop: {task.closure_stop_reason}", "blocked")
     if task.closure_resume:
         add(f"Resume: {task.closure_resume}", "action")
-    if task.lifecycle == "in_progress":
+    if task.shows_progress:
         add(f"Elapsed cycle time: {_elapsed(task.started_at)}", "muted")
         add(f"Last activity: {_age(task.updated_at)}", "muted")
         add(f"Lifecycle progress: {task.progress_phase}", "muted")
@@ -1118,7 +1228,7 @@ def _draw_header(screen, state: ConsoleState, palette: dict[str, int],
         attr = palette["tab"] if name == status_filter else palette[
             {"All": "text", "Ready": "ready", "Working": "working",
              "Blocked": "blocked", "Unknown": "unknown", "Review": "ready",
-             "Mismatch": "blocked"}[name]
+             "Closing": "working", "Mismatch": "blocked"}[name]
         ]
         _put(screen, 1, x, label, len(label), attr)
         x += len(label) + 1
