@@ -29,5 +29,11 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 
 ## 🏃 Active Queue
 
-Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, 25, 26, 27, 28, 31, 32, 34, 35, 36, 42, 44, and 45
+Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, 25, 26, 27, 28, 31, 32, 34, 35, 36, 42, 44, 45, and 46
 are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
+
+### Phase 47 — Release 1.2.6 upgrade blocker
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 128 | Upgrade a newly managed file that the project already has | 🔴 P1 | 127 | [128](128-adopt-existing-copy-of-newly-managed-file.md) |
