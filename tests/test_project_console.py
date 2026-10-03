@@ -328,11 +328,32 @@ class AgentLaunchTest(unittest.TestCase):
 
     def test_permitted_directive_matrix_refuses_writers_and_mismatches(self) -> None:
         self.assertEqual(self.task().launch_command, "Proceed with 001")
+        self.assertFalse(self.task().is_resume)
+        self.assertEqual(self.task().resume_confirmations, 0)
+        for workflow in ("lean-delivery", "governed-sdd"):
+            with self.subTest(workflow=workflow):
+                resumed = self.task(workflow=workflow, readiness="IN PROGRESS",
+                                    lifecycle="in_progress")
+                self.assertTrue(resumed.is_resume)
+                self.assertEqual(resumed.launch_command, "Proceed with 001")
+                self.assertEqual(resumed.resume_confirmations, 1)
+                self.assertEqual(
+                    self.task(workflow=workflow, readiness="IN PROGRESS",
+                              lifecycle="in_progress", active_writer=True).launch_command,
+                    "Proceed with 001",
+                )
+                self.assertEqual(
+                    self.task(workflow=workflow, readiness="IN PROGRESS",
+                              lifecycle="in_progress", active_writer=True).resume_confirmations,
+                    2,
+                )
         self.assertEqual(self.task(workflow="lean-delivery", readiness="READY FOR REVIEW",
                                    lifecycle="ready_for_review").launch_command, "Review 001")
         self.assertEqual(self.task(workflow="governed-sdd", readiness="READY FOR REVIEW",
                                    lifecycle="ready_for_review", review="REQUIRED").launch_command,
                          "Review 001")
+        self.assertFalse(self.task(workflow="governed-sdd", readiness="READY FOR REVIEW",
+                                   lifecycle="ready_for_review", review="REQUIRED").is_resume)
         self.assertEqual(self.task(workflow="governed-sdd", readiness="IN PROGRESS",
                                    lifecycle="in_progress", changes_requested=True).launch_command,
                          "Address review 001")
@@ -340,6 +361,10 @@ class AgentLaunchTest(unittest.TestCase):
                                     lifecycle="ready_for_review", review="NOT_REQUIRED").launch_command)
         self.assertIsNone(self.task(readiness="MISMATCH", active_writer=True).launch_command)
         self.assertIsNone(self.task(active_writer=True).launch_command)
+        self.assertIsNone(self.task(lifecycle="done", readiness="DONE ON BRANCH").launch_command)
+        self.assertIsNone(self.task(lifecycle="closing", readiness="CLOSING").launch_command)
+        self.assertIsNone(self.task(lifecycle="in_progress", readiness="IN PROGRESS",
+                                    record_problem="duplicate record").launch_command)
 
     def test_next_action_explains_review_launches_and_refusals(self) -> None:
         required = self.task(workflow="governed-sdd", readiness="READY FOR REVIEW",
@@ -410,7 +435,7 @@ class AgentLaunchTest(unittest.TestCase):
             "base", "text", "title", "ready", "muted", "line", "action", "blocked",
         )}
         console._draw_launch_prompt(
-            screen, 100, 20, self.task(), Path("/project"),
+            screen, 100, 20, self.task(), 0, Path("/project"),
             {"claude": console.AgentDefaults("claude-test", "medium"),
              "codex": console.AgentDefaults("gpt-test", "high")}, palette,
         )
@@ -422,23 +447,78 @@ class AgentLaunchTest(unittest.TestCase):
         self.assertIn("2 Codex", rendered)
         self.assertIn("Esc cancels", rendered)
 
+    def test_resume_prompts_for_liveness_and_a_second_dirty_confirmation(self) -> None:
+        palette = {name: 0 for name in (
+            "base", "text", "title", "ready", "muted", "line", "action", "blocked",
+        )}
+        defaults = {"claude": console.AgentDefaults(), "codex": console.AgentDefaults()}
+        clean = self.task(readiness="IN PROGRESS", lifecycle="in_progress")
+        screen = FakeScreen(20, 100)
+        console._draw_launch_prompt(screen, 100, 20, clean, 0, Path("/project"),
+                                    defaults, palette)
+        rendered = "\n".join(screen.row(y) for y in range(20))
+        self.assertIn("cannot tell whether an agent is still active", rendered)
+        self.assertIn("Press y to continue", rendered)
+
+        dirty = self.task(readiness="IN PROGRESS", lifecycle="in_progress",
+                          active_writer=True)
+        screen = FakeScreen(20, 100)
+        console._draw_launch_prompt(screen, 100, 20, dirty, 1, Path("/project"),
+                                    defaults, palette)
+        rendered = "\n".join(screen.row(y) for y in range(20))
+        self.assertIn("uncommitted changes", rendered)
+        self.assertIn("Press y again", rendered)
+
+    def test_resume_copy_and_launch_use_the_identical_directive(self) -> None:
+        task = self.task(readiness="IN PROGRESS", lifecycle="in_progress")
+        palette = {name: 0 for name in (
+            "base", "text", "title", "ready", "working", "muted", "line", "action",
+            "blocked",
+        )}
+        lines = [value for value, _style in console._detail_lines(task, 80, palette)]
+        self.assertIn(f"{task.launch_command}  [copy]  [l Resume]", lines)
+
     def test_agent_selection_revalidates_and_launches_without_enter(self) -> None:
+        task = self.task()
+        state = mock.Mock(project=Path("/project"), error=None,
+                          snapshot=mock.Mock(tasks=(task,)))
         with mock.patch.object(console, "_launch_request") as request, \
              mock.patch.object(console, "_start_launch", return_value=(True, "Started")) as start:
             request.return_value = (
                 console.LaunchRequest("codex", "Proceed with 001", Path("/project"), "001",
                                       "12345678-1234-1234-1234-123456789abc"), None)
-            self.assertEqual(console._launch_selected(self.task(), Path("/project"), "codex"),
+            self.assertEqual(console._launch_selected(state, task, "codex"),
                              (True, "Started"))
-        request.assert_called_once_with(self.task(), Path("/project"), "codex")
+        state.refresh.assert_called_once_with()
+        request.assert_called_once_with(task, Path("/project"), "codex")
         start.assert_called_once()
 
     def test_agent_selection_stops_on_revalidation_failure(self) -> None:
-        with mock.patch.object(console, "_launch_request", return_value=(None, "No longer eligible")), \
-             mock.patch.object(console, "_start_launch") as start:
-            self.assertEqual(console._launch_selected(self.task(), Path("/project"), "claude"),
-                             (False, "No longer eligible"))
-        start.assert_not_called()
+        task = self.task(readiness="IN PROGRESS", lifecycle="in_progress")
+        closing = self.task(readiness="CLOSING", lifecycle="closing")
+        for label, current in (("closing", (closing,)), ("done", ())):
+            with self.subTest(label=label):
+                state = mock.Mock(project=Path("/project"), error=None,
+                                  snapshot=mock.Mock(tasks=current))
+                with mock.patch.object(console, "_launch_request") as request, \
+                     mock.patch.object(console, "_start_launch") as start:
+                    success, message = console._launch_selected(state, task, "claude")
+                self.assertFalse(success)
+                self.assertIn("state changed", message)
+                request.assert_not_called()
+                start.assert_not_called()
+
+    def test_agent_selection_requires_new_confirmation_if_worktree_became_dirty(self) -> None:
+        selected = self.task(readiness="IN PROGRESS", lifecycle="in_progress")
+        current = self.task(readiness="IN PROGRESS", lifecycle="in_progress",
+                            active_writer=True)
+        state = mock.Mock(project=Path("/project"), error=None,
+                          snapshot=mock.Mock(tasks=(current,)))
+        with mock.patch.object(console, "_launch_request") as request:
+            success, message = console._launch_selected(state, selected, "codex")
+        self.assertFalse(success)
+        self.assertIn("became dirty", message)
+        request.assert_not_called()
 
     def test_request_refuses_missing_or_malformed_console_session(self) -> None:
         for session_id in (None, "w0t1p2:not-a-uuid", "wrong:12345678-1234-1234-1234-123456789abc"):
@@ -807,7 +887,8 @@ class LeanEffectiveStateTest(RepoCase):
         self.assertEqual(self.refs_and_status(), before)
         self.assertEqual((task.readiness, task.lifecycle), ("IN PROGRESS", "in_progress"))
         self.assertEqual(task.source, "branch task-001")
-        self.assertIsNone(task.launch_command)
+        self.assertEqual(task.launch_command, "Proceed with 001")
+        self.assertEqual(task.next_action, "If assigned: Proceed with 001")
         self.assertEqual(task.worktree, str(self.root / "wt-task-001"))
         self.assertIn("[ ]", (self.project / "tasks/QUEUE.md").read_text(encoding="utf-8"))
 
@@ -934,6 +1015,7 @@ class LeanEffectiveStateTest(RepoCase):
         self.assertTrue(dirty.active_writer)
         self.assertEqual((clean.readiness, clean.lifecycle), (dirty.readiness, dirty.lifecycle))
         self.assertEqual(dirty.markers, ("active writer",))
+        self.assertEqual(dirty.launch_command, "Proceed with 001")
 
     def test_branch_behind_primary_is_a_mismatch_without_directive(self) -> None:
         self.setup_project({"001": "/"})
@@ -1032,6 +1114,8 @@ class GovernedEffectiveStateTest(RepoCase):
         self.assertEqual(tasks["TASK-006"].readiness, "READY")
         self.assertEqual(tasks["TASK-008"].readiness, "BLOCKED: TASK-007")
         self.assertEqual(tasks["TASK-004"].title, "Governed TASK-004")
+        self.assertEqual(tasks["TASK-003"].launch_command, "Proceed with TASK-003")
+        self.assertEqual(tasks["TASK-004"].launch_command, "Review TASK-004")
 
     def test_dependency_on_unaccepted_task_is_blocked(self) -> None:
         self.setup_project([
@@ -1077,6 +1161,7 @@ class GovernedEffectiveStateTest(RepoCase):
         self.assertEqual((task.readiness, task.lifecycle), ("IN PROGRESS", "in_progress"))
         self.assertTrue(task.changes_requested)
         self.assertEqual(task.markers, ("changes requested",))
+        self.assertEqual(task.launch_command, "Address review TASK-001")
         approved = review + "\n## Attempt 3 — APPROVE\n\n- z\n"
         self.set_branch(wt, "TASK-001", "IN_PROGRESS", review=approved)
         self.assertFalse(self.load()["TASK-001"].changes_requested)
@@ -1107,6 +1192,7 @@ class GovernedEffectiveStateTest(RepoCase):
         task = self.load()["TASK-001"]
         self.assertTrue(task.active_writer)
         self.assertEqual(task.readiness, "IN PROGRESS")
+        self.assertEqual(task.launch_command, "Proceed with TASK-001")
 
     def test_uncommitted_in_progress_row_supersedes_committed_queued(self) -> None:
         self.setup_project([("TASK-001", "QUEUED", "REQUIRED", "—")])

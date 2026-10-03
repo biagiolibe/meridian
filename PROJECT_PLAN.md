@@ -93,7 +93,7 @@
 - `[x]` 123 — Complete the unattended-closure command policy for Codex and Claude Code.
 - `[x]` 124 — Keep a closing task visible in the console until cleanup, in both workflows.
 - `[x]` 125 — Make candidate validation commands project-declared and align the gate docs for both workflows.
-- `[ ]` 126 — Let the console resume an interrupted task.
+- `[x]` 126 — Let the console resume an interrupted task.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.
 - `[x]` 053 — Remove machine-specific absolute paths from tracked records.

@@ -540,3 +540,9 @@ reasons, and creates the implementation follow-ups.
 | `[x]` | 123 | Complete the unattended-closure command policy for Codex and Claude Code | 🟡 P2 | — | [123](done/123-allow-archive-rename-in-agent-command-policies.md) |
 | `[x]` | 124 | Keep a closing task visible in the console until cleanup, in both workflows | 🟡 P2 | 119 | [124](done/124-console-keep-closing-tasks-visible.md) |
 | `[x]` | 125 | Make candidate validation commands project-declared and align the gate docs for both workflows | 🔴 P1 | 121, 122 | [125](done/125-project-declared-candidate-validation-commands.md) |
+
+### Phase 45 — Console polish
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 126 | Let the console resume an interrupted task | 🟡 P2 | 124 | [126](done/126-console-resume-interrupted-task.md) |
