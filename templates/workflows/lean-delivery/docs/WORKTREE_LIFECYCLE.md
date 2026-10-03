@@ -35,8 +35,14 @@ evidence and never executes project-provided commands.
 
 ## Candidate validation by integration outcome
 
-Run candidate validation outside the lifecycle command. For every `REUSE`,
-`BOUNDED`, or `FULL` outcome, run the project's repository check and
+Run candidate validation outside the lifecycle command. `.meridian/candidate-validation.json`
+is consumer-owned and versioned. It declares non-empty required command fragments
+for every outcome (`declared`), or explicitly chooses `none`; a missing file or
+`undeclared` state stops `integrate stage` before any lease or merge with
+`BLOCKED UNDECLARED_VALIDATION_COMMANDS`. The stop reports the task's recorded
+validation commands and a proposal; review it and write declared fragments or
+`none`, or use `meridian setup --apply`. `upgrade --apply` never writes this file.
+For every `REUSE`, `BOUNDED`, or `FULL` outcome, run the project's declared repository check and
 `git diff --check` against the staged candidate tree. A `REUSE` outcome also
 requires a deterministic proof that every non-governance path is unchanged:
 run `git diff --name-only "$VALIDATED_TASK_COMMIT" "$CANDIDATE_TREE"` and allow
@@ -44,8 +50,7 @@ only the task record or its exact archive rename, that task's handoff, queue,
 plan, queue archive, and changelog fragment. `BOUNDED` adds the tests for
 modules changed by the task and advanced `main`; `FULL` adds the full test
 suite. A project may always run the full suite for any outcome. Configure
-candidate-evidence command requirements for the project's repository check and
-full suite; they must match this gate.
+candidate-evidence command requirements per outcome; they must match this gate.
 
 `meridian codex worktree-path` is deprecated for one migration window. New
 instructions and automation use `meridian worktree path`.

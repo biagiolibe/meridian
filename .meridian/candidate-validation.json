@@ -1,0 +1,16 @@
+{
+  "outcomes": {
+    "BOUNDED": [
+      "scripts/check_repository.py"
+    ],
+    "FULL": [
+      "scripts/check_repository.py",
+      "unittest discover"
+    ],
+    "REUSE": [
+      "scripts/check_repository.py"
+    ]
+  },
+  "state": "declared",
+  "version": 1
+}

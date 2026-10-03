@@ -78,6 +78,11 @@ test-reported sandbox skip is accepted only when no acceptance criterion
 depends solely on it and the handoff records it as `Validation skips:`.
 <!-- MERIDIAN:END -->
 
+Candidate validation reads the project's declared fragments for `REUSE`, `BOUNDED`,
+and `FULL` from `.meridian/candidate-validation.json`; `REUSE` also proves only
+governance paths changed. A missing declaration stops before staging rather than silently
+accepting evidence.
+
 <!-- MERIDIAN:BEGIN capability=review-mode-boundary v1 -->
 ### Review-mode boundary
 
