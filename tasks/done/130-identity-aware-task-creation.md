@@ -20,45 +20,54 @@ to obtain the next valid ID instead of counting by hand.
 
 ## Acceptance Criteria
 
-- [ ] A read-only command, for example `meridian task identity next --milestone
+- [x] A read-only command, for example `meridian task identity next --milestone
   <N> --workstream <W> --format json`, returns the next canonical ID for a
   `milestone` project: the highest ordinal already used for that milestone and
   workstream across the project's task and queue authorities, plus one,
   formatted as `M<N>-<W>-<ordinal>`.
-- [ ] The command refuses, without writing anything, in these cases: the project
+- [x] The command refuses, without writing anything, in these cases: the project
   is `opaque`; the milestone or workstream does not satisfy the grammar; the
   ordinal would exceed `999`; or the authorities are ambiguous or contradictory
   (it fails closed, as the resolver does).
-- [ ] The command counts legacy-opaque IDs and structured IDs that merely look
+- [x] The command counts legacy-opaque IDs and structured IDs that merely look
   similar correctly: only IDs that match the same milestone and workstream raise
   the ordinal, and an ID in another milestone or workstream never does.
-- [ ] The returned ID is validated through the same resolver as
+- [x] The returned ID is validated through the same resolver as
   `meridian task identity check`, and the JSON includes the derived task file
   name and path, so the agent does not rebuild them.
-- [ ] `/meridian-task` reads the declaration first. In `opaque` (including no
+- [x] `/meridian-task` reads the declaration first. In `opaque` (including no
   file) its behavior, ID assignment, and file naming are unchanged. In
   `milestone` it asks for the milestone and workstream, calls the command, shows
   the proposed ID for confirmation, and creates `<ID>.md` in the project's task
   root, adding the queue row with the canonical ID and a link to that file.
-- [ ] The Governed SDD guidance that tells an agent to assign a task ID (the
+- [x] The Governed SDD guidance that tells an agent to assign a task ID (the
   `/meridian-task` Governed branch and the tech-designer task-creation wording
   in the Governed templates) points to the same rule. Template wording changes
   are additive and follow the capability-marker and migration rules; if they
   cannot be done within this task, the command-side change ships and the
   decision is recorded in the handoff.
-- [ ] The agent never invents an ordinal: where the command is unavailable or
+- [x] The agent never invents an ordinal: where the command is unavailable or
   fails, the instruction is to stop and report, not to guess.
-- [ ] Neutral across workflows: the command and the `/meridian-task` behavior
+- [x] Neutral across workflows: the command and the `/meridian-task` behavior
   work for Lean Delivery and Governed SDD alike.
-- [ ] Tests cover: next ordinal in an empty and a populated milestone; legacy
+- [x] Tests cover: next ordinal in an empty and a populated milestone; legacy
   IDs ignored; other milestones and workstreams ignored; `opaque` refused;
   invalid grammar refused; ordinal overflow; ambiguity failing closed; JSON
   shape and exit codes; and that nothing is written.
-- [ ] A recorded rehearsal on a scratch copy of a project's task records (as in
+- [x] A recorded rehearsal on a scratch copy of a project's task records (as in
   the earlier Palimpsest rehearsal, not touching the real project) shows the
   proposed ID for an existing and a new milestone.
-- [ ] One changelog fragment is added per `CONTRIBUTING.md`.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
+- [x] One changelog fragment is added per `CONTRIBUTING.md`.
+- [x] `python3 scripts/check_repository.py` and the unit tests pass.
+
+## Completion
+
+The command-side implementation, task-creation command, and both governed
+skills are complete. Updating the managed Governed operator-prompt template is
+intentionally deferred: it requires a template-changing release packet with a
+new capability marker and migration, which is outside this task's CLI-focused
+release scope. The handoff records this decision for the follow-up release
+task.
 
 ## Relevant Files
 
