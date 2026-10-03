@@ -45,3 +45,9 @@ are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 |--------|----|-------|----------|------------|------|
 | `[ ]` | 131 | Verify the latest release without the removed `isLatest` field | 🟡 P2 | — | [131](131-release-verify-latest-without-islatest.md) |
 | `[ ]` | 132 | Document the settings-pinned marketplace refusal and how to check the installed version | 🟢 P3 | — | [132](132-readme-marketplace-pin-in-settings-note.md) |
+
+### Phase 50 — Interrupted task recovery
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 133 | Let a confirmed Resume reach a dirty task worktree | 🟡 P2 | — | [133](133-resume-dirty-task-worktree.md) |
