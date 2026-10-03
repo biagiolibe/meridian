@@ -24,38 +24,38 @@ scope was dropped.
 
 ## Acceptance Criteria
 
-- [ ] `meridian setup` accepts an explicit task-identity choice (for example
+- [x] `meridian setup` accepts an explicit task-identity choice (for example
   `--task-identity opaque|milestone`). `--check` lists the planned write of
   `.meridian/task-identity.json` with its mode; `--apply` writes it. Without the
   option, `setup` writes nothing, so existing invocations behave as before.
-- [ ] The file content is exactly the existing closed schema
+- [x] The file content is exactly the existing closed schema
   (`{"version": 1, "mode": "<chosen>"}`), written atomically and validated by
   the same parser the resolver uses. An invalid choice is refused before any
   write.
-- [ ] An existing declaration is never overwritten. If one exists and differs
+- [x] An existing declaration is never overwritten. If one exists and differs
   from the requested mode, `setup` reports the difference and leaves the file
   unchanged; an identical one is reported as already set.
-- [ ] Recording `opaque` explicitly is allowed at project start and is a
+- [x] Recording `opaque` explicitly is allowed at project start and is a
   recorded choice, not an upgrade restating a default. `meridian upgrade`
   continues never to create or modify the file, and absence continues to select
   `opaque`; a test proves both.
-- [ ] The `/meridian-init` command (and the skills that bootstrap a project) ask
+- [x] The `/meridian-init` command (and the skills that bootstrap a project) ask
   the developer to choose `opaque` or `milestone`, explain the one-line
   difference, never choose by default for them, and pass the answer to `setup`.
   The wording states that the choice can be changed later by editing the file.
-- [ ] The choice is independent of the workflow mode: both Lean Delivery and
+- [x] The choice is independent of the workflow mode: both Lean Delivery and
   Governed SDD can select either value, and no behavior is restricted per
   workflow.
-- [ ] After `setup` with `milestone`, `meridian task identity check` reports the
+- [x] After `setup` with `milestone`, `meridian task identity check` reports the
   declared mode, and a malformed or conflicting declaration still fails closed.
-- [ ] `docs/TASK_IDENTITY_POLICY.md` is corrected from "design proposal" to its
+- [x] `docs/TASK_IDENTITY_POLICY.md` is corrected from "design proposal" to its
   real implemented status and states that `setup` is the supported way to create
   the declaration; no other behavior of the document changes.
-- [ ] Tests cover: no option writes nothing; each valid mode written; invalid
+- [x] Tests cover: no option writes nothing; each valid mode written; invalid
   value refused; existing identical and existing different declarations; the
   `--check` plan text; upgrade never writing the file; and both workflow modes.
-- [ ] One changelog fragment is added per `CONTRIBUTING.md`.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
+- [x] One changelog fragment is added per `CONTRIBUTING.md`.
+- [x] `python3 scripts/check_repository.py` and the unit tests pass.
 
 ## Relevant Files
 
