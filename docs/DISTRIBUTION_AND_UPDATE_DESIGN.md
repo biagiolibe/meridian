@@ -172,6 +172,12 @@ manifest is only readable by a CLI at least as new as its `protocolVersion`.
    On conflicts, resolve the bounded conflict and rerun; never hand-edit
    `.meridian/manifest.json`.
 
+A migration may explicitly adopt a framework-owned path that becomes managed
+after consumers may already hold it. The clean plan names that adoption. If the
+existing file differs from the target template, both check and apply name the
+collision-safe adjacent backup that apply writes before replacement. Paths not
+declared for adoption retain the normal missing-baseline conflict.
+
 What each version axis tells the adopter:
 
 | Signal | Meaning | Adopter action |

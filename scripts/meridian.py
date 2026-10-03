@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
 from http.client import HTTPException
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
@@ -2812,6 +2812,7 @@ class PlanItem:
     action: str
     detail: str
     problems: tuple[str, ...] = ()
+    backup: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -3732,6 +3733,52 @@ def migration_record_paths(framework_root: Path, migration_ids_to_find: list[str
     if len(records) != len(wanted):
         raise MeridianError("a requested migration record is missing from the framework source")
     return records
+
+
+def validate_adopt_existing_paths(data: dict[str, object]) -> list[str]:
+    """Validate an optional, narrowly scoped newly-managed-file adoption declaration."""
+    declared = data.get("adoptExistingPaths", [])
+    if not isinstance(declared, list):
+        return ["adoptExistingPaths must be a list"]
+    managed = data.get("managedPaths", [])
+    managed_paths = (
+        {value for value in managed if isinstance(value, str)}
+        if isinstance(managed, list)
+        else set()
+    )
+    errors = []
+    seen = set()
+    for value in declared:
+        if not isinstance(value, str) or not value:
+            errors.append("adoptExistingPaths entries must be non-empty strings")
+            continue
+        normalized = PurePosixPath(value)
+        if (
+            normalized.is_absolute()
+            or not normalized.parts
+            or normalized.as_posix() != value
+            or "\\" in value
+            or ".." in normalized.parts
+        ):
+            errors.append(f"adoptExistingPaths entry is not a normalized relative path: {value!r}")
+        if value in seen:
+            errors.append(f"adoptExistingPaths entry is duplicated: {value!r}")
+        seen.add(value)
+        if value not in managed_paths:
+            errors.append(f"adoptExistingPaths entry is not listed in managedPaths: {value!r}")
+    return errors
+
+
+def adopt_existing_paths(framework_root: Path, pending_migrations: list[str]) -> set[Path]:
+    """Return files that pending migrations explicitly permit adopting without a baseline."""
+    result = set()
+    for path in migration_record_paths(framework_root, pending_migrations):
+        data = json.loads(path.read_text(encoding="utf-8"))
+        errors = validate_adopt_existing_paths(data)
+        if errors:
+            raise MeridianError(f"invalid adoption declaration in {path.name}: {'; '.join(errors)}")
+        result.update(Path(value) for value in data.get("adoptExistingPaths", []))
+    return result
 
 
 def migration_capability_entries(data: dict[str, object]) -> list[tuple[str, int]]:
@@ -5953,6 +6000,7 @@ def plan_from_baseline(
         for migration in migration_ids(framework_root, installed_version, target_baseline_version)
         if migration not in applied
     ]
+    adoptable_paths = adopt_existing_paths(framework_root, pending_migrations)
 
     planned_files = managed_files_override or managed_files(framework_root, mode)
     router_project = project_uses_entry_router(project_root)
@@ -5977,7 +6025,26 @@ def plan_from_baseline(
         base = baseline_root / item.target
         if not base.is_file():
             if local.exists():
-                plan.append(PlanItem(item, "conflict", "managed baseline is missing"))
+                if item.target not in adoptable_paths or not local.is_file():
+                    plan.append(PlanItem(item, "conflict", "managed baseline is missing"))
+                elif sha256(local) == sha256(item.source):
+                    plan.append(
+                        PlanItem(
+                            item,
+                            "adopt",
+                            "existing file matches target; record the managed baseline",
+                        )
+                    )
+                else:
+                    backup = _unused_adoption_backup(local).relative_to(project_root)
+                    plan.append(
+                        PlanItem(
+                            item,
+                            "adopt-replace",
+                            f"replace existing file after preserving it as {backup}",
+                            backup=backup,
+                        )
+                    )
             else:
                 plan.append(PlanItem(item, "add", "new managed file"))
             continue
@@ -6253,6 +6320,19 @@ def plan_has_blockers(plan: list[PlanItem], owner_reconciled: bool = False) -> b
     return any(item.problems or (item.action == "conflict" and not owner_reconciled) for item in plan)
 
 
+def _unused_adoption_backup(path: Path) -> Path:
+    """Choose a deterministic adjacent backup path without reusing an existing name."""
+    first = path.with_name(path.name + ".meridian-pre-adoption.bak")
+    if not first.exists():
+        return first
+    suffix = 1
+    while True:
+        candidate = first.with_name(first.name + f".{suffix}")
+        if not candidate.exists():
+            return candidate
+        suffix += 1
+
+
 def apply_plan(
     project_root: Path,
     framework_root: Path,
@@ -6287,6 +6367,11 @@ def apply_plan(
             local = project_root / item.file.target
             if item.action == "replace" or item.action == "add":
                 local.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(item.file.source, local)
+            elif item.action == "adopt-replace":
+                if item.backup is None:
+                    raise MeridianError(f"adoption backup is missing for {item.file.target}")
+                _write_exclusive_backup(local, project_root / item.backup)
                 shutil.copyfile(item.file.source, local)
             elif item.action == "merge":
                 _, merged = merge_clean(local, baseline_root / item.file.target, item.file.source)

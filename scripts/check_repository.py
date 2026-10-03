@@ -262,6 +262,8 @@ def check_migrations(root: Path = ROOT) -> None:
             fail(f"migration sequence is invalid: {path.relative_to(root)}")
         if any(key not in data for key in required):
             fail(f"migration is incomplete: {path.relative_to(root)}")
+        for error in meridian.validate_adopt_existing_paths(data):
+            fail(f"invalid migration adoption declaration in {path.relative_to(root)}: {error}")
         if previous_to is not None and data["from"] != previous_to:
             fail(f"migration versions are not contiguous: {path.relative_to(root)}")
         previous_to = data["to"]

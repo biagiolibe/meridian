@@ -22,41 +22,41 @@ silent overwrite.
 
 ## Acceptance Criteria
 
-- [ ] A migration can declare which of its managed paths are framework-owned
+- [x] A migration can declare which of its managed paths are framework-owned
   files that a project may already hold without a baseline (for example an
   `adoptExistingPaths` list). The field is validated by the repository check and
   documented in `migrations/README.md`. Paths not declared keep today's
   `conflict` behavior.
-- [ ] For a declared path whose baseline is missing and whose local copy exists:
+- [x] For a declared path whose baseline is missing and whose local copy exists:
   - a copy identical to the target template is kept as is and its baseline is
     recorded;
   - a differing copy is replaced by the target template, and the previous copy
     is first preserved next to it under a documented, collision-safe name; the
     plan lists the replacement and the backup path, and the apply output repeats
     them, so no overwrite is silent.
-- [ ] After `upgrade --apply`, the baseline for the adopted file is recorded, so
+- [x] After `upgrade --apply`, the baseline for the adopted file is recorded, so
   later upgrades use the ordinary three-way merge with no repeated adoption or
   backup.
-- [ ] `upgrade --check` reports the adoption as a planned, non-conflicting item
+- [x] `upgrade --check` reports the adoption as a planned, non-conflicting item
   and exits as it does for any clean plan; `--apply` stays all-or-nothing.
-- [ ] A declared path with no local copy still plans `ADD`, and
+- [x] A declared path with no local copy still plans `ADD`, and
   `--owner-reconciled` still touches no managed file.
-- [ ] Migration `060-unattended-closure-command-policy` declares Lean
+- [x] Migration `060-unattended-closure-command-policy` declares Lean
   `docs/WORKTREE_LIFECYCLE.md`, and nothing else, as adoptable. 1.2.6 is
   unpublished, so extend 060 (confirm no tag from `v1.2.6` on exists on `origin`
   first). Its `delta`, the 1.2.6 changelog section, and a new changelog fragment
   state that an existing copy is backed up and replaced.
-- [ ] Governed SDD upgrades are unaffected: its managed documents already have
+- [x] Governed SDD upgrades are unaffected: its managed documents already have
   baselines, and a test proves its plan is unchanged.
-- [ ] Tests cover: identical existing copy; differing existing copy with backup
+- [x] Tests cover: identical existing copy; differing existing copy with backup
   created and reported; no local copy; a second upgrade after adoption is a
   no-op; an undeclared path with a missing baseline still conflicts; backup name
   collision; and the malformed-declaration case in the repository check.
-- [ ] A rehearsal is recorded in the handoff: lock a Lean project at the 1.2.5
+- [x] A rehearsal is recorded in the handoff: lock a Lean project at the 1.2.5
   baseline with its original `docs/WORKTREE_LIFECYCLE.md` present, run
   `meridian upgrade --apply` from the current tree, and confirm the document
   equals the template and the backup holds the old copy.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass, including
+- [x] `python3 scripts/check_repository.py` and the unit tests pass, including
   `test_oldest_published_release_upgrades_to_current_in_one_apply`.
 
 ## Relevant Files

@@ -1559,6 +1559,14 @@ worktree before the branch only after validated integration succeeds.
         checked = self.run_cli("upgrade", "--check")
         self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
         self.assertIn("MIGRATION 060-unattended-closure-command-policy", checked.stdout)
+        if mode == "governed-sdd":
+            lifecycle_plan = next(
+                line
+                for line in checked.stdout.splitlines()
+                if "docs/WORKTREE_LIFECYCLE.md" in line
+            )
+            self.assertEqual(lifecycle_plan.split()[0], "KEEP")
+            self.assertNotIn("ADOPT", lifecycle_plan)
         applied = self.run_cli("upgrade", "--apply")
         self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
 
@@ -1610,7 +1618,15 @@ worktree before the branch only after validated integration succeeds.
         )
         self.assertNotEqual(previous, current)
 
-        for state in ("missing", "baseline", "local-edit"):
+        for state in (
+            "missing",
+            "baseline",
+            "local-edit",
+            "adopt-identical",
+            "adopt-different",
+            "adopt-collision",
+            "adopt-blocked",
+        ):
             with self.subTest(state=state):
                 shutil.rmtree(self.project)
                 self.project.mkdir()
@@ -1637,15 +1653,47 @@ worktree before the branch only after validated integration succeeds.
                     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
                 elif state == "local-edit":
                     lifecycle.write_text(previous + "\nConsumer-owned lifecycle note.\n", encoding="utf-8")
+                elif state.startswith("adopt-"):
+                    baseline_lifecycle = (
+                        self.project / ".meridian/baselines/1.2.5/docs/WORKTREE_LIFECYCLE.md"
+                    )
+                    baseline_lifecycle.unlink()
+                    manifest_path = self.project / ".meridian/manifest.json"
+                    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                    manifest["managedFiles"].pop("docs/WORKTREE_LIFECYCLE.md")
+                    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+                    if state == "adopt-identical":
+                        lifecycle.write_text(current, encoding="utf-8")
+                    else:
+                        lifecycle.write_text(previous + "\nPre-adoption project copy.\n", encoding="utf-8")
+                        if state == "adopt-collision":
+                            lifecycle.with_name(
+                                lifecycle.name + ".meridian-pre-adoption.bak"
+                            ).write_text("earlier backup\n", encoding="utf-8")
+                        elif state == "adopt-blocked":
+                            agents = self.project / "AGENTS.md"
+                            agents.write_text(
+                                agents.read_text(encoding="utf-8") + "\nUndeclared local edit.\n",
+                                encoding="utf-8",
+                            )
+                            (self.project / ".meridian/baselines/1.2.5/AGENTS.md").unlink()
 
                 template.write_text(current, encoding="utf-8")
                 (self.framework / "VERSION").write_text("1.2.6\n", encoding="utf-8")
                 checked = self.run_cli("upgrade", "--check")
-                self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+                if state == "adopt-blocked":
+                    self.assertNotEqual(checked.returncode, 0)
+                    self.assertIn("CONFLICT AGENTS.md — managed baseline is missing", checked.stdout)
+                else:
+                    self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
                 expected_action = {
                     "missing": "ADD",
                     "baseline": "REPLACE",
                     "local-edit": "MERGE",
+                    "adopt-identical": "ADOPT",
+                    "adopt-different": "ADOPT-REPLACE",
+                    "adopt-collision": "ADOPT-REPLACE",
+                    "adopt-blocked": "ADOPT-REPLACE",
                 }[state]
                 lifecycle_plan = next(
                     line
@@ -1653,16 +1701,82 @@ worktree before the branch only after validated integration succeeds.
                     if "docs/WORKTREE_LIFECYCLE.md" in line
                 )
                 self.assertEqual(lifecycle_plan.split()[0], expected_action)
+                if state == "adopt-different":
+                    self.assertIn(
+                        "docs/WORKTREE_LIFECYCLE.md.meridian-pre-adoption.bak",
+                        lifecycle_plan,
+                    )
+                elif state == "adopt-collision":
+                    self.assertIn(
+                        "docs/WORKTREE_LIFECYCLE.md.meridian-pre-adoption.bak.1",
+                        lifecycle_plan,
+                    )
+
+                if state == "adopt-blocked":
+                    before = lifecycle.read_text(encoding="utf-8")
+                    applied = self.run_cli("upgrade", "--apply")
+                    self.assertNotEqual(applied.returncode, 0)
+                    self.assertEqual(lifecycle.read_text(encoding="utf-8"), before)
+                    self.assertFalse(
+                        lifecycle.with_name(
+                            lifecycle.name + ".meridian-pre-adoption.bak"
+                        ).exists()
+                    )
+                    continue
 
                 applied = self.run_cli("upgrade", "--apply")
                 self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+                self.assertIn(lifecycle_plan, applied.stdout)
                 upgraded = lifecycle.read_text(encoding="utf-8")
                 self.assertIn("## Candidate validation by integration outcome", upgraded)
                 if state == "local-edit":
                     self.assertIn("Consumer-owned lifecycle note.", upgraded)
                 else:
                     self.assertEqual(upgraded, current)
+                if state in ("adopt-different", "adopt-collision"):
+                    suffix = ".meridian-pre-adoption.bak.1" if state == "adopt-collision" else ".meridian-pre-adoption.bak"
+                    backup = lifecycle.with_name(lifecycle.name + suffix)
+                    self.assertEqual(
+                        backup.read_text(encoding="utf-8"),
+                        previous + "\nPre-adoption project copy.\n",
+                    )
+                    second = self.run_cli("upgrade", "--check")
+                    self.assertEqual(second.returncode, 0, second.stdout + second.stderr)
+                    second_plan = next(
+                        line
+                        for line in second.stdout.splitlines()
+                        if "docs/WORKTREE_LIFECYCLE.md" in line
+                    )
+                    self.assertEqual(second_plan.split()[0], "KEEP")
 
+        template.write_text(current, encoding="utf-8")
+
+    def test_owner_reconciled_upgrade_does_not_adopt_or_back_up_a_managed_file(self) -> None:
+        workflow = self.framework / "templates/workflows/lean-delivery"
+        template = workflow / "docs/WORKTREE_LIFECYCLE.md"
+        current = template.read_text(encoding="utf-8")
+        previous = current + "\nConsumer-owned lifecycle note.\n"
+        self.assertNotEqual(previous, current)
+        template.write_text(previous, encoding="utf-8")
+        shutil.rmtree(self.project)
+        self.project.mkdir()
+        for path in workflow.rglob("*"):
+            if path.is_file():
+                destination = self.project / path.relative_to(workflow)
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(path, destination)
+        (self.framework / "VERSION").write_text("1.2.5\n", encoding="utf-8")
+        self.assertEqual(self.run_cli("lock", "--mode", "lean-delivery").returncode, 0)
+        lifecycle = self.project / "docs/WORKTREE_LIFECYCLE.md"
+        (self.project / ".meridian/baselines/1.2.5/docs/WORKTREE_LIFECYCLE.md").unlink()
+        template.write_text(current, encoding="utf-8")
+        (self.framework / "VERSION").write_text("1.2.6\n", encoding="utf-8")
+
+        applied = self.run_cli("upgrade", "--apply", "--owner-reconciled")
+
+        self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+        self.assertEqual(lifecycle.read_text(encoding="utf-8"), previous)
+        self.assertFalse(lifecycle.with_name(lifecycle.name + ".meridian-pre-adoption.bak").exists())
         template.write_text(current, encoding="utf-8")
 
     def test_upgrade_downgrades_cosmetic_conflict_to_verified(self) -> None:

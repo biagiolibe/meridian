@@ -28,6 +28,10 @@ Template-changing release: migrations `058-lean-closure-procedure`, `059-governe
 
 ### Fixed
 
+- Upgrades can now adopt an explicitly declared, newly managed framework file
+  that already exists without a recorded baseline. A differing copy is backed
+  up under a collision-safe adjacent name before the target template replaces
+  it, and both the plan and apply output report the replacement and backup.
 - `meridian worktree integrate stage` accepts the exact archive rename of a
   task record after validation while continuing to reject other task-record
   changes. This is a CLI-only fix.
@@ -99,6 +103,10 @@ Template-changing release: migrations `058-lean-closure-procedure`, `059-governe
 - A project that edited the same block as the new rules may see a conflict in that file; resolve it deliberately and rerun the upgrade.
 - Afterward run `meridian codex doctor` to confirm each new rule group is `ready`. The Claude Code allowlist is not delivered by the upgrade; it arrives through consented `meridian setup`.
 - Lean Delivery projects now receive `docs/WORKTREE_LIFECYCLE.md` through `meridian upgrade --apply`. An unchanged or missing copy is refreshed automatically; a locally edited copy follows the normal three-way merge and may require deliberate conflict resolution.
+- When that Lean lifecycle document already exists but has no 1.2.5 baseline,
+  upgrade preserves the old copy as
+  `docs/WORKTREE_LIFECYCLE.md.meridian-pre-adoption.bak` (or the next numbered
+  free name) and replaces it with the 1.2.6 template.
 - After `meridian upgrade --apply`, review `meridian setup --check` and explicitly declare candidate-validation fragments or choose `none`; the first integration of an undeclared project stops once before staging and reports a proposal.
 
 ## [1.2.3]
