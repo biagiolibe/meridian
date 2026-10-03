@@ -101,6 +101,15 @@ CONTEXT_SIZE_ROLES = {
     "governed-sdd": ("status", "design", "implementation", "review", "remediation", "lifecycle"),
     "lean-delivery": ("implementation", "review"),
 }
+USAGE_HOSTS = ("codex", "claude")
+USAGE_PRIVACY_BOUNDARY = (
+    "Privacy: reads only timestamps, session metadata, and token counters; "
+    "never prints, stores, or transmits message text, tool arguments, file contents, or paths."
+)
+USAGE_ADAPTER_NOTES = {
+    "codex": "Codex rollout JSONL adapter (observed token_count event schema, 2026-10-03).",
+    "claude": "Claude Code project JSONL adapter (observed assistant usage schema, 2026-10-03).",
+}
 
 
 class MeridianError(RuntimeError):
@@ -7475,6 +7484,168 @@ def format_context_size_report(report: dict[str, object]) -> str:
     return "\n".join(lines)
 
 
+def _usage_counter(value: object) -> int:
+    """Return a non-negative private-format counter, rejecting malformed values."""
+    return value if type(value) is int and value >= 0 else 0
+
+
+def _usage_start(value: object) -> datetime | None:
+    if not isinstance(value, str):
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def _usage_session(host: str, start: datetime, project_name: str, model: object, calls: list[dict[str, object]], breakdown: bool) -> dict[str, object] | None:
+    if not calls:
+        return None
+    inputs = [_usage_counter(call.get("input")) for call in calls]
+    cached = [_usage_counter(call.get("cached")) for call in calls]
+    outputs = [_usage_counter(call.get("output")) for call in calls]
+    total_input = sum(inputs)
+    result: dict[str, object] = {
+        "host": host,
+        "start": start.astimezone(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "project": project_name,
+        "model": model if isinstance(model, str) else None,
+        "calls": len(calls),
+        "first_call_input": inputs[0],
+        "mean_call_input": round(total_input / len(inputs), 2),
+        "peak_call_input": max(inputs),
+        "cumulative_input": total_input,
+        "cached_input": sum(cached),
+        "output": sum(outputs),
+        "cache_ratio": round(sum(cached) / total_input, 4) if total_input else 0.0,
+    }
+    if breakdown:
+        growth = [inputs[index] - inputs[index - 1] for index in range(1, len(inputs))]
+        result["breakdown"] = {
+            "calls": len(calls),
+            "largest_input_growth": {
+                "call": growth.index(max(growth)) + 2 if growth else 1,
+                "tokens": max(growth) if growth else 0,
+            },
+        }
+    return result
+
+
+def _codex_usage_session(path: Path, breakdown: bool) -> dict[str, object] | None:
+    """Parse only Codex metadata and token_count counters from one rollout JSONL."""
+    start: datetime | None = None
+    project_name = "unknown"
+    model: object = None
+    calls: list[dict[str, object]] = []
+    with path.open(encoding="utf-8") as handle:
+        for line in handle:
+            try:
+                event = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(event, dict):
+                continue
+            payload = event.get("payload")
+            if event.get("type") == "session_meta" and isinstance(payload, dict):
+                start = _usage_start(payload.get("timestamp")) or _usage_start(event.get("timestamp"))
+                cwd = payload.get("cwd")
+                project_name = Path(cwd).name if isinstance(cwd, str) else project_name
+                model = payload.get("model") or payload.get("model_name")
+            if event.get("type") != "event_msg" or not isinstance(payload, dict) or payload.get("type") != "token_count":
+                continue
+            info = payload.get("info")
+            usage = info.get("last_token_usage") if isinstance(info, dict) else None
+            if isinstance(usage, dict):
+                calls.append({"input": usage.get("input_tokens"), "cached": usage.get("cached_input_tokens"), "output": usage.get("output_tokens")})
+    return _usage_session("codex", start, project_name, model, calls, breakdown) if start else None
+
+
+def _claude_usage_session(path: Path, breakdown: bool) -> dict[str, object] | None:
+    """Parse only Claude Code metadata and assistant usage counters from one JSONL."""
+    start: datetime | None = None
+    project_name = path.parent.name.removeprefix("-Users-").replace("-", "/").split("/")[-1]
+    model: object = None
+    calls: list[dict[str, object]] = []
+    with path.open(encoding="utf-8") as handle:
+        for line in handle:
+            try:
+                event = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(event, dict):
+                continue
+            timestamp = _usage_start(event.get("timestamp"))
+            start = min(start, timestamp) if start and timestamp else start or timestamp
+            cwd = event.get("cwd")
+            if isinstance(cwd, str):
+                project_name = Path(cwd).name
+            message = event.get("message")
+            usage = message.get("usage") if event.get("type") == "assistant" and isinstance(message, dict) else None
+            if isinstance(message, dict) and model is None:
+                model = message.get("model")
+            if isinstance(usage, dict):
+                calls.append({"input": usage.get("input_tokens"), "cached": usage.get("cache_read_input_tokens"), "output": usage.get("output_tokens")})
+    return _usage_session("claude", start, project_name, model, calls, breakdown) if start else None
+
+
+def usage_report(host: str | None, project_root: Path | None, since: str | None, breakdown: bool, home: Path | None = None) -> dict[str, object]:
+    """Produce a deterministic, local-only session-counter report from private host logs."""
+    selected = (host,) if host else USAGE_HOSTS
+    cutoff = _usage_start(f"{since}T00:00:00+00:00") if since else None
+    if since and cutoff is None:
+        raise MeridianError("--since must be an ISO date (YYYY-MM-DD)")
+    root = home or Path.home()
+    parsers = {
+        "codex": (root / ".codex" / "sessions", "rollout-*.jsonl", _codex_usage_session),
+        "claude": (root / ".claude" / "projects", "*.jsonl", _claude_usage_session),
+    }
+    sessions: list[dict[str, object]] = []
+    adapter_status: list[dict[str, str]] = []
+    wanted_project = project_root.name if project_root else None
+    for current_host in selected:
+        location, pattern, parser = parsers[current_host]
+        recognized = 0
+        if location.is_dir():
+            for path in sorted(location.rglob(pattern)):
+                try:
+                    session = parser(path, breakdown)
+                except (OSError, UnicodeDecodeError):
+                    continue
+                if session is None:
+                    continue
+                recognized += 1
+                start = _usage_start(session["start"])
+                if (cutoff and start and start < cutoff) or (wanted_project and session["project"] != wanted_project):
+                    continue
+                sessions.append(session)
+        adapter_status.append({"host": current_host, "status": "ok" if recognized else "unsupported", "note": USAGE_ADAPTER_NOTES[current_host]})
+    sessions.sort(key=lambda session: (str(session["start"]), str(session["host"]), str(session["project"])))
+    return {
+        "status": "ok" if sessions else "unsupported",
+        "privacy": USAGE_PRIVACY_BOUNDARY,
+        "adapters": adapter_status,
+        "sessions": sessions,
+        "summary": "Startup cost is first_call_input; later growth is measured separately in per-call input and --breakdown.",
+    }
+
+
+def format_usage_report(report: dict[str, object]) -> str:
+    lines = [str(report["privacy"]), str(report["summary"])]
+    for adapter in report["adapters"]:  # type: ignore[index]
+        lines.append(f"Adapter {adapter['host']}: {adapter['status']} — {adapter['note']}")
+    for session in report["sessions"]:  # type: ignore[index]
+        lines.append(
+            f"{session['start']} {session['host']} {session['project']} model={session['model'] or 'unknown'} "
+            f"calls={session['calls']} startup={session['first_call_input']} mean={session['mean_call_input']} "
+            f"peak={session['peak_call_input']} input={session['cumulative_input']} cached={session['cached_input']} "
+            f"output={session['output']} cache_ratio={session['cache_ratio']}"
+        )
+        if "breakdown" in session:
+            growth = session["breakdown"]["largest_input_growth"]
+            lines.append(f"  breakdown: calls={session['breakdown']['calls']} largest_input_growth=call {growth['call']} (+{growth['tokens']})")
+    return "\n".join(lines)
+
+
 def task_cap(project_root: Path, text: str, kind: str) -> int:
     raw = read_task_field(text, BUDGET_FIELD_NAMES[kind])
     if raw and raw.isdigit():
@@ -8357,6 +8528,15 @@ def main() -> int:
     context_size_parser.add_argument("--threshold-bytes", type=int, default=None, help="fail when an included file exceeds this size")
     context_size_parser.add_argument("--format", choices=("json", "text"), default="text")
 
+    usage = subparsers.add_parser("usage", help="report local host session token counters without reading message content")
+    usage_sub = usage.add_subparsers(dest="usage_command", required=True)
+    usage_report_parser = usage_sub.add_parser("report", help="summarize private host session token counters")
+    usage_report_parser.add_argument("--host", choices=USAGE_HOSTS)
+    usage_report_parser.add_argument("--project", type=Path)
+    usage_report_parser.add_argument("--since", help="include sessions starting on or after YYYY-MM-DD")
+    usage_report_parser.add_argument("--breakdown", action="store_true", help="report the call with the greatest input growth")
+    usage_report_parser.add_argument("--format", choices=("json", "text"), default="text")
+
     budget = subparsers.add_parser(
         "budget",
         help="track a governed-SDD task's diagnostic/evidence/context-expansion/investigation caps",
@@ -8676,6 +8856,10 @@ def main() -> int:
                 report = context_size_report(project_root, arguments.role, arguments.context_task_id, arguments.threshold_bytes)
                 print(json.dumps(report, sort_keys=True) if arguments.format == "json" else format_context_size_report(report))
                 return 2 if report["exceeded"] else 0
+        elif arguments.command == "usage":
+            report = usage_report(arguments.host, arguments.project, arguments.since, arguments.breakdown)
+            print(json.dumps(report, sort_keys=True) if arguments.format == "json" else format_usage_report(report))
+            return 0 if report["status"] == "ok" else 2
         elif arguments.command == "budget":
             if arguments.budget_command == "show":
                 print(budget_show(project_root, arguments.task_id))
