@@ -164,6 +164,15 @@ a CLI at least as new as its `protocolVersion`.
    /plugin install meridian@meridian
    ```
 
+   If the marketplace was declared in `extraKnownMarketplaces` in user or
+   managed settings, adding the new pin can instead fail with
+   `Cannot add marketplace "meridian": its source doesn't match its extraKnownMarketplaces entry in user or managed settings`.
+   That settings entry still names a different source or ref. Change its `ref`
+   to the new tag, or remove the entry, then run `/plugin marketplace update
+   meridian` or use the remove, add, and install sequence above. The entry may
+   be in user settings or managed settings; a developer cannot change a managed
+   entry, so its owner must update or remove it.
+
    A marketplace added without a pin can instead be refreshed with
    `/plugin marketplace update meridian`.
 3. From the project, run `meridian upgrade --check`.
@@ -174,6 +183,25 @@ a CLI at least as new as its `protocolVersion`.
 Confirm the move by comparing the installed framework version with the
 project's `frameworkVersion` in `.meridian/manifest.json` after
 `upgrade --apply`, rather than trusting the plugin manager alone.
+
+To confirm the version Claude Code has actively installed, use these checks in
+order:
+
+1. In Claude Code, open `/plugin` and inspect the Meridian entry. This most
+   directly shows the enabled plugin and its version. The interactive view was
+   previously observed in a real user installation; this task rechecked the
+   equivalent `claude plugin list` command in that installation.
+2. Read `~/.claude/plugins/installed_plugins.json` and find the `version` in
+   the `meridian@meridian` record. This identifies the active installed version
+   and its install path.
+3. Run `meridian self-check --check-latest`. With a successful network lookup,
+   its `Installed`, `Latest`, and `Status` lines compare the installed framework
+   with the newest release. This task ran the command from the active install;
+   its lookup was blocked by DNS, so the `Latest` line was not re-verified here.
+
+The plugin cache can retain older version folders. Those folders are not proof
+that an older version is active; use the installed-plugin record or the plugin
+list instead.
 
 ### Migrating from `meridian-local`
 
