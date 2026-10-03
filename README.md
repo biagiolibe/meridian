@@ -455,6 +455,17 @@ threshold: Codex must deny it before execution. Use `rg -n` then ranged
 <ADR-ID>` for bounded source material. Declare a necessary file in task
 Authority or raise `Read-guard threshold` only when the larger read is needed.
 
+### Local session token usage
+
+`meridian usage report --format text` summarizes local Codex and Claude Code
+session counters without reading or exposing message content. Filter a host,
+project name, or date with `--host`, `--project`, and `--since`; add
+`--breakdown` to identify the call where input grew most. The command is
+read-only and local: it prints only timestamps, project directory names, model
+metadata when recorded, and aggregate counters—not prompts, tool arguments,
+file contents, or full paths. Private host log formats can change; an absent or
+unrecognized format reports `unsupported` clearly.
+
 ## How the governed workflow works
 
 ```text
