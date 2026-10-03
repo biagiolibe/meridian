@@ -114,6 +114,8 @@ The pin is the Git tag `v<version>`, which the ledger already records as
   `MERIDIAN_ROOT` at it.
 - An adopter stays on that release until they deliberately move the pin. No
   channel moves an adopter automatically.
+- For the `extraKnownMarketplaces` settings-pinned refusal and active-version
+  checks, see the README's [Updating Meridian](../README.md#updating-meridian).
 
 Rejected: a moving `stable` branch fast-forwarded by the release workflow. It
 would give tag-following updates through `#stable`, but it requires the
