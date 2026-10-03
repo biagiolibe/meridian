@@ -106,6 +106,7 @@
 - `[ ]` 136 — Load workflow context by phase and point agents to bounded readers.
 - `[ ]` 137 — Tell Codex agents to wait once for long commands.
 - `[ ]` 138 — Run the unit suite in parallel without changing what it covers.
+- `[ ]` 139 — Make `check_repository.py` catch managed-copy digest drift.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.
 - `[x]` 053 — Remove machine-specific absolute paths from tracked records.

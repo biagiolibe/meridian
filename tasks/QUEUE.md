@@ -47,3 +47,4 @@ are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 | `[ ]` | 136 | Load workflow context by phase and point agents to bounded readers | 🟡 P2 | 134, 135 | [136](136-per-phase-context-loading.md) |
 | `[ ]` | 137 | Tell Codex agents to wait once for long commands | 🟡 P2 | — | [137](137-codex-wait-guidance-for-long-commands.md) |
 | `[ ]` | 138 | Run the unit suite in parallel without changing what it covers | 🟡 P2 | — | [138](138-parallel-test-runner.md) |
+| `[ ]` | 139 | Make `check_repository.py` catch managed-copy digest drift | 🟡 P2 | — | [139](139-check-managed-copy-digest-drift.md) |
