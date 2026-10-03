@@ -36,4 +36,4 @@ are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[ ]` | 129 | Document and activate the opt-in milestone task identity | 🟡 P2 | — | [129](129-document-opt-in-milestone-task-identity.md) |
+| `[ ]` | 129 | Choose the task-identity mode at project setup | 🟡 P2 | — | [129](129-choose-task-identity-at-project-setup.md) |
