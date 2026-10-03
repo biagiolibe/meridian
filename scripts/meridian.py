@@ -19,6 +19,7 @@ import tomllib
 import unicodedata
 from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from enum import Enum
 from http.client import HTTPException
 from pathlib import Path
@@ -718,6 +719,22 @@ def _branch_commit(project_root: Path, branch: str) -> str | None:
     return result.stdout.strip()
 
 
+def lifecycle_started_at(task_id: str, supplied_project: Path | None = None) -> str | None:
+    """Return a valid preparation timestamp, preserving legacy state as unavailable."""
+    project_root = _verified_lifecycle_project(supplied_project)
+    identity = resolve_task_identity(project_root, task_id, "existing")
+    state_path, _lease, _integration = _lifecycle_paths(project_root, identity)
+    state = _read_json_object(state_path, "worktree lifecycle state")
+    value = state.get("started_at")
+    if not isinstance(value, str):
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return value if parsed.tzinfo is not None else None
+
+
 def prepare_task_worktree(
     task_id: str,
     worktree_root: Path | None,
@@ -740,6 +757,7 @@ def prepare_task_worktree(
         )
     base_commit = git_output(project_root, "rev-parse", "--verify", f"{base}^{{commit}}")
     created = False
+    prior: dict[str, object] = {}
     if registered is None:
         if path.exists():
             raise MeridianError(f"worktree path collision at {path}")
@@ -774,6 +792,12 @@ def prepare_task_worktree(
         "task_commit": branch_commit,
         "handoff": str(identity.handoff_path),
     }
+    if created:
+        state["started_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    elif "started_at" in prior:
+        # Keep a pre-existing value byte-for-byte; malformed values are handled
+        # as unavailable by the read-only console rather than rewritten.
+        state["started_at"] = prior["started_at"]
     _write_json_atomic(state_path, state)
     return {
         **state,

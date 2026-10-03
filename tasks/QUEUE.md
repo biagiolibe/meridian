@@ -53,7 +53,7 @@ reasons, and creates the implementation follow-ups.
 | `[x]` | 110 | Ship the Governed SDD closure rules and migration | 🟡 P2 | 109, 113, 117 | [110](done/110-ship-governed-closure-rules-and-migration.md) |
 | `[x]` | 117 | Make `integrate stage` completion mode-aware for Governed SDD | 🟡 P2 | 103, 104 | [117](done/117-make-stage-completion-governed-aware.md) |
 | `[x]` | 118 | Show the running framework version and root in the project console | 🟢 P3 | 105 | [118](done/118-console-show-framework-version.md) |
-| `[ ]` | 119 | Show task elapsed time and lifecycle progress in the project console | 🟢 P3 | 118 | [119](119-console-show-task-elapsed-time-and-progress.md) |
+| `[x]` | 119 | Show task elapsed time and lifecycle progress in the project console | 🟢 P3 | 118 | [119](done/119-console-show-task-elapsed-time-and-progress.md) |
 | `[ ]` | 120 | Quiet validation command and foreground rule for long checks | 🟡 P2 | none | [120](120-quiet-validation-command-and-foreground-rule.md) |
 | `[ ]` | 121 | Verify mandatory commands in candidate validation evidence | 🟡 P2 | 120 | [121](121-finalize-checks-candidate-validation-commands.md) |
 | `[ ]` | 122 | Define the bounded gate per integration outcome | 🟡 P2 | 121 | [122](122-define-bounded-gate-per-integration-outcome.md) |

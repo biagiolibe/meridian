@@ -17,13 +17,13 @@ import threading
 import time
 import tomllib
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 sys.dont_write_bytecode = True
 from meridian import (
     TASK_IDENTITY_PATH, MeridianError, ResolvedTaskIdentity, detect_mode,
-    closure_status, resolve_project_locations, resolve_task_identity,
+    closure_status, lifecycle_started_at, resolve_project_locations, resolve_task_identity,
 )
 from console_workflow import (
     ID_PATTERN, PROFILES, BranchFacts, ConsoleError, QueueRow, Profile, effective_state,
@@ -136,6 +136,9 @@ class Task:
     workflow: str = "lean-delivery"
     closure_stop_reason: str | None = None
     closure_resume: str | None = None
+    started_at: str | None = None
+    progress_phase: str = "unavailable"
+    remaining_gates: tuple[str, ...] = ()
 
     @property
     def launch_command(self) -> str | None:
@@ -599,6 +602,9 @@ def load_snapshot(project: Path, identities: IdentityCache | None = None) -> Sna
         review = row.review if row.review is not None else record_review(branch_policy_text)
         effective = effective_state(profile, row, record_status(primary_text), facts, review)
         closure_reason = closure_resume = None
+        started_at = None
+        progress_phase = "unavailable"
+        remaining_gates: tuple[str, ...] = ()
         # The lifecycle command is authoritative for closure guidance.  Restrict
         # the extra read to registered active worktrees; queued tasks retain the
         # constant-cost refresh path established by task 078.
@@ -607,8 +613,16 @@ def load_snapshot(project: Path, identities: IdentityCache | None = None) -> Sna
                 closure, _ready = closure_status(row.task_id, None, project)
                 closure_reason = closure["stop_reason"]
                 closure_resume = closure["resume"]
+                progress_phase, remaining_gates = _lifecycle_progress(
+                    str(closure.get("step", "")), bool(facts and facts.worktree),
+                )
             except (MeridianError, OSError, ValueError):
                 # A transient lifecycle read must not make the entire dashboard stale.
+                pass
+            try:
+                started_at = lifecycle_started_at(row.task_id, project)
+            except (MeridianError, OSError, ValueError):
+                # Legacy or unreadable timing data is intentionally non-fatal.
                 pass
         from_branch = facts is not None and branch_text is not None and effective.source != "main"
         task_text = branch_text if from_branch else primary_text
@@ -652,6 +666,9 @@ def load_snapshot(project: Path, identities: IdentityCache | None = None) -> Sna
             workflow=profile.name,
             closure_stop_reason=closure_reason,
             closure_resume=closure_resume,
+            started_at=started_at,
+            progress_phase=progress_phase,
+            remaining_gates=remaining_gates,
             dependency_states=tuple(
                 (item, {
                     "done": "Done", "in_progress": "Working",
@@ -762,6 +779,10 @@ def one_shot(state: ConsoleState) -> str:
             lines.append(f"  Closure stop: {task.closure_stop_reason}")
         if task.closure_resume:
             lines.append(f"  Resume: {task.closure_resume}")
+        if task.lifecycle == "in_progress":
+            lines.append(f"  Elapsed: {_elapsed(task.started_at)}")
+            lines.append(f"  Progress: {task.progress_phase}")
+            lines.append(f"  Remaining gates: {', '.join(task.remaining_gates) or 'none'}")
         if task.markers:
             lines.append(f"  Markers: {', '.join(task.markers)}")
         if task.record_problem:
@@ -940,6 +961,46 @@ def _age(timestamp: int | None) -> str:
     return f"{seconds // 86400}d ago"
 
 
+def _elapsed(started_at: str | None, now: datetime | None = None) -> str:
+    """Format wall-clock cycle time, including idle periods, without an ETA."""
+    if not started_at:
+        return "unavailable"
+    try:
+        started = datetime.fromisoformat(started_at.replace("Z", "+00:00"))
+    except ValueError:
+        return "unavailable"
+    if started.tzinfo is None:
+        return "unavailable"
+    seconds = max(0, int(((now or datetime.now(timezone.utc)) - started).total_seconds()))
+    days, seconds = divmod(seconds, 86400)
+    hours, seconds = divmod(seconds, 3600)
+    minutes, seconds = divmod(seconds, 60)
+    if days:
+        return f"{days}d {hours}h"
+    if hours:
+        return f"{hours}h {minutes}m"
+    if minutes:
+        return f"{minutes}m {seconds}s"
+    return f"{seconds}s"
+
+
+def _lifecycle_progress(step: str, active: bool) -> tuple[str, tuple[str, ...]]:
+    """Map closure-status's authoritative steps to display-only ordered gates."""
+    gates = ("Run task validation", "Record validation evidence", "Stage integration",
+             "Run candidate validation", "Push main", "Clean up worktree")
+    if step == "C1":
+        return "working", gates
+    if step == "C5":
+        return "validation/evidence pending", gates
+    if step in {"C6", "C7"}:
+        return "candidate validation", gates[2:]
+    if step == "C9":
+        return "push pending", gates[4:]
+    if step == "C10":
+        return ("cleanup pending", (gates[-1],)) if active else ("done", ())
+    return "unavailable", ()
+
+
 def _clip(value: str, width: int) -> str:
     return value if len(value) <= width else value[:max(0, width - 1)] + "…"
 
@@ -980,6 +1041,11 @@ def _detail_lines(task: Task, width: int, palette: dict[str, int],
         add(f"Closure stop: {task.closure_stop_reason}", "blocked")
     if task.closure_resume:
         add(f"Resume: {task.closure_resume}", "action")
+    if task.lifecycle == "in_progress":
+        add(f"Elapsed cycle time: {_elapsed(task.started_at)}", "muted")
+        add(f"Last activity: {_age(task.updated_at)}", "muted")
+        add(f"Lifecycle progress: {task.progress_phase}", "muted")
+        add("Remaining gates: " + (", ".join(task.remaining_gates) or "none"), "muted")
     add("")
     add("Dependencies", "muted")
     states = dict(task.dependency_states)

@@ -23,6 +23,9 @@ The explicit option remains available for finishing a worktree in an old root.
   worktree, or selects the exact existing pair. Partial or mismatched state is
   retained and blocked. The result contains `branch`, `worktree`,
   `worktree_root`, `base_commit`, `task_commit`, `created`, and `next_action`.
+  Its lifecycle state records `started_at` as an ISO-8601 UTC timestamp when it
+  first creates the worktree; repeat preparation preserves that value. Older
+  state files without it remain valid and report timing as unavailable.
 - `meridian worktree check <TASK-ID> --project <primary> --format json` is
   read-only. It succeeds only inside the exact prepared
   worker directory and reports repository, path, branch, HEAD, base, clean
