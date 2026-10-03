@@ -26,9 +26,11 @@ the next release.
 - [ ] The mandatory candidate-validation command fragments are read from a
   project-owned declaration, per integration outcome (`REUSE`, `BOUNDED`,
   `FULL`), not from constants in `scripts/meridian.py`.
-- [ ] A project without a declaration keeps the pre-121 behavior: a non-empty
-  list of non-empty command strings is accepted. No consumer is blocked by this
-  change.
+- [ ] A project has one of three declaration states: `declared` (fragments per
+  outcome, enforced by `finalize`), `none` (an explicit, recorded choice that
+  imposes no fragment and keeps the pre-121 behavior: a non-empty list of
+  non-empty command strings is accepted), or `undeclared` (no choice recorded).
+  `undeclared` is never a silent pass; see the first-use stop below.
 - [ ] This repository declares its own fragments (`scripts/check_repository.py`
   for every outcome and `unittest discover` for `FULL`), so task 121's behavior
   is preserved here.
@@ -40,14 +42,28 @@ the next release.
 - [ ] The declaration is a small machine-readable project file under
   `.meridian/` (not prose in a Markdown document), versioned, and not a managed
   template file, so later upgrades cannot conflict with project values.
+- [ ] First-use stop: when the first task of an `undeclared` project reaches
+  integration, the lifecycle stops once with `BLOCKED
+  UNDECLARED_VALIDATION_COMMANDS` and a resume command, before any merge, lease,
+  or staged state exists. Put the check in `integrate stage` (or the earlier
+  `worktree evidence` or `closure-status` step) and not in `finalize`, which
+  would leave a staged merge to abort. Record in the handoff why the chosen step
+  is the earliest safe one and confirm that tasks that do not integrate are not
+  stopped.
+- [ ] The stop carries evidence for the developer: the commands the task
+  actually ran for validation and a proposed declaration. The agent never writes
+  the declaration itself; `Proceed with` does not authorize it. Recording it
+  needs an explicit developer decision: accept the proposal, supply other
+  commands, or choose `none`. After any of the three the stop never recurs.
 - [ ] Rollout to existing adopters follows three levels and never infers values
   during `upgrade --apply`:
-  1. The migration delivers only the structure: the declaration point in an
-     explicit `undeclared` state, which keeps the pre-121 behavior. If the
-     migration engine cannot create a project-owned unmanaged file, record that
-     finding and deliver the file through `meridian setup` instead.
-  2. `meridian codex doctor` or `audit` reports undeclared candidate validation
-     commands as an advisory gap, never as an error that blocks work.
+  1. The migration delivers only the structure: the declaration point in the
+     `undeclared` state. If the migration engine cannot create a project-owned
+     unmanaged file, record that finding and deliver the file through
+     `meridian setup` instead. A missing file is treated as `undeclared`.
+  2. `meridian codex doctor` or `audit` reports an `undeclared` project as an
+     advisory gap, never as an error that blocks unrelated work, so the gap is
+     visible before the first integration.
   3. `meridian setup` may propose values from the detected stack and writes them
      only after explicit consent; a project can always edit the file by hand.
 - [ ] Before implementing, verify and record two open points: whether a migration
@@ -57,10 +73,13 @@ the next release.
   `workflowBaselineVersion` bump with task 123, as agreed for a single release
   after all queued tasks. It carries Upgrade notes per
   `docs/DISTRIBUTION_AND_UPDATE_DESIGN.md` naming the optional manual step
-  (declaring the commands) and the behavior when it is skipped.
-- [ ] Tests cover: undeclared project accepted, declared fragments enforced per
-  outcome, malformed declaration blocked, this repository's declaration, and
-  both workflow modes.
+  (declaring the commands or choosing `none`) and the one-time stop that
+  the first integrating task of an undeclared project will report.
+- [ ] Tests cover: `undeclared` stops once before staging with no lease or merge
+  left behind, `none` accepted with any non-empty evidence, declared fragments
+  enforced per outcome, malformed declaration blocked, the stop not recurring
+  after any of the three choices, this repository's declaration, and both
+  workflow modes.
 - [ ] `docs/WORKTREE_LIFECYCLE.md` and
   `templates/workflows/lean-delivery/docs/WORKTREE_LIFECYCLE.md` (task 122) are
   corrected so the gate is expressed as the project's declared repository check
@@ -91,6 +110,10 @@ the next release.
 - Choose the declaration home by existing precedent (the project's
   `.meridian/` configuration or its workflow document) and justify the choice;
   prefer a location that already reaches Governed SDD projects.
+- The one-time stop is intentional: it follows the existing rule that a failed
+  gate stops once with `BLOCKED <reason>` and a resume command, and it replaces
+  the earlier idea that an undeclared project passes silently. The cost is one
+  interruption for the first integrating task of each adopter project.
 - A migration cannot ask questions or infer project values: a wrong inferred
   command would block `finalize` in a project that worked before. Structure is
   delivered by the migration; values are supplied only by the project or with
