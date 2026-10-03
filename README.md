@@ -118,6 +118,20 @@ not prepare worktrees: the permitted directive does so. If iTerm2, `osascript`,
 the selected executable, or the console's iTerm2 session is unavailable,
 the console reports the reason and `[copy]` remains available.
 
+An ordinary `IN_PROGRESS` task offers **Resume** with the exact
+`Proceed with <TASK-ID>` directive shown by `[copy]`. Resume is not a liveness
+check: the console cannot tell whether another agent is still active, so it
+requires an explicit warning confirmation before the agent choice. If the task
+worktree has uncommitted changes, it requires a second, distinct confirmation.
+The console reloads task state immediately before launch and refuses to proceed
+if the directive or lifecycle changed. Closing tasks keep their lifecycle
+resume command and never offer implementation Resume.
+
+Repeating `Proceed with` is safe for an interrupted task: worktree preparation
+selects the existing canonical branch and worktree, preserves its original
+`started_at`, and does not create a second worktree. Resume still runs from the
+primary checkout so the normal preparation and worktree checks remain in force.
+
 The command is part of the tagged Meridian tree. Claude Code adopters receive
 it through `${CLAUDE_PLUGIN_ROOT}/bin/meridian`; Codex adopters run the
 `bin/meridian` launcher from their tagged checkout with `MERIDIAN_ROOT` pointing

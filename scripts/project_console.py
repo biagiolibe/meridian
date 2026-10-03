@@ -141,8 +141,23 @@ class Task:
     remaining_gates: tuple[str, ...] = ()
 
     @property
+    def is_resume(self) -> bool:
+        """Whether Proceed with would resume ordinary implementation work."""
+        return (self.lifecycle == "in_progress"
+                and not (self.workflow == "governed-sdd" and self.changes_requested))
+
+    @property
+    def resume_confirmations(self) -> int:
+        """Explicit warnings required before Resume reaches agent selection."""
+        return (1 + int(self.active_writer)) if self.is_resume else 0
+
+    @property
     def launch_command(self) -> str | None:
-        if self.record_problem or self.readiness == "MISMATCH" or self.active_writer:
+        if self.record_problem or self.readiness == "MISMATCH":
+            return None
+        if self.is_resume:
+            return f"Proceed with {self.task_id}"
+        if self.active_writer:
             return None
         if self.lifecycle == "todo" and self.readiness == "READY":
             return f"Proceed with {self.task_id}"
@@ -174,6 +189,8 @@ class Task:
 
     @property
     def next_action(self) -> str:
+        if self.is_resume and self.launch_command:
+            return f"If assigned: {self.launch_command}"
         if self.closure_stop_reason:
             return f"{self.closure_stop_reason}: {self.closure_resume or 'no resume command'}"
         if self.closure_resume:
@@ -294,9 +311,20 @@ def _start_launch(request: LaunchRequest) -> tuple[bool, str]:
     return True, f"Started {request.agent} in a new iTerm2 split pane"
 
 
-def _launch_selected(task: Task, project: Path, agent: str) -> tuple[bool, str]:
-    """Revalidate and launch in the one keypress that selects an agent."""
-    request, error = _launch_request(task, project, agent)
+def _launch_selected(state: "ConsoleState", task: Task, agent: str,
+                     dirty_confirmed: bool = False) -> tuple[bool, str]:
+    """Reload the task, require an unchanged directive, and launch it."""
+    expected_directive = task.launch_command
+    expected_resume = task.is_resume
+    state.refresh()
+    if state.error or state.snapshot is None:
+        return False, f"Launch revalidation failed: {state.error or 'no project snapshot'}"
+    current = next((item for item in state.snapshot.tasks if item.task_id == task.task_id), None)
+    if current is None or current.launch_command != expected_directive or current.is_resume != expected_resume:
+        return False, "Task state changed; review the refreshed task before launching"
+    if current.is_resume and current.active_writer and not dirty_confirmed:
+        return False, "Task worktree became dirty; confirm Resume again before launching"
+    request, error = _launch_request(current, state.project, agent)
     if error:
         return False, error
     assert request is not None
@@ -1181,7 +1209,8 @@ def _detail_lines(task: Task, width: int, palette: dict[str, int],
         add("")
     add("Next directive", "muted")
     command = task.launch_command
-    add(f"{command}  [copy]  [l launch]" if command else task.next_action, "action")
+    action = "Resume" if task.is_resume else "launch"
+    add(f"{command}  [copy]  [l {action}]" if command else task.next_action, "action")
     return lines
 
 
@@ -1377,21 +1406,39 @@ def _draw_detail(screen, task: Task | None, x: int, top: int, width: int,
 
 
 def _draw_launch_prompt(screen, width: int, height: int, task: Task | None,
+                        confirmation: int,
                         project: Path, defaults: dict[str, AgentDefaults],
                         palette: dict[str, int]) -> None:
     """Draw an opaque, single-choice launch panel over the console."""
     if task is None:
         return
-    lines = (
-        ("Launch agent", "title"),
-        ("This starts an agent that may modify the project.", "blocked"),
-        (f"Task: {task.task_id} — {task.title}", "text"),
-        (f"Directive: {task.launch_command or 'unavailable'}", "text"),
-        (f"Project: {project.name}", "text"),
-        (f"1 Claude Code — {defaults['claude'].label}", "text"),
-        (f"2 Codex — {defaults['codex'].label}", "text"),
-        ("Esc cancels. Nothing has started.", "muted"),
-    )
+    if task.is_resume and confirmation == 0:
+        lines = (
+            ("Confirm Resume", "title"),
+            ("The console cannot tell whether an agent is still active.", "blocked"),
+            (f"Task: {task.task_id} — {task.title}", "text"),
+            (f"Directive: {task.launch_command or 'unavailable'}", "text"),
+            ("Press y to continue or Esc to cancel. Nothing has started.", "muted"),
+        )
+    elif task.is_resume and task.active_writer and confirmation == 1:
+        lines = (
+            ("Confirm dirty worktree", "title"),
+            ("This task worktree has uncommitted changes.", "blocked"),
+            ("Another agent may still be writing there.", "blocked"),
+            (f"Task: {task.task_id} — {task.title}", "text"),
+            ("Press y again to continue or Esc to cancel.", "muted"),
+        )
+    else:
+        lines = (
+            ("Launch agent", "title"),
+            ("This starts an agent that may modify the project.", "blocked"),
+            (f"Task: {task.task_id} — {task.title}", "text"),
+            (f"Directive: {task.launch_command or 'unavailable'}", "text"),
+            (f"Project: {project.name}", "text"),
+            (f"1 Claude Code — {defaults['claude'].label}", "text"),
+            (f"2 Codex — {defaults['codex'].label}", "text"),
+            ("Esc cancels. Nothing has started.", "muted"),
+        )
     panel_width = min(width - 4, max(len(value) for value, _ in lines) + 4)
     top = max(3, (height - len(lines) - 2) // 2)
     left = max(2, (width - panel_width) // 2)
@@ -1433,6 +1480,7 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
     notice = ""
     notice_until = 0.0
     launch_task: Task | None = None
+    launch_confirmation = 0
     while True:
         now = time.monotonic()
         state.apply_pending()
@@ -1497,7 +1545,8 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
                                                width - left_width - 2, height,
                                                detail_offset, palette)
                     action_bounds = (detail_x, width - 3, action_rows)
-            _draw_launch_prompt(screen, width, height, launch_task, state.project,
+            _draw_launch_prompt(screen, width, height, launch_task, launch_confirmation,
+                                state.project,
                                 state.agent_defaults, palette)
             if notice and time.monotonic() < notice_until:
                 footer = notice
@@ -1522,11 +1571,17 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
             if key == 27:
                 launch_task = None
                 notice, notice_until = "Launch cancelled", time.monotonic() + 2
+            elif launch_confirmation < launch_task.resume_confirmations:
+                if key in (ord("y"), ord("Y")):
+                    launch_confirmation += 1
             elif key in (ord("1"), ord("2")):
                 selected = "claude" if key == ord("1") else "codex"
                 task_to_launch = launch_task
                 launch_task = None
-                success, message = _launch_selected(task_to_launch, state.project, selected)
+                success, message = _launch_selected(
+                    state, task_to_launch, selected,
+                    dirty_confirmed=task_to_launch.active_writer and launch_confirmation >= 2,
+                )
                 notice, notice_until = message, time.monotonic() + (3 if success else 5)
             continue
         if key == curses.KEY_MOUSE:
@@ -1629,6 +1684,7 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
         elif key in (ord("l"), ord("L")) and selected_task and not help_visible:
             if selected_task.launch_command:
                 launch_task = selected_task
+                launch_confirmation = 0
             else:
                 notice, notice_until = "No eligible directive for this task", time.monotonic() + 2
         elif key == ord("?"):

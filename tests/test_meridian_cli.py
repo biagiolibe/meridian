@@ -6373,12 +6373,21 @@ class WorktreeLifecycleCliTest(unittest.TestCase):
         )
         self.assertEqual(prepared.returncode, 0, prepared.stderr)
         first = json.loads(prepared.stdout)
+        self.assertTrue(first["created"])
         self.assertRegex(first["started_at"], r"^\d{4}-\d\d-\d\dT.*Z$")
         repeated = self.run_cli(
             "worktree", "prepare", "056", "--project", str(self.project),
             "--worktree-root", str(self.worktree_root), "--format", "json",
         )
-        self.assertEqual(json.loads(repeated.stdout)["started_at"], first["started_at"])
+        repeated_contract = json.loads(repeated.stdout)
+        self.assertFalse(repeated_contract["created"])
+        self.assertEqual(repeated_contract["worktree"], first["worktree"])
+        self.assertEqual(repeated_contract["started_at"], first["started_at"])
+        worktrees = subprocess.run(
+            ("git", "worktree", "list", "--porcelain"), cwd=self.project,
+            text=True, capture_output=True, check=True,
+        ).stdout
+        self.assertEqual(worktrees.count("\nworktree ") + worktrees.startswith("worktree "), 2)
 
         identity = meridian.resolve_task_identity(self.project, "056", "existing")
         state_path, _lease, _integration = meridian._lifecycle_paths(self.project, identity)
