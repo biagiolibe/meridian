@@ -558,3 +558,10 @@ reasons, and creates the implementation follow-ups.
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
 | `[x]` | 128 | Upgrade a newly managed file that the project already has | 🔴 P1 | 127 | [128](done/128-adopt-existing-copy-of-newly-managed-file.md) |
+
+### Phase 48 — Opt-in milestone task identity
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 129 | Choose the task-identity mode at project setup | 🟡 P2 | — | [129](done/129-choose-task-identity-at-project-setup.md) |
+| `[x]` | 130 | Make task creation follow the project's task-identity mode | 🟡 P2 | 129 | [130](done/130-identity-aware-task-creation.md) |
