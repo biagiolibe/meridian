@@ -57,3 +57,4 @@ reasons, and creates the implementation follow-ups.
 | `[x]` | 120 | Quiet validation command and foreground rule for long checks | 🟡 P2 | — | [120](done/120-quiet-validation-command-and-foreground-rule.md) |
 | `[x]` | 121 | Verify mandatory commands in candidate validation evidence | 🟡 P2 | 120 | [121](done/121-finalize-checks-candidate-validation-commands.md) |
 | `[ ]` | 122 | Define the bounded gate per integration outcome | 🟡 P2 | 121 | [122](122-define-bounded-gate-per-integration-outcome.md) |
+| `[ ]` | 123 | Allow the task-archive `git mv` in the Codex and Claude Code command policies | 🟡 P2 | — | [123](123-allow-archive-rename-in-agent-command-policies.md) |
