@@ -1248,6 +1248,72 @@ class GovernedCompletionRowsTest(unittest.TestCase):
             meridian._apply_task_completion_rows(self.primary, identity)
         self.assertEqual(queue.read_text(encoding="utf-8"), original)
 
+    def test_governed_project_shaped_queue_updates_only_status_and_is_not_archived(self) -> None:
+        queue = self.primary / "tasks/QUEUE.md"
+        original = (
+            "## Milestone 37 — Causes — complete\n\n"
+            "| Order | Estimate | Status | Dependencies | ID | Priority |\n"
+            "|---:|---|---|---|---|---|\n"
+            "| 2 | 60–90m | QUEUED | — | `056` | P0 |\n"
+        )
+        queue.write_text(original, encoding="utf-8")
+        identity = meridian.resolve_task_identity(self.primary, "056", "existing", check_queue_links=False)
+        task = identity.task_path
+        task.write_text("# Task 056\n\nReview: NOT REQUIRED\n", encoding="utf-8")
+        result = meridian._apply_task_completion_rows(self.primary, identity)
+        expected = original.replace("QUEUED", "ACCEPTED")
+        self.assertEqual(queue.read_text(encoding="utf-8"), expected)
+        self.assertEqual(result["status"], "COMPLETED")
+        self.assertFalse((self.primary / "tasks/QUEUE_ARCHIVE.md").exists())
+
+    def test_governed_project_shaped_queue_uses_review_column_in_any_position(self) -> None:
+        queue = self.primary / "tasks/QUEUE.md"
+        original = (
+            "#### Milestone 37\n\n"
+            "| ID | Review | Estimate | Status | Dependencies |\n"
+            "|---|---|---|---|---|\n"
+            "| 056 | REQUIRED | 60–90m | QUEUED | — |\n"
+        )
+        queue.write_text(original, encoding="utf-8")
+        identity = meridian.resolve_task_identity(self.primary, "056", "existing", check_queue_links=False)
+        pending = meridian._apply_task_completion_rows(self.primary, identity)
+        self.assertEqual(pending["status"], "REVIEW_PENDING")
+        self.assertEqual(queue.read_text(encoding="utf-8"), original)
+        identity.review_path.parent.mkdir(exist_ok=True)
+        identity.review_path.write_text("## Attempt 1 — APPROVE\n", encoding="utf-8")
+        result = meridian._apply_task_completion_rows(self.primary, identity)
+        self.assertEqual(result["status"], "COMPLETED")
+        self.assertEqual(queue.read_text(encoding="utf-8"), original.replace("QUEUED", "ACCEPTED"))
+
+    def test_governed_project_shaped_queue_rejects_ambiguous_or_invalid_rows(self) -> None:
+        cases = {
+            "missing status": (
+                "### Milestone\n\n| ID | Estimate |\n|---|---|\n| 056 | 60m |\n",
+                "no table header has both ID and Status columns",
+            ),
+            "duplicate": (
+                "### One\n\n| ID | Status |\n|---|---|\n| 056 | QUEUED |\n\n"
+                "### Two\n\n| ID | Status |\n|---|---|\n| 056 | QUEUED |\n",
+                "appears 2 times",
+            ),
+            "cell count": (
+                "### Milestone\n\n| ID | Status | Estimate |\n|---|---|---|\n| 056 | QUEUED |\n",
+                "cell count differs",
+            ),
+            "unknown status": (
+                "### Milestone\n\n| ID | Status |\n|---|---|\n| 056 | UNKNOWN |\n",
+                "unknown Governed status",
+            ),
+        }
+        identity = meridian.resolve_task_identity(self.primary, "056", "existing", check_queue_links=False)
+        queue = self.primary / "tasks/QUEUE.md"
+        for label, (contents, message) in cases.items():
+            with self.subTest(label=label):
+                queue.write_text(contents, encoding="utf-8")
+                with self.assertRaisesRegex(meridian.MeridianError, message):
+                    meridian._apply_task_completion_rows(self.primary, identity)
+                self.assertEqual(queue.read_text(encoding="utf-8"), contents)
+
 
 if __name__ == "__main__":
     unittest.main()
