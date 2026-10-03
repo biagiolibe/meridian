@@ -36,6 +36,10 @@ class FragmentError(ReleaseError):
     """A changelog fragment does not follow the required format."""
 
 
+class PostPushVerificationError(ReleaseError):
+    """Git state is already published but GitHub verification was inconclusive."""
+
+
 def version_key(value: str) -> tuple[int, int, int]:
     if not VERSION.fullmatch(value):
         raise ReleaseError(f"version must be plain X.Y.Z, got {value!r}")
@@ -518,6 +522,15 @@ def manual_verification_commands(version: str, repository: str | None) -> tuple[
     return run, view, verify
 
 
+def post_push_verification_error(version: str, repository: str | None, detail: str) -> PostPushVerificationError:
+    run, view, verify = manual_verification_commands(version, repository)
+    return PostPushVerificationError(
+        f"publication verification could not be completed after the push of main and tag v{version} completed; "
+        "nothing was retried or moved, and publication was not confirmed by this command. "
+        f"Details: {detail}\nContinue manually with:\n  {verify}\n  {run}\n  {view}"
+    )
+
+
 def workflow_run(root: Path, version: str, tag_head: str, repository: str | None) -> tuple[str, str]:
     deadline = time.monotonic() + WORKFLOW_LOOKUP_TIMEOUT_SECONDS
     last_error: str | None = None
@@ -548,12 +561,10 @@ def workflow_run(root: Path, version: str, tag_head: str, repository: str | None
                 else:
                     last_error = "gh run list returned invalid JSON"
         if time.monotonic() >= deadline:
-            run, view, verify = manual_verification_commands(version, repository)
             detail = f" Last lookup error: {last_error}." if last_error else ""
-            raise ReleaseError(
-                f"publication verification timed out: the push of main and tag v{version} completed, "
-                "but the Publish release workflow run was not observed; nothing was retried or moved."
-                f"{detail}\nContinue manually with:\n  {run}\n  {view}\n  {verify}"
+            raise post_push_verification_error(
+                version, repository,
+                "the Publish release workflow run was not observed before the timeout." + detail,
             )
         time.sleep(WORKFLOW_POLL_INTERVAL_SECONDS)
 
@@ -568,15 +579,39 @@ def wait_for_publication(root: Path, version: str, repository: str | None, tag_h
     if watched.returncode:
         print(f"Publish release workflow failed: {run_url}. Nothing was published; the tag was left unchanged.", file=sys.stderr)
         raise ReleaseError("workflow failed; do not retry by moving the tag")
-    release = run_checked(root, ["gh", "release", "view", f"v{version}", "--json", "isDraft,isPrerelease,isLatest,url"], "release verification")
+    release_command = ["gh", "release", "view", f"v{version}", "--json", "isDraft,isPrerelease,url"]
+    if repository:
+        release_command.extend(("--repo", repository))
+    release = run_command(root, release_command)
+    if release.returncode:
+        detail = release.stderr.strip() or release.stdout.strip() or f"gh release view exited {release.returncode}"
+        raise post_push_verification_error(version, repository, detail)
     try:
         details = json.loads(release.stdout)
     except json.JSONDecodeError as error:
-        raise ReleaseError(f"release verification returned invalid JSON: {error}") from error
-    if details.get("isDraft") or details.get("isPrerelease") or not details.get("isLatest"):
+        raise post_push_verification_error(version, repository, f"gh release view returned invalid JSON: {error}") from error
+    if not isinstance(details, dict) or not all(
+        isinstance(details.get(field), expected)
+        for field, expected in (("isDraft", bool), ("isPrerelease", bool), ("url", str))
+    ):
+        raise post_push_verification_error(version, repository, "gh release view returned an unexpected JSON shape")
+    if not repository:
+        raise post_push_verification_error(version, repository, "GitHub repository could not be resolved for the latest-release check")
+    latest_command = ["gh", "api", f"repos/{repository}/releases/latest", "--repo", repository]
+    latest = run_command(root, latest_command)
+    if latest.returncode:
+        detail = latest.stderr.strip() or latest.stdout.strip() or f"gh api exited {latest.returncode}"
+        raise post_push_verification_error(version, repository, detail)
+    try:
+        latest_details = json.loads(latest.stdout)
+    except json.JSONDecodeError as error:
+        raise post_push_verification_error(version, repository, f"gh api returned invalid JSON: {error}") from error
+    if not isinstance(latest_details, dict) or not isinstance(latest_details.get("tag_name"), str):
+        raise post_push_verification_error(version, repository, "gh api returned an unexpected latest-release JSON shape")
+    if details["isDraft"] or details["isPrerelease"] or latest_details["tag_name"] != f"v{version}":
         raise ReleaseError("release verification failed: release must be published, stable, and latest")
     print(f"Workflow succeeded: {run_url}")
-    print(f"Release verified: {details.get('url', f'v{version}')}")
+    print(f"Release verified: {details['url']}")
     self_check = run_command(root, ["bin/meridian", "self-check", "--check-latest"])
     output = (self_check.stdout.strip() or self_check.stderr.strip() or f"exit {self_check.returncode}")
     print(f"Self-check: {output}")
@@ -625,6 +660,9 @@ def publish_main(argv: list[str]) -> int:
             wait_for_publication(root, version, repository, head)
         print(adopter_steps())
         return 0
+    except PostPushVerificationError as error:
+        print(error, file=sys.stderr)
+        return 1
     except (ReleaseError, OSError, ValueError, json.JSONDecodeError) as error:
         print(f"release publish failed: {error}", file=sys.stderr)
         return 1

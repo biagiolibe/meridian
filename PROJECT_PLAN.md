@@ -98,7 +98,7 @@
 - `[x]` 128 — Upgrade a newly managed file that the project already has.
 - `[x]` 129 — Choose the task-identity mode at project setup.
 - `[x]` 130 — Make task creation follow the project's task-identity mode.
-- `[ ]` 131 — Verify the latest release without the removed `isLatest` field.
+- `[x]` 131 — Verify the latest release without the removed `isLatest` field.
 - `[ ]` 132 — Document the settings-pinned marketplace refusal and how to check the installed version.
 - `[ ]` 133 — Let a confirmed Resume reach a dirty task worktree.
 - `[ ]` 134 — Add `meridian context size` to measure the startup read set.
