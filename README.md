@@ -307,8 +307,9 @@ meridian setup --apply
 
 `meridian codex doctor` reports the current `permission-model`,
 `profile-ownership`, `project-trust`, `command-policy`,
-`claude-project-allowlist`, `lifecycle-command-policy`, `worktree-root-write`, `git-metadata`,
-`skill-links`, and `MERIDIAN_ROOT` states. Use it to inspect the machine
+`claude-project-allowlist`, `lifecycle-command-policy`, `archive-rename-policy`,
+`inspection-command-policy`, `validation-command-policy`, `worktree-root-write`,
+`git-metadata`, `skill-links`, and `MERIDIAN_ROOT` states. Use it to inspect the machine
 profile before allowing `setup --apply`; it does not modify the profile or
 links.
 

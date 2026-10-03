@@ -1536,6 +1536,46 @@ worktree before the branch only after validated integration succeeds.
         self.assertEqual(manifest["workflowBaselineVersion"], "1.2.5")
         self.assertEqual(manifest["appliedMigrations"][-1], "059-governed-closure-procedure")
 
+    def _assert_upgrade_installs_closure_command_policy(self, mode: str) -> None:
+        workflow = self.framework / f"templates/workflows/{mode}"
+        relative = ".codex/rules/meridian.rules"
+        current = (workflow / relative).read_text(encoding="utf-8")
+        previous = re.sub(r"\n# Unattended-closure additions.*?\[\"ls\", [^\n]*\n", "\n", current, flags=re.DOTALL)
+        self.assertNotEqual(previous, current)
+        (workflow / relative).write_text(previous, encoding="utf-8")
+        for path in workflow.rglob("*"):
+            if path.is_file():
+                destination = self.project / path.relative_to(workflow)
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(path, destination)
+        (self.framework / "VERSION").write_text("1.2.5\n", encoding="utf-8")
+        self.assertEqual(self.run_cli("lock", "--mode", mode).returncode, 0)
+        local = 'prefix_rule(pattern=["project-tool", "run"], decision="allow")\n'
+        rules = self.project / relative
+        rules.write_text(rules.read_text(encoding="utf-8") + "\n# Local rule\n" + local, encoding="utf-8")
+
+        (workflow / relative).write_text(current, encoding="utf-8")
+        (self.framework / "VERSION").write_text("1.2.6\n", encoding="utf-8")
+        checked = self.run_cli("upgrade", "--check")
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+        self.assertIn("MIGRATION 060-unattended-closure-command-policy", checked.stdout)
+        applied = self.run_cli("upgrade", "--apply")
+        self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+
+        upgraded = rules.read_text(encoding="utf-8")
+        self.assertIn('["meridian", "worktree", ["evidence", "closure-status"]]', upgraded)
+        self.assertIn('prefix_rule(pattern=["git", "mv"], decision="allow")', upgraded)
+        self.assertIn(local, upgraded)
+        manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual(manifest["workflowBaselineVersion"], "1.2.6")
+        self.assertEqual(manifest["appliedMigrations"][-1], "060-unattended-closure-command-policy")
+
+    def test_upgrade_installs_closure_command_policy_for_governed_and_keeps_local_rules(self) -> None:
+        self._assert_upgrade_installs_closure_command_policy("governed-sdd")
+
+    def test_upgrade_installs_closure_command_policy_for_lean_and_keeps_local_rules(self) -> None:
+        self._assert_upgrade_installs_closure_command_policy("lean-delivery")
+
     def test_upgrade_downgrades_cosmetic_conflict_to_verified(self) -> None:
         """Phase 3 of migrations/CAPABILITY_MARKERS.md: a conflict outside a
         satisfied capability marker is cosmetic and should be left untouched,
@@ -4824,6 +4864,39 @@ class WorktreeRootSetupTest(unittest.TestCase):
         ready = meridian.codex_doctor(project, self.codex_config, root, home=self.home)
         self.assertEqual(ready["claude-project-allowlist"], "ready")
 
+    def _trusted_project_with_rules(self, rules_text: str) -> tuple[Path, Path]:
+        project = self.home / "project"
+        (project / ".codex/rules").mkdir(parents=True)
+        (project / ".codex/rules/meridian.rules").write_text(rules_text, encoding="utf-8")
+        root = self.home / "root"
+        root.mkdir()
+        self.codex_config.parent.mkdir(parents=True, exist_ok=True)
+        self.codex_config.write_text(
+            f'[projects."{project.resolve()}"]\ntrust_level = "trusted"\n', encoding="utf-8"
+        )
+        return project, root
+
+    @unittest.skipUnless(shutil.which("codex"), "codex is not on PATH; cannot evaluate execpolicy decisions")
+    def test_codex_doctor_probes_every_closure_policy_group(self) -> None:
+        rules = (ROOT / "templates/workflows/lean-delivery/.codex/rules/meridian.rules").read_text(encoding="utf-8")
+        project, root = self._trusted_project_with_rules(rules)
+        ready = meridian.codex_doctor(project, self.codex_config, root, home=self.home)
+        self.assertEqual(ready["lifecycle-command-policy"], "ready")
+        for key in ("archive-rename-policy", "inspection-command-policy", "validation-command-policy"):
+            self.assertEqual(ready[key], "ready", key)
+
+    @unittest.skipUnless(shutil.which("codex"), "codex is not on PATH; cannot evaluate execpolicy decisions")
+    def test_codex_doctor_names_the_gap_for_rules_without_the_closure_block(self) -> None:
+        rules = (ROOT / "templates/workflows/lean-delivery/.codex/rules/meridian.rules").read_text(encoding="utf-8")
+        legacy = re.sub(r"\n# Unattended-closure additions.*?\[\"ls\", [^\n]*\n", "\n", rules, flags=re.DOTALL)
+        self.assertNotEqual(legacy, rules)
+        project, root = self._trusted_project_with_rules(legacy)
+        gaps = meridian.codex_doctor(project, self.codex_config, root, home=self.home)
+        self.assertEqual(gaps["lifecycle-command-policy"], "blocked")
+        self.assertEqual(gaps["archive-rename-policy"], "gap: git mv")
+        self.assertTrue(gaps["inspection-command-policy"].startswith("gap: "))
+        self.assertTrue(gaps["validation-command-policy"].startswith("gap: "))
+
     def test_claude_allowlist_covers_only_the_declared_command_surface(self) -> None:
         allowlist = set(meridian.CLAUDE_PROJECT_ALLOWLIST)
         for command in (
@@ -4834,8 +4907,13 @@ class WorktreeRootSetupTest(unittest.TestCase):
             "Bash(python3 scripts/meridian.py worktree integrate finalize:*)",
             "Bash(python3 scripts/check_repository.py)",
             "Bash(python3 -m unittest discover -s tests)",
+            "Bash(git mv tasks/:*)",
+            "Bash(ls:*)",
+            "Bash(grep:*)",
         ):
             self.assertIn(command, allowlist)
+        for unrelated in ("Bash(git mv:*)", "Bash(mv:*)", "Bash(sed:*)", "Bash(rg:*)", "Bash(find:*)"):
+            self.assertNotIn(unrelated, allowlist)
         for forbidden in ("--tags", "--force", "rebase", "reset", "branch -D", "worktree add", "worktree remove", "worktree prune"):
             self.assertFalse(any(forbidden in command for command in allowlist), forbidden)
 

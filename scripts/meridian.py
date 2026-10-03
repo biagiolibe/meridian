@@ -2155,6 +2155,16 @@ CLAUDE_PROJECT_ALLOWLIST = (
     "Bash(python3 scripts/meridian.py worktree integrate abort:*)",
     "Bash(python3 scripts/check_repository.py)",
     "Bash(python3 -m unittest discover -s tests)",
+    "Bash(python3 -m unittest discover -s tests -q)",
+    "Bash(git mv tasks/:*)",
+    "Bash(set -o pipefail)",
+    "Bash(ls:*)",
+    "Bash(cat:*)",
+    "Bash(head:*)",
+    "Bash(tail:*)",
+    "Bash(wc:*)",
+    "Bash(pwd)",
+    "Bash(grep:*)",
 )
 
 
@@ -2421,6 +2431,63 @@ def apply_setup(plan: SetupPlan) -> bool:
     return changed
 
 
+# Each group is reported as its own doctor fact: (key, ((command, decision), ...)).
+CODEX_CLOSURE_POLICY_PROBES = (
+    (
+        "archive-rename-policy",
+        (
+            (("git", "mv", "tasks/1.md", "tasks/done/1.md"), "allow"),
+            (("git", "mv", "-f", "tasks/1.md", "tasks/done/1.md"), "prompt"),
+        ),
+    ),
+    (
+        "inspection-command-policy",
+        tuple(
+            ((tool, "tasks"), "allow")
+            for tool in ("ls", "cat", "head", "tail", "wc", "grep")
+        )
+        + (
+            (("sed", "-i", "s/a/b/", "tasks/QUEUE.md"), None),
+            (("rg", "--pre", "cat", "x"), None),
+        ),
+    ),
+    (
+        "validation-command-policy",
+        (
+            (("python3", "scripts/check_repository.py"), "allow"),
+            (("python3", "-m", "unittest", "discover", "-s", "tests", "-q"), "allow"),
+            (("set", "-o", "pipefail"), "allow"),
+        ),
+    ),
+)
+
+
+def _codex_policy_probe_state(
+    command_policy: str,
+    codex_executable: str | None,
+    rules: Path,
+    probes: tuple[tuple[tuple[str, ...], str | None], ...],
+) -> str:
+    """Report `ready` only when every probe returns its expected decision."""
+    if command_policy != "ready" or not codex_executable:
+        return "blocked" if command_policy == "blocked" else "approval-required"
+    gaps = []
+    for command, expected in probes:
+        checked = subprocess.run(
+            [codex_executable, "execpolicy", "check", "--rules", str(rules), "--", *command],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        try:
+            actual = json.loads(checked.stdout).get("decision") if checked.returncode == 0 else "error"
+        except json.JSONDecodeError:
+            actual = "error"
+        if actual != expected:
+            gaps.append(" ".join(command[:2]) if command[0] == "git" else command[0])
+    return "ready" if not gaps else "gap: " + ", ".join(sorted(set(gaps)))
+
+
 def codex_doctor(
     project_root: Path,
     config_path: Path,
@@ -2470,6 +2537,8 @@ def codex_doctor(
             ("path", "TASK-1", "--worktree-root", str(worktree_root)),
             ("prepare", "TASK-1", "--worktree-root", str(worktree_root), "--format", "json"),
             ("check", "TASK-1", "--worktree-root", str(worktree_root), "--format", "json"),
+            ("evidence", "TASK-1", "--format", "json"),
+            ("closure-status", "TASK-1", "--format", "json"),
             ("integrate", "stage", "TASK-1", "--worktree-root", str(worktree_root), "--evidence", "handoff.json", "--format", "json"),
             ("integrate", "finalize", "TASK-1", "--evidence", "candidate.json", "--format", "json"),
             ("integrate", "abort", "TASK-1", "--format", "json"),
@@ -2491,6 +2560,10 @@ def codex_doctor(
     elif result["command-policy"] == "blocked":
         lifecycle_policy = "blocked"
     result["lifecycle-command-policy"] = lifecycle_policy
+    for key, group in CODEX_CLOSURE_POLICY_PROBES:
+        result[key] = _codex_policy_probe_state(
+            result["command-policy"], codex_executable, rules, group
+        )
     root_write = "approval-required"
     if result["permission-model"] in ("ready", "repair-required", "repair-and-replace-required") and worktree_root.is_dir():
         try:
