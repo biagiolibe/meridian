@@ -137,6 +137,40 @@ class ProjectConsoleTest(unittest.TestCase):
         self.assertIn("Open:", result.stdout)
         self.assertIn("Agent activity: unavailable", result.stdout)
 
+    def test_elapsed_formatting_is_wall_clock_and_legacy_values_are_unavailable(self) -> None:
+        start = "2026-01-01T00:00:00Z"
+        now = datetime(2026, 1, 2, 2, 3, 4, tzinfo=console.timezone.utc)
+        self.assertEqual(console._elapsed(start, now), "1d 2h")
+        self.assertEqual(console._elapsed(None, now), "unavailable")
+        self.assertEqual(console._elapsed("not-a-timestamp", now), "unavailable")
+
+    def test_lifecycle_progress_covers_each_displayed_phase(self) -> None:
+        cases = {
+            "C1": "working", "C5": "validation/evidence pending", "C6": "candidate validation",
+            "C7": "candidate validation", "C9": "push pending",
+        }
+        for step, phase in cases.items():
+            with self.subTest(step=step):
+                self.assertEqual(console._lifecycle_progress(step, True)[0], phase)
+        self.assertEqual(console._lifecycle_progress("C10", True)[0], "cleanup pending")
+        self.assertEqual(console._lifecycle_progress("C10", False), ("done", ()))
+
+    def test_active_task_one_shot_and_detail_keep_elapsed_and_last_activity_separate(self) -> None:
+        task = console.Task(
+            "001", "Task", "IN_PROGRESS", (), (), None, (), (), readiness="IN PROGRESS",
+            lifecycle="in_progress", updated_at=0, started_at="2026-01-01T00:00:00Z",
+            progress_phase="working", remaining_gates=("Run task validation",),
+        )
+        state = console.ConsoleState(self.project)
+        state.snapshot = console.Snapshot(self.project, self.project / "tasks/QUEUE.md", "main", "clean", 0, (task,), 0)
+        output = console.one_shot(state)
+        self.assertIn("Elapsed:", output)
+        self.assertIn("Progress: working", output)
+        palette = {name: 0 for name in ("base", "text", "title", "ready", "working", "muted", "line", "action", "blocked")}
+        lines = [value for value, _ in console._detail_lines(task, 80, palette)]
+        self.assertTrue(any(value.startswith("Elapsed cycle time:") for value in lines))
+        self.assertTrue(any(value.startswith("Last activity:") for value in lines))
+
     def test_framework_identity_reads_version_and_shortens_a_home_root(self) -> None:
         home = self.project / "home"
         root = home / "framework"

@@ -17,38 +17,38 @@ into an ETA or percentage.
 
 ## Acceptance Criteria
 
-- [ ] When `meridian worktree prepare` creates a task branch and worktree, its
+- [x] When `meridian worktree prepare` creates a task branch and worktree, its
   lifecycle state records an ISO-8601 UTC `started_at` value. Repeating
   `prepare` for that existing task preserves the original value exactly.
-- [ ] Existing lifecycle-state files without `started_at` remain valid and are
+- [x] Existing lifecycle-state files without `started_at` remain valid and are
   not assigned a fabricated start time. The console reports elapsed time as
   unavailable for them and keeps working.
-- [ ] For an active task with `started_at`, the interactive detail pane shows
+- [x] For an active task with `started_at`, the interactive detail pane shows
   wall-clock elapsed time since preparation and updates it while the console is
   running without requiring a Git refresh.
-- [ ] The detail pane keeps the existing last-change age as a separate value,
+- [x] The detail pane keeps the existing last-change age as a separate value,
   so elapsed cycle time is not presented as active agent time.
-- [ ] The console shows a deterministic lifecycle progression and the remaining
+- [x] The console shows a deterministic lifecycle progression and the remaining
   gates using repository, worktree, validation-evidence, integration, remote,
   and cleanup facts already owned by Meridian. At minimum it distinguishes:
   ready, working, validation/evidence pending, candidate validation, push
   pending, cleanup pending, and done.
-- [ ] Progress is expressed as the current phase and ordered remaining gates,
+- [x] Progress is expressed as the current phase and ordered remaining gates,
   never as a percentage, token count, time-to-completion estimate, or a value
   derived from the task record's `Estimate` field.
-- [ ] Missing, stale, or unreadable lifecycle timing data degrades to
+- [x] Missing, stale, or unreadable lifecycle timing data degrades to
   `unavailable` without making the console stale or preventing task launch.
-- [ ] `--once` output includes the same elapsed-time and lifecycle-progress
+- [x] `--once` output includes the same elapsed-time and lifecycle-progress
   facts for active tasks in a compact text form.
-- [ ] Tests cover initial timestamp creation, preservation across repeated
+- [x] Tests cover initial timestamp creation, preservation across repeated
   preparation, compatibility with legacy state, elapsed formatting, live
   elapsed updates, last-activity separation, and every displayed progress
   phase.
-- [ ] The project-console documentation explains that elapsed time is wall-clock
+- [x] The project-console documentation explains that elapsed time is wall-clock
   cycle time since worktree preparation and can include idle periods.
-- [ ] Add one changelog fragment per `CONTRIBUTING.md` because the change is
+- [x] Add one changelog fragment per `CONTRIBUTING.md` because the change is
   user-visible.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
+- [x] `python3 scripts/check_repository.py` and the unit tests pass.
 
 ## Relevant Files
 
