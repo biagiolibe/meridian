@@ -422,7 +422,7 @@ class BoundedWorktreeLifecycleTest(unittest.TestCase):
                 "candidate_tree": staged["candidate_tree"],
                 "passed": True,
                 "scope": "bounded",
-                "commands": ["git diff --check"],
+                "commands": ["python3 scripts/check_repository.py"],
             }),
             encoding="utf-8",
         )
@@ -435,6 +435,57 @@ class BoundedWorktreeLifecycleTest(unittest.TestCase):
         self.assertNotEqual(self.git("show-ref", "--verify", "refs/heads/task-056", check=False).returncode, 0)
         repeated = meridian.cleanup_task_worktree("056", self.worktree_root, self.primary)
         self.assertTrue(repeated["already_cleaned"])
+
+    def test_candidate_validation_commands_cover_each_decision(self) -> None:
+        baseline = "set -o pipefail; python3 scripts/check_repository.py 2>&1 | tail -n 200"
+        suite = "python3 -m unittest discover -s tests -q 2>&1 | tail -n 40"
+        for decision, commands, expected in (
+            ("REUSE", [baseline], ()),
+            ("BOUNDED", [baseline], ()),
+            ("FULL", [baseline, suite], ()),
+            ("REUSE", [], ("scripts/check_repository.py",)),
+            ("BOUNDED", [], ("scripts/check_repository.py",)),
+            ("FULL", [suite], ("scripts/check_repository.py",)),
+            ("FULL", [baseline], ("unittest discover",)),
+        ):
+            with self.subTest(decision=decision, commands=commands):
+                self.assertEqual(
+                    meridian.missing_candidate_validation_commands(decision, commands), expected
+                )
+
+    def test_finalize_rejection_for_missing_command_keeps_staged_state(self) -> None:
+        prepared = self.prepare()
+        task_worktree = Path(str(prepared["worktree"]))
+        (task_worktree / "feature.txt").write_text("implemented\n", encoding="utf-8")
+        self.git("add", "feature.txt", cwd=task_worktree)
+        self.git("commit", "-m", "implement task", cwd=task_worktree)
+        task_commit = self.git("rev-parse", "HEAD", cwd=task_worktree).stdout.strip()
+        evidence_path = self.root / "integration-evidence.json"
+        evidence_path.write_text(json.dumps({
+            "accepted": True, "validation_passed": True,
+            "validated_task_commit": task_commit, "validated_base_commit": self.base,
+            "full_validation_required": False, "interaction_assessment_complete": True,
+            "task_paths": ["feature.txt"], "task_dependencies": [],
+            "task_behavioral_surfaces": [], "main_advanced_dependencies": [],
+            "main_advanced_behavioral_surfaces": [],
+        }), encoding="utf-8")
+        staged = meridian.stage_task_integration("056", self.worktree_root, evidence_path, self.primary)
+        validation_path = self.root / "candidate-validation.json"
+        validation_path.write_text(json.dumps({
+            "candidate_tree": staged["candidate_tree"], "passed": True,
+            "scope": "bounded", "commands": ["git diff --check"],
+        }), encoding="utf-8")
+
+        with self.assertRaisesRegex(meridian.MeridianError, r"scripts/check_repository.py"):
+            meridian.finalize_task_integration("056", validation_path, self.primary)
+
+        _state, lease_path, integration_path = meridian._lifecycle_paths(
+            self.primary, meridian.resolve_task_identity(self.primary, "056", "existing")
+        )
+        self.assertTrue(lease_path.is_file())
+        self.assertTrue(integration_path.is_file())
+        self.assertTrue((self.primary / ".git/MERGE_HEAD").is_file())
+        meridian.abort_task_integration("056", self.primary)
 
     def test_evidence_command_records_git_facts_without_running_validation(self) -> None:
         prepared = self.prepare()
