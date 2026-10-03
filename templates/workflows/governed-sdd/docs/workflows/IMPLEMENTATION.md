@@ -96,7 +96,9 @@ waived by reading a document later.
 Read the task's cited ADRs and specification sections with `meridian context
 authority <TASK-ID>`, and a single ADR with `meridian adr show <ADR-ID>`. Do
 not open the whole ADR log or a whole specification to find them. Read the
-queue only through the resolved queue briefing; do not open the whole queue.
+queue state through the resolved queue briefing, never by opening the whole
+queue file. When the briefing did not fire, conflicts with other evidence, or a
+row must be read verbatim or edited, locate that row and read only its range.
 Open a source document directly only when a bounded reader reports an entry
 unresolved or its excerpt cannot verify an acceptance criterion, and record
 that reason in the report.

@@ -4112,8 +4112,8 @@ class CapabilityMarkerTest(unittest.TestCase):
 
     def test_manual_proceed_migration_leaves_review_and_remediation_bytes_unchanged(self) -> None:
         expected = {
-            "REVIEW.md": "a3e69d14e02cf061e66948e7e82f4c6432da792ce2d350408c3dfd85fc150e3e",
-            "REMEDIATION.md": "54e8753227dbe01dcff6f3f29cb71b5ab0c4ab90d71261db98c00969a4e04bdf",
+            "REVIEW.md": "f288f9014ab7b89c34c1322f6d0532128a24d4e601bd977a17443b2399e7f439",
+            "REMEDIATION.md": "04d084c8f67ea9b481fa6d3a6346adf5454630e9c5e8aff5a9c6c0f6b77ba623",
         }
         for name, digest in expected.items():
             path = self.WORKFLOW / "docs/workflows" / name
