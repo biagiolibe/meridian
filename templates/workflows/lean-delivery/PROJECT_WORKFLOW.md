@@ -167,9 +167,10 @@ verification.
 Final integration uses `meridian worktree integrate stage` with accepted JSON
 handoff evidence. The command owns the lease and prescribed no-commit merge and
 returns the deterministic validation decision and candidate tree. Run the
-selected validation separately in the ordinary sandbox, bind its JSON evidence
-to that tree, then use `integrate finalize`; use `integrate abort` after a
-failed gate. Lifecycle commands never execute validation or project code.
+candidate validation defined in `docs/WORKTREE_LIFECYCLE.md` separately in the
+ordinary sandbox, bind its JSON evidence to that tree, then use `integrate
+finalize`; use `integrate abort` after a failed gate. Lifecycle commands never
+execute validation or project code.
 
 Project integration smoke command: `none`.
 
