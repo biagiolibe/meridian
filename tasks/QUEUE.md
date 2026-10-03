@@ -32,13 +32,6 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, 25, 26, 27, 28, 31, 32, 34, 35, 36, 42, 44, 45, 46, and 47
 are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 
-### Phase 49 — Release tooling
-
-| Status | ID | Title | Priority | Depends on | File |
-|--------|----|-------|----------|------------|------|
-| `[x]` | 131 | Verify the latest release without the removed `isLatest` field | 🟡 P2 | — | [131](done/131-release-verify-latest-without-islatest.md) |
-| `[ ]` | 132 | Document the settings-pinned marketplace refusal and how to check the installed version | 🟢 P3 | — | [132](132-readme-marketplace-pin-in-settings-note.md) |
-
 ### Phase 50 — Interrupted task recovery
 
 | Status | ID | Title | Priority | Depends on | File |

@@ -565,3 +565,10 @@ reasons, and creates the implementation follow-ups.
 |--------|----|-------|----------|------------|------|
 | `[x]` | 129 | Choose the task-identity mode at project setup | 🟡 P2 | — | [129](done/129-choose-task-identity-at-project-setup.md) |
 | `[x]` | 130 | Make task creation follow the project's task-identity mode | 🟡 P2 | 129 | [130](done/130-identity-aware-task-creation.md) |
+
+### Phase 49 — Release tooling
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 131 | Verify the latest release without the removed `isLatest` field | 🟡 P2 | — | [131](done/131-release-verify-latest-without-islatest.md) |
+| `[x]` | 132 | Document the settings-pinned marketplace refusal and how to check the installed version | 🟢 P3 | — | [132](done/132-readme-marketplace-pin-in-settings-note.md) |

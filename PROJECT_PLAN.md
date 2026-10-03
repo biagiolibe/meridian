@@ -99,7 +99,7 @@
 - `[x]` 129 — Choose the task-identity mode at project setup.
 - `[x]` 130 — Make task creation follow the project's task-identity mode.
 - `[x]` 131 — Verify the latest release without the removed `isLatest` field.
-- `[ ]` 132 — Document the settings-pinned marketplace refusal and how to check the installed version.
+- `[x]` 132 — Document the settings-pinned marketplace refusal and how to check the installed version.
 - `[ ]` 133 — Let a confirmed Resume reach a dirty task worktree.
 - `[ ]` 134 — Add `meridian context size` to measure the startup read set.
 - `[ ]` 135 — Report measured token usage of agent sessions.
