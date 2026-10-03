@@ -89,7 +89,7 @@
 - `[x]` 119 — Show task elapsed time and lifecycle progress in the project console.
 - `[x]` 120 — Quiet validation command and foreground rule for long checks.
 - `[x]` 121 — Verify mandatory commands in candidate validation evidence.
-- `[ ]` 122 — Define the bounded gate per integration outcome.
+- `[x]` 122 — Define the bounded gate per integration outcome.
 - `[ ]` 123 — Allow the task-archive `git mv` in the Codex and Claude Code command policies.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.
