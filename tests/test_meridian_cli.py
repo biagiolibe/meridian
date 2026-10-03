@@ -1576,6 +1576,95 @@ worktree before the branch only after validated integration succeeds.
     def test_upgrade_installs_closure_command_policy_for_lean_and_keeps_local_rules(self) -> None:
         self._assert_upgrade_installs_closure_command_policy("lean-delivery")
 
+    def test_lean_lifecycle_document_is_managed_across_legacy_adoption(self) -> None:
+        snapshot = self.framework / "release-baselines/1.0.0/templates/workflows/lean-delivery"
+        shutil.copytree(self.framework / "templates/workflows/lean-delivery", snapshot)
+        (snapshot / "docs/WORKTREE_LIFECYCLE.md").unlink()
+        shutil.rmtree(self.project)
+        self.project.mkdir()
+        for path in snapshot.rglob("*"):
+            if path.is_file():
+                destination = self.project / path.relative_to(snapshot)
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(path, destination)
+
+        applied = self.run_cli("adopt", "--mode", "lean-delivery", "--from", "1.0.0", "--apply")
+
+        self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+        lifecycle = self.project / "docs/WORKTREE_LIFECYCLE.md"
+        current = self.framework / "templates/workflows/lean-delivery/docs/WORKTREE_LIFECYCLE.md"
+        self.assertEqual(lifecycle.read_text(encoding="utf-8"), current.read_text(encoding="utf-8"))
+        manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
+        self.assertIn("docs/WORKTREE_LIFECYCLE.md", manifest["managedFiles"])
+
+    def test_upgrade_installs_lean_lifecycle_document_from_1_2_5(self) -> None:
+        workflow = self.framework / "templates/workflows/lean-delivery"
+        template = workflow / "docs/WORKTREE_LIFECYCLE.md"
+        current = template.read_text(encoding="utf-8")
+        previous = re.sub(
+            r"\n## Candidate validation by integration outcome\n.*?(?=\n`meridian codex worktree-path`)",
+            "\n",
+            current,
+            count=1,
+            flags=re.DOTALL,
+        )
+        self.assertNotEqual(previous, current)
+
+        for state in ("missing", "baseline", "local-edit"):
+            with self.subTest(state=state):
+                shutil.rmtree(self.project)
+                self.project.mkdir()
+                template.write_text(previous, encoding="utf-8")
+                for path in workflow.rglob("*"):
+                    if path.is_file():
+                        destination = self.project / path.relative_to(workflow)
+                        destination.parent.mkdir(parents=True, exist_ok=True)
+                        shutil.copyfile(path, destination)
+                (self.framework / "VERSION").write_text("1.2.5\n", encoding="utf-8")
+                locked = self.run_cli("lock", "--mode", "lean-delivery")
+                self.assertEqual(locked.returncode, 0, locked.stdout + locked.stderr)
+
+                lifecycle = self.project / "docs/WORKTREE_LIFECYCLE.md"
+                if state == "missing":
+                    lifecycle.unlink()
+                    baseline_lifecycle = (
+                        self.project / ".meridian/baselines/1.2.5/docs/WORKTREE_LIFECYCLE.md"
+                    )
+                    baseline_lifecycle.unlink()
+                    manifest_path = self.project / ".meridian/manifest.json"
+                    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                    manifest["managedFiles"].pop("docs/WORKTREE_LIFECYCLE.md")
+                    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+                elif state == "local-edit":
+                    lifecycle.write_text(previous + "\nConsumer-owned lifecycle note.\n", encoding="utf-8")
+
+                template.write_text(current, encoding="utf-8")
+                (self.framework / "VERSION").write_text("1.2.6\n", encoding="utf-8")
+                checked = self.run_cli("upgrade", "--check")
+                self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+                expected_action = {
+                    "missing": "ADD",
+                    "baseline": "REPLACE",
+                    "local-edit": "MERGE",
+                }[state]
+                lifecycle_plan = next(
+                    line
+                    for line in checked.stdout.splitlines()
+                    if "docs/WORKTREE_LIFECYCLE.md" in line
+                )
+                self.assertEqual(lifecycle_plan.split()[0], expected_action)
+
+                applied = self.run_cli("upgrade", "--apply")
+                self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+                upgraded = lifecycle.read_text(encoding="utf-8")
+                self.assertIn("## Candidate validation by integration outcome", upgraded)
+                if state == "local-edit":
+                    self.assertIn("Consumer-owned lifecycle note.", upgraded)
+                else:
+                    self.assertEqual(upgraded, current)
+
+        template.write_text(current, encoding="utf-8")
+
     def test_upgrade_downgrades_cosmetic_conflict_to_verified(self) -> None:
         """Phase 3 of migrations/CAPABILITY_MARKERS.md: a conflict outside a
         satisfied capability marker is cosmetic and should be left untouched,
