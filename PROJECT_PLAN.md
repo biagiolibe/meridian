@@ -99,6 +99,7 @@
 - `[ ]` 129 — Choose the task-identity mode at project setup.
 - `[ ]` 130 — Make task creation follow the project's task-identity mode.
 - `[ ]` 131 — Verify the latest release without the removed `isLatest` field.
+- `[ ]` 132 — Document the settings-pinned marketplace refusal and how to check the installed version.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.
 - `[x]` 053 — Remove machine-specific absolute paths from tracked records.
