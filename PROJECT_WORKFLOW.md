@@ -122,11 +122,12 @@ Final integration is serialized in the primary checkout. Write the accepted
 handoff facts to a JSON evidence file using the schema documented in
 `docs/WORKTREE_LIFECYCLE.md`, then run `meridian worktree integrate stage`.
 The command owns the lease and prescribed no-commit merge and returns the
-`REUSE`, `BOUNDED`, or `FULL` decision plus candidate tree. Run the selected
-validation separately in the ordinary sandbox, record candidate-bound JSON
-evidence, and invoke `meridian worktree integrate finalize`. On a failed gate,
-invoke `meridian worktree integrate abort`. Never run task-controlled commands
-inside a lifecycle command or manipulate the lease or merge directly.
+`REUSE`, `BOUNDED`, or `FULL` decision plus candidate tree. Run the candidate
+validation defined in `docs/WORKTREE_LIFECYCLE.md` separately in the ordinary
+sandbox, record candidate-bound JSON evidence, and invoke `meridian worktree
+integrate finalize`. On a failed gate, invoke `meridian worktree integrate
+abort`. Never run task-controlled commands inside a lifecycle command or
+manipulate the lease or merge directly.
 
 Project integration smoke command: `none`.
 

@@ -143,15 +143,39 @@ cannot reduce the scope selected from Git.
 
 Candidate validation runs outside the lifecycle command in the ordinary
 sandbox. Its JSON object contains the returned `candidate_tree`, `passed:
-true`, `scope` (`bounded` or `full`), and a non-empty `commands` array. Every
-decision requires a command entry containing `scripts/check_repository.py`;
-`FULL` additionally requires one containing `unittest discover`. `REUSE` and
-`BOUNDED` do not require the full suite. The comparison is literal and does not
-execute a command: it accepts the profile's `set -o pipefail;` prefix and an
-output-bounding pipeline such as `| tail -n 40` because both required fragments
-remain in the entry. Missing, failed, stale, or mismatched evidence is blocked
-without creating a merge commit. Lifecycle commands never execute shell, hook,
-validation, smoke, or project-provided commands.
+true`, `scope` (`bounded` or `full`), and a non-empty `commands` array. The
+required gate for each `REUSE`, `BOUNDED`, or `FULL` decision is defined below.
+Lifecycle commands never execute shell, hook, validation, smoke, or
+project-provided commands.
+
+### Candidate validation by integration outcome
+
+Every outcome runs `python3 scripts/check_repository.py` and `git diff --check`
+against the staged candidate tree. The recorded command entries remain subject
+to the candidate-evidence contract: every decision names
+`scripts/check_repository.py`, and `FULL` also names `unittest discover`. The
+comparison is literal and does not execute a command: it accepts the profile's
+`set -o pipefail;` prefix and an output-bounding pipeline such as
+`| tail -n 40` because the required fragments remain in the entry.
+
+- `REUSE` runs the universal gate and proves that the staged candidate differs
+  from the validated task commit only in governance paths. Use the deterministic
+  command `git diff --name-only "$VALIDATED_TASK_COMMIT" "$CANDIDATE_TREE"` and
+  verify that every emitted path is the task record (active or its exact archive
+  rename), that task's handoff, `tasks/QUEUE.md`, `PROJECT_PLAN.md`,
+  `tasks/QUEUE_ARCHIVE.md`, or that task's changelog fragment. Any other path
+  requires a `BOUNDED` or `FULL` outcome; it is not a valid `REUSE` proof.
+- `BOUNDED` runs the `REUSE` gate and the tests for modules changed by both the
+  task and advanced `main`. Select those tests from the staged candidate's
+  changed-path evidence; the independent-change decision never permits omitting
+  either side's affected modules.
+- `FULL` runs the `REUSE` gate and the full test suite. Its candidate evidence
+  therefore records both the repository check and full-suite command.
+
+A stricter gate is always permitted: an agent may run the full suite for any
+outcome, and neither the lifecycle command nor this policy rejects it.
+Missing, failed, stale, or mismatched evidence is blocked without creating a
+merge commit.
 
 Lifecycle state is stored under the repository's absolute Git common
 directory. Interruptions retain enough ownership and candidate identity for

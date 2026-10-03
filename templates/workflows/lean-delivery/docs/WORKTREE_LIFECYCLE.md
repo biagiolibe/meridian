@@ -33,6 +33,20 @@ the exact candidate tree, `passed: true`, the required `bounded` or `full`
 scope, and the successful commands. The CLI rejects stale or incomplete
 evidence and never executes project-provided commands.
 
+## Candidate validation by integration outcome
+
+Run candidate validation outside the lifecycle command. For every `REUSE`,
+`BOUNDED`, or `FULL` outcome, run the project's repository check and
+`git diff --check` against the staged candidate tree. A `REUSE` outcome also
+requires a deterministic proof that every non-governance path is unchanged:
+run `git diff --name-only "$VALIDATED_TASK_COMMIT" "$CANDIDATE_TREE"` and allow
+only the task record or its exact archive rename, that task's handoff, queue,
+plan, queue archive, and changelog fragment. `BOUNDED` adds the tests for
+modules changed by the task and advanced `main`; `FULL` adds the full test
+suite. A project may always run the full suite for any outcome. Configure
+candidate-evidence command requirements for the project's repository check and
+full suite; they must match this gate.
+
 `meridian codex worktree-path` is deprecated for one migration window. New
 instructions and automation use `meridian worktree path`.
 
