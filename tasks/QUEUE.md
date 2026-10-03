@@ -29,5 +29,11 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 
 ## 🏃 Active Queue
 
-Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, 25, 26, 27, 28, 31, 32, 34, 35, 36, 42, and 44
+Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, 25, 26, 27, 28, 31, 32, 34, 35, 36, 42, 44, and 45
 are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
+
+### Phase 46 — Release 1.2.6 readiness
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 127 | Distribute `docs/WORKTREE_LIFECYCLE.md` to Lean Delivery projects | 🔴 P1 | 125 | [127](127-ship-lean-worktree-lifecycle-doc.md) |
