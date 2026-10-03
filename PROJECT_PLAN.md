@@ -103,7 +103,7 @@
 - `[ ]` 133 — Let a confirmed Resume reach a dirty task worktree.
 - `[x]` 134 — Add `meridian context size` to measure the startup read set.
 - `[x]` 135 — Report measured token usage of agent sessions.
-- `[ ]` 136 — Load workflow context by phase and point agents to bounded readers.
+- `[x]` 136 — Load workflow context by phase and point agents to bounded readers.
 - `[ ]` 137 — Tell Codex agents to wait once for long commands.
 - `[ ]` 138 — Run the unit suite in parallel without changing what it covers.
 - `[ ]` 139 — Make `check_repository.py` catch managed-copy digest drift.

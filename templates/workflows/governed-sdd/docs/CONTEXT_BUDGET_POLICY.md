@@ -43,7 +43,7 @@ it to bypass a task's authority boundary, conceal a broad repository scan, or
 replace a required spike when the unknown changes the task's design premise.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=minimal-read-only-status v1 -->
+<!-- MERIDIAN:BEGIN capability=minimal-read-only-status v2 -->
 ## Minimal read-only status
 
 For a request to report the current governed-SDD status without modifying
@@ -52,11 +52,14 @@ files, minimize context deliberately:
 1. Read `LANGUAGE_POLICY.md`, then only the portions of `AGENTS.md` or
    `CLAUDE.md` and `PROJECT_WORKFLOW.md` needed to confirm the active mode and
    the local status-reporting rules.
-2. Read this policy, query the canonical queue for non-terminal entries only,
-   and inspect Git's current branch, clean/dirty state, and configured remote
-   relation when relevant.
+2. Read this policy, read the queue's non-terminal entries through the
+   resolved queue briefing rather than opening the whole queue, and inspect
+   Git's current branch, clean/dirty state, and configured remote relation when
+   relevant.
 3. Read only the direct dependencies and task records needed to establish
-   readiness for the next permitted governance action.
+   readiness for the next permitted governance action. Read a cited ADR or
+   specification section only through `meridian context authority <TASK-ID>` or
+   `meridian adr show <ADR-ID>`, never by opening the whole ADR log.
 4. Do not load completed milestones, broad file inventories, full
    specifications, ADRs, audit prompts, review records, or Git history unless
    a concrete discrepancy, blocker, or requested handoff requires them.
@@ -146,6 +149,17 @@ first implementation after an upgrade that adds it.
 Choose the lowest reliable configured reasoning level. If the active agent
 interface offers a faster execution mode, it may be used only when it does not
 override the task's declared reasoning requirement or reduce required evidence.
+<!-- MERIDIAN:END -->
+
+<!-- MERIDIAN:BEGIN capability=phase-reads v1 -->
+## Phase reads
+
+When this policy is the routed document for a status or design request, read
+each document when its phase begins. This changes only when a document is read;
+no rule here is waived by reading a document later.
+
+- At start: this policy.
+- At first validation, only for an implementation, remediation, or review: `docs/EXECUTION_EVIDENCE_PROFILE.md`.
 <!-- MERIDIAN:END -->
 
 <!-- MERIDIAN:BEGIN capability=reasoning-budget-contract v1 -->
