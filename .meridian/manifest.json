@@ -289,7 +289,7 @@
             "evidence": [
               "sha256:810ad8d3b969014c2ef26bb7223b675a2130774b8968e989074ef302da060a10",
               "sha256:ac52ad6a33db63d632ea650644a074022dd4a6ced610cab0384d8c51763641c7",
-              "sha256:dda9216f715118d826902d8ebc2cc91895bcae6140d45a3734e92cd59aaf339f",
+              "sha256:5f91cd0840dcbeacfdcbaaefd125005e076490a223d71f1d3b82a11fbaf222a3",
               "sha256:bd32317da3484c5744248d587c3c2418bdd0547226727b4b3a6b6a7b52d99641"
             ],
             "notApplicableRationale": null,
@@ -329,7 +329,7 @@
   "frameworkVersion": "1.1.49",
   "managedFiles": {
     ".codex/hooks.json": "b427ae75d05f8d193e2e12367db24fae6687b3ca0aa192a06c23cb8f488cc7dd",
-    ".codex/rules/meridian.rules": "dda9216f715118d826902d8ebc2cc91895bcae6140d45a3734e92cd59aaf339f",
+    ".codex/rules/meridian.rules": "5f91cd0840dcbeacfdcbaaefd125005e076490a223d71f1d3b82a11fbaf222a3",
     "AGENTS.md": "ac52ad6a33db63d632ea650644a074022dd4a6ced610cab0384d8c51763641c7",
     "CLAUDE.md": "810ad8d3b969014c2ef26bb7223b675a2130774b8968e989074ef302da060a10",
     "LANGUAGE_POLICY.md": "65fc7654c6d37865fae03290b4c21304efee616bbb8615fa298c3e55abfdf558",

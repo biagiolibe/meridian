@@ -1,0 +1,16 @@
+{
+  "id": "060-unattended-closure-command-policy",
+  "from": "1.2.5",
+  "to": "1.2.6",
+  "description": "Completes the Codex command policy for unattended task closure so evidence recording, closure-status, the archive rename, repository validation, and read-only inspection run without approval prompts.",
+  "delta": "The managed Codex rules file allows meridian worktree evidence and closure-status, git mv (forced moves keep prompting), the exact repository validation commands, and read-only inspection tools. Write-capable or program-executing forms such as sed -i, rg --pre, find -exec, and mv stay unmatched and keep prompting. Existing prompt and forbidden rules are unchanged.",
+  "managedPaths": [
+    ".codex/rules/meridian.rules"
+  ],
+  "verification": [
+    "an adopter project with local rules appended receives the new rules by upgrade --apply and keeps its local rules",
+    "codex execpolicy check allows each added command and still prompts for git mv -f and leaves sed -i and rg --pre unmatched",
+    "meridian codex doctor reports each new rule group as ready or as a named gap",
+    "python3 scripts/check_repository.py and python3 -m unittest discover -s tests pass"
+  ]
+}
