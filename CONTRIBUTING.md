@@ -157,7 +157,9 @@ confirmation must exactly match the current `VERSION`; the command prints every
 commit to push, the ledger kind, and any migration ids before it pushes `main`,
 creates and pushes the tag. When `gh` is available, it polls every five seconds
 for up to two minutes for the `Publish release` push run whose SHA matches the
-tag, then watches and verifies it. Use `--no-wait` only when you will verify the
+tag, then watches and verifies it. Release verification uses `gh release view`
+only with fields supported by current GitHub CLI versions and checks the latest
+tag through `gh api`. Use `--no-wait` only when you will verify the
 printed workflow and release URLs manually. If the run is not observed before
 the timeout, the successful pushes remain unchanged and the command prints the
 exact `gh run list`, `gh release view`, and read-only
