@@ -3076,12 +3076,15 @@ def managed_files_for_workflow(workflow: Path, mode: str) -> list[ManagedFile]:
                 ],
             ]
         )
-    # Packaged legacy baselines predate Codex policy files. Include each file
+    # Packaged legacy baselines predate these managed files. Include each file
     # when the particular workflow snapshot supplies it, without making a
     # historical adoption baseline claim a file it never shipped.
-    for codex_path in (Path(".codex/rules/meridian.rules"), Path(".codex/hooks.json")):
-        if (workflow / codex_path).is_file():
-            paths.append(codex_path)
+    optional_paths = [Path(".codex/rules/meridian.rules"), Path(".codex/hooks.json")]
+    if mode == "lean-delivery":
+        optional_paths.append(Path("docs/WORKTREE_LIFECYCLE.md"))
+    for optional_path in optional_paths:
+        if (workflow / optional_path).is_file():
+            paths.append(optional_path)
 
     result = []
     for target in paths:

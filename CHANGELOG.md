@@ -79,7 +79,7 @@ Template-changing release: migrations `058-lean-closure-procedure`, `059-governe
 
 ### Documentation
 
-- Define the `REUSE`, `BOUNDED`, and `FULL` candidate-validation gates and the deterministic reuse proof.
+- Define the `REUSE`, `BOUNDED`, and `FULL` candidate-validation gates and the deterministic reuse proof. Lean Delivery projects now receive the defining `docs/WORKTREE_LIFECYCLE.md` as a managed file.
 
 ### Upgrade notes
 
@@ -98,6 +98,7 @@ Template-changing release: migrations `058-lean-closure-procedure`, `059-governe
 - Template-changing release: migration `060-unattended-closure-command-policy` updates the managed path `.codex/rules/meridian.rules` in both workflow modes. Run `meridian upgrade --apply`; project-local rules appended at the end of the file are preserved by the three-way merge.
 - A project that edited the same block as the new rules may see a conflict in that file; resolve it deliberately and rerun the upgrade.
 - Afterward run `meridian codex doctor` to confirm each new rule group is `ready`. The Claude Code allowlist is not delivered by the upgrade; it arrives through consented `meridian setup`.
+- Lean Delivery projects now receive `docs/WORKTREE_LIFECYCLE.md` through `meridian upgrade --apply`. An unchanged or missing copy is refreshed automatically; a locally edited copy follows the normal three-way merge and may require deliberate conflict resolution.
 - After `meridian upgrade --apply`, review `meridian setup --check` and explicitly declare candidate-validation fragments or choose `none`; the first integration of an undeclared project stops once before staging and reports a proposal.
 
 ## [1.2.3]
