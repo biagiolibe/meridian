@@ -1,8 +1,7 @@
 # Task Identity Policy
 
-Status: design proposal. This note defines a future implementation boundary;
-it does not change task syntax, runtime behavior, managed templates,
-migrations, CLI commands, hooks, audits, or capability baselines.
+Status: implemented. This note defines the task-identity policy and its
+current resolver behavior.
 
 ## Decision
 
@@ -17,6 +16,11 @@ The mode is declared once in the project-owned file
 `.meridian/task-identity.json`. Absence of that file is exactly equivalent to
 `{"version": 1, "mode": "opaque"}`. An upgrade must never create the file
 merely to restate the default.
+
+Create the declaration through `meridian setup --apply --task-identity
+opaque|milestone`. The setup plan shows the requested write before applying it
+and never overwrites an existing declaration. The choice can later be changed
+by editing the project-owned file.
 
 The declaration is deliberately not part of `.meridian/manifest.json`.
 The manifest records Meridian's managed distribution and migration state;

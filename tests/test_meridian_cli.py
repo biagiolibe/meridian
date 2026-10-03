@@ -4993,6 +4993,174 @@ class WorktreeRootSetupTest(unittest.TestCase):
                 )
                 self.assertEqual(plan.meridian_root_state, expected)
 
+    def test_setup_task_identity_is_opt_in_and_supports_both_workflows(self) -> None:
+        for workflow_mode in meridian.WORKFLOW_MODES:
+            with self.subTest(workflow_mode=workflow_mode):
+                project = self.home / workflow_mode
+                project.mkdir()
+                (project / "PROJECT_WORKFLOW.md").write_text(
+                    (ROOT / "templates/workflows" / workflow_mode / "PROJECT_WORKFLOW.md").read_text(encoding="utf-8"),
+                    encoding="utf-8",
+                )
+                root = self.home / f"{workflow_mode}-root"
+                unchecked = meridian.plan_setup(
+                    root,
+                    self.codex_config,
+                    environment=self.environment,
+                    home=self.home,
+                    project_root=project,
+                )
+                self.assertEqual(unchecked.task_identity_state, "not-requested")
+                self.assertFalse(meridian.apply_setup(unchecked) and (project / meridian.TASK_IDENTITY_PATH).exists())
+                self.assertFalse((project / meridian.TASK_IDENTITY_PATH).exists())
+
+                for choice in ("opaque", "milestone"):
+                    choice_project = self.home / f"{workflow_mode}-{choice}"
+                    choice_project.mkdir()
+                    (choice_project / "PROJECT_WORKFLOW.md").write_text(
+                        (ROOT / "templates/workflows" / workflow_mode / "PROJECT_WORKFLOW.md").read_text(encoding="utf-8"),
+                        encoding="utf-8",
+                    )
+                    plan = meridian.plan_setup(
+                        self.home / f"{workflow_mode}-{choice}-root",
+                        self.home / f"{workflow_mode}-{choice}.toml",
+                        task_identity=choice,
+                        environment=self.environment,
+                        home=self.home,
+                        project_root=choice_project,
+                    )
+                    output = io.StringIO()
+                    with redirect_stdout(output):
+                        meridian.print_setup_plan(plan)
+                    self.assertEqual(plan.task_identity_state, "planned")
+                    self.assertIn(f"task identity mode {choice}", output.getvalue())
+                    self.assertTrue(meridian.apply_setup(plan))
+                    self.assertEqual(
+                        json.loads((choice_project / meridian.TASK_IDENTITY_PATH).read_text(encoding="utf-8")),
+                        {"version": 1, "mode": choice},
+                    )
+
+    def test_setup_cli_plans_then_applies_the_requested_task_identity(self) -> None:
+        project = self.home / "project"
+        project.mkdir()
+        root = self.home / "root"
+        command = [
+            sys.executable,
+            str(CLI),
+            "setup",
+            "--project", str(project),
+            "--worktree-root", str(root),
+            "--config", str(self.codex_config),
+            "--task-identity", "milestone",
+        ]
+        environment = {**os.environ, **self.environment}
+        checked = subprocess.run(
+            command + ["--check"], text=True, capture_output=True, check=False, env=environment
+        )
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+        self.assertIn("task-identity: planned", checked.stdout)
+        self.assertIn('task-identity-proposal: {"mode": "milestone", "version": 1}', checked.stdout)
+        identity_path = project / meridian.TASK_IDENTITY_PATH
+        self.assertFalse(identity_path.exists())
+
+        applied = subprocess.run(
+            command + ["--apply"], text=True, capture_output=True, check=False, env=environment
+        )
+        self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+        self.assertEqual(
+            identity_path.read_text(encoding="utf-8"),
+            '{\n  "mode": "milestone",\n  "version": 1\n}\n',
+        )
+
+    def test_setup_task_identity_refuses_invalid_and_preserves_existing_declarations(self) -> None:
+        project = self.home / "project"
+        project.mkdir()
+        root = self.home / "root"
+        with self.assertRaisesRegex(meridian.MeridianError, "unsupported task identity mode"):
+            meridian.plan_setup(
+                root,
+                self.codex_config,
+                task_identity="invalid",
+                environment=self.environment,
+                home=self.home,
+                project_root=project,
+            )
+        self.assertFalse((project / meridian.TASK_IDENTITY_PATH).exists())
+
+        identity_path = project / meridian.TASK_IDENTITY_PATH
+        identity_path.parent.mkdir()
+        identity_path.write_text('{"version": 1, "mode": "opaque"}\n', encoding="utf-8")
+        before = identity_path.read_bytes()
+        identical = meridian.plan_setup(
+            root,
+            self.codex_config,
+            task_identity="opaque",
+            environment=self.environment,
+            home=self.home,
+            project_root=project,
+        )
+        self.assertEqual(identical.task_identity_state, "already-set")
+        self.assertIn("already set to opaque", identical.task_identity_detail)
+        self.assertIsNone(identical.task_identity_proposal)
+
+        different = meridian.plan_setup(
+            root,
+            self.codex_config,
+            task_identity="milestone",
+            environment=self.environment,
+            home=self.home,
+            project_root=project,
+        )
+        self.assertEqual(different.task_identity_state, "different")
+        self.assertIn("requested milestone", different.task_identity_detail)
+        self.assertIsNone(different.task_identity_proposal)
+        self.assertTrue(meridian.apply_setup(different))
+        self.assertEqual(identity_path.read_bytes(), before)
+
+    def test_setup_task_identity_blocks_malformed_existing_declaration(self) -> None:
+        project = self.home / "project"
+        identity_path = project / meridian.TASK_IDENTITY_PATH
+        identity_path.parent.mkdir(parents=True)
+        identity_path.write_text("not json\n", encoding="utf-8")
+        plan = meridian.plan_setup(
+            self.home / "root",
+            self.codex_config,
+            task_identity="milestone",
+            environment=self.environment,
+            home=self.home,
+            project_root=project,
+        )
+        self.assertEqual(plan.task_identity_state, "blocked")
+        with self.assertRaisesRegex(meridian.MeridianError, "invalid task identity declaration"):
+            meridian.apply_setup(plan)
+        self.assertEqual(identity_path.read_text(encoding="utf-8"), "not json\n")
+
+    def test_setup_milestone_identity_is_reported_by_the_resolver(self) -> None:
+        project = self.home / "project"
+        (project / "tasks").mkdir(parents=True)
+        (project / "tasks/M2-API-001.md").write_text("ID: M2-API-001\n", encoding="utf-8")
+        (project / "tasks/QUEUE.md").write_text(
+            "| ID | Status | Task file |\n|---|---|---|\n| M2-API-001 | TODO | [M2-API-001](M2-API-001.md) |\n",
+            encoding="utf-8",
+        )
+        plan = meridian.plan_setup(
+            self.home / "root",
+            self.codex_config,
+            task_identity="milestone",
+            environment=self.environment,
+            home=self.home,
+            project_root=project,
+        )
+        self.assertTrue(meridian.apply_setup(plan))
+        checked = subprocess.run(
+            [sys.executable, str(CLI), "task", "identity", "check", "M2-API-001", "--project", str(project), "--format", "json"],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+        self.assertEqual(json.loads(checked.stdout)["mode"], "milestone")
+
     def test_setup_adds_the_project_claude_allowlist_only_after_apply(self) -> None:
         project = self.home / "project"
         settings = project / ".claude/settings.local.json"

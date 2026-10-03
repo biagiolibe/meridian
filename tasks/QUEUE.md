@@ -36,7 +36,7 @@ are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[ ]` | 129 | Choose the task-identity mode at project setup | 🟡 P2 | — | [129](129-choose-task-identity-at-project-setup.md) |
+| `[x]` | 129 | Choose the task-identity mode at project setup | 🟡 P2 | — | [129](done/129-choose-task-identity-at-project-setup.md) |
 | `[ ]` | 130 | Make task creation follow the project's task-identity mode | 🟡 P2 | 129 | [130](130-identity-aware-task-creation.md) |
 
 ### Phase 49 — Release tooling

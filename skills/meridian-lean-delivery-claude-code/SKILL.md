@@ -25,3 +25,9 @@ applicable baseline checks before marking it `[x]` or archiving it. Keep an
 unverified or failed task `[/]` and report the blocker. Follow the project's Git
 conventions; do not infer Governed SDD branch, review, author, or integration
 controls. Reviews are read-only unless a separate fix is authorized.
+
+When bootstrapping, ask the developer to choose `opaque` or `milestone` task
+identity. `opaque` keeps task IDs as labels; `milestone` uses
+`M<milestone>-<WORKSTREAM>-<ordinal>` for new IDs. Never choose by default;
+pass the answer to `meridian setup --apply --task-identity <choice>` and note
+that the project can later change it by editing the declaration.
