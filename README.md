@@ -70,8 +70,10 @@ meridian console
 ```
 
 It reads the current project's queue, open task details, dependencies, Git
-summary, worktrees, and next permitted directives. The view refreshes local
-state every two seconds and never writes project files. Use `--project
+summary, worktrees, and next permitted directives. Its heading and `--once`
+snapshot identify the running Meridian version and framework root, so an
+installed release is distinguishable from a repository checkout. The view
+refreshes local state every two seconds and never writes project files. Use `--project
 /path/to/project` to inspect another project and `--interval 5` to change the
 refresh interval (between 0.2 and 60 seconds).
 
@@ -83,9 +85,11 @@ effective state with its source. Disagreements the lifecycle does not produce
 appear as `MISMATCH` with no launch directive.
 
 For an eligible directive, `c` (or `[copy]`) keeps the copy-to-clipboard
-fallback. On macOS with iTerm2, press `l`, choose Claude Code or Codex, and
-then review the exact directive and primary-checkout directory before pressing
-Enter to start a horizontal split pane below the console. The first launch may
+fallback. On macOS with iTerm2, press `l` to open an isolated launch panel.
+It shows the task, directive, project, agent choices, and safely discovered
+configured model and effort defaults; press `1` for Claude Code or `2` for
+Codex to revalidate and start that agent immediately, or `Esc` to cancel. The
+shown defaults are informative and do not override agent configuration. The first launch may
 cause macOS to ask permission for the terminal to automate iTerm2. Each launch
 splits the console's current pane again, so repeated launches reduce the space
 available to existing panes. Launching starts an agent that may modify the
