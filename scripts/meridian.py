@@ -34,7 +34,7 @@ SCRIPTS_ROOT = Path(__file__).resolve().parent
 if str(SCRIPTS_ROOT) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_ROOT))
 
-from console_workflow import latest_review_verdict  # noqa: E402 (needs SCRIPTS_ROOT on sys.path)
+from console_workflow import latest_review_verdict, record_review  # noqa: E402 (needs SCRIPTS_ROOT on sys.path)
 
 
 MANIFEST_PATH = Path(".meridian/manifest.json")
@@ -1285,20 +1285,92 @@ _GOVERNED_QUEUE_TASK_ROW = re.compile(
     r"(?P<review>REQUIRED|NOT_REQUIRED) \| (?P<dependencies>[^|]*) \| (?P<task_file>[^|]*) \|$",
     re.MULTILINE,
 )
+_GOVERNED_QUEUE_STATUSES = frozenset(
+    {"QUEUED", "IN_PROGRESS", "CHANGES_REQUESTED", "READY_FOR_REVIEW", "ACCEPTED"}
+)
+_MARKDOWN_HEADING = re.compile(r"^(?P<marks>#{1,6})\s+(?P<title>.+?)\s*$")
+
+
+def _governed_completion_error(path: Path, section: str, reason: str) -> MeridianError:
+    """Build an actionable error for an unrecognized Governed queue table."""
+    return MeridianError(f"unrecognized completion row in {path}, section {section}: {reason}")
 
 
 def _governed_completion_row(
     contents: str, identity: ResolvedTaskIdentity, path: Path
 ) -> tuple[str, bool, str]:
-    """Return a recognized Governed queue row and whether it may be accepted."""
-    matches = [
-        match for match in _GOVERNED_QUEUE_TASK_ROW.finditer(contents)
-        if match.group("id").strip().strip("`") == identity.canonical_id
-    ]
-    if len(matches) != 1:
-        raise MeridianError(f"unrecognized completion row for task {identity.canonical_id} in {path}")
-    match = matches[0]
-    if match.group("review") == "REQUIRED":
+    """Accept one Governed row found by its section table's named columns."""
+    lines = contents.splitlines(keepends=True)
+    starts: list[int] = []
+    offset = 0
+    for line in lines:
+        starts.append(offset)
+        offset += len(line)
+
+    section = "<preamble>"
+    recognized_headers = 0
+    incomplete_header_sections: list[str] = []
+    candidates: list[tuple[int, int, int, int, str]] = []
+    for index, line in enumerate(lines):
+        heading = _MARKDOWN_HEADING.match(line.rstrip("\n"))
+        if heading:
+            section = heading.group("title")
+        if not line.startswith("|"):
+            continue
+        header = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        folded = [cell.casefold() for cell in header]
+        if "id" not in folded or "status" not in folded:
+            if "id" in folded:
+                incomplete_header_sections.append(section)
+            continue
+        recognized_headers += 1
+        id_index, status_index = folded.index("id"), folded.index("status")
+        if index + 1 >= len(lines) or not _QUEUE_TABLE_DIVIDER.fullmatch(lines[index + 1].rstrip("\n")):
+            raise _governed_completion_error(path, section, "table header has no valid divider")
+        row_index = index + 2
+        while row_index < len(lines) and lines[row_index].startswith("|"):
+            cells = [cell.strip() for cell in lines[row_index].strip().strip("|").split("|")]
+            if len(cells) != len(header):
+                if id_index < len(cells) and cells[id_index].strip("`") == identity.canonical_id:
+                    raise _governed_completion_error(path, section, "task row cell count differs from its header")
+                row_index += 1
+                continue
+            if cells[id_index].strip("`") == identity.canonical_id:
+                candidates.append((row_index, status_index, starts[row_index], len(lines[row_index]), section))
+            row_index += 1
+
+    if not candidates:
+        if not recognized_headers:
+            section = ", ".join(sorted(set(incomplete_header_sections))) or section
+            raise _governed_completion_error(path, section, "no table header has both ID and Status columns")
+        raise _governed_completion_error(path, section, f"task {identity.canonical_id} appears zero times")
+    if len(candidates) != 1:
+        sections = ", ".join(sorted({candidate[4] for candidate in candidates}))
+        raise _governed_completion_error(path, sections, f"task {identity.canonical_id} appears {len(candidates)} times")
+
+    row_index, status_index, start, _, section = candidates[0]
+    cells = [cell.strip() for cell in lines[row_index].strip().strip("|").split("|")]
+    status = cells[status_index].strip("`")
+    if status not in _GOVERNED_QUEUE_STATUSES:
+        raise _governed_completion_error(path, section, f"unknown Governed status {cells[status_index]!r}")
+
+    header = [cell.strip() for cell in lines[row_index - 2].strip().strip("|").split("|")]
+    review_index = next((i for i, cell in enumerate(header) if cell.casefold() == "review"), None)
+    if review_index is None:
+        record_path = identity.task_path
+        archived_path = record_path.parent / "done" / record_path.name
+        if not record_path.is_file() and archived_path.is_file():
+            record_path = archived_path
+        review = record_review(record_path.read_text(encoding="utf-8") if record_path.is_file() else None)
+        review = "REQUIRED" if review == "REQUIRED" else "NOT_REQUIRED" if review == "NOT REQUIRED" else None
+        if review is None:
+            raise _governed_completion_error(path, section, "no Review column and task record has no recognized review policy")
+    else:
+        review = cells[review_index].strip("`")
+        if review not in ("REQUIRED", "NOT_REQUIRED"):
+            raise _governed_completion_error(path, section, f"unknown Review value {cells[review_index]!r}")
+
+    if review == "REQUIRED":
         review_path = identity.review_path
         verdict = latest_review_verdict(
             review_path.read_text(encoding="utf-8") if review_path.is_file() else None
@@ -1306,10 +1378,28 @@ def _governed_completion_row(
         if verdict != "APPROVE":
             reason = "review record is missing or malformed" if verdict is None else f"latest review verdict is {verdict}"
             return contents, False, reason
+
+    if status == "ACCEPTED":
+        return (
+            contents,
+            True,
+            "review not required" if review == "NOT_REQUIRED" else "latest review verdict is APPROVE",
+        )
+
+    line = lines[row_index]
+    parts = line.split("|")
+    # A leading pipe makes markdown cell N live at split index N + 1. Replace
+    # only the cell payload so all formatting around it remains unchanged.
+    cell_index = status_index + 1
+    payload = parts[cell_index]
+    replacement = re.sub(r"(?<!\S)(?:`)?[^`\s|]+(?:`)?(?!\S)", "ACCEPTED", payload, count=1)
+    if replacement == payload:
+        raise _governed_completion_error(path, section, "Status cell has no replaceable token")
+    parts[cell_index] = replacement
     return (
-        f"{contents[:match.start('status')]}ACCEPTED{contents[match.end('status'):]}",
+        f"{contents[:start]}{'|'.join(parts)}{contents[start + len(line):]}",
         True,
-        "review not required" if match.group("review") == "NOT_REQUIRED" else "latest review verdict is APPROVE",
+        "review not required" if review == "NOT_REQUIRED" else "latest review verdict is APPROVE",
     )
 
 

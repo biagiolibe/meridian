@@ -572,3 +572,9 @@ reasons, and creates the implementation follow-ups.
 |--------|----|-------|----------|------------|------|
 | `[x]` | 131 | Verify the latest release without the removed `isLatest` field | 🟡 P2 | — | [131](done/131-release-verify-latest-without-islatest.md) |
 | `[x]` | 132 | Document the settings-pinned marketplace refusal and how to check the installed version | 🟢 P3 | — | [132](done/132-readme-marketplace-pin-in-settings-note.md) |
+
+### Phase 52 — Governed queue shapes
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 140 | Let `integrate stage` complete rows of project-shaped Governed queues | 🔴 P1 | — | [140](done/140-governed-project-queue-shapes.md) |

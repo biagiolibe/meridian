@@ -48,9 +48,3 @@ are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 | `[ ]` | 137 | Tell Codex agents to wait once for long commands | 🟡 P2 | — | [137](137-codex-wait-guidance-for-long-commands.md) |
 | `[ ]` | 138 | Run the unit suite in parallel without changing what it covers | 🟡 P2 | — | [138](138-parallel-test-runner.md) |
 | `[ ]` | 139 | Make `check_repository.py` catch managed-copy digest drift | 🟡 P2 | — | [139](139-check-managed-copy-digest-drift.md) |
-
-### Phase 52 — Governed queue shapes
-
-| Status | ID | Title | Priority | Depends on | File |
-|--------|----|-------|----------|------------|------|
-| `[ ]` | 140 | Let `integrate stage` complete rows of project-shaped Governed queues | 🔴 P1 | — | [140](140-governed-project-queue-shapes.md) |
