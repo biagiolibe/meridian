@@ -15,6 +15,10 @@ records which release moved it.
 
 ## [Unreleased]
 
+## [1.2.6]
+
+Template-changing release: migrations `058-lean-closure-procedure`, `059-governed-closure-procedure`, and `060-unattended-closure-command-policy` advance `workflowBaselineVersion` to `1.2.6`. This release also ships the changes prepared for the unpublished versions `1.2.4` and `1.2.5`, which have no separate tag. The Lean Delivery and Governed SDD closure procedures, the Codex command policy, and project-declared candidate-validation commands arrive together.
+
 ### Added
 
 - `meridian validation check` verifies a versioned, commit-and-tree-bound
@@ -35,6 +39,66 @@ records which release moved it.
   template-changing release in its ordinary commits and publish it with the
   same typed-confirmation command as a CLI-only release.
 
+### Added
+
+- Repository validation now runs for pushed `task-*` branches and can produce
+  exact-commit T1 CI evidence through `scripts/ci_evidence.py`.
+- Release changelog fragments let parallel tasks record user-visible changes
+  without concurrently editing `CHANGELOG.md`.
+- Identify the running Meridian version and framework root in the project console, with an isolated single-choice agent launch panel.
+- The project console now reports active-task cycle time and lifecycle gates.
+- The Codex command policy allows `meridian worktree evidence` and `closure-status`, `git mv` for the task-record archive rename, the repository validation commands, and read-only inspection (`ls`, `cat`, `head`, `tail`, `wc`, `pwd`, `grep`). `meridian codex doctor` reports `archive-rename-policy`, `inspection-command-policy`, and `validation-command-policy`, and probes `evidence` and `closure-status` with the lifecycle commands.
+- The Claude Code allowlist offered by `meridian setup` gains the equivalent entries, including `git mv tasks/`.
+- The project console can resume interrupted Lean Delivery and Governed SDD tasks with explicit liveness and dirty-worktree confirmations.
+
+### Changed
+
+- Lean Delivery now treats `Proceed with <TASK-ID>` as standing authorization
+  for the gated task lifecycle through integration, one `origin/main` push, and
+  cleanup, with explicit exclusions for release, history-rewrite, conflict, and
+  destructive operations.
+- Governed SDD now treats `Proceed with <TASK-ID>` as standing authorization
+  for the gated task lifecycle through integration, one `origin/main` push,
+  and cleanup, while preserving explicit exclusions for release, history
+  rewrites, conflicts, and destructive operations.
+- A Governed `Review: REQUIRED` task stops at `REVIEW_REQUIRED` as a mandatory
+  gate; after approval, the reviewer-integrator completes integration. A
+  `Review: NOT_REQUIRED` task continues through cleanup without a reviewer.
+- Reduce full-suite validation output and require foreground execution for long checks.
+- Require candidate validation evidence to name the repository check for every integration decision and the unittest discovery suite for full validation.
+- Forced `git mv` and every write-capable or program-executing form (`sed -i`, `rg --pre`, `find -exec`, `mv`) keep prompting. Codex prefixes match leading tokens only, so `git mv` cannot be limited to `tasks/done/`.
+- The project console derives Governed SDD in-progress and review-pending state from the task record and shows its cycle time.
+
+### Fixed
+
+- `release.py publish` now waits for its matching GitHub workflow run, and the
+  read-only `verify` command resumes publication verification after a tag exists.
+- Make `meridian worktree integrate stage` complete Governed SDD queue rows without requiring `PROJECT_PLAN.md`, including approved required reviews and archived task links.
+- The project console keeps a task listed as `CLOSING` until cleanup, in both workflows.
+- Candidate validation now reads consumer-declared command fragments per integration outcome instead of assuming Meridian's own Python checks.
+
+### Documentation
+
+- Define the `REUSE`, `BOUNDED`, and `FULL` candidate-validation gates and the deterministic reuse proof.
+
+### Upgrade notes
+
+- Run `meridian upgrade --apply` in each Lean Delivery project to install
+  `git-workflow` v8 in `PROJECT_WORKFLOW.md`, `AGENTS.md`, and `CLAUDE.md`.
+- The upgrade preserves consumer-owned text outside the managed capability
+  blocks. Resolve any local edits inside those blocks deliberately.
+- The new procedure leaves queue and plan status changes to `integrate stage`;
+  restart open agent sessions after upgrading so they use the new closure rule.
+- Run `meridian upgrade --apply` in each Governed SDD project to install
+  `git-workflow` v8, `task-worktree-boundary` v6, and
+  `task-worktree-review-procedure` v8.
+- The upgrade preserves consumer-owned text outside managed capability blocks.
+  Resolve local edits inside those blocks deliberately, then restart open
+  agent sessions so they use the new closure procedure.
+- Template-changing release: migration `060-unattended-closure-command-policy` updates the managed path `.codex/rules/meridian.rules` in both workflow modes. Run `meridian upgrade --apply`; project-local rules appended at the end of the file are preserved by the three-way merge.
+- A project that edited the same block as the new rules may see a conflict in that file; resolve it deliberately and rerun the upgrade.
+- Afterward run `meridian codex doctor` to confirm each new rule group is `ready`. The Claude Code allowlist is not delivered by the upgrade; it arrives through consented `meridian setup`.
+- After `meridian upgrade --apply`, review `meridian setup --check` and explicitly declare candidate-validation fragments or choose `none`; the first integration of an undeclared project stops once before staging and reports a proposal.
 
 ## [1.2.3]
 
