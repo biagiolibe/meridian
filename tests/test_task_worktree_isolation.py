@@ -35,6 +35,17 @@ class TaskWorktreeIsolationTest(unittest.TestCase):
         self.git("add", "QUEUE.md")
         self.git("commit", "-m", "initial")
         self.base = self.git("rev-parse", "main").stdout.strip()
+        declaration = self.primary / ".meridian/candidate-validation.json"
+        declaration.parent.mkdir()
+        declaration.write_text(json.dumps({
+            "version": 1, "state": "declared", "outcomes": {
+                "REUSE": ["scripts/check_repository.py"], "BOUNDED": ["scripts/check_repository.py"],
+                "FULL": ["scripts/check_repository.py", "unittest discover"],
+            },
+        }), encoding="utf-8")
+        self.git("add", ".meridian/candidate-validation.json")
+        self.git("commit", "-m", "declare candidate validation")
+        self.base = self.git("rev-parse", "main").stdout.strip()
 
     def tearDown(self) -> None:
         self.temporary.cleanup()
@@ -264,6 +275,15 @@ class BoundedWorktreeLifecycleTest(unittest.TestCase):
             "# Workflow\n\nThis file selects `LEAN_DELIVERY` exclusively.\n", encoding="utf-8"
         )
         (self.primary / "README.md").write_text("base\n", encoding="utf-8")
+        declaration = self.primary / ".meridian/candidate-validation.json"
+        declaration.parent.mkdir()
+        declaration.write_text(json.dumps({
+            "version": 1, "state": "declared", "outcomes": {
+                "REUSE": ["scripts/check_repository.py"],
+                "BOUNDED": ["scripts/check_repository.py"],
+                "FULL": ["scripts/check_repository.py", "unittest discover"],
+            },
+        }), encoding="utf-8")
         self.git("add", ".")
         self.git("commit", "-m", "initial")
         self.base = self.git("rev-parse", "HEAD").stdout.strip()
@@ -452,6 +472,43 @@ class BoundedWorktreeLifecycleTest(unittest.TestCase):
                 self.assertEqual(
                     meridian.missing_candidate_validation_commands(decision, commands), expected
                 )
+
+    def test_candidate_validation_declaration_states_and_malformed_input(self) -> None:
+        path = self.primary / ".meridian/candidate-validation.json"
+        path.write_text(json.dumps({"version": 1, "state": "none"}), encoding="utf-8")
+        self.assertEqual(meridian.candidate_validation_declaration(self.primary), ("none", {}))
+        path.unlink()
+        self.assertEqual(meridian.candidate_validation_declaration(self.primary), ("undeclared", {}))
+        path.write_text('{"version": 1, "state": "declared", "outcomes": {}}', encoding="utf-8")
+        with self.assertRaisesRegex(meridian.MeridianError, "outcomes must declare"):
+            meridian.candidate_validation_declaration(self.primary)
+
+    def test_undeclared_validation_stops_before_lease_or_merge(self) -> None:
+        prepared = self.prepare()
+        task_worktree = Path(str(prepared["worktree"]))
+        (task_worktree / "feature.txt").write_text("implemented\n", encoding="utf-8")
+        self.git("add", "feature.txt", cwd=task_worktree)
+        self.git("commit", "-m", "implement task", cwd=task_worktree)
+        task_commit = self.git("rev-parse", "HEAD", cwd=task_worktree).stdout.strip()
+        evidence_path = self.root / "integration-evidence.json"
+        evidence_path.write_text(json.dumps({
+            "accepted": True, "validation_passed": True,
+            "validated_task_commit": task_commit, "validated_base_commit": self.base,
+            "full_validation_required": False, "interaction_assessment_complete": True,
+            "task_paths": ["feature.txt"], "task_dependencies": [],
+            "task_behavioral_surfaces": [], "main_advanced_dependencies": [],
+            "main_advanced_behavioral_surfaces": [], "validation_commands": ["pytest -q"],
+        }), encoding="utf-8")
+        (self.primary / ".meridian/candidate-validation.json").unlink()
+        self.git("add", ".meridian/candidate-validation.json")
+        self.git("commit", "-m", "remove declaration")
+        with self.assertRaisesRegex(meridian.MeridianError, "UNDECLARED_VALIDATION_COMMANDS"):
+            meridian.stage_task_integration("056", self.worktree_root, evidence_path, self.primary)
+        identity = meridian.resolve_task_identity(self.primary, "056", "existing")
+        _state, lease_path, integration_path = meridian._lifecycle_paths(self.primary, identity)
+        self.assertFalse(lease_path.exists())
+        self.assertFalse(integration_path.exists())
+        self.assertFalse((self.primary / ".git/MERGE_HEAD").exists())
 
     def test_finalize_rejection_for_missing_command_keeps_staged_state(self) -> None:
         prepared = self.prepare()

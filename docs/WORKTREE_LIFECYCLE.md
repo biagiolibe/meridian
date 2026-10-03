@@ -150,15 +150,23 @@ project-provided commands.
 
 ### Candidate validation by integration outcome
 
-Every outcome runs `python3 scripts/check_repository.py` and `git diff --check`
-against the staged candidate tree. The recorded command entries remain subject
-to the candidate-evidence contract: every decision names
-`scripts/check_repository.py`, and `FULL` also names `unittest discover`. The
-comparison is literal and does not execute a command: it accepts the profile's
-`set -o pipefail;` prefix and an output-bounding pipeline such as
-`| tail -n 40` because the required fragments remain in the entry.
+The consumer-owned `.meridian/candidate-validation.json` declares command
+fragments per `REUSE`, `BOUNDED`, and `FULL` outcome. It has `version: 1` and
+one state: `declared` with a non-empty fragment array for every outcome, `none`
+to accept any non-empty successful command list, or `undeclared`. A missing
+file is also `undeclared`. The comparison is literal and executes nothing; it
+accepts a `set -o pipefail;` prefix and output-bounding pipelines because the
+declared fragment remains in the command entry.
 
-- `REUSE` runs the universal gate and proves that the staged candidate differs
+An undeclared project stops at `integrate stage`, before a lease, merge, or
+staged state exists, with `BLOCKED UNDECLARED_VALIDATION_COMMANDS`. The stop
+shows the task validation commands and a detected-stack proposal. Explicitly
+write declared fragments, choose `none`, or use `meridian setup --apply` after
+reviewing its proposal, then rerun stage. `upgrade --apply` never writes this
+consumer-owned file. This repository's own fragments live only in its
+`.meridian/candidate-validation.json`.
+
+- `REUSE` runs the project's declared repository gate and proves that the staged candidate differs
   from the validated task commit only in governance paths. Use the deterministic
   command `git diff --name-only "$VALIDATED_TASK_COMMIT" "$CANDIDATE_TREE"` and
   verify that every emitted path is the task record (active or its exact archive
@@ -169,7 +177,7 @@ comparison is literal and does not execute a command: it accepts the profile's
   task and advanced `main`. Select those tests from the staged candidate's
   changed-path evidence; the independent-change decision never permits omitting
   either side's affected modules.
-- `FULL` runs the `REUSE` gate and the full test suite. Its candidate evidence
+- `FULL` runs the `REUSE` gate and the project's declared full suite. Its candidate evidence
   therefore records both the repository check and full-suite command.
 
 A stricter gate is always permitted: an agent may run the full suite for any

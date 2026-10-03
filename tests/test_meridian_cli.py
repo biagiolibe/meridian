@@ -3909,7 +3909,7 @@ class CapabilityMarkerTest(unittest.TestCase):
 
     def test_manual_proceed_migration_leaves_review_and_remediation_bytes_unchanged(self) -> None:
         expected = {
-            "REVIEW.md": "0859ffdd979b0514efd1b10d72c9be39642564a3eff0f671839c9babfbbae4f5",
+            "REVIEW.md": "3ed178e6479d009419de1bdf9fed2028dec2abc959e1d33d703a3bb012bde446",
             "REMEDIATION.md": "d995a711720865d1d1694654e6415fd699d159e487a211e36b035741e907f47e",
         }
         for name, digest in expected.items():
@@ -5987,6 +5987,9 @@ class CapabilityProfileManifestTest(unittest.TestCase):
             with self.subTest(mode=mode), tempfile.TemporaryDirectory() as directory:
                 project = Path(directory)
                 self.installed_project(project, mode)
+                (project / ".meridian/candidate-validation.json").write_text(
+                    '{"version": 1, "state": "none"}\n', encoding="utf-8"
+                )
 
                 return_code, output = self.audit(project, mode)
 
@@ -6153,6 +6156,9 @@ class CapabilityProfileManifestTest(unittest.TestCase):
                 "notApplicableRationale": "host-profile-unsupported",
             }
             meridian.write_manifest(project, manifest, framework)
+            (project / ".meridian/candidate-validation.json").write_text(
+                '{"version": 1, "state": "none"}\n', encoding="utf-8"
+            )
             output = io.StringIO()
 
             with redirect_stdout(output):

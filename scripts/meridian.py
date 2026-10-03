@@ -106,6 +106,7 @@ CODEX_MANAGED_BEGIN = "# MERIDIAN:BEGIN worktree-permissions v1"
 CODEX_MANAGED_END = "# MERIDIAN:END worktree-permissions"
 SAFE_PATH_COMPONENT = re.compile(r"[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?")
 TASK_IDENTITY_PATH = Path(".meridian/task-identity.json")
+CANDIDATE_VALIDATION_PATH = Path(".meridian/candidate-validation.json")
 WORKTREE_STATE_DIRECTORY = "meridian-worktrees"
 INTEGRATION_LEASE_NAME = "meridian-integration.lock"
 INTEGRATION_STATE_NAME = "meridian-integration.json"
@@ -114,12 +115,7 @@ STRUCTURED_TASK_ID = re.compile(
     r"(?P<ordinal>00[1-9]|0[1-9][0-9]|[1-9][0-9]{2})"
 )
 NUMERIC_TASK_ALIAS = re.compile(r"(?:task-)?([0-9]+)", re.IGNORECASE)
-# Candidate evidence records literal command strings. These required fragments
-# deliberately describe the repository baseline without executing it here.
-CANDIDATE_VALIDATION_COMMANDS = {
-    "repository_check": "scripts/check_repository.py",
-    "full_suite": "unittest discover",
-}
+CANDIDATE_VALIDATION_OUTCOMES = ("REUSE", "BOUNDED", "FULL")
 
 
 @dataclass(frozen=True)
@@ -217,6 +213,9 @@ class SetupPlan:
     claude_state: str
     claude_plan: ClaudeConfigurationPlan | None
     claude_detail: str
+    candidate_validation_state: str
+    candidate_validation_path: Path
+    candidate_validation_proposal: dict[str, object] | None
     config_action: str
     framework_root: Path
     skill_links: tuple[tuple[str, Path, str, str], ...]
@@ -1007,6 +1006,70 @@ def _bool_field(value: object, label: str) -> bool:
     return value
 
 
+def candidate_validation_declaration(project_root: Path) -> tuple[str, dict[str, tuple[str, ...]]]:
+    """Load the consumer-owned candidate-validation declaration without running it."""
+    path = project_root / CANDIDATE_VALIDATION_PATH
+    if not path.exists():
+        return "undeclared", {}
+    data = _read_json_object(path, "candidate-validation declaration")
+    if data.get("version") != 1:
+        raise MeridianError(f"{path}: version must be 1")
+    state = data.get("state")
+    if state == "undeclared":
+        if set(data) != {"version", "state"}:
+            raise MeridianError(f"{path}: undeclared state must contain only version and state")
+        return state, {}
+    if state == "none":
+        if set(data) != {"version", "state"}:
+            raise MeridianError(f"{path}: none state must contain only version and state")
+        return state, {}
+    if state != "declared":
+        raise MeridianError(f"{path}: state must be declared, none, or undeclared")
+    outcomes = data.get("outcomes")
+    if set(data) != {"version", "state", "outcomes"} or not isinstance(outcomes, dict):
+        raise MeridianError(f"{path}: declared state requires only version, state, and outcomes")
+    if set(outcomes) != set(CANDIDATE_VALIDATION_OUTCOMES):
+        raise MeridianError(f"{path}: outcomes must declare REUSE, BOUNDED, and FULL")
+    parsed: dict[str, tuple[str, ...]] = {}
+    for outcome in CANDIDATE_VALIDATION_OUTCOMES:
+        fragments = outcomes[outcome]
+        if not isinstance(fragments, list) or not fragments or not all(
+            isinstance(fragment, str) and fragment.strip() for fragment in fragments
+        ):
+            raise MeridianError(f"{path}: outcomes.{outcome} must be a non-empty array of non-empty strings")
+        parsed[outcome] = tuple(fragments)
+    return state, parsed
+
+
+def proposed_candidate_validation_declaration(project_root: Path) -> dict[str, object]:
+    """Offer conservative detected-stack defaults; setup applies them only on --apply."""
+    repository_check = "scripts/check_repository.py"
+    has_repository_check = (project_root / repository_check).is_file()
+    has_python_tests = (project_root / "tests").is_dir()
+    if not has_repository_check:
+        return {"version": 1, "state": "undeclared"}
+    outcomes: dict[str, list[str]] = {
+        "REUSE": [repository_check],
+        "BOUNDED": [repository_check],
+        "FULL": [repository_check],
+    }
+    if has_python_tests:
+        outcomes["FULL"].append("unittest discover")
+    return {"version": 1, "state": "declared", "outcomes": outcomes}
+
+
+def undeclared_validation_commands_error(project_root: Path, evidence: dict[str, object]) -> MeridianError:
+    commands = evidence.get("validation_commands")
+    recorded = ", ".join(commands) if isinstance(commands, list) and commands else "none recorded"
+    proposal = json.dumps(proposed_candidate_validation_declaration(project_root), sort_keys=True)
+    return MeridianError(
+        "BLOCKED UNDECLARED_VALIDATION_COMMANDS: no project choice is recorded at "
+        f"{CANDIDATE_VALIDATION_PATH}. Task validation commands: {recorded}. "
+        f"Proposed declaration: {proposal}. Resume by explicitly writing declared fragments or state none, "
+        "then rerun `meridian worktree integrate stage`."
+    )
+
+
 def _integration_evidence(path: Path) -> dict[str, object]:
     evidence = _read_json_object(path.expanduser().resolve(), "integration evidence")
     required = {
@@ -1413,6 +1476,11 @@ def stage_task_integration(
             "MAIN_BEHIND_ORIGIN: local main lacks commits from the already fetched origin/main"
         )
     evidence = _integration_evidence(evidence_path)
+    declaration_state, _fragments = candidate_validation_declaration(project_root)
+    if declaration_state == "undeclared":
+        # This is deliberately before inspection, lease creation, and merge so the
+        # first-use decision cannot strand an integration transaction.
+        raise undeclared_validation_commands_error(project_root, evidence)
     if not evidence["accepted"] or not evidence["validation_passed"]:
         raise MeridianError("accepted, successful task validation evidence is required")
     task_commit = str(inspection["task_commit"])
@@ -1545,7 +1613,14 @@ def finalize_task_integration(
     commands = validation.get("commands")
     if not isinstance(commands, list) or not commands or not all(isinstance(item, str) and item for item in commands):
         raise MeridianError("candidate validation evidence must name successful commands")
-    missing_commands = missing_candidate_validation_commands(staged["decision"], commands)
+    declaration_state, declaration_fragments = candidate_validation_declaration(project_root)
+    if declaration_state == "undeclared":
+        raise MeridianError(
+            "BLOCKED UNDECLARED_VALIDATION_COMMANDS: declare candidate validation commands before finalize"
+        )
+    missing_commands = missing_candidate_validation_commands(
+        staged["decision"], commands, declaration_fragments
+    )
     if missing_commands:
         raise MeridianError(
             "candidate validation evidence is missing mandatory command(s): "
@@ -1567,16 +1642,18 @@ def finalize_task_integration(
     }
 
 
-def missing_candidate_validation_commands(decision: object, commands: list[str]) -> tuple[str, ...]:
+def missing_candidate_validation_commands(
+    decision: object, commands: list[str], fragments: dict[str, tuple[str, ...]] | None = None
+) -> tuple[str, ...]:
     """Return mandatory command fragments absent from candidate evidence.
 
     This is intentionally a pure string check.  It accepts the profile's
     optional ``set -o pipefail;`` prefix and output-bounding pipelines because
     the required fragment remains in the command entry.
     """
-    required = [CANDIDATE_VALIDATION_COMMANDS["repository_check"]]
-    if decision == IntegrationValidationOutcome.FULL.value:
-        required.append(CANDIDATE_VALIDATION_COMMANDS["full_suite"])
+    if fragments is None:
+        _state, fragments = candidate_validation_declaration(Path.cwd())
+    required = fragments.get(str(decision), ())
     return tuple(fragment for fragment in required if not any(fragment in command for command in commands))
 
 
@@ -2279,6 +2356,18 @@ def plan_setup(
     claude_plan = plan_claude_project_allowlist(project_root)
     claude_state = claude_plan.status
     claude_detail = claude_plan.detail
+    candidate_validation_path = project_root / CANDIDATE_VALIDATION_PATH
+    candidate_validation_proposal: dict[str, object] | None = None
+    try:
+        candidate_validation_state, _candidate_fragments = candidate_validation_declaration(project_root)
+        if candidate_validation_state == "undeclared":
+            proposal = proposed_candidate_validation_declaration(project_root)
+            if not candidate_validation_path.is_file() or json.loads(
+                candidate_validation_path.read_text(encoding="utf-8")
+            ) != proposal:
+                candidate_validation_proposal = proposal
+    except MeridianError:
+        candidate_validation_state = "blocked"
 
     changes: list[str] = []
     if directory_state != "ready":
@@ -2292,7 +2381,11 @@ def plan_setup(
         changes.append(f"{verb} Codex permission profile in {codex_config} for {resolution.path}")
     if claude_plan.proposed_settings is not None:
         changes.append(f"add project Claude Code command allowlist in {claude_plan.settings_path}")
-    if directory_state == "blocked" or codex_state == "blocked" or claude_state == "blocked":
+    if candidate_validation_proposal is not None:
+        changes.append(
+            f"write candidate-validation declaration in {candidate_validation_path} after explicit --apply consent"
+        )
+    if directory_state == "blocked" or codex_state == "blocked" or claude_state == "blocked" or candidate_validation_state == "blocked":
         changes = ["none; setup is blocked before mutation"]
     elif not changes:
         changes.append("none")
@@ -2337,6 +2430,9 @@ def plan_setup(
         claude_state,
         claude_plan,
         claude_detail,
+        candidate_validation_state,
+        candidate_validation_path,
+        candidate_validation_proposal,
         config_action,
         framework_root,
         skill_links,
@@ -2357,6 +2453,9 @@ def print_setup_plan(plan: SetupPlan) -> None:
     print(f"codex-detail: {plan.codex_detail}")
     print(f"claude-project-allowlist: {plan.claude_state}")
     print(f"claude-detail: {plan.claude_detail}")
+    print(f"candidate-validation-commands: {plan.candidate_validation_state}")
+    if plan.candidate_validation_proposal is not None:
+        print("candidate-validation-proposal: " + json.dumps(plan.candidate_validation_proposal, sort_keys=True))
     mismatch = codex_profile_root_mismatch(
         plan.codex_config,
         plan.resolution.path,
@@ -2381,6 +2480,7 @@ def apply_setup(plan: SetupPlan) -> bool:
         plan.directory_state == "blocked"
         or plan.codex_state == "blocked"
         or plan.claude_state == "blocked"
+        or plan.candidate_validation_state == "blocked"
         or plan.skill_links_state in ("blocked", "conflict")
         or plan.codex_plan is None
     ):
@@ -2414,6 +2514,9 @@ def apply_setup(plan: SetupPlan) -> bool:
         changed = True
     changed = apply_codex_configuration(plan.codex_plan) or changed
     changed = apply_claude_project_allowlist(plan.claude_plan) or changed
+    if plan.candidate_validation_proposal is not None:
+        _write_json_atomic(plan.candidate_validation_path, plan.candidate_validation_proposal)
+        changed = True
     missing_links = [
         (path, plan.framework_root / "skills" / name)
         for name, path, state, _ in plan.skill_links
@@ -2530,6 +2633,13 @@ def codex_doctor(
     result["command-policy"] = "ready" if rules.is_file() and trusted else ("approval-required" if rules.is_file() else "blocked")
     claude_plan = plan_claude_project_allowlist(project_root)
     result["claude-project-allowlist"] = claude_plan.status
+    try:
+        validation_state, _fragments = candidate_validation_declaration(project_root)
+        result["candidate-validation-commands"] = (
+            "advisory-undeclared" if validation_state == "undeclared" else "ready"
+        )
+    except MeridianError:
+        result["candidate-validation-commands"] = "blocked"
     lifecycle_policy = "approval-required"
     codex_executable = shutil.which("codex")
     if result["command-policy"] == "ready" and codex_executable:
@@ -5022,6 +5132,15 @@ def run_audit(
             results.append(AuditResult(normalized_status, check_name, detail))
     for status, detail in audit_entry_router(project_root):
         results.append(AuditResult(status, "entry-router", detail))
+    try:
+        validation_state, _fragments = candidate_validation_declaration(project_root)
+        if validation_state == "undeclared":
+            results.append(AuditResult(
+                "ADVISORY", "candidate-validation-commands",
+                "undeclared; choose declared fragments or none before the first integration",
+            ))
+    except MeridianError as error:
+        results.append(AuditResult("FAIL", "candidate-validation-commands", str(error)))
 
     results.sort(key=lambda result: (result.identity, result.detail))
     for result in results:
