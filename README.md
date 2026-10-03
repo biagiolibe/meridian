@@ -84,6 +84,12 @@ and review record from that branch with read-only Git commands and shows the
 effective state with its source. Disagreements the lifecycle does not produce
 appear as `MISMATCH` with no launch directive.
 
+For active tasks, the detail pane and `--once` output also show wall-clock
+cycle time from canonical worktree preparation, last activity, and the ordered
+lifecycle gates still pending. Cycle time can include idle or waiting periods;
+it is not active-agent time, an estimate, or an ETA. Legacy or unreadable
+timing data is shown as unavailable without preventing use of the console.
+
 For an eligible directive, `c` (or `[copy]`) keeps the copy-to-clipboard
 fallback. On macOS with iTerm2, press `l` to open an isolated launch panel.
 It shows the task, directive, project, agent choices, and safely discovered

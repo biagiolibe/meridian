@@ -6282,6 +6282,31 @@ class WorktreeLifecycleCliTest(unittest.TestCase):
         self.assertEqual(correct.returncode, 0, correct.stderr)
         self.assertEqual(json.loads(correct.stdout)["status"], "ready")
 
+    def test_prepare_records_and_preserves_started_at_without_fabricating_legacy_timing(self) -> None:
+        prepared = self.run_cli(
+            "worktree", "prepare", "056", "--project", str(self.project),
+            "--worktree-root", str(self.worktree_root), "--format", "json",
+        )
+        self.assertEqual(prepared.returncode, 0, prepared.stderr)
+        first = json.loads(prepared.stdout)
+        self.assertRegex(first["started_at"], r"^\d{4}-\d\d-\d\dT.*Z$")
+        repeated = self.run_cli(
+            "worktree", "prepare", "056", "--project", str(self.project),
+            "--worktree-root", str(self.worktree_root), "--format", "json",
+        )
+        self.assertEqual(json.loads(repeated.stdout)["started_at"], first["started_at"])
+
+        identity = meridian.resolve_task_identity(self.project, "056", "existing")
+        state_path, _lease, _integration = meridian._lifecycle_paths(self.project, identity)
+        legacy = json.loads(state_path.read_text(encoding="utf-8"))
+        legacy.pop("started_at")
+        state_path.write_text(json.dumps(legacy), encoding="utf-8")
+        preserved = self.run_cli(
+            "worktree", "prepare", "056", "--project", str(self.project),
+            "--worktree-root", str(self.worktree_root), "--format", "json",
+        )
+        self.assertNotIn("started_at", json.loads(preserved.stdout))
+
     def test_handoff_worktree_value_is_root_relative_and_legacy_absolute_is_accepted(self) -> None:
         prepared = self.run_cli(
             "worktree", "prepare", "056", "--project", str(self.project),
