@@ -44,3 +44,11 @@ are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
 | `[ ]` | 133 | Let a confirmed Resume reach a dirty task worktree | 🟡 P2 | — | [133](133-resume-dirty-task-worktree.md) |
+
+### Phase 51 — Context cost
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 134 | Add `meridian context size` to measure the startup read set | 🟡 P2 | — | [134](134-context-size-command.md) |
+| `[ ]` | 135 | Report measured token usage of agent sessions | 🟡 P2 | — | [135](135-session-usage-report.md) |
+| `[ ]` | 136 | Load workflow context by phase and point agents to bounded readers | 🟡 P2 | 134, 135 | [136](136-per-phase-context-loading.md) |
