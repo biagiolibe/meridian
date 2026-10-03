@@ -8,6 +8,8 @@ and `ready-check` use that canonical path when no report path is supplied.
 ## Completion Report — <TASK-ID>
 
 - Files changed: `<paths>`
+Candidate validation declaration: `<declared fragments per REUSE/BOUNDED/FULL | none; undeclared blocks before stage>`
+
 <!-- MERIDIAN:BEGIN capability=task-worktree-handoff v4 -->
 - Branch: `<task-branch>`
 - Worktree: `<task-worktree path relative to the worktree root, as returned in handoff_worktree; never an absolute path>`

@@ -97,6 +97,12 @@ prior chat context, repeat successful validation without a changed relevant
 surface, or add a summarization agent between workers.
 <!-- MERIDIAN:END -->
 
+Candidate validation follows the consumer-owned `.meridian/candidate-validation.json`:
+`REUSE` proves the governance-only candidate path set and runs its declared repository
+gate, `BOUNDED` adds affected-module tests, and `FULL` adds the declared full suite. An
+undeclared project stops before staging, lease, or merge; `none` deliberately retains a
+non-empty command-list gate.
+
 <!-- MERIDIAN:BEGIN capability=rejected-attempt-restart v3 -->
 ## Rejected-attempt restart after authority change
 

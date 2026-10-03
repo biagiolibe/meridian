@@ -33,6 +33,25 @@ candidate tree, `passed: true`, the required `bounded` or `full` scope, and the
 successful commands. The CLI rejects stale or incomplete evidence and never
 executes project-provided commands.
 
+## Candidate validation by integration outcome
+
+`.meridian/candidate-validation.json` is a consumer-owned, versioned declaration.
+It supplies non-empty command fragments for each `REUSE`, `BOUNDED`, and `FULL`
+outcome (`declared`), or explicitly selects `none`. A missing file or
+`undeclared` state stops `integrate stage` before any lease, merge, or staged
+state with `BLOCKED UNDECLARED_VALIDATION_COMMANDS`; its evidence names the
+task's validation commands and a proposal. Review the proposal and explicitly
+write declared fragments or `none`, or run `meridian setup --apply` after its
+proposal is reviewed. `upgrade --apply` never writes this project file.
+
+For `REUSE`, run the declared repository gate and prove with `git diff --name-only
+"$VALIDATED_TASK_COMMIT" "$CANDIDATE_TREE"` that only the task record or exact
+archive rename, handoff, review record, queue, plan, queue archive, and changelog
+fragment changed. `BOUNDED` adds tests for modules changed by the task and
+advanced `main`; `FULL` adds the declared full suite. A stricter gate is allowed.
+The literal fragment check executes nothing and accepts `set -o pipefail;` and
+an output-bounding pipeline when the declared fragment remains present.
+
 `meridian codex worktree-path` is deprecated for one migration window. New
 instructions and automation use `meridian worktree path`.
 
