@@ -38,3 +38,9 @@ are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 |--------|----|-------|----------|------------|------|
 | `[ ]` | 129 | Choose the task-identity mode at project setup | 🟡 P2 | — | [129](129-choose-task-identity-at-project-setup.md) |
 | `[ ]` | 130 | Make task creation follow the project's task-identity mode | 🟡 P2 | 129 | [130](130-identity-aware-task-creation.md) |
+
+### Phase 49 — Release tooling
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 131 | Verify the latest release without the removed `isLatest` field | 🟡 P2 | — | [131](131-release-verify-latest-without-islatest.md) |
