@@ -37,8 +37,27 @@ the next release.
   clear error instead of silently accepting any evidence.
 - [ ] The comparison stays a pure string check that executes nothing and accepts
   the `set -o pipefail;` prefix and an output-bounding pipeline.
-- [ ] If the declaration is a managed template file, the release carries the
-  migration and Upgrade notes required by `docs/DISTRIBUTION_AND_UPDATE_DESIGN.md`.
+- [ ] The declaration is a small machine-readable project file under
+  `.meridian/` (not prose in a Markdown document), versioned, and not a managed
+  template file, so later upgrades cannot conflict with project values.
+- [ ] Rollout to existing adopters follows three levels and never infers values
+  during `upgrade --apply`:
+  1. The migration delivers only the structure: the declaration point in an
+     explicit `undeclared` state, which keeps the pre-121 behavior. If the
+     migration engine cannot create a project-owned unmanaged file, record that
+     finding and deliver the file through `meridian setup` instead.
+  2. `meridian codex doctor` or `audit` reports undeclared candidate validation
+     commands as an advisory gap, never as an error that blocks work.
+  3. `meridian setup` may propose values from the detected stack and writes them
+     only after explicit consent; a project can always edit the file by hand.
+- [ ] Before implementing, verify and record two open points: whether a migration
+  can create an unmanaged project file, and whether `setup` already has a way to
+  propose values from the detected stack. Report the result in the handoff.
+- [ ] The release is template-changing and shares one migration and one
+  `workflowBaselineVersion` bump with task 123, as agreed for a single release
+  after all queued tasks. It carries Upgrade notes per
+  `docs/DISTRIBUTION_AND_UPDATE_DESIGN.md` naming the optional manual step
+  (declaring the commands) and the behavior when it is skipped.
 - [ ] Tests cover: undeclared project accepted, declared fragments enforced per
   outcome, malformed declaration blocked, this repository's declaration, and
   both workflow modes.
@@ -72,6 +91,13 @@ the next release.
 - Choose the declaration home by existing precedent (the project's
   `.meridian/` configuration or its workflow document) and justify the choice;
   prefer a location that already reaches Governed SDD projects.
+- A migration cannot ask questions or infer project values: a wrong inferred
+  command would block `finalize` in a project that worked before. Structure is
+  delivered by the migration; values are supplied only by the project or with
+  its consent.
+- `PROJECT_WORKFLOW.md` already holds one project-filled line (`Project
+  integration smoke command`) as a precedent for a project declaration, but
+  enforcement should not depend on parsing prose.
 - Not yet released if no tag includes `844e7ad`; confirm before deciding whether
   consumers can already be affected.
 
