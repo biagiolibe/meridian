@@ -155,11 +155,19 @@ already-prepared state and directs you to publish. For either path, on `main`,
 publish with `python3 scripts/release.py publish --confirm v<VERSION>`. The
 confirmation must exactly match the current `VERSION`; the command prints every
 commit to push, the ledger kind, and any migration ids before it pushes `main`,
-creates and pushes the tag, then waits for CI when `gh` is available. Use
-`--no-wait` only when you will verify the printed workflow and release URLs
-manually. It never force pushes, deletes, or moves a tag. If the workflow fails,
-the tag remains in place and no GitHub Release was published: inspect the run,
-fix the cause, and move the tag only if no release exists for it. The
+creates and pushes the tag. When `gh` is available, it polls every five seconds
+for up to two minutes for the `Publish release` push run whose SHA matches the
+tag, then watches and verifies it. Use `--no-wait` only when you will verify the
+printed workflow and release URLs manually. If the run is not observed before
+the timeout, the successful pushes remain unchanged and the command prints the
+exact `gh run list`, `gh release view`, and read-only
+`python3 scripts/release.py verify --version X.Y.Z` commands to resume.
+`verify` requires the tag on `origin` and performs the same polling, workflow,
+release, and self-check verification without creating, moving, deleting, or
+pushing anything. The release command never force pushes, deletes, or moves a
+tag. If the workflow fails, the tag remains in place and no GitHub Release was
+published: inspect the run, fix the cause, and move the tag only if no release
+exists for it. The
 `.github/workflows/release.yml` workflow runs `scripts/prepare_release.py`, which
 fails unless the tag equals `v` plus `VERSION`, `releases/<VERSION>.json` exists
 with a matching `gitTag`, `.claude-plugin/plugin.json` matches `VERSION`, and
