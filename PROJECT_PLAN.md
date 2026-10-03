@@ -90,7 +90,7 @@
 - `[x]` 120 — Quiet validation command and foreground rule for long checks.
 - `[x]` 121 — Verify mandatory commands in candidate validation evidence.
 - `[x]` 122 — Define the bounded gate per integration outcome.
-- `[ ]` 123 — Complete the unattended-closure command policy for Codex and Claude Code.
+- `[x]` 123 — Complete the unattended-closure command policy for Codex and Claude Code.
 - `[ ]` 124 — Keep a closing task visible in the console until cleanup, in both workflows.
 - `[ ]` 125 — Make candidate validation commands project-declared and align the gate docs for both workflows.
 - `[x]` 069 — Document Codex install from a tagged checkout.
