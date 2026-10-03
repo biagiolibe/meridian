@@ -36,7 +36,7 @@ are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[ ]` | 131 | Verify the latest release without the removed `isLatest` field | 🟡 P2 | — | [131](131-release-verify-latest-without-islatest.md) |
+| `[x]` | 131 | Verify the latest release without the removed `isLatest` field | 🟡 P2 | — | [131](done/131-release-verify-latest-without-islatest.md) |
 | `[ ]` | 132 | Document the settings-pinned marketplace refusal and how to check the installed version | 🟢 P3 | — | [132](132-readme-marketplace-pin-in-settings-note.md) |
 
 ### Phase 50 — Interrupted task recovery

@@ -350,7 +350,9 @@ class ReleasePublishTest(unittest.TestCase):
             if command[:3] == ["gh", "run", "watch"]:
                 return subprocess.CompletedProcess(command, 0, "", "")
             if command[:3] == ["gh", "release", "view"]:
-                return subprocess.CompletedProcess(command, 0, '{"isDraft": false, "isPrerelease": false, "isLatest": true, "url": "https://example.invalid/release"}', "")
+                return subprocess.CompletedProcess(command, 0, '{"isDraft": false, "isPrerelease": false, "url": "https://example.invalid/release"}', "")
+            if command[:2] == ["gh", "api"]:
+                return subprocess.CompletedProcess(command, 0, '{"tag_name": "v1.0.1"}', "")
             return original(root, command)
 
         return gh
@@ -472,7 +474,7 @@ class ReleasePublishTest(unittest.TestCase):
             subprocess.CompletedProcess([], 0, self.workflow_entry("selected"), ""),
         ]
         with mock.patch.object(release.shutil, "which", return_value="gh"), mock.patch.object(release, "run_command", side_effect=self.successful_workflow(polls)) as command, mock.patch.object(release.time, "monotonic", side_effect=range(1000)), mock.patch.object(release.time, "sleep") as sleep:
-            release.wait_for_publication(self.root, "1.0.1", None, self.git("rev-parse", "HEAD").stdout.strip())
+            release.wait_for_publication(self.root, "1.0.1", "owner/repository", self.git("rev-parse", "HEAD").stdout.strip())
         self.assertEqual(sum(call.args[1][:3] == ["gh", "run", "list"] for call in command.call_args_list), 4)
         self.assertEqual(sleep.call_count, 3)
         watched = [call.args[1] for call in command.call_args_list if call.args[1][:3] == ["gh", "run", "watch"]]
@@ -485,19 +487,102 @@ class ReleasePublishTest(unittest.TestCase):
             subprocess.CompletedProcess([], 0, self.workflow_entry(), ""),
         ]
         with mock.patch.object(release.shutil, "which", return_value="gh"), mock.patch.object(release, "run_command", side_effect=self.successful_workflow(polls)) as command, mock.patch.object(release.time, "monotonic", side_effect=range(1000)), mock.patch.object(release.time, "sleep"):
-            release.wait_for_publication(self.root, "1.0.1", None, self.git("rev-parse", "HEAD").stdout.strip())
+            release.wait_for_publication(self.root, "1.0.1", "owner/repository", self.git("rev-parse", "HEAD").stdout.strip())
         self.assertEqual(sum(call.args[1][:3] == ["gh", "run", "list"] for call in command.call_args_list), 3)
 
     def test_workflow_lookup_timeout_explains_safe_resume(self) -> None:
         with mock.patch.object(release.shutil, "which", return_value="gh"), mock.patch.object(release, "run_command", return_value=subprocess.CompletedProcess([], 0, "[]", "")), mock.patch.object(release.time, "monotonic", side_effect=(0, 121)), mock.patch.object(release.time, "sleep"):
             with self.assertRaisesRegex(release.ReleaseError, "nothing was retried or moved") as raised:
-                release.wait_for_publication(self.root, "1.0.1", None, self.git("rev-parse", "HEAD").stdout.strip())
+                release.wait_for_publication(self.root, "1.0.1", "owner/repository", self.git("rev-parse", "HEAD").stdout.strip())
         message = str(raised.exception)
         self.assertIn("the push of main and tag v1.0.1 completed", message)
         self.assertIn("gh run list", message)
         self.assertIn("gh release view", message)
         self.assertIn("release.py verify --version 1.0.1", message)
         self.assertNotIn("list index out of range", message)
+
+    def test_release_verification_uses_supported_fields_and_latest_api(self) -> None:
+        commands: list[list[str]] = []
+
+        workflow = self.successful_workflow()
+
+        def gh(root: Path, command: list[str]) -> subprocess.CompletedProcess[str]:
+            commands.append(command)
+            return workflow(root, command)
+
+        with mock.patch.object(release.shutil, "which", return_value="gh"), mock.patch.object(release, "run_command", side_effect=gh), mock.patch.object(release.time, "monotonic", side_effect=range(1000)), mock.patch.object(release.time, "sleep"):
+            release.wait_for_publication(self.root, "1.0.1", "owner/repository", self.git("rev-parse", "HEAD").stdout.strip())
+        view = next(command for command in commands if command[:3] == ["gh", "release", "view"])
+        fields = view[view.index("--json") + 1].split(",")
+        self.assertTrue(set(fields) <= {"isDraft", "isPrerelease", "url"})
+        self.assertEqual(view[-2:], ["--repo", "owner/repository"])
+        api = next(command for command in commands if command[:2] == ["gh", "api"])
+        self.assertEqual(api, ["gh", "api", "repos/owner/repository/releases/latest", "--repo", "owner/repository"])
+
+    def test_latest_release_mismatch_draft_and_prerelease_are_rejected(self) -> None:
+        for release_response, latest_response in (
+            ('{"isDraft": false, "isPrerelease": false, "url": "https://example.invalid/release"}', '{"tag_name": "v9.9.9"}'),
+            ('{"isDraft": true, "isPrerelease": false, "url": "https://example.invalid/release"}', '{"tag_name": "v1.0.1"}'),
+            ('{"isDraft": false, "isPrerelease": true, "url": "https://example.invalid/release"}', '{"tag_name": "v1.0.1"}'),
+        ):
+            def gh(root: Path, command: list[str]) -> subprocess.CompletedProcess[str]:
+                if command[:3] == ["gh", "run", "list"]:
+                    return subprocess.CompletedProcess(command, 0, self.workflow_entry(), "")
+                if command[:3] == ["gh", "run", "watch"]:
+                    return subprocess.CompletedProcess(command, 0, "", "")
+                if command[:3] == ["gh", "release", "view"]:
+                    return subprocess.CompletedProcess(command, 0, release_response, "")
+                if command[:2] == ["gh", "api"]:
+                    return subprocess.CompletedProcess(command, 0, latest_response, "")
+                return subprocess.CompletedProcess(command, 1, "", "unexpected command")
+
+            with self.subTest(release_response=release_response), mock.patch.object(release.shutil, "which", return_value="gh"), mock.patch.object(release, "run_command", side_effect=gh), mock.patch.object(release.time, "monotonic", side_effect=range(1000)), mock.patch.object(release.time, "sleep"):
+                with self.assertRaisesRegex(release.ReleaseError, "published, stable, and latest"):
+                    release.wait_for_publication(self.root, "1.0.1", "owner/repository", self.git("rev-parse", "HEAD").stdout.strip())
+
+    def test_latest_api_failure_after_push_explains_safe_resume(self) -> None:
+        def gh(root: Path, command: list[str]) -> subprocess.CompletedProcess[str]:
+            if command[:3] == ["gh", "run", "list"]:
+                return subprocess.CompletedProcess(command, 0, self.workflow_entry(), "")
+            if command[:3] == ["gh", "run", "watch"]:
+                return subprocess.CompletedProcess(command, 0, "", "")
+            if command[:3] == ["gh", "release", "view"]:
+                return subprocess.CompletedProcess(command, 0, '{"isDraft": false, "isPrerelease": false, "url": "https://example.invalid/release"}', "")
+            if command[:2] == ["gh", "api"]:
+                return subprocess.CompletedProcess(command, 1, "", "GitHub unavailable")
+            return subprocess.CompletedProcess(command, 1, "", "unexpected command")
+
+        with mock.patch.object(release.shutil, "which", return_value="gh"), mock.patch.object(release, "run_command", side_effect=gh), mock.patch.object(release.time, "monotonic", side_effect=range(1000)), mock.patch.object(release.time, "sleep"):
+            with self.assertRaisesRegex(release.PostPushVerificationError, "main and tag v1.0.1 completed") as raised:
+                release.wait_for_publication(self.root, "1.0.1", "owner/repository", self.git("rev-parse", "HEAD").stdout.strip())
+        message = str(raised.exception)
+        self.assertIn("nothing was retried or moved", message)
+        self.assertIn("publication was not confirmed", message)
+        self.assertIn("release.py verify --version 1.0.1", message)
+        self.assertIn("gh run list", message)
+        self.assertIn("gh release view", message)
+
+    def test_publish_reports_post_push_verification_without_publish_failed_prefix(self) -> None:
+        original = release.run_command
+
+        def gh(root: Path, command: list[str]) -> subprocess.CompletedProcess[str]:
+            if command[:3] == ["gh", "run", "list"]:
+                return subprocess.CompletedProcess(command, 0, self.workflow_entry(), "")
+            if command[:3] == ["gh", "run", "watch"]:
+                return subprocess.CompletedProcess(command, 0, "", "")
+            if command[:3] == ["gh", "release", "view"]:
+                return subprocess.CompletedProcess(command, 0, '{"isDraft": false, "isPrerelease": false, "url": "https://example.invalid/release"}', "")
+            if command[:2] == ["gh", "api"]:
+                return subprocess.CompletedProcess(command, 1, "", "GitHub unavailable")
+            return original(root, command)
+
+        stderr = io.StringIO()
+        with mock.patch.object(release, "validate", return_value=(0, [])), mock.patch.object(release.shutil, "which", return_value="gh"), mock.patch.object(release, "run_command", side_effect=gh), mock.patch.object(release, "github_repository", return_value="owner/repository"), mock.patch.object(release.time, "monotonic", side_effect=range(1000)), mock.patch.object(release.time, "sleep"), redirect_stderr(stderr):
+            self.assertEqual(self.invoke("--confirm", "v1.0.1"), 1)
+        message = stderr.getvalue()
+        self.assertNotIn("release publish failed", message)
+        self.assertIn("main and tag v1.0.1 completed", message)
+        self.assertIn("release.py verify --version 1.0.1", message)
 
     def test_verify_succeeds_without_git_writes(self) -> None:
         self.git("tag", "v1.0.1")
@@ -509,7 +594,7 @@ class ReleasePublishTest(unittest.TestCase):
             commands.append(["git", *args])
             return original_git(root, *args)
 
-        with mock.patch.object(release.shutil, "which", return_value="gh"), mock.patch.object(release, "run_git", side_effect=record_git), mock.patch.object(release, "run_command", side_effect=self.successful_workflow()), mock.patch.object(release.time, "monotonic", side_effect=range(1000)), mock.patch.object(release.time, "sleep"):
+        with mock.patch.object(release.shutil, "which", return_value="gh"), mock.patch.object(release, "run_git", side_effect=record_git), mock.patch.object(release, "run_command", side_effect=self.successful_workflow()), mock.patch.object(release, "github_repository", return_value="owner/repository"), mock.patch.object(release.time, "monotonic", side_effect=range(1000)), mock.patch.object(release.time, "sleep"):
             self.assertEqual(self.verify("--version", "1.0.1"), 0)
         self.assertFalse(any(command[1] in {"push", "tag", "commit", "reset", "checkout"} for command in commands))
 
