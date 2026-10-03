@@ -206,6 +206,11 @@ Every release section states its kind in its first line, matching the ledger:
   conflict areas for adapted projects, and any minimum framework version or
   `protocolVersion` change.
 
+Host approval policy has two delivery paths. Codex rules in the managed file
+`.codex/rules/meridian.rules` arrive through `meridian upgrade --check` and
+`--apply`; the Claude Code allowlist arrives only through consented, additive
+`meridian setup`, because it lives in a user-local settings file.
+
 A mechanical check that the section's first line agrees with
 `baselineChanged` and that a template-changing section has an Upgrade notes
 subsection belongs in the release-notes follow-up task.

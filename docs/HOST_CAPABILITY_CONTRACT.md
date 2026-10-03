@@ -290,6 +290,36 @@ Repair proves only that the configuration file is effective. It does not prove
 that a running session reloaded the profile or that the host enforces it; start
 a fresh session and probe before relying on it.
 
+### Unattended-closure command policy
+
+The Codex rules allow `meridian worktree evidence` and `closure-status`, `git mv`,
+the repository validation commands (`python3 scripts/check_repository.py`,
+`python3 -m unittest discover -s tests`, `set -o pipefail`), and read-only
+inspection (`ls`, `cat`, `head`, `tail`, `wc`, `pwd`, `grep`). Each group is a
+separate doctor fact: `archive-rename-policy`, `inspection-command-policy`, and
+`validation-command-policy`, reported as `ready` or `gap: <command>`.
+
+Execpolicy prefixes match only leading literal tokens, and the most restrictive
+matching decision wins. A command with no matching rule returns no decision and
+keeps Codex's normal approval flow. Consequences:
+
+- `git mv` cannot be limited to the `tasks/done/` destination. The rule allows
+  any rename inside the task worktree; the residual risk is a misplaced tracked
+  file, which `integrate stage` rejects because it accepts only the exact
+  archive rename of the task record. Forced moves (`-f`, `--force`) prompt.
+  The Claude Code entry `Bash(git mv tasks/:*)` scopes the source only.
+- Intentional approval points, left without a rule because a dangerous option
+  can follow safe leading tokens: `sed` (`-i`, `w`, `e`), `rg` (`--pre`, `-z`),
+  `find` (`-exec`, `-delete`, `-fprint`), `git grep -O`, `mv`,
+  `git fetch`, `git push origin task-<ID>`, `meridian validation check`, and
+  `python3 scripts/run_tests.py`.
+- The test and check commands execute project code by design; the rule does
+  not widen what the sandbox permits.
+
+Delivery: Codex rules arrive through `meridian upgrade --check` and `--apply`
+(managed file `.codex/rules/meridian.rules`); the Claude Code allowlist arrives
+through consented `meridian setup`, which is additive.
+
 `meridian codex doctor` reports project trust, the selected permission model,
 effective worktree-root write access, command-policy availability, and Git
 metadata separately. It also reports `profile-ownership` (`ready`,

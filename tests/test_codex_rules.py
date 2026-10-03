@@ -50,6 +50,69 @@ class CodexRulesTemplateTest(unittest.TestCase):
             self.assertIn(exact, text)
             self.assertNotIn(broad, text)
 
+    def test_closure_rule_block_is_identical_in_every_shipped_file(self) -> None:
+        pattern = re.compile(r"\n# Unattended-closure additions.*?\[\"ls\", [^\n]*\n", re.DOTALL)
+        blocks = []
+        for path in (RULES, LEAN_RULES, PROJECT_RULES):
+            match = pattern.search(path.read_text(encoding="utf-8"))
+            self.assertIsNotNone(match, path)
+            blocks.append(match.group(0))
+        self.assertEqual(len(set(blocks)), 1)
+        block = blocks[0]
+        for line in (
+            'prefix_rule(pattern=["meridian", "worktree", ["evidence", "closure-status"]], decision="allow")',
+            'prefix_rule(pattern=["git", "mv"], decision="allow")',
+            'prefix_rule(pattern=["git", "mv", ["-f", "--force"]], decision="prompt")',
+            'prefix_rule(pattern=["python3", "scripts/check_repository.py"], decision="allow")',
+            'prefix_rule(pattern=["python3", "-m", "unittest", "discover", "-s", "tests"], decision="allow")',
+        ):
+            self.assertIn(line, block)
+        for unsafe in ('["sed"', '["rg"', '["find"', '["mv"'):
+            self.assertNotIn(unsafe, block.replace("# ", ""))
+        # New rules sit before the unchanged restrictive block, never at end of file.
+        for path in (RULES, LEAN_RULES, PROJECT_RULES):
+            text = path.read_text(encoding="utf-8")
+            self.assertLess(text.index("Unattended-closure additions"), text.index('decision="forbidden"'))
+            self.assertTrue(text.rstrip().endswith('decision="forbidden")'))
+
+    @unittest.skipUnless(shutil.which("codex"), "codex is not on PATH; cannot evaluate execpolicy decisions")
+    def test_closure_decision_table_in_every_shipped_file(self) -> None:
+        cases = [
+            (["meridian", "worktree", "evidence", "TASK-1", "--format", "json"], "allow"),
+            (["meridian", "worktree", "closure-status", "TASK-1", "--format", "json"], "allow"),
+            (["git", "mv", "tasks/1.md", "tasks/done/1.md"], "allow"),
+            (["git", "mv", "-f", "tasks/1.md", "tasks/done/1.md"], "prompt"),
+            (["git", "mv", "--force", "a", "b"], "prompt"),
+            (["python3", "scripts/check_repository.py"], "allow"),
+            (["python3", "-m", "unittest", "discover", "-s", "tests", "-q"], "allow"),
+            (["set", "-o", "pipefail"], "allow"),
+            (["ls", "tasks"], "allow"),
+            (["cat", "tasks/QUEUE.md"], "allow"),
+            (["tail", "-n", "40"], "allow"),
+            (["grep", "-n", "x", "tasks/QUEUE.md"], "allow"),
+            (["sed", "-i", "s/a/b/", "f"], None),
+            (["sed", "-n", "1,5p", "f"], None),
+            (["rg", "--pre", "cat", "x"], None),
+            (["find", ".", "-exec", "rm", "{}", ";"], None),
+            (["find", ".", "-delete"], None),
+            (["mv", "a", "b"], None),
+            (["git", "worktree", "add", "/tmp/x", "main"], "prompt"),
+            (["git", "branch", "-D", "x"], "prompt"),
+            (["git", "reset", "--hard"], "forbidden"),
+            (["git", "push", "--force", "origin", "main"], "forbidden"),
+        ]
+        for path in (RULES, LEAN_RULES, PROJECT_RULES):
+            for command, expected in cases:
+                with self.subTest(rules=path.parts[-4], command=command):
+                    result = subprocess.run(
+                        ["codex", "execpolicy", "check", "--rules", str(path), "--", *command],
+                        text=True,
+                        capture_output=True,
+                        check=False,
+                    )
+                    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                    self.assertEqual(json.loads(result.stdout).get("decision"), expected)
+
     @unittest.skipUnless(shutil.which("codex"), "codex is not on PATH; cannot evaluate execpolicy decisions")
     def test_decision_table_with_codex_execpolicy(self) -> None:
         # Each row is an evidence-table command and its expected final policy.
