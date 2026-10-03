@@ -5040,6 +5040,38 @@ class WorktreeRootSetupTest(unittest.TestCase):
                         {"version": 1, "mode": choice},
                     )
 
+    def test_setup_cli_plans_then_applies_the_requested_task_identity(self) -> None:
+        project = self.home / "project"
+        project.mkdir()
+        root = self.home / "root"
+        command = [
+            sys.executable,
+            str(CLI),
+            "setup",
+            "--project", str(project),
+            "--worktree-root", str(root),
+            "--config", str(self.codex_config),
+            "--task-identity", "milestone",
+        ]
+        environment = {**os.environ, **self.environment}
+        checked = subprocess.run(
+            command + ["--check"], text=True, capture_output=True, check=False, env=environment
+        )
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+        self.assertIn("task-identity: planned", checked.stdout)
+        self.assertIn('task-identity-proposal: {"mode": "milestone", "version": 1}', checked.stdout)
+        identity_path = project / meridian.TASK_IDENTITY_PATH
+        self.assertFalse(identity_path.exists())
+
+        applied = subprocess.run(
+            command + ["--apply"], text=True, capture_output=True, check=False, env=environment
+        )
+        self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+        self.assertEqual(
+            identity_path.read_text(encoding="utf-8"),
+            '{\n  "mode": "milestone",\n  "version": 1\n}\n',
+        )
+
     def test_setup_task_identity_refuses_invalid_and_preserves_existing_declarations(self) -> None:
         project = self.home / "project"
         project.mkdir()
