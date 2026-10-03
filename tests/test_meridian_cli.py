@@ -5824,6 +5824,67 @@ class TaskIdentityResolverTest(unittest.TestCase):
         key, _text = meridian.resolve_budget_key(self.project, runtime_state, "009")
         self.assertEqual(key, "TASK-009:3")
 
+    def test_next_identity_uses_matching_authorities_and_is_read_only(self) -> None:
+        self.declare()
+        empty = self.run_cli(
+            "task", "identity", "next", "--milestone", "9", "--workstream", "CLI",
+            "--project", str(self.project), "--format", "json",
+        )
+        self.assertEqual(empty.returncode, 0, empty.stderr)
+        self.assertEqual(json.loads(empty.stdout)["canonical_id"], "M9-CLI-001")
+        self.add_task("M9-CLI-003")
+        self.add_task("M9-CLI-007")
+        self.add_task("M9-OTHER-999")
+        self.add_task("M10-CLI-999")
+        self.add_task("TASK-999")
+        self.write_queue([
+            ("M9-CLI-003", "M9-CLI-003.md"), ("M9-CLI-007", "M9-CLI-007.md"),
+            ("M9-OTHER-999", "M9-OTHER-999.md"), ("M10-CLI-999", "M10-CLI-999.md"),
+            ("TASK-999", "TASK-999.md"),
+        ])
+        before = {path.relative_to(self.project): path.read_bytes() for path in self.project.rglob("*") if path.is_file()}
+        checked = self.run_cli(
+            "task", "identity", "next", "--milestone", "9", "--workstream", "CLI",
+            "--project", str(self.project), "--format", "json",
+        )
+        self.assertEqual(checked.returncode, 0, checked.stderr)
+        payload = json.loads(checked.stdout)
+        self.assertEqual(payload["canonical_id"], "M9-CLI-008")
+        self.assertEqual(payload["task_path"], "tasks/M9-CLI-008.md")
+        self.assertEqual(payload, meridian.resolve_task_identity(self.project, "M9-CLI-008", "new").as_json(self.project))
+        after = {path.relative_to(self.project): path.read_bytes() for path in self.project.rglob("*") if path.is_file()}
+        self.assertEqual(before, after)
+
+    def test_next_identity_rejects_invalid_policy_grammar_overflow_and_ambiguity(self) -> None:
+        self.declare("opaque")
+        for milestone, workstream in (("1", "API"), ("01", "API"), ("1", "api")):
+            with self.subTest(milestone=milestone, workstream=workstream):
+                checked = self.run_cli(
+                    "task", "identity", "next", "--milestone", milestone, "--workstream", workstream,
+                    "--project", str(self.project), "--format", "json",
+                )
+                self.assertEqual(checked.returncode, 2)
+                self.assertEqual(checked.stdout, "")
+
+        self.declare()
+        self.add_task("M1-API-999")
+        self.write_queue([("M1-API-999", "M1-API-999.md")])
+        overflow = self.run_cli(
+            "task", "identity", "next", "--milestone", "1", "--workstream", "API",
+            "--project", str(self.project), "--format", "json",
+        )
+        self.assertEqual(overflow.returncode, 2)
+        self.assertIn("exceeds 999", overflow.stderr)
+
+        self.add_task("M2-API-001")
+        self.add_task("M2-API-001", "tasks/nested/M2-API-001.md")
+        ambiguous = self.run_cli(
+            "task", "identity", "next", "--milestone", "2", "--workstream", "API",
+            "--project", str(self.project), "--format", "json",
+        )
+        self.assertEqual(ambiguous.returncode, 2)
+        self.assertIn("ambiguous", ambiguous.stderr)
+
     def test_migration_delivers_only_managed_guidance_and_never_opts_in(self) -> None:
         for mode in meridian.WORKFLOW_MODES:
             template = ROOT / "templates/workflows" / mode / "PROJECT_WORKFLOW.md"

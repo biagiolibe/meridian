@@ -7114,6 +7114,40 @@ def resolve_task_identity(
     )
 
 
+def next_milestone_task_identity(
+    project_root: Path, milestone: str, workstream: str
+) -> ResolvedTaskIdentity:
+    """Resolve the next unused structured identity from the task authorities."""
+    if read_task_identity_policy(project_root).mode != "milestone":
+        raise MeridianError("next task identity requires a milestone task-identity policy")
+    if re.fullmatch(r"[1-9][0-9]*", milestone) is None:
+        raise MeridianError("invalid milestone: expected a positive integer without a leading zero")
+    if re.fullmatch(r"[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*", workstream) is None:
+        raise MeridianError("invalid workstream: expected canonical uppercase task-ID grammar")
+
+    project_root = project_root.resolve()
+    authorities = _task_authorities(project_root, resolve_project_locations(project_root))
+    highest = 0
+    for canonical_id in authorities:
+        structured = STRUCTURED_TASK_ID.fullmatch(canonical_id)
+        similar = STRUCTURED_TASK_ID.fullmatch(canonical_id.upper())
+        if similar is None:
+            continue
+        if similar.group("milestone") != milestone or similar.group("workstream") != workstream:
+            continue
+        # Reuse the normal resolver to reject duplicate, mismatched, or
+        # non-canonical authoritative records before deriving a new ordinal.
+        resolved = resolve_task_identity(project_root, canonical_id, "existing")
+        if structured is not None:
+            highest = max(highest, int(structured.group("ordinal")))
+
+    if highest >= 999:
+        raise MeridianError(f"next ordinal exceeds 999 for M{milestone}-{workstream}")
+    return resolve_task_identity(
+        project_root, f"M{milestone}-{workstream}-{highest + 1:03d}", "new"
+    )
+
+
 HEADING_LINE = re.compile(r"^(#{1,6})[ \t]+(.*)$", re.MULTILINE)
 
 
@@ -8105,6 +8139,11 @@ def main() -> int:
     identity_check.add_argument("task_id")
     identity_check.add_argument("--project", type=Path, default=Path.cwd())
     identity_check.add_argument("--format", choices=("json",), required=True)
+    identity_next = identity_sub.add_parser("next", help="derive the next milestone-mode task identity")
+    identity_next.add_argument("--milestone", required=True)
+    identity_next.add_argument("--workstream", required=True)
+    identity_next.add_argument("--project", type=Path, default=Path.cwd())
+    identity_next.add_argument("--format", choices=("json",), required=True)
 
     adr = subparsers.add_parser("adr", help="read a project's ADR log")
     adr_sub = adr.add_subparsers(dest="adr_command", required=True)
@@ -8417,8 +8456,14 @@ def main() -> int:
                     project_root,
                 ), sort_keys=True))
         elif arguments.command == "task":
-            resolved = resolve_task_identity(project_root, arguments.task_id, "existing")
-            print(json.dumps(task_identity_json(project_root, resolved), sort_keys=True))
+            if arguments.identity_command == "check":
+                resolved = resolve_task_identity(project_root, arguments.task_id, "existing")
+                print(json.dumps(task_identity_json(project_root, resolved), sort_keys=True))
+            else:
+                resolved = next_milestone_task_identity(
+                    project_root, arguments.milestone, arguments.workstream
+                )
+                print(json.dumps(resolved.as_json(project_root), sort_keys=True))
         elif arguments.command == "validation":
             report, exit_code = check_validation_evidence(
                 arguments.record, canonical_project_root(project_root), arguments.commit
