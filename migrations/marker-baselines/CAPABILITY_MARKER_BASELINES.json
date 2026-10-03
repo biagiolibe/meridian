@@ -121,7 +121,11 @@
       "version": 1
     },
     "minimal-read-only-status": {
-      "sha256": "744ce34f52706fc6fe4dc03c8073a1d3387c48d8b69e2071ba0598bdef0c97f3",
+      "sha256": "9794d7a9cd029fe49d939a71000db8c2cd5b7a9be8e0ce313ac112f0b2ec865e",
+      "version": 2
+    },
+    "phase-reads": {
+      "sha256": "0db50cbc054ade823b2f6909c93f96da8529614ae9fc8af35c6a953fbeb4a49c",
       "version": 1
     },
     "queue-briefing": {
@@ -178,6 +182,10 @@
     }
   },
   "templates/workflows/governed-sdd/docs/workflows/IMPLEMENTATION.md": {
+    "bounded-context-readers": {
+      "sha256": "0595c6cb137aeef54cb7d8fe118d0d818803325ef2a2504e9bf1ca557c6ff6c5",
+      "version": 1
+    },
     "execution-command-gate": {
       "sha256": "54f5d4e02b92dff773e99e88e964cc25a51112ca84132751f455d040bfd5e12e",
       "version": 1
@@ -189,6 +197,10 @@
     "manual-verification-precondition": {
       "sha256": "db52e2880255e12678b2e0d41c2cefcefcba247606da05054623a34207b60bf1",
       "version": 3
+    },
+    "phase-reads": {
+      "sha256": "5b98ca24de11232fc936e050a1e7a8718d2c94ca8bdf84c7ab251cde8f86331d",
+      "version": 1
     },
     "spike-routing": {
       "sha256": "70cedafaf7606a75a66059115f8f1fc9112567990dafaa82015cdafb4b6dd1b5",
@@ -222,6 +234,14 @@
     }
   },
   "templates/workflows/governed-sdd/docs/workflows/REMEDIATION.md": {
+    "bounded-context-readers": {
+      "sha256": "0595c6cb137aeef54cb7d8fe118d0d818803325ef2a2504e9bf1ca557c6ff6c5",
+      "version": 1
+    },
+    "phase-reads": {
+      "sha256": "8693526d918a057acea808d3396af2c0d07c60194d76fe4c0e9102b9cc3ec2d5",
+      "version": 1
+    },
     "rejected-attempt-restart": {
       "sha256": "be0a386b853a79dff3e622ba9387f27e163064abb7e75ff8cd6d35beb187e29d",
       "version": 3
@@ -236,9 +256,17 @@
     }
   },
   "templates/workflows/governed-sdd/docs/workflows/REVIEW.md": {
+    "bounded-context-readers": {
+      "sha256": "0595c6cb137aeef54cb7d8fe118d0d818803325ef2a2504e9bf1ca557c6ff6c5",
+      "version": 1
+    },
     "implementer-reviewer-handoff": {
       "sha256": "b7081fff407ec4bfb61cf67c1719ed1a09b83ec335e3b99e021138fab119c08b",
       "version": 3
+    },
+    "phase-reads": {
+      "sha256": "28db36d8d50d95dc6b0d299dd9bb41fcc31f58a89384fd199becbc54a1c50683",
+      "version": 1
     },
     "review-mode-boundary": {
       "sha256": "9bcd8f8c44bf0b6254ce4ea9a796c5a073916cd4d2c2af7f01938027c17e5787",

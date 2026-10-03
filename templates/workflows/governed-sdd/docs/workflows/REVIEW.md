@@ -136,3 +136,30 @@ Both controls are mandatory and neither substitutes for the other:
 
 Keep the operator's normal committer identity. Do not change global or repository Git config. The override applies only to the `ACCEPTED` commit and can be verified with `git log --format='%an <%ae>'`.
 <!-- MERIDIAN:END -->
+
+<!-- MERIDIAN:BEGIN capability=phase-reads v1 -->
+## Phase reads
+
+Read each document when its phase begins, in the order listed. This changes
+only when a document is read; no gate, acceptance criterion, or review rule is
+waived by reading a document later.
+
+- At start: this procedure, the entry-point router, the workflow document, and the language policy.
+- At first production-source diff hunk: `docs/CODE_ORGANIZATION.md`.
+- At first validation evidence check: `docs/EXECUTION_EVIDENCE_PROFILE.md`.
+- At verdict: `docs/REVIEW_RECORD_TEMPLATE.md`.
+<!-- MERIDIAN:END -->
+
+<!-- MERIDIAN:BEGIN capability=bounded-context-readers v1 -->
+## Bounded context readers
+
+Read the task's cited ADRs and specification sections with `meridian context
+authority <TASK-ID>`, and a single ADR with `meridian adr show <ADR-ID>`. Do
+not open the whole ADR log or a whole specification to find them. Read the
+queue state through the resolved queue briefing, never by opening the whole
+queue file. When the briefing did not fire, conflicts with other evidence, or a
+row must be read verbatim or edited, locate that row and read only its range.
+Open a source document directly only when a bounded reader reports an entry
+unresolved or its excerpt cannot verify an acceptance criterion, and record
+that reason in the report.
+<!-- MERIDIAN:END -->

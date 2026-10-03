@@ -97,6 +97,8 @@ ENTRY_ROUTER_SAFEGUARDS = {
 }
 CONTEXT_SIZE_CONFIG_PATH = Path(".meridian/context-size.json")
 CONTEXT_SIZE_POLICY_PATH = Path("docs/CONTEXT_BUDGET_POLICY.md")
+CONTEXT_PHASE_READS_BLOCK = re.compile(r"<!-- MERIDIAN:BEGIN capability=phase-reads v\d+ -->(.*?)<!-- MERIDIAN:END -->", re.DOTALL)
+CONTEXT_PHASE_READ_LINE = re.compile(r"^- At ([^:\n]+): (.+)$", re.MULTILINE)
 CONTEXT_SIZE_ROLES = {
     "governed-sdd": ("status", "design", "implementation", "review", "remediation", "lifecycle"),
     "lean-delivery": ("implementation", "review"),
@@ -7422,6 +7424,23 @@ def _context_relative_references(path: Path, text: str) -> list[Path]:
     return references
 
 
+def _context_phase_reads(path: Path, text: str) -> dict[Path, str]:
+    """Map each document a routed workflow defers to the phase that first needs it.
+
+    Only lines of the form `- At <phase>: <documents>` inside a
+    `capability=phase-reads` managed block count; `At start` lines and every
+    other citation stay startup reads.
+    """
+    deferred: dict[Path, str] = {}
+    for block in CONTEXT_PHASE_READS_BLOCK.findall(text):
+        for phase, documents in CONTEXT_PHASE_READ_LINE.findall(block):
+            if phase.strip().lower() == "start":
+                continue
+            for cited in _context_relative_references(path, documents):
+                deferred.setdefault(cited, phase.strip())
+    return deferred
+
+
 def _context_router(project_root: Path) -> Path:
     for name in ("AGENTS.md", "CLAUDE.md"):
         if (project_root / name).is_file():
@@ -7498,6 +7517,10 @@ def context_size_report(project_root: Path, role: str, task_id: str | None = Non
     roots: list[tuple[Path, str]] = [(router, "router"), (routed, "routed-workflow"), (Path("PROJECT_WORKFLOW.md"), "always-read"), (Path("LANGUAGE_POLICY.md"), "always-read")]
     router_text = (project_root / router).read_text(encoding="utf-8") if (project_root / router).is_file() else ""
     route_paths = {Path(value) for value in re.findall(r"(?:read|use) `([^`]+\.md)`", router_text)}
+    routed_target = project_root / routed
+    deferred_phases = _context_phase_reads(routed, routed_target.read_text(encoding="utf-8")) if routed_target.is_file() else {}
+    for path, _ in roots:
+        deferred_phases.pop(path, None)
     records: list[dict[str, object]] = []
     seen: set[Path] = set()
     pending = roots[:]
@@ -7515,12 +7538,12 @@ def context_size_report(project_root: Path, role: str, task_id: str | None = Non
         # a bounded role read set into a repository crawl.
         if category == "routed-workflow" and target.is_file():
             for cited in _context_relative_references(path, target.read_text(encoding="utf-8")):
-                if cited not in seen:
+                if cited not in seen and cited not in deferred_phases:
                     pending.append((cited, "cited"))
         elif category == "router" and target.is_file():
             for cited in _context_relative_references(path, router_text):
                 conditional_source_rule = cited.name == "CODE_ORGANIZATION.md" and role in {"status", "design", "lifecycle"}
-                if cited not in route_paths and cited not in seen and not conditional_source_rule:
+                if cited not in route_paths and cited not in seen and cited not in deferred_phases and not conditional_source_rule:
                     pending.append((cited, "cited"))
     if task_id is not None:
         task = find_task_file(project_root, task_id)
@@ -7542,12 +7565,17 @@ def context_size_report(project_root: Path, role: str, task_id: str | None = Non
         record["note"] = note
         record["over_threshold"] = bool(effective_threshold is not None and isinstance(record["bytes"], int) and record["bytes"] > effective_threshold)
         unbounded.append(record)
+    deferred_documents = []
+    for path, phase in deferred_phases.items():
+        record = _context_file_record(project_root, path, "deferred")
+        record["phase"] = phase
+        deferred_documents.append(record)
     exceeded = [str(record["label"]) for record in records if record["over_threshold"]]
     return {
         "mode": mode, "role": role, "task": task_id, "estimate": "Estimated token range: bytes / 4 to bytes / 3.3; this is not tokenizer-accurate.",
         "threshold_bytes": effective_threshold, "files": records,
         "total": {"bytes": total_bytes, "lines": sum(int(record["lines"]) for record in present), "estimated_tokens": {"low": round(total_bytes / 4), "high": round(total_bytes / 3.3)}},
-        "unbounded_documents": unbounded, "exceeded": exceeded,
+        "unbounded_documents": unbounded, "deferred_documents": deferred_documents, "exceeded": exceeded,
     }
 
 
@@ -7562,6 +7590,9 @@ def format_context_size_report(report: dict[str, object]) -> str:
             lines.append(f"{record['category']}: {record['label']} — {record['bytes']} bytes, {record['lines']} lines, estimated {tokens['low']}-{tokens['high']} tokens{flag}")
     total = report["total"]  # type: ignore[assignment]
     lines.append(f"TOTAL: {total['bytes']} bytes, {total['lines']} lines, estimated {total['estimated_tokens']['low']}-{total['estimated_tokens']['high']} tokens")
+    for record in report["deferred_documents"]:  # type: ignore[index]
+        size = "missing" if record["status"] == "missing" else f"{record['bytes']} bytes"
+        lines.append(f"DEFERRED {record['path']}: {size}. Read at: {record['phase']}.")
     for record in report["unbounded_documents"]:  # type: ignore[index]
         size = "missing" if record["status"] == "missing" else f"{record['bytes']} bytes"
         lines.append(f"UNBOUNDED {record['path']}: {size}. {record['note']}")
