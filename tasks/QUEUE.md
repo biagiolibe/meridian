@@ -53,3 +53,4 @@ reasons, and creates the implementation follow-ups.
 | `[x]` | 110 | Ship the Governed SDD closure rules and migration | 🟡 P2 | 109, 113, 117 | [110](done/110-ship-governed-closure-rules-and-migration.md) |
 | `[x]` | 117 | Make `integrate stage` completion mode-aware for Governed SDD | 🟡 P2 | 103, 104 | [117](done/117-make-stage-completion-governed-aware.md) |
 | `[ ]` | 118 | Show the running framework version and root in the project console | 🟢 P3 | 105 | [118](118-console-show-framework-version.md) |
+| `[ ]` | 119 | Show task elapsed time and lifecycle progress in the project console | 🟢 P3 | 118 | [119](119-console-show-task-elapsed-time-and-progress.md) |
