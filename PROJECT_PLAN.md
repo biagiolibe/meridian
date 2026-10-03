@@ -96,6 +96,7 @@
 - `[x]` 126 — Let the console resume an interrupted task.
 - `[x]` 127 — Distribute `docs/WORKTREE_LIFECYCLE.md` to Lean Delivery projects.
 - `[x]` 128 — Upgrade a newly managed file that the project already has.
+- `[ ]` 129 — Document and activate the opt-in milestone task identity.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.
 - `[x]` 053 — Remove machine-specific absolute paths from tracked records.
