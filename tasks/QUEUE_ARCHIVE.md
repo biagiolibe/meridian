@@ -552,3 +552,9 @@ reasons, and creates the implementation follow-ups.
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
 | `[x]` | 127 | Distribute `docs/WORKTREE_LIFECYCLE.md` to Lean Delivery projects | 🔴 P1 | 125 | [127](done/127-ship-lean-worktree-lifecycle-doc.md) |
+
+### Phase 47 — Release 1.2.6 upgrade blocker
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 128 | Upgrade a newly managed file that the project already has | 🔴 P1 | 127 | [128](done/128-adopt-existing-copy-of-newly-managed-file.md) |

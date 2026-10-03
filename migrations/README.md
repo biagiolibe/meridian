@@ -16,6 +16,18 @@ conflicts. Projects created before `.meridian/manifest.json` existed must use
 `meridian lock` to start tracking future migrations; absent historical
 baselines cannot be inferred safely.
 
+A migration may declare `adoptExistingPaths` as a list containing a subset of
+its normalized relative `managedPaths`. This is an explicit exception for a
+framework-owned file that becomes managed for the first time after consumers
+may already have received a copy. When the installed baseline lacks a declared
+path, upgrade keeps an existing copy that already matches the target. If the
+copy differs, the plan reports that it will be replaced and names the adjacent
+backup written first: `<filename>.meridian-pre-adoption.bak`, followed by `.1`,
+`.2`, and so on when earlier backups exist. The apply output repeats that plan.
+Either case records the target baseline so later upgrades return to the normal
+three-way merge. An undeclared path retains the blocking missing-baseline
+conflict, and a declared path with no local copy remains an ordinary `ADD`.
+
 A migration record declares `capability` and `capabilityVersion` when it
 introduces or changes a rule the framework tracks and verifies by behavior
 rather than by file hash — required whenever the migration modifies
