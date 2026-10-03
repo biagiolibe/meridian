@@ -326,6 +326,32 @@ class ReleasePublishTest(unittest.TestCase):
     def invoke(self, *args: str) -> int:
         return release.main(["publish", *args, "--root", str(self.root)])
 
+    def verify(self, *args: str) -> int:
+        return release.main(["verify", *args, "--root", str(self.root)])
+
+    def workflow_entry(self, run_id: str = "4", *, head: str | None = None, event: str = "push") -> str:
+        return json.dumps([{
+            "databaseId": run_id,
+            "url": f"https://example.invalid/run/{run_id}",
+            "headSha": head or self.git("rev-parse", "HEAD").stdout.strip(),
+            "event": event,
+        }])
+
+    def successful_workflow(self, polls: list[subprocess.CompletedProcess[str]] | None = None):
+        original = release.run_command
+        responses = list(polls or [subprocess.CompletedProcess([], 0, self.workflow_entry(), "")])
+
+        def gh(root: Path, command: list[str]) -> subprocess.CompletedProcess[str]:
+            if command[:3] == ["gh", "run", "list"]:
+                return responses.pop(0)
+            if command[:3] == ["gh", "run", "watch"]:
+                return subprocess.CompletedProcess(command, 0, "", "")
+            if command[:3] == ["gh", "release", "view"]:
+                return subprocess.CompletedProcess(command, 0, '{"isDraft": false, "isPrerelease": false, "isLatest": true, "url": "https://example.invalid/release"}', "")
+            return original(root, command)
+
+        return gh
+
     def test_confirmation_is_required_and_exact(self) -> None:
         for confirm in ([], ["--confirm", "v1.0.2"]):
             with self.subTest(confirm=confirm), mock.patch.object(release, "validate") as validate:
@@ -434,12 +460,66 @@ class ReleasePublishTest(unittest.TestCase):
         with mock.patch.object(release, "validate", return_value=(0, [])), mock.patch.object(release.shutil, "which", return_value=None):
             self.assertEqual(self.invoke("--confirm", "v1.0.1"), 0)
 
+    def test_workflow_lookup_polls_until_a_matching_result(self) -> None:
+        polls = [
+            subprocess.CompletedProcess([], 0, "[]", ""),
+            subprocess.CompletedProcess([], 0, self.workflow_entry("other-event", event="workflow_dispatch"), ""),
+            subprocess.CompletedProcess([], 0, self.workflow_entry("other-commit", head="not-the-tag"), ""),
+            subprocess.CompletedProcess([], 0, self.workflow_entry("selected"), ""),
+        ]
+        with mock.patch.object(release.shutil, "which", return_value="gh"), mock.patch.object(release, "run_command", side_effect=self.successful_workflow(polls)) as command, mock.patch.object(release.time, "monotonic", side_effect=range(1000)), mock.patch.object(release.time, "sleep") as sleep:
+            release.wait_for_publication(self.root, "1.0.1", None, self.git("rev-parse", "HEAD").stdout.strip())
+        self.assertEqual(sum(call.args[1][:3] == ["gh", "run", "list"] for call in command.call_args_list), 4)
+        self.assertEqual(sleep.call_count, 3)
+        watched = [call.args[1] for call in command.call_args_list if call.args[1][:3] == ["gh", "run", "watch"]]
+        self.assertEqual(watched, [["gh", "run", "watch", "selected", "--exit-status"]])
+
+    def test_workflow_lookup_retries_transient_error(self) -> None:
+        polls = [
+            subprocess.CompletedProcess([], 0, "not JSON", ""),
+            subprocess.CompletedProcess([], 1, "", "temporary outage"),
+            subprocess.CompletedProcess([], 0, self.workflow_entry(), ""),
+        ]
+        with mock.patch.object(release.shutil, "which", return_value="gh"), mock.patch.object(release, "run_command", side_effect=self.successful_workflow(polls)) as command, mock.patch.object(release.time, "monotonic", side_effect=range(1000)), mock.patch.object(release.time, "sleep"):
+            release.wait_for_publication(self.root, "1.0.1", None, self.git("rev-parse", "HEAD").stdout.strip())
+        self.assertEqual(sum(call.args[1][:3] == ["gh", "run", "list"] for call in command.call_args_list), 3)
+
+    def test_workflow_lookup_timeout_explains_safe_resume(self) -> None:
+        with mock.patch.object(release.shutil, "which", return_value="gh"), mock.patch.object(release, "run_command", return_value=subprocess.CompletedProcess([], 0, "[]", "")), mock.patch.object(release.time, "monotonic", side_effect=(0, 121)), mock.patch.object(release.time, "sleep"):
+            with self.assertRaisesRegex(release.ReleaseError, "nothing was retried or moved") as raised:
+                release.wait_for_publication(self.root, "1.0.1", None, self.git("rev-parse", "HEAD").stdout.strip())
+        message = str(raised.exception)
+        self.assertIn("the push of main and tag v1.0.1 completed", message)
+        self.assertIn("gh run list", message)
+        self.assertIn("gh release view", message)
+        self.assertIn("release.py verify --version 1.0.1", message)
+        self.assertNotIn("list index out of range", message)
+
+    def test_verify_succeeds_without_git_writes(self) -> None:
+        self.git("tag", "v1.0.1")
+        self.git("push", "-q", "origin", "v1.0.1")
+        commands: list[list[str]] = []
+        original_git = release.run_git
+
+        def record_git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
+            commands.append(["git", *args])
+            return original_git(root, *args)
+
+        with mock.patch.object(release.shutil, "which", return_value="gh"), mock.patch.object(release, "run_git", side_effect=record_git), mock.patch.object(release, "run_command", side_effect=self.successful_workflow()), mock.patch.object(release.time, "monotonic", side_effect=range(1000)), mock.patch.object(release.time, "sleep"):
+            self.assertEqual(self.verify("--version", "1.0.1"), 0)
+        self.assertFalse(any(command[1] in {"push", "tag", "commit", "reset", "checkout"} for command in commands))
+
+    def test_verify_requires_remote_tag(self) -> None:
+        with mock.patch("sys.stderr") as stderr:
+            self.assertEqual(self.verify("--version", "1.0.1"), 1)
+        self.assertIn("origin tag v1.0.1 does not exist", "".join(str(call) for call in stderr.write.call_args_list))
+
     def test_workflow_failure_does_not_move_tag(self) -> None:
         original = release.run_command
 
         def gh(root: Path, command: list[str]) -> subprocess.CompletedProcess[str]:
             if command[:3] == ["gh", "run", "list"]:
-                return subprocess.CompletedProcess(command, 0, '[{"databaseId": "4", "url": "https://example.invalid/run/4"}]', "")
+                return subprocess.CompletedProcess(command, 0, self.workflow_entry(), "")
             if command[:3] == ["gh", "run", "watch"]:
                 return subprocess.CompletedProcess(command, 1, "", "failed")
             return original(root, command)

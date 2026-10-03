@@ -53,14 +53,3 @@ reasons, and creates the implementation follow-ups.
 | `[x]` | 110 | Ship the Governed SDD closure rules and migration | 🟡 P2 | 109, 113, 117 | [110](done/110-ship-governed-closure-rules-and-migration.md) |
 | `[x]` | 117 | Make `integrate stage` completion mode-aware for Governed SDD | 🟡 P2 | 103, 104 | [117](done/117-make-stage-completion-governed-aware.md) |
 | `[ ]` | 118 | Show the running framework version and root in the project console | 🟢 P3 | 105 | [118](118-console-show-framework-version.md) |
-
-### Phase 40 — Release publish wait
-
-Makes `release.py publish` wait for the workflow run to appear, identifies it by
-commit, and adds a read-only `verify` to resume verification after the tag is
-pushed.
-
-| Status | ID | Title | Priority | Depends on | File |
-|--------|----|-------|----------|------------|------|
-| `[ ]` | 096 | Retry the workflow lookup in `release.py publish` and add `verify` | 🟡 P2 | 094, 095 | [096](096-release-publish-wait-retry.md) |
-

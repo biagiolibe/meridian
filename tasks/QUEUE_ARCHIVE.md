@@ -501,3 +501,13 @@ All completed task and phase records are in `tasks/QUEUE_ARCHIVE.md`; this
 operational queue contains only non-terminal work.
 
 *Last updated: 2026-10-01*
+
+### Phase 40 — Release publish wait
+
+Makes `release.py publish` wait for the workflow run to appear, identifies it by
+commit, and adds a read-only `verify` to resume verification after the tag is
+pushed.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 096 | Retry the workflow lookup in `release.py publish` and add `verify` | 🟡 P2 | 094, 095 | [096](done/096-release-publish-wait-retry.md) |
