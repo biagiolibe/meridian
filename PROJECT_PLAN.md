@@ -107,7 +107,7 @@
 - `[ ]` 137 — Tell Codex agents to wait once for long commands.
 - `[ ]` 138 — Run the unit suite in parallel without changing what it covers.
 - `[ ]` 139 — Make `check_repository.py` catch managed-copy digest drift.
-- `[ ]` 140 — Let `integrate stage` complete rows of project-shaped Governed queues.
+- `[x]` 140 — Let `integrate stage` complete rows of project-shaped Governed queues.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.
 - `[x]` 053 — Remove machine-specific absolute paths from tracked records.
