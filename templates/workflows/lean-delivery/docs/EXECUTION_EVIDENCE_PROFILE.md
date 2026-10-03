@@ -28,6 +28,10 @@ The task record supplies each required validation command. Record the literal
 command, its exit status, and the material final lines. Never treat the example
 placeholder above as an executable project check.
 
+Run a command expected to take longer than one minute in the foreground with a
+timeout of up to 600 seconds, or in a persistent terminal session; never
+detach it and poll for completion.
+
 ## Diff and manual evidence
 
 - Before and after material edits, use `git status --short` and

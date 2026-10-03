@@ -20,11 +20,14 @@ Run the repository checks with producer-status-preserving bounds:
 ```bash
 set -o pipefail
 python3 scripts/check_repository.py 2>&1 | tail -n 200
-python3 -m unittest discover -s tests -v 2>&1 | tail -n 200
+python3 -m unittest discover -s tests -q 2>&1 | tail -n 40
 git diff --check 2>&1 | tail -n 200
 ```
 
 Record each literal command, its exit status, and the material final lines.
+Run a command expected to take longer than one minute in the foreground with a
+timeout of up to 600 seconds, or in a persistent terminal session; never
+detach it and poll for completion.
 
 ## Diff and manual evidence
 

@@ -6188,7 +6188,7 @@ class CapabilityProfileManifestTest(unittest.TestCase):
         )
         self.assertNotRegex(profile, r"\[[^]]*(?:describe|command|method|bound|policy|tool)[^]]*\]")
         self.assertIn("python3 scripts/check_repository.py", profile)
-        self.assertIn("python3 -m unittest discover -s tests -v", profile)
+        self.assertIn("python3 -m unittest discover -s tests -q 2>&1 | tail -n 40", profile)
 
 
 class WorktreeLifecycleCliTest(unittest.TestCase):
