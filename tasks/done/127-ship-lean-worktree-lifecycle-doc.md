@@ -19,21 +19,21 @@ fix the unreleased 1.2.6 migration and changelog that currently over-claim.
 
 ## Acceptance Criteria
 
-- [ ] `docs/WORKTREE_LIFECYCLE.md` is part of the Lean Delivery managed-file set
+- [x] `docs/WORKTREE_LIFECYCLE.md` is part of the Lean Delivery managed-file set
   in `managed_files_for_workflow`, and `meridian upgrade --apply` installs or
   refreshes it from `templates/workflows/lean-delivery/docs/WORKTREE_LIFECYCLE.md`.
-- [ ] Packaged legacy baselines that never shipped the file do not break
+- [x] Packaged legacy baselines that never shipped the file do not break
   adoption or upgrade: inclusion follows the existing rule used for Codex files
   (include it only when the workflow snapshot supplies it), and a test proves
   an adoption from such a baseline still works.
-- [ ] A Lean project that never had the file receives it; a project whose copy
+- [x] A Lean project that never had the file receives it; a project whose copy
   matches the installed baseline is replaced; a locally edited copy produces a
   normal three-way merge or conflict result, never a silent overwrite.
-- [ ] The decision about `templates/workflows/lean-delivery/docs/COMPLETION_REPORT_TEMPLATE.md`
+- [x] The decision about `templates/workflows/lean-delivery/docs/COMPLETION_REPORT_TEMPLATE.md`
   (shipped in the template tree but not managed) is recorded in the handoff: add
   it with this change if the Lean workflow references it, otherwise state why it
   stays unmanaged.
-- [ ] Migration `060-unattended-closure-command-policy` is extended, not
+- [x] Migration `060-unattended-closure-command-policy` is extended, not
   replaced, because 1.2.6 is unpublished (confirm no tag at or after `v1.2.6`
   exists on `origin` before editing it). Its `managedPaths` and `delta` list every
   managed file changed since migration 059: both Codex rules files, both
@@ -41,17 +41,17 @@ fix the unreleased 1.2.6 migration and changelog that currently over-claim.
   files, the Lean `PROJECT_WORKFLOW.md`, and the Governed `COMPLETION_REPORT_TEMPLATE.md`,
   `LIFECYCLE_ORCHESTRATION.md`, and `workflows/REVIEW.md`. Verify the list
   against `git diff` of the template tree rather than from memory.
-- [ ] The Lean `PROJECT_WORKFLOW.md` reference to the document is accurate for a
+- [x] The Lean `PROJECT_WORKFLOW.md` reference to the document is accurate for a
   freshly initialized project and for an upgraded one.
-- [ ] A changelog fragment `changelog.d/127.md` states that Lean projects now
+- [x] A changelog fragment `changelog.d/127.md` states that Lean projects now
   receive the lifecycle document through `upgrade --apply`, with an Upgrade
   note about a locally edited copy. The 1.2.6 changelog section, already
   assembled from earlier fragments, is updated to match this change and to stop
   claiming that the document was updated for Lean before this task.
-- [ ] A test upgrades a Lean project from the 1.2.5 baseline and asserts the
+- [x] A test upgrades a Lean project from the 1.2.5 baseline and asserts the
   document equals the current template afterwards; the same test covers a
   project that lacks the file and one with a local edit.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass, including
+- [x] `python3 scripts/check_repository.py` and the unit tests pass, including
   `test_oldest_published_release_upgrades_to_current_in_one_apply`.
 
 ## Relevant Files
