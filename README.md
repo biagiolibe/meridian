@@ -90,6 +90,20 @@ lifecycle gates still pending. Cycle time can include idle or waiting periods;
 it is not active-agent time, an estimate, or an ETA. Legacy or unreadable
 timing data is shown as unavailable without preventing use of the console.
 
+A task stays listed after `meridian worktree integrate stage` marks its queue
+row done (`[x]` in Lean Delivery, `ACCEPTED` in Governed SDD), because
+candidate validation, finalize, the `main` push, and cleanup remain. While its
+canonical worktree is registered, the console shows it as `CLOSING` (a derived,
+display-only state; the queue and plan keep their real status and nothing is
+written), with the `closure-status` step and resume action, cycle time, and the
+progress phase (candidate validation, push pending, cleanup pending). It is
+never ready, offers no launch directive, and disappears once cleanup removes the
+worktree. A transient lifecycle read failure shows progress as `unavailable`.
+In Governed SDD a task waiting for approval shows its cycle time and a
+`review pending` phase, and a reserved task worktree derives `IN_PROGRESS` or
+`READY_FOR_REVIEW` from the task record because task branches do not edit the
+queue.
+
 For an eligible directive, `c` (or `[copy]`) keeps the copy-to-clipboard
 fallback. On macOS with iTerm2, press `l` to open an isolated launch panel.
 It shows the task, directive, project, agent choices, and safely discovered

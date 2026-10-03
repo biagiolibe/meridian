@@ -58,5 +58,5 @@ reasons, and creates the implementation follow-ups.
 | `[x]` | 121 | Verify mandatory commands in candidate validation evidence | 🟡 P2 | 120 | [121](done/121-finalize-checks-candidate-validation-commands.md) |
 | `[x]` | 122 | Define the bounded gate per integration outcome | 🟡 P2 | 121 | [122](done/122-define-bounded-gate-per-integration-outcome.md) |
 | `[x]` | 123 | Complete the unattended-closure command policy for Codex and Claude Code | 🟡 P2 | — | [123](done/123-allow-archive-rename-in-agent-command-policies.md) |
-| `[ ]` | 124 | Keep a closing task visible in the console until cleanup, in both workflows | 🟡 P2 | 119 | [124](124-console-keep-closing-tasks-visible.md) |
+| `[x]` | 124 | Keep a closing task visible in the console until cleanup, in both workflows | 🟡 P2 | 119 | [124](done/124-console-keep-closing-tasks-visible.md) |
 | `[ ]` | 125 | Make candidate validation commands project-declared and align the gate docs for both workflows | 🔴 P1 | 121, 122 | [125](125-project-declared-candidate-validation-commands.md) |
