@@ -37,3 +37,28 @@ needs new or amended authority or scope, leave it unchecked and return
 only explicit developer authorization may invoke the procedure in
 `docs/LIFECYCLE_ORCHESTRATION.md`.
 <!-- MERIDIAN:END -->
+
+<!-- MERIDIAN:BEGIN capability=phase-reads v1 -->
+## Phase reads
+
+Read each document when its phase begins, in the order listed. This changes
+only when a document is read; no gate, acceptance criterion, or review rule is
+waived by reading a document later.
+
+- At start: this procedure, the entry-point router, the workflow document, and the language policy.
+- At first production-source change: `docs/CODE_ORGANIZATION.md`.
+- At first validation: `docs/EXECUTION_EVIDENCE_PROFILE.md`.
+- At a finding that cannot be remediated: `docs/LIFECYCLE_ORCHESTRATION.md`.
+<!-- MERIDIAN:END -->
+
+<!-- MERIDIAN:BEGIN capability=bounded-context-readers v1 -->
+## Bounded context readers
+
+Read the task's cited ADRs and specification sections with `meridian context
+authority <TASK-ID>`, and a single ADR with `meridian adr show <ADR-ID>`. Do
+not open the whole ADR log or a whole specification to find them. Read the
+queue only through the resolved queue briefing; do not open the whole queue.
+Open a source document directly only when a bounded reader reports an entry
+unresolved or its excerpt cannot verify an acceptance criterion, and record
+that reason in the report.
+<!-- MERIDIAN:END -->

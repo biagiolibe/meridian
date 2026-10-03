@@ -79,3 +79,45 @@ class ContextSizeTest(unittest.TestCase):
         after = {path.relative_to(self.project): path.stat().st_mtime_ns for path in self.project.rglob("*") if path.is_file()}
         self.assertEqual(before, after)
 
+
+    def test_phase_reads_defer_documents_outside_the_startup_total(self) -> None:
+        self.governed()
+        (self.project / "AGENTS.md").write_text(
+            "\n".join((
+                "- `Proceed with <TASK-ID>` — read `docs/workflows/IMPLEMENTATION.md`.",
+                "Follow `docs/CODE_ORGANIZATION.md` for production-source changes.",
+            )), encoding="utf-8"
+        )
+        (self.project / "docs/CODE_ORGANIZATION.md").write_text("organization\n" * 10, encoding="utf-8")
+        (self.project / "docs/COMPLETION_REPORT_TEMPLATE.md").write_text("report\n" * 10, encoding="utf-8")
+        (self.project / "docs/START.md").write_text("start\n", encoding="utf-8")
+        (self.project / "docs/workflows/IMPLEMENTATION.md").write_text(
+            "\n".join((
+                "Also see `docs/CODE_ORGANIZATION.md` and `docs/COMPLETION_REPORT_TEMPLATE.md`.",
+                "- At first plan: `docs/CODE_ORGANIZATION.md`.",
+                "<!-- MERIDIAN:BEGIN capability=phase-reads v1 -->",
+                "- At start: `docs/START.md`.",
+                "- At first plan: `docs/CODE_ORGANIZATION.md`.",
+                "- At completion: `docs/COMPLETION_REPORT_TEMPLATE.md`.",
+                "<!-- MERIDIAN:END -->",
+            )), encoding="utf-8"
+        )
+        report = json.loads(self.run_cli("--role", "implementation", "--format", "json").stdout)
+        startup = [item["path"] for item in report["files"]]
+        self.assertIn("docs/START.md", startup)
+        self.assertNotIn("docs/CODE_ORGANIZATION.md", startup)
+        self.assertNotIn("docs/COMPLETION_REPORT_TEMPLATE.md", startup)
+        deferred = {item["path"]: item["phase"] for item in report["deferred_documents"]}
+        self.assertEqual(deferred, {"docs/CODE_ORGANIZATION.md": "first plan", "docs/COMPLETION_REPORT_TEMPLATE.md": "completion"})
+        self.assertEqual(report["total"]["bytes"], sum(item["bytes"] for item in report["files"] if item["status"] == "present"))
+        text = self.run_cli("--role", "implementation", "--format", "text").stdout
+        self.assertIn("DEFERRED docs/CODE_ORGANIZATION.md", text)
+        self.assertIn("Read at: completion.", text)
+
+    def test_phase_reads_outside_a_managed_block_stay_startup_reads(self) -> None:
+        self.governed()
+        (self.project / "docs/CODE_ORGANIZATION.md").write_text("organization\n", encoding="utf-8")
+        (self.project / "docs/workflows/IMPLEMENTATION.md").write_text("- At completion: `docs/CODE_ORGANIZATION.md`.\n", encoding="utf-8")
+        report = json.loads(self.run_cli("--role", "implementation", "--format", "json").stdout)
+        self.assertIn("docs/CODE_ORGANIZATION.md", [item["path"] for item in report["files"]])
+        self.assertEqual(report["deferred_documents"], [])

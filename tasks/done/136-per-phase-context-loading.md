@@ -18,30 +18,30 @@ needs them begins, and point agents to the bounded readers.
 
 ## Acceptance Criteria
 
-- [ ] Before editing, record in the handoff the 134 and 135 figures that justify
+- [x] Before editing, record in the handoff the 134 and 135 figures that justify
   each change (which document, its size, and when the agent needs it). A change
   with no measured justification is not made.
-- [ ] The Governed SDD implementation and review workflow documents state, per
+- [x] The Governed SDD implementation and review workflow documents state, per
   document, whether it is read at start or at the phase that needs it (for example
   the completion report template at completion, the code-organization rules when a
   production source change is first planned, the evidence profile before the first
   validation). The set and the order stay deterministic.
-- [ ] The implementation, review, remediation, and status workflow documents tell
+- [x] The implementation, review, remediation, and status workflow documents tell
   the agent to read ADRs and specifications through `meridian context authority`
   and `meridian adr show` and never to open the whole ADR log or the whole queue,
   and name the queue briefing as the way to read the queue.
-- [ ] No acceptance criterion, gate, role, or review rule is removed or relaxed;
+- [x] No acceptance criterion, gate, role, or review rule is removed or relaxed;
   a reviewer can show every gate remains reachable. The change is limited to
   when a document is read and how ADRs are read.
-- [ ] `meridian context size` (task 134) shows the startup read set of each role
+- [x] `meridian context size` (task 134) shows the startup read set of each role
   reduced against the recorded baseline, and the new figures are in the handoff.
-- [ ] Changes to managed template text are additive or reordering within managed
+- [x] Changes to managed template text are additive or reordering within managed
   capability blocks, follow the capability-marker and migration rules, and the
   release carrying them is template-changing.
-- [ ] Lean Delivery is measured and reported; it is changed only where task 134 or
+- [x] Lean Delivery is measured and reported; it is changed only where task 134 or
   135 shows an avoidable cost, and no change is made speculatively.
-- [ ] One changelog fragment with an Upgrade note is added per `CONTRIBUTING.md`.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass, including the
+- [x] One changelog fragment with an Upgrade note is added per `CONTRIBUTING.md`.
+- [x] `python3 scripts/check_repository.py` and the unit tests pass, including the
   template ceilings introduced by task 134.
 
 ## Relevant Files
