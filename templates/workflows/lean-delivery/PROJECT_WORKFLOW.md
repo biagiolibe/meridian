@@ -79,7 +79,7 @@ requires manual reconciliation. Repair never proves that a running session
 loaded the profile; start a fresh session and probe it.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=bounded-worktree-lifecycle v3 -->
+<!-- MERIDIAN:BEGIN capability=bounded-worktree-lifecycle v4 -->
 `Proceed with <TASK-ID>` runs `meridian worktree prepare <task-id> --project
 <primary-checkout> --format json` before
 starting a worker. The coordinator passes the returned branch and absolute
@@ -92,6 +92,14 @@ Absolute paths are runtime launch inputs only. A handoff or other tracked
 record that names the worktree uses the `handoff_worktree` value returned by
 `meridian worktree prepare`, the path relative to the worktree root, never an
 absolute path.
+
+A `Proceed with <TASK-ID>` directive that says to Resume starts with `meridian
+worktree prepare <task-id> --resume --project <primary-checkout> --format json`
+instead. `--resume` is allowed only for that directive: it accepts the task's
+existing worktree even when it has uncommitted changes, never creates or
+changes anything, and refuses when no worktree exists. When it returns `dirty:
+true`, `dirty-worktree` is the only error `worktree check` may report; any other
+error is `BLOCKED`. Read `git status` and the diff before continuing.
 <!-- MERIDIAN:END -->
 
 Reservation, completion, review, and archive edits are committed on the task

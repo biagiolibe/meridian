@@ -253,7 +253,7 @@
           "installation": {
             "evidence": [
               "sha256:50386055561fd45a1809340403492dd8d0f8dbb1b0aa04e7c7838b3bf6987735",
-              "sha256:ec80a676c00b20e52ac332e4e21d40139c861d725fa19dfa8c5a06a67201aa23"
+              "sha256:4287ba9ca50ff7181bd594f726596fa43e56ca09f4e7d1e50f7f8228f160e7d8"
             ],
             "notApplicableRationale": null,
             "state": "INSTALLED"
@@ -290,7 +290,7 @@
               "sha256:b7a86ddcdca8f930ca4fba91a6d156d50c82fafa4adabe26dfec0d37b1cd00c3",
               "sha256:2435cdb3b7c6cb2b26012bcdb323f259049736c7c67d106f48a18625aa9c6cfe",
               "sha256:5f91cd0840dcbeacfdcbaaefd125005e076490a223d71f1d3b82a11fbaf222a3",
-              "sha256:ec80a676c00b20e52ac332e4e21d40139c861d725fa19dfa8c5a06a67201aa23"
+              "sha256:4287ba9ca50ff7181bd594f726596fa43e56ca09f4e7d1e50f7f8228f160e7d8"
             ],
             "notApplicableRationale": null,
             "state": "INSTALLED"
@@ -333,7 +333,7 @@
     "AGENTS.md": "2435cdb3b7c6cb2b26012bcdb323f259049736c7c67d106f48a18625aa9c6cfe",
     "CLAUDE.md": "b7a86ddcdca8f930ca4fba91a6d156d50c82fafa4adabe26dfec0d37b1cd00c3",
     "LANGUAGE_POLICY.md": "65fc7654c6d37865fae03290b4c21304efee616bbb8615fa298c3e55abfdf558",
-    "PROJECT_WORKFLOW.md": "ec80a676c00b20e52ac332e4e21d40139c861d725fa19dfa8c5a06a67201aa23",
+    "PROJECT_WORKFLOW.md": "4287ba9ca50ff7181bd594f726596fa43e56ca09f4e7d1e50f7f8228f160e7d8",
     "docs/CONTEXT_BUDGET_POLICY.md": "50386055561fd45a1809340403492dd8d0f8dbb1b0aa04e7c7838b3bf6987735",
     "docs/EXECUTION_EVIDENCE_PROFILE.md": "f5ec22950a45f1148fc9e5bb76f02d904c53701a1dfa3ecfdd3211763d57e9aa"
   },

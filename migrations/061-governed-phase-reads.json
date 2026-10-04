@@ -58,7 +58,7 @@
     },
     {
       "capability": "task-worktree-boundary",
-      "capabilityVersion": 7
+      "capabilityVersion": 8
     },
     {
       "capability": "task-worktree-review-procedure",
@@ -102,7 +102,7 @@
     },
     {
       "capability": "worktree-lifecycle",
-      "capabilityVersion": 1
+      "capabilityVersion": 2
     },
     {
       "capability": "remote-branch-cleanup",
@@ -149,7 +149,8 @@
     "an upgrade of a project whose retired inline markers sit inside edited prose writes the pre-upgrade file to an adjacent .meridian-pre-restructure.bak backup, reports it, and keeps the project's own level-2 sections after the new block",
     "meridian audit reports a FAIL row for a markerless managed copy whose digest differs from managedFiles and never for project text outside the capability blocks of a marker-bearing file",
     "meridian profile bootstrap governed-sdd-consumer and lean-delivery-consumer declare installation evidence on a legacy v2 manifest and leave host activation UNVERIFIED",
-    "an upgrade whose three-way merge conflicts inside docs/WORKTREE_LIFECYCLE.md or the pull request policy's remote task-branch cleanup section reports a conflict instead of appending a duplicate worktree-lifecycle or remote-branch-cleanup block"
+    "an upgrade whose three-way merge conflicts inside docs/WORKTREE_LIFECYCLE.md or the pull request policy's remote task-branch cleanup section reports a conflict instead of appending a duplicate worktree-lifecycle or remote-branch-cleanup block",
+    "a Lean Delivery upgrade installs bounded-worktree-lifecycle v4 and a Governed SDD upgrade installs task-worktree-boundary v8, each stating that `meridian worktree prepare --resume` is allowed only for a Resume directive; both modes install worktree-lifecycle v2"
   ],
   "capabilityVersions": [
     {
@@ -209,7 +210,7 @@
     },
     {
       "capability": "task-worktree-boundary",
-      "capabilityVersion": 7,
+      "capabilityVersion": 8,
       "workflowMode": "governed-sdd"
     },
     {
@@ -269,12 +270,17 @@
     },
     {
       "capability": "worktree-lifecycle",
-      "capabilityVersion": 1,
+      "capabilityVersion": 2,
       "workflowMode": "governed-sdd"
     },
     {
       "capability": "worktree-lifecycle",
-      "capabilityVersion": 1,
+      "capabilityVersion": 2,
+      "workflowMode": "lean-delivery"
+    },
+    {
+      "capability": "bounded-worktree-lifecycle",
+      "capabilityVersion": 4,
       "workflowMode": "lean-delivery"
     },
     {
@@ -340,7 +346,7 @@
     {
       "path": "docs/WORKTREE_LIFECYCLE.md",
       "capability": "worktree-lifecycle",
-      "capabilityVersion": 1
+      "capabilityVersion": 2
     },
     {
       "path": "docs/PULL_REQUEST_POLICY.md",
