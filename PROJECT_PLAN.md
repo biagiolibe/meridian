@@ -120,7 +120,7 @@
 - `[x]` 151 — Make hook task-state lookups linear and keep the briefing within its timeout.
 - `[x]` 152 — Read project declarations from the primary checkout, keep budget state out of it, and state Review's closure authority.
 - `[x]` 153 — Install the completion template here and keep validation commands unchained.
-- `[ ]` 154 — Retarget migration 062 to 1.2.8 and reject same-version migrations.
+- `[x]` 154 — Retarget migration 062 to 1.2.8 and reject same-version migrations.
 - `[x]` 140 — Let `integrate stage` complete rows of project-shaped Governed queues.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.

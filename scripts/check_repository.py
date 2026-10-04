@@ -347,6 +347,13 @@ def check_migrations(root: Path = ROOT) -> None:
     migration_paths = sorted((root / "migrations").glob("[0-9][0-9][0-9]-*.json"))
     if not migration_paths:
         fail("no framework migrations are defined")
+    tag_listing = subprocess.run(
+        ["git", "-C", str(root), "tag", "--list", "v*"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    published_tags = set(tag_listing.stdout.splitlines()) if tag_listing.returncode == 0 else set()
     previous_to = None
     for index, path in enumerate(migration_paths, start=1):
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -356,10 +363,24 @@ def check_migrations(root: Path = ROOT) -> None:
             fail(f"migration sequence is invalid: {path.relative_to(root)}")
         if any(key not in data for key in required):
             fail(f"migration is incomplete: {path.relative_to(root)}")
+        if data["from"] == data["to"]:
+            fail(f"migration cannot target the same version: {path.relative_to(root)}")
         for error in meridian.validate_adopt_existing_paths(data):
             fail(f"invalid migration adoption declaration in {path.relative_to(root)}: {error}")
         if previous_to is not None and data["from"] != previous_to:
             fail(f"migration versions are not contiguous: {path.relative_to(root)}")
+        target_tag = f"v{data['to']}"
+        release_path = root / "releases" / f"{data['to']}.json"
+        release_migrations = (
+            json.loads(release_path.read_text(encoding="utf-8")).get("migrations", [])
+            if release_path.is_file()
+            else []
+        )
+        if target_tag in published_tags and data["id"] not in release_migrations:
+            fail(
+                f"migration targets an already tagged version without a release-ledger entry: "
+                f"{path.relative_to(root)} ({target_tag})"
+            )
         previous_to = data["to"]
     current_version = (root / "VERSION").read_text(encoding="utf-8").strip()
     # A CLI-only release bumps VERSION without a migration, so the last
