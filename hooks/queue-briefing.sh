@@ -106,21 +106,22 @@ fi
 QUEUE=${QUEUE:-$(resolve_queue_path)}
 [ -f "$QUEUE" ] || exit 0
 
-# Machine setup is independent of the project, but a start-of-turn notice is
-# useful only after this hook has established that the current directory is a
-# Meridian project. `setup --check` is read-only; emit exactly one line only
-# when the configured Codex profile grants a different worktree root.
-if [ -n "$MERIDIAN_BIN" ] && [ -x "$MERIDIAN_BIN" ]; then
-  SETUP_CHECK=$("$MERIDIAN_BIN" setup --check 2>/dev/null)
-  CODEX_STATE=$(printf '%s\n' "$SETUP_CHECK" | sed -n 's/^codex-profile: //p')
-  if [ "$CODEX_STATE" = "repair-and-replace-required" ]; then
+# Machine setup is independent of the project.  It is optional, so invoke it
+# only after the required language reminder and queue briefing have printed.
+emit_setup_notice() {
+  [ -n "$MERIDIAN_BIN" ] && [ -x "$MERIDIAN_BIN" ] || return 0
+  local setup_check codex_state root_mismatch
+  setup_check=$("$MERIDIAN_BIN" setup --check 2>/dev/null)
+  codex_state=$(printf '%s\n' "$setup_check" | sed -n 's/^codex-profile: //p')
+  if [ "$codex_state" = "repair-and-replace-required" ]; then
     printf '[Meridian Host]\n  ⚠ Codex profile needs ownership repair and worktree-root replacement; run meridian setup --apply\n'
   else
-    ROOT_MISMATCH=$(printf '%s\n' "$SETUP_CHECK" \
+    root_mismatch=$(printf '%s\n' "$setup_check" \
       | sed -n 's/^codex-root-mismatch: /  ⚠ Codex worktree root differs: /p')
-    [ -n "$ROOT_MISMATCH" ] && printf '[Meridian Host]\n%s\n' "$ROOT_MISMATCH"
+    [ -n "$root_mismatch" ] && printf '[Meridian Host]\n%s\n' "$root_mismatch"
   fi
-fi
+  return 0
+}
 
 # An archived ACCEPTED row (this task's own archiving convention) still
 # satisfies a dependency and still counts toward the accepted tally; both
@@ -133,11 +134,28 @@ ARCHIVE="$(dirname "$QUEUE")/QUEUE_ARCHIVE.md"
 # header.  Established projects may intentionally omit the optional `Review`
 # or task-file columns.  The parser below maps the required columns by name.
 if grep -Eq '^\| Order \| ID \|.*\| Status \|.*Dependencies \|' "$QUEUE"; then
+  # Print the mandatory briefing header before any optional CLI lookup.  A
+  # stalled lifecycle query must never suppress the policy or queue signal.
+  echo "[Meridian Governed Queue]"
   # Queue rows remain QUEUED while task worktrees are active. Lifecycle
   # registration plus the task record is the source of active/review state.
   DERIVED_STATES="[]"
+  WORKTREE_STATES_SKIPPED=""
   if [ -n "$MERIDIAN_BIN" ] && [ -x "$MERIDIAN_BIN" ]; then
-    DERIVED_STATES=$("$MERIDIAN_BIN" worktree states --project . --format json 2>/dev/null || printf '[]')
+    # Perl's alarm is available on the macOS and Linux runners and avoids a
+    # GNU-timeout dependency.  Keep this optional lookup below the mandatory
+    # language and queue headings, and degrade only its derived section.
+    DERIVED_STATES=$(perl -e '
+      my $seconds = shift; my $child = fork(); die "fork failed" unless defined $child;
+      if (!$child) { setpgrp(0, 0); exec @ARGV; die "exec failed" }
+      $SIG{ALRM} = sub { kill "TERM", -$child; waitpid($child, 0); exit 124 };
+      alarm $seconds; waitpid($child, 0); exit($? >> 8);
+    ' 2 "$MERIDIAN_BIN" worktree states --project . --format json 2>/dev/null)
+    WORKTREE_STATES_STATUS=$?
+    if [ "$WORKTREE_STATES_STATUS" -ne 0 ]; then
+      DERIVED_STATES="[]"
+      WORKTREE_STATES_SKIPPED="  ⚠ In-progress lookup skipped (timed out or failed)."
+    fi
   fi
   DERIVED_ACTIVE=$(printf '%s' "$DERIVED_STATES" | python3 -c 'import json,sys; print(", ".join(item["task_id"] for item in json.load(sys.stdin) if item.get("status") != "READY_FOR_REVIEW"))' 2>/dev/null)
   DERIVED_REVIEW=$(printf '%s' "$DERIVED_STATES" | python3 -c 'import json,sys; print(", ".join(item["task_id"] for item in json.load(sys.stdin) if item.get("status") == "READY_FOR_REVIEW"))' 2>/dev/null)
@@ -222,7 +240,7 @@ if grep -Eq '^\| Order \| ID \|.*\| Status \|.*Dependencies \|' "$QUEUE"; then
   ACTIVE=${DERIVED_ACTIVE:-$ACTIVE}
   REVIEW=${DERIVED_REVIEW:-$REVIEW}
 
-  echo "[Meridian Governed Queue]"
+  [ -n "$WORKTREE_STATES_SKIPPED" ] && echo "$WORKTREE_STATES_SKIPPED"
   [ -n "$ACTIVE" ] && echo "  🔴 In progress: $ACTIVE" || echo "  ✅ No active task"
   # Echo the active task's diagnostic/evidence/context-expansion budget so
   # the cap stays at maximum salience every turn instead of a rule read once
@@ -268,6 +286,7 @@ if grep -Eq '^\| Order \| ID \|.*\| Status \|.*Dependencies \|' "$QUEUE"; then
     echo "  🚧 Blocked on dependencies: $BLOCKED$SUFFIX"
   fi
   echo "  ✅ Accepted: ${ACCEPTED:-0}"
+  emit_setup_notice
   exit 0
 fi
 
@@ -325,3 +344,4 @@ if [ -n "$PENDING" ]; then
   echo "  ⏳ Queued: $PENDING"
 fi
 echo "  ✅ Completed: $DONE"
+emit_setup_notice
