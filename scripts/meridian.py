@@ -1283,12 +1283,12 @@ _GOVERNED_QUEUE_ARCHIVE_HEADER = (
 )
 _GOVERNED_QUEUE_TASK_ROW = re.compile(
     r"^\| (?P<order>[^|]+) \| (?P<id>[^|]+) \| (?P<priority>[^|]+) \| "
-    r"(?P<status>QUEUED|IN_PROGRESS|CHANGES_REQUESTED|READY_FOR_REVIEW|ACCEPTED) \| "
-    r"(?P<review>REQUIRED|NOT_REQUIRED) \| (?P<dependencies>[^|]*) \| (?P<task_file>[^|]*) \|$",
+    r"(?P<status>QUEUED|IN_PROGRESS|CHANGES_REQUESTED|READY_FOR_REVIEW|ACCEPTED|ANSWERED|INCONCLUSIVE) \| "
+    r"(?P<review>REQUIRED|NOT_REQUIRED|SPIKE) \| (?P<dependencies>[^|]*) \| (?P<task_file>[^|]*) \|$",
     re.MULTILINE,
 )
 _GOVERNED_QUEUE_STATUSES = frozenset(
-    {"QUEUED", "IN_PROGRESS", "CHANGES_REQUESTED", "READY_FOR_REVIEW", "ACCEPTED"}
+    {"QUEUED", "IN_PROGRESS", "CHANGES_REQUESTED", "READY_FOR_REVIEW", "ACCEPTED", "ANSWERED", "INCONCLUSIVE"}
 )
 _MARKDOWN_HEADING = re.compile(r"^(?P<marks>#{1,6})\s+(?P<title>.+?)\s*$")
 
@@ -1312,7 +1312,7 @@ def _governed_completion_row(
     section = "<preamble>"
     recognized_headers = 0
     incomplete_header_sections: list[str] = []
-    candidates: list[tuple[int, int, int, int, str]] = []
+    candidates: list[tuple[int, int, int, int, str, list[str]]] = []
     for index, line in enumerate(lines):
         heading = _MARKDOWN_HEADING.match(line.rstrip("\n"))
         if heading:
@@ -1338,7 +1338,7 @@ def _governed_completion_row(
                 row_index += 1
                 continue
             if cells[id_index].strip("`") == identity.canonical_id:
-                candidates.append((row_index, status_index, starts[row_index], len(lines[row_index]), section))
+                candidates.append((row_index, status_index, starts[row_index], len(lines[row_index]), section, header))
             row_index += 1
 
     if not candidates:
@@ -1350,20 +1350,37 @@ def _governed_completion_row(
         sections = ", ".join(sorted({candidate[4] for candidate in candidates}))
         raise _governed_completion_error(path, sections, f"task {identity.canonical_id} appears {len(candidates)} times")
 
-    row_index, status_index, start, _, section = candidates[0]
+    row_index, status_index, start, _, section, header = candidates[0]
     cells = [cell.strip() for cell in lines[row_index].strip().strip("|").split("|")]
     status = cells[status_index].strip("`")
     if status not in _GOVERNED_QUEUE_STATUSES:
         raise _governed_completion_error(path, section, f"unknown Governed status {cells[status_index]!r}")
 
-    header = [cell.strip() for cell in lines[row_index - 2].strip().strip("|").split("|")]
     review_index = next((i for i, cell in enumerate(header) if cell.casefold() == "review"), None)
+    record_path = identity.task_path
+    archived_path = record_path.parent / "done" / record_path.name
+    if not record_path.is_file() and archived_path.is_file():
+        record_path = archived_path
+    record_text = record_path.read_text(encoding="utf-8") if record_path.is_file() else ""
+    if read_task_field(record_text, "Class") == "SPIKE":
+        terminal_status = read_task_field(record_text, "Status")
+        if terminal_status not in ("ANSWERED", "INCONCLUSIVE"):
+            raise _governed_completion_error(
+                path, section, "SPIKE task record must have terminal Status ANSWERED or INCONCLUSIVE"
+            )
+        if status == terminal_status:
+            return contents, True, f"SPIKE task is {terminal_status}"
+        line = lines[row_index]
+        parts = line.split("|")
+        payload = parts[status_index + 1]
+        replacement = re.sub(r"(?<!\S)(?:`)?[^`\s|]+(?:`)?(?!\S)", terminal_status, payload, count=1)
+        if replacement == payload:
+            raise _governed_completion_error(path, section, "Status cell has no replaceable token")
+        parts[status_index + 1] = replacement
+        return f"{contents[:start]}{'|'.join(parts)}{contents[start + len(line):]}", True, f"SPIKE task is {terminal_status}"
+
     if review_index is None:
-        record_path = identity.task_path
-        archived_path = record_path.parent / "done" / record_path.name
-        if not record_path.is_file() and archived_path.is_file():
-            record_path = archived_path
-        review = record_review(record_path.read_text(encoding="utf-8") if record_path.is_file() else None)
+        review = record_review(record_text)
         review = "REQUIRED" if review == "REQUIRED" else "NOT_REQUIRED" if review == "NOT REQUIRED" else None
         if review is None:
             raise _governed_completion_error(path, section, "no Review column and task record has no recognized review policy")
@@ -1432,8 +1449,8 @@ def _archive_completed_queue_sections(
         row_pattern = _GOVERNED_QUEUE_TASK_ROW if mode == "governed-sdd" else _QUEUE_TASK_ROW
         if not task_rows or any(row_pattern.fullmatch(row.rstrip("\n")) is None for row in task_rows):
             raise MeridianError(f"unrecognized queue section shape in {queue_path}: {lines[0].strip()}")
-        completed_status = "ACCEPTED" if mode == "governed-sdd" else "[x]"
-        if all(row_pattern.fullmatch(row.rstrip("\n")).group("status") == completed_status for row in task_rows):
+        completed_statuses = {"ACCEPTED", "ANSWERED"} if mode == "governed-sdd" else {"[x]"}
+        if all(row_pattern.fullmatch(row.rstrip("\n")).group("status") in completed_statuses for row in task_rows):
             completed_sections.append((heading.start(), section_end, section))
     if not completed_sections:
         return queue_contents, None
@@ -1528,6 +1545,39 @@ def _apply_task_completion_rows(project_root: Path, identity: ResolvedTaskIdenti
     return {"status": "COMPLETED", "reason": "lean completion rows updated"}
 
 
+def _spike_disallowed_paths(
+    project_root: Path, identity: ResolvedTaskIdentity, validated_base: str, validated_task: str
+) -> tuple[str, ...]:
+    """Return changed paths a SPIKE task is not allowed to integrate."""
+    record_path = identity.task_path
+    archived_path = record_path.parent / "done" / record_path.name
+    task_record = ""
+    for candidate in (record_path, archived_path):
+        relative = candidate.relative_to(project_root)
+        shown = _run_git(project_root, "show", f"{validated_task}:{relative}")
+        if shown.returncode == 0:
+            task_record = shown.stdout
+            break
+    if read_task_field(task_record, "Class") != "SPIKE":
+        return ()
+    allowed = {
+        str(record_path.relative_to(project_root)),
+        str(archived_path.relative_to(project_root)),
+        str(identity.handoff_path.relative_to(project_root)),
+        str(find_adr_log(project_root).relative_to(project_root)),
+    }
+    deliverable = read_task_field(task_record, "Deliverable") or ""
+    allowed.update(
+        match.split("#", 1)[0]
+        for match in re.findall(r"`(docs/[^`]+)`", deliverable)
+        if match.split("#", 1)[0]
+    )
+    changed = tuple(filter(None, git_output(
+        project_root, "diff", "--name-only", validated_base, validated_task
+    ).splitlines()))
+    return tuple(path for path in changed if path not in allowed and not re.fullmatch(r"changelog\.d/[^/]+\.md", path))
+
+
 def stage_task_integration(
     task_id: str,
     worktree_root: Path | None,
@@ -1615,6 +1665,13 @@ def stage_task_integration(
     task_paths = tuple(filter(None, git_output(
         project_root, "diff", "--name-only", validated_base, validated_task
     ).splitlines()))
+    disallowed_spike_paths = _spike_disallowed_paths(
+        project_root, identity, validated_base, validated_task
+    )
+    if disallowed_spike_paths:
+        raise MeridianError(
+            "SPIKE task changes disallowed path(s): " + ", ".join(disallowed_spike_paths)
+        )
     main_paths = tuple(
         filter(None, git_output(project_root, "diff", "--name-only", validated_base, current_main).splitlines())
     ) if current_main != validated_base else ()
@@ -1765,7 +1822,7 @@ def missing_candidate_validation_commands(
     """
     if fragments is None:
         _state, fragments = candidate_validation_declaration(Path.cwd())
-    required = fragments.get(str(decision), ())
+    required = ("git diff --check", *fragments.get(str(decision), ()))
     return tuple(fragment for fragment in required if not any(fragment in command for command in commands))
 
 

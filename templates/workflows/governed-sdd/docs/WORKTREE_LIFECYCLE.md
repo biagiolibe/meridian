@@ -44,6 +44,12 @@ task's validation commands and a proposal. Review the proposal and explicitly
 write declared fragments or `none`, or run `meridian setup --apply` after its
 proposal is reviewed. `upgrade --apply` never writes this project file.
 
+A task record with `Class: SPIKE` completes at stage to its terminal `ANSWERED`
+or `INCONCLUSIVE` status without a review record. Its task diff may contain
+only its record or exact archive rename, handoff, ADR log, documentation paths
+named in its deliverable, and changelog fragments; another path blocks stage
+before a lease or merge.
+
 For `REUSE`, run the declared repository gate and prove with `git diff --name-only
 "$VALIDATED_TASK_COMMIT" "$CANDIDATE_TREE"` that only the task record or exact
 archive rename, handoff, review record, queue, plan, queue archive, and changelog
@@ -51,6 +57,8 @@ fragment changed. `BOUNDED` adds tests for modules changed by the task and
 advanced `main`; `FULL` adds the declared full suite. A stricter gate is allowed.
 The literal fragment check executes nothing and accepts `set -o pipefail;` and
 an output-bounding pipeline when the declared fragment remains present.
+Every candidate evidence record, including one under `none`, must include
+`git diff --check`.
 
 `meridian codex worktree-path` is deprecated for one migration window. New
 instructions and automation use `meridian worktree path`.

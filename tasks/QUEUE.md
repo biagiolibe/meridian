@@ -54,7 +54,7 @@ are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[ ]` | 142 | Recognize spike rows at stage and require `git diff --check` at finalize | 🔴 P1 | — | [142](142-stage-spike-rows-and-diff-check.md) |
+| `[x]` | 142 | Recognize spike rows at stage and require `git diff --check` at finalize | 🔴 P1 | — | [142](done/142-stage-spike-rows-and-diff-check.md) |
 | `[ ]` | 143 | Make the read-guard and queue-briefing hooks independent of queue status | 🔴 P1 | — | [143](143-hooks-derive-task-state-from-worktree.md) |
 | `[ ]` | 144 | Add `.meridian/project.json` as the project declaration surface | 🟡 P2 | — | [144](144-project-declaration-file.md) |
 | `[ ]` | 145 | Align Governed lifecycle capability text with the closure design and the CLI | 🔴 P1 | 142, 143, 144 | [145](145-governed-lifecycle-text-alignment.md) |
