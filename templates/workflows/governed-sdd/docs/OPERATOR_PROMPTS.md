@@ -172,13 +172,13 @@ The trigger delegates the detailed review and integration procedure to `AGENTS.m
 
 ## 6. Record owner acceptance after personal review
 
-Use this only after personally reviewing a `Review: REQUIRED` task marked `READY_FOR_REVIEW` in both canonical status records.
+Use this only after personally reviewing a `Review: REQUIRED` task whose task record is `READY_FOR_REVIEW`.
 
 ```text
 Accept <TASK-ID>.
 ```
 
-The trigger performs only the status-only owner-acceptance workflow defined in `AGENTS.md` or `CLAUDE.md`; it does not authorize a review, source change, validation rerun, or merge.
+The trigger appends an owner `APPROVE` attempt to the review record, sets the task record to `ACCEPTED`, and continues at C6 under the `Proceed with` authority, as defined in `docs/workflows/LIFECYCLE.md`; it does not authorize a review, a source change, or a manual merge.
 
 ## 6a. Address requested review changes
 
@@ -191,8 +191,8 @@ Address review <TASK-ID>.
 ```
 
 The trigger limits implementation to the unchecked findings in the durable
-review record, validates them, returns the task to `READY_FOR_REVIEW`, and
-pushes the next review attempt. It does not authorize unrelated work or a
+review record, validates them, returns the task record to `READY_FOR_REVIEW`, and
+pushes the next review attempt only to obtain `T1_CI`. It does not authorize unrelated work or a
 reinterpretation of a finding.
 
 ## 7. Run the established read-only audit

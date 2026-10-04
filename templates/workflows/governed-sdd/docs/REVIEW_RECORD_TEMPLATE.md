@@ -1,14 +1,15 @@
 # Review Record
 
-<!-- MERIDIAN:BEGIN capability=review-remediation-record v2 -->
+<!-- MERIDIAN:BEGIN capability=review-remediation-record v3 -->
 Use one durable review record per required-review task at the location
-`PROJECT_WORKFLOW.md` declares for it (`tasks/reviews/<TASK-ID>.md` unless
-that document says otherwise). It is the canonical handoff from reviewer to
+`meridian locations` resolves for it. It is the canonical handoff from reviewer to
 implementer; chat output may summarize it but must not be the only location of
 findings. Create the directory when the first record is needed.
 
 The reviewer creates or appends an attempt for every `CHANGES_REQUESTED` and
-`APPROVE` verdict. Findings must be actionable, prioritized, and tied to
+`APPROVE` verdict. `Accept <TASK-ID>` appends an `APPROVE` attempt whose first
+line is `- Approved by: owner`; `integrate stage` accepts it as the latest
+verdict like any other `APPROVE`. Findings must be actionable, prioritized, and tied to
 evidence. The implementer marks each requested change as resolved in the next
 attempt before returning the task to review. Do not edit a prior reviewer's
 findings or evidence; append a new attempt instead.

@@ -120,6 +120,24 @@ class AuthorityExcerptTest(unittest.TestCase):
         self.assertIn("Target body.", result.stdout)
         self.assertNotIn("Other body.", result.stdout)
 
+    def test_context_authority_resolves_the_module_map_section_after_the_managed_block(self) -> None:
+        template = (ROOT / "templates/workflows/governed-sdd/docs/CODE_ORGANIZATION.md").read_text(encoding="utf-8")
+        (self.project / "docs/CODE_ORGANIZATION.md").write_text(
+            template + "\n## Project module map\n\nThe `core` module owns domain rules; `app` depends on `core`.\n\n## Other\n\nUnrelated.\n",
+            encoding="utf-8",
+        )
+        self.write_task(
+            "TASK-004",
+            "Status: IN_PROGRESS\n\n## Authority\n\n"
+            "- `docs/CODE_ORGANIZATION.md`#Project module map\n\n"
+            "## Expected code surface\n",
+        )
+        result = self.run_cli("context", "authority", "TASK-004")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("`app` depends on `core`", result.stdout)
+        self.assertNotIn("Unrelated.", result.stdout)
+        self.assertNotIn("Ownership and cohesion", result.stdout)
+
     def test_context_authority_names_an_unresolved_entry_without_failing(self) -> None:
         self.write_task(
             "TASK-003",

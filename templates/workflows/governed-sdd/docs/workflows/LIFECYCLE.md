@@ -34,10 +34,10 @@ write the governance-only restart handoff, then stop and direct a fresh
 `Proceed with <TASK-ID>`.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=owner-acceptance-workflow v1 -->
+<!-- MERIDIAN:BEGIN capability=owner-acceptance-workflow v2 -->
 ## Owner-acceptance workflow
 
-When the developer says `Accept <TASK-ID>` after personally reviewing a `Review: REQUIRED` task, treat it as explicit authorization to skip the agent review and perform only the acceptance-state handoff. Confirm that the task and its canonical queue row are both `READY_FOR_REVIEW`; do not re-review the implementation, rerun validation, change source code, or merge the branch.
+When the developer says `Accept <TASK-ID>` after personally reviewing a `Review: REQUIRED` task, treat it as explicit authorization to skip the agent review. Confirm that the task record is `READY_FOR_REVIEW`; do not re-review the implementation, change source code, or rerun the task's own validation.
 
-Update exactly the task `Status` and its canonical queue row to `ACCEPTED`, and commit only those two edits as `docs: accept <TASK-ID>` on the existing local task branch. Report the commit. If the required state records are missing or inconsistent, stop and report `BLOCKED`.
+Append an owner `APPROVE` attempt to the review record (`- Approved by: owner`, the reviewed commit, and the base commit), set the task record to `ACCEPTED`, and commit only those two artifacts on the task branch as `docs: accept <TASK-ID>`. Then continue at C6 under the `Proceed with` authority: `worktree check`, machine evidence, `integrate stage`, candidate validation, `finalize`, the one `git push origin main`, and `cleanup`. `integrate stage` accepts the task because the latest review verdict is `APPROVE`. A manual merge is never permitted. If the task record is missing or inconsistent, stop and report `BLOCKED`.
 <!-- MERIDIAN:END -->

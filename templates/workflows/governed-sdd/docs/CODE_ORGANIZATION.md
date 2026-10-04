@@ -1,6 +1,6 @@
 # Code Organization Policy
 
-<!-- MERIDIAN:BEGIN capability=code-organization v1 -->
+<!-- MERIDIAN:BEGIN capability=code-organization v2 -->
 ## Status and precedence
 
 This is the normative source-organization policy for production code. It is subordinate to `AGENTS.md`/`CLAUDE.md`, accepted ADRs, specifications, and the assigned atomic task. It organizes an authorized implementation; it never expands scope, changes behavior, or authorizes a new abstraction.
@@ -17,9 +17,9 @@ Every production type, rule, system, and fixture has one owning module named for
 
 File length is a diagnostic signal, not an acceptance limit. Split when a file accumulates multiple owners, layers, change reasons, or test domains; do not split mechanically to satisfy a line-count target.
 
-## Project module map
+## Where the project module map lives
 
-Record this project's actual layered module map — and its dependency direction — in `[Project Name]`'s own architecture documentation (for example `docs/ARCHITECTURE_DECISIONS.md` or `TECH_DESIGN.md`), not in this file. This file states the ownership rules; the project states which modules exist and how they depend on each other. Keep domain-specific architecture out of Meridian's generic workflow assets.
+The project records its layered module map and dependency direction either in its architecture documentation or in a `## Project module map` section after this managed block, never inside the block. This file states the ownership rules; the project states which modules exist and how they depend on each other. Keep domain-specific architecture out of Meridian's generic workflow assets.
 
 ## Crate/package roots and public API
 

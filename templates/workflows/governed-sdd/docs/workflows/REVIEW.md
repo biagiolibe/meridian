@@ -2,7 +2,7 @@
 
 Use this procedure only for `Review <TASK-ID>` after the entry-point router has applied its always-loaded invariants.
 
-<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v8 -->
+<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v9 -->
 ## Mandatory task-worktree preflight
 
 This is the first review action. Before reading the assigned task,
@@ -13,7 +13,7 @@ implementation files, or any implementation diff:
    <primary-checkout> --format json`. A blocked result
    stops before any other read; never use host automatic worktree isolation.
 2. Resolve the canonical completion-handoff location and read only that
-   handoff. Obtain its task-worktree value (relative to the worktree root), task branch, current task
+   handoff. Obtain its `handoff_worktree` value (relative to the worktree root), task branch, current task
    commit, validated task commit, and validated base `main` commit. Confirm
    that the implementer session has stopped. A missing field, missing handoff,
    or active or unconfirmed implementer is `BLOCKED`.
@@ -21,7 +21,8 @@ implementation files, or any implementation diff:
    branch, HEAD, base, clean state, and repository. As an additional bounded
    check, run `git worktree list
    --porcelain` and locate exactly one registered entry whose normalized
-   absolute path equals the handoff value resolved against the worktree root. The entry must record the handoff branch
+   absolute path equals the `handoff_worktree` value resolved against the
+   worktree root at runtime. The entry must record the handoff branch
    as `refs/heads/<task-branch>` and its `HEAD`. A full-SHA current task commit
    field must equal that `HEAD`. For a descriptive current task commit field,
    resolve it to the registered task branch `HEAD` and confirm its stated
@@ -51,8 +52,9 @@ task-worktree path and every Git command uses `git -C
 <absolute-task-worktree>`; the initial current directory is never treated as
 the task checkout. Review never runs concurrently with an implementer.
 
-After approval, commit the review and `ACCEPTED` state on the task branch,
-then use the serialized integration transaction in `PROJECT_WORKFLOW.md`.
+After approval, commit the review record and the task record's `ACCEPTED`
+status on the task branch, then use the serialized integration transaction in
+`PROJECT_WORKFLOW.md`.
 The validated task commit must remain an ancestor of task `HEAD`, with only
 permitted lifecycle records in the intervening diff. Current `main` may have
 advanced; reuse evidence, run the bounded gate, select full validation, or
@@ -61,8 +63,9 @@ Independent review, acceptance evidence, and forge gates remain mandatory.
 
 `Proceed with <TASK-ID>` already authorizes the gated task lifecycle through
 candidate validation, finalize or abort, one plain `git push origin main`, and
-cleanup; it also authorizes one plain task-branch push only for `T1_CI`.
-It never authorizes tags, releases, force/deleting/mirroring pushes, history
+cleanup; it also authorizes the first attempt's plain task-branch push, and
+`Address review <TASK-ID>` the next one, only to obtain `T1_CI` for that commit, at most once per review attempt, and not at all when the project has no CI. The reviewer never pushes the
+task branch. It never authorizes tags, releases, force/deleting/mirroring pushes, history
 rewrites, forced worktree removal, bypassing this independent review, textual
 conflict resolution, or work on another task. This review is the gate:
 `Review: REQUIRED` stops at `REVIEW_REQUIRED`, not to ask whether review may be
@@ -83,30 +86,31 @@ and `FULL` from `.meridian/candidate-validation.json`; `REUSE` also proves only
 governance paths changed. A missing declaration stops before staging rather than silently
 accepting evidence.
 
-<!-- MERIDIAN:BEGIN capability=review-mode-boundary v1 -->
+<!-- MERIDIAN:BEGIN capability=review-mode-boundary v2 -->
 ### Review-mode boundary
 
 For `Review <TASK-ID>`, review is read-only until an explicit `APPROVE` verdict.
 Do not edit source code, tests, manifests, implementation documentation, task
-content, or queue records to remedy a finding. For `CHANGES_REQUESTED`, the
+content, or governance files to remedy a finding. For `CHANGES_REQUESTED`, the
 only allowed mutation is a local review-handoff commit: create or append
 the declared review record (see `PROJECT_WORKFLOW.md`'s canonical locations)
 using `docs/REVIEW_RECORD_TEMPLATE.md`, change
-the task and queue status from `READY_FOR_REVIEW` to `IN_PROGRESS`, and commit
-only those three artifacts. The record must contain every actionable finding
+the task record's status from `READY_FOR_REVIEW` to `IN_PROGRESS`, and commit
+only those two artifacts. The record must contain every actionable finding
 with priority and evidence; its unchecked findings are the implementer's
 bounded remediation scope. Do not push this commit. Only after `APPROVE` and
 the required ancestry check may the reviewer append the approval evidence to
-the review record, make the two `ACCEPTED` status edits, and commit those three
-artifacts with the required reviewer-integrator author override.
+the review record, set the task record to `ACCEPTED`, and commit those two
+artifacts with the required reviewer-integrator author override. A reviewer
+never edits the queue, queue archive, or plan; `integrate stage` applies the
+status there.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=implementer-reviewer-handoff v3 -->
+<!-- MERIDIAN:BEGIN capability=implementer-reviewer-handoff v4 -->
 ## Implementer-to-reviewer handoff
 
-After validation, create the task commit and push the task branch once for each
-review attempt. The completion handoff must record the branch name,
-linked-worktree value (relative to the worktree root, never an absolute path), implementation and current task commits,
+After validation, create the task commit and, only to obtain `T1_CI` for that commit, at most once per review attempt, and not at all when the project has no CI, push the task branch. The completion handoff must record the branch name,
+`handoff_worktree` value (relative to the worktree root, never an absolute path), implementation and current task commits,
 validated task and base `main` commits, successful validation evidence, and
 declared integration surface. Stop the implementer and leave the registered
 task worktree clean before starting the fresh reviewer session. This durable
@@ -114,25 +118,28 @@ handoff transfers sequential ownership of that worktree; implementation and
 review never overlap.
 
 For `Review: REQUIRED`, the reviewer must never push the task branch. On
-`CHANGES_REQUESTED`, it commits only the review record and matching task/queue
-transition to `IN_PROGRESS`; the implementer then resolves and pushes the next
-review attempt. For `Review: NOT_REQUIRED`, the implementer records acceptance
-after validation without creating a reviewer session. Owner acceptance is
-status-only. Checkout selection, validation ancestry, integration, and cleanup
+`CHANGES_REQUESTED`, it commits only the review record and the task record's
+transition to `IN_PROGRESS`; the implementer then resolves the findings and
+makes the next permitted push. For `Review: NOT_REQUIRED`, the implementer
+records acceptance in the task record after validation without creating a
+reviewer session. Owner acceptance records an owner `APPROVE` attempt and
+continues at C6. Checkout selection, validation ancestry, integration, and cleanup
 are governed by their current dedicated procedures, not by this handoff.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=reviewer-integrator-identity v1 -->
+<!-- MERIDIAN:BEGIN capability=reviewer-integrator-identity v2 -->
 ## Reviewer-integrator identity on a single-operator project
 
 Both controls are mandatory and neither substitutes for the other:
 
 - Review runs in a fresh agent session that did not write the code. Re-derive evidence from the actual diff and cited sources; do not trust the implementation report.
-- Only for the `ACCEPTED` commit, use the project-scoped reviewer author override below, with the project's actual name and slug:
+- Only for the `ACCEPTED` commit, use the project-scoped reviewer author override. Its value is printed by `meridian project show --field reviewer-author`, which formats the project declared in `.meridian/project.json`; if that declaration is missing, the command reports `BLOCKED` and the commit waits for the developer to declare the project:
 
   ```bash
-  git commit --author="<PROJECT_NAME> Reviewer-Integrator <reviewer-integrator@<project-slug>.local>" -m "docs: reviewer-integrator pass <TASK-ID>; independently re-verified diff, cited sources, acceptance evidence, and validation"
+  git commit --author="$(meridian project show --field reviewer-author)" -m "docs: reviewer-integrator pass <TASK-ID>; independently re-verified diff, cited sources, acceptance evidence, and validation"
   ```
+
+This is the only place the identity rule is stated; every other document defers to it.
 
 Keep the operator's normal committer identity. Do not change global or repository Git config. The override applies only to the `ACCEPTED` commit and can be verified with `git log --format='%an <%ae>'`.
 <!-- MERIDIAN:END -->

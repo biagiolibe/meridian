@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -212,13 +213,75 @@ class GovernedReviewWorktreeContractTest(unittest.TestCase):
             / "templates/workflows/governed-sdd/docs/workflows/REVIEW.md"
         )
         text = review.read_text(encoding="utf-8")
-        begin = "<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v8 -->"
-        boundary = "<!-- MERIDIAN:BEGIN capability=review-mode-boundary v1 -->"
+        begin = re.search(r"<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v\d+ -->", text).group(0)
+        boundary = re.search(r"<!-- MERIDIAN:BEGIN capability=review-mode-boundary v\d+ -->", text).group(0)
         text = text.replace(begin, "TEMP-PREFLIGHT", 1)
         text = text.replace(boundary, begin, 1).replace("TEMP-PREFLIGHT", boundary, 1)
         review.write_text(text, encoding="utf-8")
         with self.assertRaises(SystemExit):
             cr.check_governed_review_worktree_contract(self.root)
+
+
+class GovernedLifecycleTextTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory()
+        self.root = Path(self.temporary.name)
+        shutil.copytree(ROOT / "templates", self.root / "templates")
+        shutil.copy(ROOT / "PROJECT_WORKFLOW.md", self.root / "PROJECT_WORKFLOW.md")
+        self.workflows = self.root / "templates/workflows"
+
+    def tearDown(self) -> None:
+        self.temporary.cleanup()
+
+    def append(self, relative: str, addition: str) -> None:
+        path = self.workflows / relative
+        path.write_text(path.read_text(encoding="utf-8") + addition, encoding="utf-8")
+
+    def test_shipped_templates_pass(self) -> None:
+        cr.check_governed_lifecycle_text(self.root)
+
+    def test_each_retired_or_placeholder_text_fails(self) -> None:
+        for phrase in cr.FORBIDDEN_TEMPLATE_TEXT:
+            with self.subTest(phrase=phrase):
+                self.append("lean-delivery/PROJECT_WORKFLOW.md", f"\n{phrase}\n")
+                with self.assertRaises(SystemExit):
+                    cr.check_governed_lifecycle_text(self.root)
+                shutil.copy(ROOT / "templates/workflows/lean-delivery/PROJECT_WORKFLOW.md", self.workflows / "lean-delivery/PROJECT_WORKFLOW.md")
+
+    def test_managed_block_that_edits_a_queue_row_fails_in_either_template(self) -> None:
+        for relative in ("governed-sdd/docs/workflows/REVIEW.md", "lean-delivery/PROJECT_WORKFLOW.md"):
+            with self.subTest(relative=relative):
+                path = self.workflows / relative
+                original = path.read_text(encoding="utf-8")
+                path.write_text(
+                    original.replace("<!-- MERIDIAN:END -->", "The reviewer updates its queue row.\n<!-- MERIDIAN:END -->", 1),
+                    encoding="utf-8",
+                )
+                with self.assertRaises(SystemExit):
+                    cr.check_governed_lifecycle_text(self.root)
+                path.write_text(original, encoding="utf-8")
+
+    def test_governed_block_naming_a_literal_location_fails_but_execution_assets_may(self) -> None:
+        path = self.workflows / "governed-sdd/docs/workflows/REMEDIATION.md"
+        original = path.read_text(encoding="utf-8")
+        path.write_text(original.replace("<!-- MERIDIAN:END -->", "Read tasks/reviews/X.md.\n<!-- MERIDIAN:END -->", 1), encoding="utf-8")
+        with self.assertRaises(SystemExit):
+            cr.check_governed_lifecycle_text(self.root)
+        path.write_text(original, encoding="utf-8")
+        execution_assets = (self.workflows / "governed-sdd/PROJECT_WORKFLOW.md").read_text(encoding="utf-8")
+        self.assertIn("tasks/handoffs/<TASK-ID>.md", execution_assets)
+        cr.check_governed_lifecycle_text(self.root)
+
+    def test_reviewer_identity_rule_in_a_second_place_fails(self) -> None:
+        self.append("governed-sdd/docs/PULL_REQUEST_POLICY.md", '\n```bash\ngit commit --author="x <x@x>" -m m\n```\n')
+        with self.assertRaises(SystemExit):
+            cr.check_governed_lifecycle_text(self.root)
+
+    def test_repository_copy_must_not_keep_the_smoke_line(self) -> None:
+        path = self.root / "PROJECT_WORKFLOW.md"
+        path.write_text(path.read_text(encoding="utf-8") + "\nProject integration smoke command: `none`.\n", encoding="utf-8")
+        with self.assertRaises(SystemExit):
+            cr.check_governed_lifecycle_text(self.root)
 
 
 class CheckMigrationsVersionGateTest(unittest.TestCase):
