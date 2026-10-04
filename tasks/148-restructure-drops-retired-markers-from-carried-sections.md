@@ -55,6 +55,9 @@ Make a restructure remove retired marker blocks from the sections it carries.
   `FAIL marker-integrity` for `manual-verification-review-check` v1 and
   `task-worktree-review` v4 and `UNVERIFIED` for `ci-verified-validation` v1, all
   in the carried checklist section; removing the three blocks gave a clean audit.
+- Reproduced the same day in Fusa (upgrade from 1.2.4): the carried section was
+  `## Meridian generic baseline (framework compatibility)`, a quoting workaround
+  for the old inline markers, and held the same three retired blocks.
 - Reuse the retired-marker list the migration already declares; do not add a
   second list.
 
