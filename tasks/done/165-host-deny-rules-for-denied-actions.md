@@ -4,7 +4,7 @@
 > **Category**: Feature
 > **Priority**: 🟡 P2
 > **Estimate**: ~2h
-> **Assigned to**: unassigned
+> **Assigned to**: Claude
 > **Session**: ADR stops and denials, 2026-10-05
 
 ## Objective
@@ -18,7 +18,7 @@ the host supports them.
 
 ## Acceptance Criteria
 
-- [ ] `plan_claude_project_allowlist` and `apply_claude_project_allowlist`
+- [x] `plan_claude_project_allowlist` and `apply_claude_project_allowlist`
   also plan and add `permissions.deny` entries in
   `.claude/settings.local.json` for at least these prefixes:
   - `git push --force`, `git push -f`, `git push --force-with-lease`,
@@ -27,23 +27,23 @@ the host supports them.
   - `git rebase`, `git reset --hard`, `git cherry-pick`;
   - `git branch -D`;
   - `git worktree remove --force`.
-- [ ] Existing user entries are kept. The plan reports which deny entries it
+- [x] Existing user entries are kept. The plan reports which deny entries it
   would add, and `--apply` stays required to write.
-- [ ] No deny entry blocks a command that the lifecycle needs, including plain
+- [x] No deny entry blocks a command that the lifecycle needs, including plain
   `git push origin main`, `git push origin <task-branch>`, and `git branch -d`.
   A test proves it against the allowlist.
-- [ ] The README and the setup output state that prefix rules are defense in
+- [x] The README and the setup output state that prefix rules are defense in
   depth, that a reworded command can evade them, and that the managed denial text
   remains in force.
-- [ ] Codex support is investigated in the installed Codex CLI documentation
+- [x] Codex support is investigated in the installed Codex CLI documentation
   or rules format. The handoff records whether an equivalent forbidden rule
   exists. If it does, a follow-up task is proposed; Codex config is not changed
   in this task.
-- [ ] Tests cover adding deny entries, keeping user entries, idempotent
+- [x] Tests cover adding deny entries, keeping user entries, idempotent
   re-apply, and the lifecycle commands still being allowed.
-- [ ] One changelog fragment is added per `CONTRIBUTING.md`; this is a CLI-only
+- [x] One changelog fragment is added per `CONTRIBUTING.md`; this is a CLI-only
   change.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
+- [x] `python3 scripts/check_repository.py` and the unit tests pass.
 
 ## Relevant Files
 

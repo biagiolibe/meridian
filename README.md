@@ -397,6 +397,13 @@ by default, or `--project <path>`). It never writes that allowlist during
 `setup --check`; `codex doctor` reports whether the project still needs it.
 Its execution entries run whatever a task's `## Validation` declares, so review
 declared commands in the task file rather than at the permission prompt.
+The same apply adds `permissions.deny` prefix rules for the actions `Proceed
+with` never authorizes: force and mirror pushes, remote ref deletion, `git tag`,
+`git rebase`, `git reset --hard`, `git cherry-pick`, `git branch -D`, and
+`git worktree remove --force`. Your own entries are kept, and plain pushes of
+`main` and the task branch and `git branch -d` stay unblocked. These rules are
+defense in depth: a reworded command can evade a prefix rule, and the managed
+denial text remains in force. `setup` prints the same note.
 For a new project, run `meridian init` (or `/meridian-init`) and lifecycle
 commands resolve this root automatically. For an existing project, use
 `meridian upgrade --check` and the consented `--apply` to receive current
