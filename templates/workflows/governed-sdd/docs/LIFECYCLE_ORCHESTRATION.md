@@ -1,6 +1,6 @@
 # Autonomous Task Lifecycle Orchestration
 
-<!-- MERIDIAN:BEGIN capability=lifecycle-orchestration v7 -->
+<!-- MERIDIAN:BEGIN capability=lifecycle-orchestration v8 -->
 `Run lifecycle <TASK-ID>` authorizes an orchestrator to carry one dependency-ready
 task through implementation, independent review, requested-change remediation,
 acceptance, and `main` integration without further developer prompts. It does
@@ -22,7 +22,7 @@ Run lifecycle <TASK-ID>
        -> BLOCKED: stop and report the exact condition
 ```
 
-The task file, queue row, Git commits, completion report, and the declared
+The task record, Git commits, completion report, and the declared
 review record (see `PROJECT_WORKFLOW.md`'s canonical locations) are the only
 handoff interface. Worker messages
 must be concise and structured as: verdict or state, task ID, commit SHA,
@@ -53,7 +53,7 @@ implementer all verify. If launched from the primary checkout, it roots every
 review read and command in the verified task worktree and never switches the
 primary checkout.
 
-Continue automatically only while the current task and queue state permit the
+Continue automatically only while the current task record state permits the
 next transition. Stop with `BLOCKED` when validation fails, authority is
 ambiguous, the task branch or required local handoff commit is unavailable,
 the worktree becomes dirty with unrelated changes, its registered branch/path
@@ -68,7 +68,9 @@ restart the lifecycle after resolving the underlying scope or authority issue.
 
 ## Integration and forge gates
 
-The `Run lifecycle` authorization includes the local review-and-status commit,
+The `Run lifecycle` authorization includes each attempt's task-branch push when
+`T1_CI` needs it (at most once per attempt, by the implementer only, and none
+without CI), the local review-and-status commit,
 `meridian worktree integrate stage`, separately executed candidate validation,
 `integrate finalize` or `integrate abort`, and the single `main` push only after
 `APPROVE` and all repository checks pass. The validated task commit must be an ancestor of task
@@ -91,7 +93,7 @@ approved it.
 
 ## Token discipline
 
-The orchestrator reads only task status, the latest commit, and the latest
+The orchestrator reads only the task record's status, the latest commit, and the latest
 review-record attempt. Workers use task-first context loading. Do not recreate
 prior chat context, repeat successful validation without a changed relevant
 surface, or add a summarization agent between workers.
@@ -103,7 +105,7 @@ gate, `BOUNDED` adds affected-module tests, and `FULL` adds the declared full su
 undeclared project stops before staging, lease, or merge; `none` deliberately retains a
 non-empty command-list gate.
 
-<!-- MERIDIAN:BEGIN capability=rejected-attempt-restart v3 -->
+<!-- MERIDIAN:BEGIN capability=rejected-attempt-restart v4 -->
 ## Rejected-attempt restart after authority change
 
 Use this procedure only when a `CHANGES_REQUESTED` finding explicitly cannot be
@@ -119,7 +121,7 @@ In one atomic ref transaction, retain `archive/rejected/<normalized-task-id>-<at
 at the rejected tip and create `retry/<normalized-task-id>-<attempt>` from accepted
 `main`. Retain the archive and original branch with the review record, handoff, and
 validation evidence. The retry's restart-handoff commit contains only that governance
-evidence, applicable task/queue `IN_PROGRESS` state, the archive ref/tip, accepted
+evidence, the task record's `IN_PROGRESS` state, the archive ref/tip, accepted
 design commit, and an explicit statement that no rejected implementation artifact was
 copied. Implement and validate afresh: never reset, rebase, amend, force-push,
 cherry-pick, merge, or copy rejected implementation commits or artifacts. Independently

@@ -111,7 +111,7 @@
 - `[x]` 142 — Recognize spike rows at stage and require `git diff --check` at finalize.
 - `[x]` 143 — Make the read-guard and queue-briefing hooks independent of queue status.
 - `[x]` 144 — Add `.meridian/project.json` as the project declaration surface.
-- `[ ]` 145 — Align Governed lifecycle capability text with the closure design and the CLI.
+- `[x]` 145 — Align Governed lifecycle capability text with the closure design and the CLI.
 - `[ ]` 146 — Restructure inline markers, audit managed copies, and add consumer profiles.
 - `[x]` 147 — Isolate setup CLI tests from the developer's real home directory.
 - `[x]` 140 — Let `integrate stage` complete rows of project-shaped Governed queues.

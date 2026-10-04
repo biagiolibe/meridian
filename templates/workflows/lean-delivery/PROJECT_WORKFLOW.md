@@ -101,7 +101,7 @@ fully closed phase is archived only after all of its task branches have been
 integrated. A conflict in a shared governance file is an integration conflict:
 abort and return `BLOCKED` without choosing or recreating either task's state.
 
-<!-- MERIDIAN:BEGIN capability=git-workflow v8 -->
+<!-- MERIDIAN:BEGIN capability=git-workflow v9 -->
 ## Authority of `Proceed with`
 
 `Proceed with <TASK-ID>` authorizes that task's whole lifecycle when every gate
@@ -112,8 +112,11 @@ main` of the resulting integration; and `meridian worktree cleanup`. Do not ask
 for confirmation at any of these steps. When a gate fails, stop once with
 `BLOCKED <reason>` and the resume command.
 
-It also authorizes one plain `git push origin task-<TASK-ID>` when needed to
-obtain `T1_CI` validation for that task commit. It never authorizes creating,
+It also authorizes one plain `git push origin <task-branch>`, where
+`<task-branch>` is the `branch` value returned by `meridian worktree prepare`,
+only when needed to obtain `T1_CI` validation for that task commit: at most once
+per review attempt, never by a reviewer, and not at all when the project has no
+CI. It never authorizes creating,
 moving, or pushing a tag; publishing a release; a force push or a push that
 deletes or mirrors references; rewriting history (amend of pushed commits,
 rebase, reset, cherry-pick); deleting an unmerged branch or force-removing a
@@ -171,8 +174,6 @@ candidate validation defined in `docs/WORKTREE_LIFECYCLE.md` separately in the
 ordinary sandbox, bind its JSON evidence to that tree, then use `integrate
 finalize`; use `integrate abort` after a failed gate. Lifecycle commands never
 execute validation or project code.
-
-Project integration smoke command: `none`.
 
 After any required `main` push, use `meridian worktree cleanup`; exceptional,
 forced, abandoned-state, or stale-lease cleanup remains outside this surface.

@@ -57,6 +57,6 @@ are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 | `[x]` | 142 | Recognize spike rows at stage and require `git diff --check` at finalize | 🔴 P1 | — | [142](done/142-stage-spike-rows-and-diff-check.md) |
 | `[x]` | 143 | Make the read-guard and queue-briefing hooks independent of queue status | 🔴 P1 | — | [143](done/143-hooks-derive-task-state-from-worktree.md) |
 | `[x]` | 144 | Add `.meridian/project.json` as the project declaration surface | 🟡 P2 | — | [144](done/144-project-declaration-file.md) |
-| `[ ]` | 145 | Align Governed lifecycle capability text with the closure design and the CLI | 🔴 P1 | 142, 143, 144 | [145](145-governed-lifecycle-text-alignment.md) |
+| `[x]` | 145 | Align Governed lifecycle capability text with the closure design and the CLI | 🔴 P1 | 142, 143, 144 | [145](done/145-governed-lifecycle-text-alignment.md) |
 | `[ ]` | 146 | Restructure inline markers, audit managed copies, and add consumer profiles | 🟡 P2 | 145 | [146](146-marker-structure-audit-and-consumer-profiles.md) |
 | `[x]` | 147 | Isolate setup CLI tests from the developer's real home directory | 🔴 P1 | — | [147](done/147-isolate-setup-tests-from-real-home.md) |

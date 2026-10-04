@@ -2,9 +2,8 @@
 
 Task context loading, reasoning selection, task shape, and completion handoffs are governed by `docs/CONTEXT_BUDGET_POLICY.md`, `tasks/TASK_BLUEPRINT.md`, and `docs/COMPLETION_REPORT_TEMPLATE.md`; this document defines review and forge integration only.
 
-<!-- MERIDIAN:BEGIN capability=task-worktree-integration v3 -->
-For `Review: REQUIRED`, the implementer pushes the task branch once after
-validation for each review attempt and records its deterministic branch,
+<!-- MERIDIAN:BEGIN capability=task-worktree-integration v4 -->
+For `Review: REQUIRED`, the implementer pushes the task branch only to obtain `T1_CI` for that commit, at most once per review attempt, and not at all when the project has no CI, and records its deterministic branch,
 machine-independent dedicated-worktree value (relative to the worktree root, never an absolute path), implementation commit, validated task and
 base `main` commits, exact successful validation evidence, declared integration
 surface, full-validation requirement, and current task commit in the completion handoff. The reviewer-integrator
@@ -13,18 +12,19 @@ verifies the registered mapping and cleanliness, never switches the primary
 checkout to the task branch, and never pushes the task branch.
 
 On `CHANGES_REQUESTED`, the reviewer creates or appends
-`tasks/reviews/<TASK-ID>.md` following `docs/REVIEW_RECORD_TEMPLATE.md`, then
-updates only the task and queue status to `IN_PROGRESS`. Commit exactly those
+the review record following `docs/REVIEW_RECORD_TEMPLATE.md`, then
+updates only the task record's status to `IN_PROGRESS`. Commit exactly those
 review-handoff artifacts locally; do not push them. The implementer uses that
-record to resolve every unchecked finding, returns both statuses to
-`READY_FOR_REVIEW`, and makes the next permitted task-branch push. This
+record to resolve every unchecked finding, returns the task record to
+`READY_FOR_REVIEW`, and makes the next permitted task-branch push (`Address
+review` authorizes it, under the same `T1_CI`-only rule). This
 preserves the evidence across chats without granting the reviewer authority to
 repair implementation artifacts.
 
 Before accepting, verify that the validated base is an ancestor of the
 validated task commit, that the validated commit is an ancestor of current
 task HEAD, and that the intervening diff contains only permitted
-task/queue/review/handoff lifecycle records:
+task-record, review-record, and handoff lifecycle records:
 
 ```bash
 git merge-base --is-ancestor <validated-base-main> <validated-task-commit>
@@ -37,7 +37,7 @@ failed ancestry check, or any task-relevant change after validation is
 `BLOCKED`; do not mark the task `ACCEPTED`. Do not fetch,
 rebase, amend, cherry-pick, or force-push as recovery. After `APPROVE`, append
 the verdict and evidence to the review record and create only the local
-review-and-status `ACCEPTED` commit.
+review-and-status commit that records `ACCEPTED` in the task record.
 
 Final integration is serialized in the primary checkout under one exclusive
 integration lease, acquired by atomically creating
@@ -58,23 +58,23 @@ gate. An explicit task requirement also selects full validation.
 
 Run `git merge --no-ff --no-commit <task-branch>`. Reject a conflict with `git
 merge --abort`; never resolve it by choosing one task's governance state.
-Every candidate runs `git diff --check` plus the smoke command declared in
-`PROJECT_WORKFLOW.md` when it is not `none`. Explicitly configured `none`
-means no smoke command and never expands to the complete baseline. Run the
-complete baseline only for a selected full-validation case or broader
+Every candidate runs `git diff --check` plus the gate declared in
+`.meridian/candidate-validation.json`, the only candidate-validation
+declaration. Run the complete baseline only for a selected full-validation case or broader
 diagnosis after bounded-gate failure. Abort on any gate failure, record the
 decision, comparison, commands, and results, and only then create the merge
 commit and push `main` exactly once. Remove the linked
 worktree and then the local branch only after success. Release the lease after
 success or a clean abort.
 
-For `Review: NOT_REQUIRED`, the implementer performs the same `ACCEPTED` status
-commit and integration transaction after validation. Owner acceptance remains
-an explicit exception: it updates only statuses and does not automatically
-integrate the branch.
+For `Review: NOT_REQUIRED`, the implementer records the same `ACCEPTED` status
+in the task record and runs the integration transaction after validation.
+`Accept <TASK-ID>` appends an owner `APPROVE` attempt to the review record, sets
+the task record to `ACCEPTED`, and continues at C6 under the `Proceed with`
+authority; a manual merge is never permitted.
 
 Task reservation, completion, review, and archive mutations stay on the task
-branch. Concurrent tasks change only their own task row and records. They do
+branch. Concurrent tasks change only their own task records. They do
 not reorder shared governance files, change shared timestamps, or archive a
 phase; phase archival waits until all rows are integrated. Any shared-file
 conflict blocks integration with both branches intact.
@@ -114,13 +114,3 @@ A remote task branch may intentionally lack a local review-and-status `ACCEPTED`
 Remote task-branch deletion is optional and non-blocking. After successful `main` integration, an agent may attempt `git push origin --delete <task-branch>` without force. If the remote deletion fails or the branch is already absent, report a warning only. Never block accepted integration, fetch/rebase, or force-delete solely to clean up a remote task branch.
 
 If the forge requires an approving review, a distinct authorized reviewer identity is required. The PR author cannot satisfy that gate.
-
-## Reviewer-integrator identity on a single-operator project
-
-Review must run in a fresh agent session that did not write the code and must re-derive evidence from the actual diff and cited sources. For the `ACCEPTED` commit only, use the project-scoped reviewer-specific author override, while retaining the operator's normal committer identity:
-
-```bash
-git commit --author="<PROJECT_NAME> Reviewer-Integrator <reviewer-integrator@<project-slug>.local>" -m "docs: reviewer-integrator pass <TASK-ID>; independently re-verified diff, cited sources, acceptance evidence, and validation"
-```
-
-Do not change global or repository Git config. Verify the override with `git log --format='%an <%ae>'`.
