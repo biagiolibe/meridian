@@ -5958,6 +5958,43 @@ class TaskIdentityResolverTest(unittest.TestCase):
         self.assertFalse((consumer / meridian.TASK_IDENTITY_PATH).exists())
 
 
+class ProjectDeclarationTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory()
+        self.project = Path(self.temporary.name) / "project"
+        self.project.mkdir()
+
+    def tearDown(self) -> None:
+        self.temporary.cleanup()
+
+    def write(self, declaration: object) -> None:
+        path = self.project / ".meridian/project.json"
+        path.parent.mkdir(exist_ok=True)
+        path.write_text(json.dumps(declaration), encoding="utf-8")
+
+    def test_defaults_partial_full_and_invalid_declarations(self) -> None:
+        defaults = meridian.resolve_project_locations(self.project)
+        self.assertEqual(defaults.queue, Path("tasks/QUEUE.md"))
+        self.write({"version": 1, "locations": {"queue": "docs/QUEUE.md"}})
+        self.assertEqual(meridian.resolve_project_locations(self.project).queue, Path("docs/QUEUE.md"))
+        self.write({"version": 1, "locations": {"queue": "docs/QUEUE.md", "taskRoots": ["work/tasks"], "reviewRoot": "reviews", "handoffRoot": "handoffs", "adrLog": "docs/ADR.md", "plan": "docs/PLAN.md"}})
+        locations = meridian.resolve_project_locations(self.project)
+        self.assertEqual((locations.queue, locations.task_roots, locations.plan), (Path("docs/QUEUE.md"), (Path("work/tasks"),), Path("docs/PLAN.md")))
+        for declaration in ({"version": 2}, {"version": 1, "unknown": True}, {"version": 1, "locations": {"queue": "/tmp/QUEUE.md"}}, {"version": 1, "locations": {"queue": "../QUEUE.md"}}):
+            self.write(declaration)
+            with self.subTest(declaration=declaration), self.assertRaises(meridian.MeridianError):
+                meridian.read_project_declaration(self.project)
+
+    def test_declaration_overrides_legacy_and_cli_fields(self) -> None:
+        (self.project / "PROJECT_WORKFLOW.md").write_text("<!-- MERIDIAN:BEGIN capability=execution-assets v2 -->\n<!-- MERIDIAN:END -->\nTask files live at `legacy/tasks/<TASK-ID>.md`; queue is `legacy/QUEUE.md`.\n", encoding="utf-8")
+        self.write({"version": 1, "project": {"name": "Example", "slug": "example"}, "locations": {"queue": "docs/QUEUE.md"}})
+        result = subprocess.run([sys.executable, str(CLI), "locations", "--field", "queue", "--project", str(self.project)], text=True, capture_output=True, check=False)
+        self.assertEqual((result.returncode, result.stdout.strip(), result.stderr), (0, "docs/QUEUE.md", ""))
+        author = subprocess.run([sys.executable, str(CLI), "project", "show", "--field", "reviewer-author", "--project", str(self.project)], text=True, capture_output=True, check=False)
+        self.assertEqual(author.stdout.strip(), "Example Reviewer-Integrator <reviewer-integrator@example.local>")
+        self.assertEqual(meridian.resolve_project_locations(self.project).queue.with_name("QUEUE_ARCHIVE.md"), Path("docs/QUEUE_ARCHIVE.md"))
+
+
 class CapabilityVersionDetectionTest(unittest.TestCase):
     """Phase 2 of migrations/CAPABILITY_MARKERS.md: version-aware detection.
 
