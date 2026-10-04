@@ -2,8 +2,10 @@
 
 Use this procedure only for `Review <TASK-ID>` after the entry-point router has applied its always-loaded invariants.
 
-<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v9 -->
+<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v10 -->
 ## Mandatory task-worktree preflight
+
+After `APPROVE`, `Review <TASK-ID>` has the `Proceed with` authority for C6 through C10, including the single plain `git push origin main` and cleanup, with the same prohibitions.
 
 This is the first review action. Before reading the assigned task,
 implementation files, or any implementation diff:

@@ -2670,7 +2670,7 @@ def plan_setup(
 ) -> SetupPlan:
     home = (home or Path.home()).expanduser().resolve()
     framework_root = (framework_root or Path(__file__).resolve().parents[1]).expanduser().resolve()
-    project_root = (project_root or Path.cwd()).expanduser().resolve()
+    project_root = primary_project_root((project_root or Path.cwd()).expanduser().resolve())
     environment = environment or os.environ
     if task_identity not in (None, "opaque", "milestone"):
         raise MeridianError(f"unsupported task identity mode: {task_identity!r}")
@@ -2731,13 +2731,22 @@ def plan_setup(
     project_declaration_proposal: dict[str, object] | None = None
     try:
         if project_declaration_path.exists():
-            read_project_declaration(project_root)
-            project_declaration_state = "present"
+            declaration = read_project_declaration(project_root)
+            assert declaration is not None
+            if "project" in declaration:
+                project_declaration_state = "present"
+            else:
+                project_declaration_state = "advisory-incomplete"
+                project_declaration_proposal = {
+                    **declaration,
+                    "project": proposed_project_identity(project_root),
+                }
         else:
             locations = resolve_project_locations(project_root)
             project_declaration_state = "advisory-missing"
             project_declaration_proposal = {
                 "version": 1,
+                "project": proposed_project_identity(project_root),
                 "locations": {
                     "queue": str(locations.queue), "taskRoots": [str(root) for root in locations.task_roots],
                     "reviewRoot": str(locations.review_root), "handoffRoot": str(locations.handoff_root),
@@ -2959,7 +2968,9 @@ def apply_setup(plan: SetupPlan) -> bool:
         changed = True
     if plan.project_declaration_proposal is not None:
         if plan.project_declaration_path.exists():
-            raise MeridianError("project declaration appeared since it was planned; rerun --check")
+            existing = read_project_declaration(plan.project_declaration_path.parent)
+            if existing is None or "project" in existing:
+                raise MeridianError("project declaration appeared or changed since it was planned; rerun --check")
         _write_json_atomic(plan.project_declaration_path, plan.project_declaration_proposal)
         changed = True
     if plan.task_identity_proposal is not None:
@@ -5934,6 +5945,17 @@ def run_audit(
             ))
     except MeridianError as error:
         results.append(AuditResult("FAIL", "candidate-validation-commands", str(error)))
+    try:
+        declaration = read_project_declaration(project_root)
+        if declaration is not None and "project" not in declaration:
+            results.append(AuditResult("ADVISORY", "project-declaration", "advisory-incomplete; missing project identity"))
+    except MeridianError as error:
+        results.append(AuditResult("FAIL", "project-declaration", str(error)))
+    try:
+        if tracked_budget_state(project_root):
+            results.append(AuditResult("ADVISORY", "budget-state", "tracked legacy .meridian/budget.json; the next budget write migrates it"))
+    except MeridianError as error:
+        results.append(AuditResult("FAIL", "budget-state", str(error)))
 
     results.sort(key=lambda result: (result.identity, result.detail))
     for result in results:
@@ -7466,6 +7488,7 @@ def finalize_adoption(
 
 
 BUDGET_PATH = Path(".meridian/budget.json")
+BUDGET_STATE_NAME = "meridian-budget.json"
 BUDGET_KINDS = ("diagnostic", "captures", "expansions", "investigations")
 EVIDENCE_EVENT_KINDS = ("diagnostic", "captures", "expansions")
 BUDGET_DEFAULT_CAPS = {"diagnostic": 3, "captures": 2, "expansions": 2, "investigations": 2}
@@ -7477,8 +7500,61 @@ BUDGET_FIELD_NAMES = {
 }
 
 
+def primary_project_root(project_root: Path) -> Path:
+    """Use the canonical checkout when Git knows this project has worktrees.
+
+    Lightweight fixtures and pre-Git setup still use their supplied directory.
+    """
+    try:
+        return canonical_project_root(project_root)
+    except MeridianError:
+        return project_root.expanduser().resolve()
+
+
+def proposed_project_identity(project_root: Path) -> dict[str, str]:
+    """Derive a stable setup proposal even before a directory is a Git repository."""
+    try:
+        slug = repository_identity(project_root).repository
+    except MeridianError:
+        slug = project_root.resolve().name.lower()
+    return {"name": slug.replace("-", " ").title(), "slug": slug}
+
+
+def budget_state_path(project_root: Path) -> Path:
+    """Keep mutable budget state beside the shared Git metadata, never tracked files."""
+    primary = primary_project_root(project_root)
+    try:
+        return canonical_git_common_dir(primary) / BUDGET_STATE_NAME
+    except MeridianError:
+        return primary / BUDGET_PATH
+
+
+def tracked_budget_state(project_root: Path) -> bool:
+    primary = primary_project_root(project_root)
+    return _run_git(primary, "ls-files", "--error-unmatch", "--", str(BUDGET_PATH)).returncode == 0
+
+
+def migrate_budget_state(project_root: Path) -> None:
+    """Move the legacy project file once and remove it from the Git index."""
+    primary = primary_project_root(project_root)
+    legacy = primary / BUDGET_PATH
+    destination = budget_state_path(primary)
+    if destination == legacy or not legacy.is_file():
+        return
+    if not destination.exists():
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        legacy.replace(destination)
+    else:
+        legacy.unlink()
+    if tracked_budget_state(primary):
+        result = _run_git(primary, "rm", "--cached", "--ignore-unmatch", "--", str(BUDGET_PATH))
+        if result.returncode != 0:
+            raise MeridianError(result.stderr.strip() or "could not remove legacy budget state from Git")
+
+
 def load_budget_state(project_root: Path) -> dict[str, object]:
-    path = project_root / BUDGET_PATH
+    migrate_budget_state(project_root)
+    path = budget_state_path(project_root)
     if not path.is_file():
         return {}
     try:
@@ -7488,7 +7564,8 @@ def load_budget_state(project_root: Path) -> dict[str, object]:
 
 
 def write_budget_state(project_root: Path, state: dict[str, object]) -> None:
-    path = project_root / BUDGET_PATH
+    migrate_budget_state(project_root)
+    path = budget_state_path(project_root)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
@@ -7620,7 +7697,7 @@ def parse_project_declaration(declaration: object) -> dict[str, object]:
 
 
 def read_project_declaration(project_root: Path) -> dict[str, object] | None:
-    path = project_root / PROJECT_DECLARATION_PATH
+    path = primary_project_root(project_root) / PROJECT_DECLARATION_PATH
     if not path.exists():
         return None
     if not path.is_file():
@@ -7637,6 +7714,7 @@ def resolve_project_locations(project_root: Path) -> ProjectLocations:
     The same resolver backs the CLI and the hook, avoiding separate default
     paths for a project's queue and its nested task records.
     """
+    project_root = primary_project_root(project_root)
     declaration = read_project_declaration(project_root)
     workflow = project_root / "PROJECT_WORKFLOW.md"
     zone = ""
