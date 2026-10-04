@@ -9,8 +9,7 @@ remain mandatory.
 The diagnostic-attempt, evidence-capture, context-expansion, and investigation
 budgets below are caps, not targets: reaching one requires `BLOCKED`, never a
 silently raised cap. Raising a default above its stated value requires a
-recorded rationale, in the same shape the task blueprint's `Reasoning
-justification` field already uses.
+recorded rationale in the task.
 
 ## Context reuse
 
@@ -133,7 +132,4 @@ Long commands and suite runs:
 
 ## Runtime configuration
 
-- Lowest reliable reasoning cap by task class: `[policy]`.
-- How the task cap is checked against the chat's effective setting and how a
-  mismatch is relaunched: `[procedure]`.
 - Faster-execution-mode availability and constraints: `[policy]`.

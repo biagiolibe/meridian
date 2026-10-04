@@ -112,7 +112,7 @@ property belongs to; only tier 3 justifies it.
 If the property is readable as a value anywhere in the program, assert it instead of capturing it.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=execution-evidence-profile v3 -->
+<!-- MERIDIAN:BEGIN capability=execution-evidence-profile v4 -->
 ## Execution evidence discipline
 
 Apply the project-specific `docs/EXECUTION_EVIDENCE_PROFILE.md` before an
@@ -154,9 +154,8 @@ first implementation after an upgrade that adds it.
   unless a credibility or coverage gap requires a rerun. Independent source and
   diff review remain mandatory.
 
-Choose the lowest reliable configured reasoning level. If the active agent
-interface offers a faster execution mode, it may be used only when it does not
-override the task's declared reasoning requirement or reduce required evidence.
+If the active agent interface offers a faster execution mode, it may be used
+only when it does not reduce required evidence.
 <!-- MERIDIAN:END -->
 
 <!-- MERIDIAN:BEGIN capability=phase-reads v1 -->
@@ -170,35 +169,13 @@ no rule here is waived by reading a document later.
 - At first validation, only for an implementation, remediation, or review: `docs/EXECUTION_EVIDENCE_PROFILE.md`.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=reasoning-budget-contract v1 -->
-## Reasoning budget contract
-
-Select the lowest reliable reasoning effort while designing the task, then
-record it in the task's `Reasoning` field as the exact permitted runtime cap.
-It is not a minimum: a worker must not silently use a higher configured
-effort, and it must not raise its own effort because a task appears difficult.
-
-Before implementation, remediation, or independent review, confirm the
-worker's configured reasoning effort equals the task value. If it differs, or
-cannot be confirmed, stop before substantive work and start a fresh session at
-the declared value. Reducing or increasing the cap requires a material task
-revision with its rationale; `high` requires a written complexity rationale,
-and `xhigh` additionally requires the developer's explicit authorization.
-
-This contract governs worker sessions. A lifecycle orchestrator uses the
-lowest available effort because it only reads durable state and delegates no
-substantive work.
-<!-- MERIDIAN:END -->
-
 ## Lifecycle orchestration
 
 For `Run lifecycle <TASK-ID>`, the orchestrator reads only the task and queue
 status, the latest implementation commit, the latest review-record attempt,
 and worker result fields. It delegates implementation and review to distinct
-sessions and never copies their conversational context. Use the task's
-reasoning profile for workers and the lowest supported profile for the
-orchestrator. Do not add a separate summarization step or rerun an unchanged
-successful validation.
+sessions and never copies their conversational context. Do not add a separate
+summarization step or rerun an unchanged successful validation.
 
 ## Planning and communication
 
@@ -206,18 +183,6 @@ successful validation.
 - Report only state changes, material findings, validation results, or blockers.
 - Keep routine completion and review reports concise; include detail only for deviations or unresolved risk.
 - Do not use parallel agents or repeated inspections when they add no independent evidence.
-
-## Reasoning profile
-
-Use the lowest profile that can reliably satisfy the task:
-
-| Work | Default profile | Escalate when |
-|---|---|---|
-| Implementation, review, task decomposition, and routine SDD work | `medium` | Evidence is insufficient or the task is materially ambiguous |
-| Design or complex architecture | `high` | Cross-layer trade-offs or unresolved authority interactions require it |
-| Exceptional high-complexity work | `xhigh` | Only with explicit justification and only if active tooling/configuration supports it |
-
-Never hardcode an unsupported model, reasoning level, or tool option. If escalation is unavailable, keep the task scoped and report the limitation rather than widening the task.
 
 ## Context-size policy v1
 
