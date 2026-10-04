@@ -122,7 +122,7 @@
 - `[x]` 153 — Install the completion template here and keep validation commands unchained.
 - `[x]` 154 — Retarget migration 062 to 1.2.8 and reject same-version migrations.
 - `[x]` 155 — Align capability-profile surfaces at upgrade and keep `upgrade --check` from blocking on them.
-- `[ ]` 156 — Stop `release.py` passing `--repo` to `gh api`.
+- `[x]` 156 — Stop `release.py` passing `--repo` to `gh api`.
 - `[x]` 157 — Stop `handoff-check` requiring one hard-coded Meridian test as the only valid skip.
 - `[ ]` 158 — Migrate legacy budget state only at upgrade, never from a read.
 - `[ ]` 159 — Retire the reasoning budget contract.
