@@ -62,3 +62,18 @@ are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 | `[x]` | 159 | Retire the reasoning budget contract | 🔴 P1 | — | [159](done/159-retire-reasoning-budget-contract.md) |
 | `[x]` | 160 | Give the Claude Code allowlist parity with the Codex execution-command rules | 🟡 P2 | — | [160](done/160-claude-allowlist-execution-commands.md) |
 | `[ ]` | 161 | State that a local `main` ahead of `origin/main` does not block integration | 🟡 P2 | — | [161](161-state-main-ahead-of-origin-is-allowed.md) |
+
+### Phase 54 — Stops and denials
+
+Authority: [docs/ADR_STOPS_AND_DENIALS.md](../docs/ADR_STOPS_AND_DENIALS.md) (Proposed; accept it before starting these tasks). 162–165 ship in the unreleased 1.2.9 with 161; 166–169 follow in the next release.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 162 | Add the stop-code registry and emit closure stops through it | 🟡 P2 | — | [162](162-stop-code-registry-and-closure-codes.md) |
+| `[ ]` | 163 | Check that managed text and tests agree with the stop-code registry | 🟡 P2 | 162 | [163](163-check-stop-codes-against-registry.md) |
+| `[ ]` | 164 | State the stop and denial rules in the managed workflow text | 🟡 P2 | 161, 163 | [164](164-state-stop-and-denial-rules-in-managed-text.md) |
+| `[ ]` | 165 | Install the deny list as host permission rules | 🟡 P2 | — | [165](165-host-deny-rules-for-denied-actions.md) |
+| `[ ]` | 166 | Give codes and actionable messages to the execution and handoff gates | 🟡 P2 | 162 | [166](166-coded-actionable-execution-and-handoff-gates.md) |
+| `[ ]` | 167 | Make the execution preflight satisfiable during remediation | 🔴 P1 | 166 | [167](167-satisfiable-execution-preflight-during-remediation.md) |
+| `[ ]` | 168 | Report queue sections that archival cannot read | 🟡 P2 | 162 | [168](168-report-unarchivable-queue-sections.md) |
+| `[ ]` | 169 | Code the remaining gates and require every stop to carry a code | 🟡 P2 | 163, 166 | [169](169-code-remaining-gates-and-require-coded-stops.md) |

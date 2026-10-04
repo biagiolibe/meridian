@@ -133,9 +133,10 @@ not been verified and is part of the follow-up work.
 ## Consequences
 
 - Managed text becomes shorter. The lists of stop codes in prose are replaced by
-  the registry and by the rule in Decision 2. Task 161's change to the managed
-  text is absorbed by this ADR's first release. 161 keeps its message
-  correction and its ahead-of-origin test.
+  the registry and by the rule in Decision 2. Task 161 lands first with its
+  clarified closure sentence, message correction, and ahead-of-origin test;
+  task 164 then rewrites the same managed block within the same unreleased
+  version.
 - Every existing gate is audited once against the gate contract. Gates that are
   not satisfiable, such as the one in issue #6, are fixed or removed. That audit
   is the main cost of adoption.
@@ -174,18 +175,22 @@ not been verified and is part of the follow-up work.
 ## Rollout Plan
 
 1. Accept this ADR.
-2. First release, which changes templates. Bundle it with tasks 159 and 161 so
-   that one version bump and one coordinated migration sequence cover all
-   three:
-   - the registry and the emission helper;
-   - codes for the closure stops and for `UNDECLARED_VALIDATION_COMMANDS`;
-   - the Decision 1 and Decision 4 text in the managed `git-workflow` block of
-     both workflows, under one marker version bump;
-   - the checks in `check_repository.py`;
-   - host deny rules for Claude Code.
+2. First release, 1.2.9. Task 159 has already moved `VERSION` to the unreleased
+   1.2.9 and shipped migration 063 for it, so this step adds no further
+   version bump. It ships with task 161:
+   - task 162: the registry and the emission helper, with codes for the
+     closure stops and for `UNDECLARED_VALIDATION_COMMANDS`;
+   - task 163: the registry checks in `check_repository.py`;
+   - task 164: the Decision 1 and Decision 4 text in the managed
+     `git-workflow` block of both workflows. It lands after 161. If 161 has
+     already bumped the `git-workflow` marker in an unreleased 1.2.9
+     migration, 164 extends that migration and marker version instead of
+     adding a second bump;
+   - task 165: host deny rules for Claude Code, and a recorded finding on
+     Codex support.
 3. Second release: give codes to the execution, handoff, validation,
    investigation, and budget gates, and audit them against the gate contract.
-   Fix issues #5, #6, and #2 under Decision 2.
+   Fix issues #5, #6, and #2 under Decision 2 (tasks 166–169).
 4. Follow-up designs listed under Consequences, each through its own task.
 
 ## Out of Scope
