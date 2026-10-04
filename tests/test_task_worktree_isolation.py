@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import meridian  # noqa: E402
+import project_console  # noqa: E402
 
 
 class TaskWorktreeIsolationTest(unittest.TestCase):
@@ -376,6 +377,128 @@ class BoundedWorktreeLifecycleTest(unittest.TestCase):
         if not passed:
             self.git("merge", "--abort")
         return passed, invoked
+
+    def resume(self) -> dict[str, object]:
+        return meridian.prepare_task_worktree("056", self.worktree_root, self.primary, resume=True)
+
+    def dirty_worktree(self) -> tuple[dict[str, object], Path]:
+        prepared = self.prepare()
+        worktree = Path(str(prepared["worktree"]))
+        (worktree / "README.md").write_text("edited\n", encoding="utf-8")
+        (worktree / "new.txt").write_text("new\n", encoding="utf-8")
+        return prepared, worktree
+
+    def snapshot(self, worktree: Path) -> tuple[bytes, dict[str, bytes], str]:
+        index = Path(self.git("rev-parse", "--git-path", "index", cwd=worktree).stdout.strip())
+        index = index if index.is_absolute() else worktree / index
+        files = {
+            str(item.relative_to(worktree)): item.read_bytes()
+            for item in sorted(worktree.iterdir()) if item.is_file()
+        }
+        state = next((self.primary / ".git/meridian-worktrees").glob("*.json")).read_text(encoding="utf-8")
+        return index.read_bytes(), files, state
+
+    def test_resume_accepts_a_dirty_worktree_and_changes_nothing(self) -> None:
+        prepared, worktree = self.dirty_worktree()
+        before = self.snapshot(worktree)
+        with self.assertRaisesRegex(meridian.MeridianError, "existing task worktree is dirty and was retained"):
+            self.prepare()
+        resumed = self.resume()
+        self.assertEqual(self.snapshot(worktree), before)
+        self.assertEqual(
+            {key: resumed[key] for key in ("resumed", "dirty", "changed_paths", "untracked_paths", "created")},
+            {"resumed": True, "dirty": True, "changed_paths": 1, "untracked_paths": 1, "created": False},
+        )
+        self.assertEqual(resumed["next_action"], "inspect-dirty")
+        self.assertEqual(resumed["started_at"], prepared["started_at"])
+        self.assertEqual(resumed["base_commit"], prepared["base_commit"])
+        self.assertEqual(resumed["branch"], "task-056")
+        self.assertEqual(resumed["worktree"], prepared["worktree"])
+        self.assertEqual(resumed["handoff_worktree"], prepared["handoff_worktree"])
+        self.assertNotIn("new.txt", json.dumps(resumed))
+        os.chdir(worktree)
+        report, ready = meridian.inspect_task_worktree("056", self.worktree_root, self.primary)
+        self.assertFalse(ready)
+        self.assertEqual(report["errors"], ["dirty-worktree"])
+
+    def test_resume_counts_renames_and_clean_worktrees(self) -> None:
+        prepared = self.prepare()
+        worktree = Path(str(prepared["worktree"]))
+        clean = self.resume()
+        self.assertEqual((clean["dirty"], clean["next_action"]), (False, "check"))
+        self.git("mv", "README.md", "RENAMED.md", cwd=worktree)
+        (worktree / "tasks/QUEUE.md").write_text("changed\n", encoding="utf-8")
+        resumed = self.resume()
+        self.assertEqual((resumed["changed_paths"], resumed["untracked_paths"]), (2, 0))
+
+    def test_ordinary_prepare_output_has_no_resume_fields(self) -> None:
+        self.assertFalse({"resumed", "dirty", "changed_paths"} & set(self.prepare()))
+        self.assertFalse({"resumed", "dirty", "changed_paths"} & set(self.prepare()))
+
+    def test_resume_without_a_worktree_creates_nothing(self) -> None:
+        with self.assertRaisesRegex(meridian.MeridianError, "nothing to resume"):
+            self.resume()
+        self.assertEqual(self.git("branch", "--list", "task-056").stdout, "")
+        self.assertEqual(list(self.worktree_root.rglob("task-056")), [])
+        self.assertFalse((self.primary / ".git/meridian-worktrees").exists())
+
+    def test_resume_keeps_every_other_prepare_block(self) -> None:
+        prepared, worktree = self.dirty_worktree()
+        state_path = next((self.primary / ".git/meridian-worktrees").glob("*.json"))
+        original = state_path.read_text(encoding="utf-8")
+        state_path.write_text(original.replace('"branch": "task-056"', '"branch": "other"'), encoding="utf-8")
+        with self.assertRaisesRegex(meridian.MeridianError, "lifecycle state mismatch"):
+            self.resume()
+        state_path.write_text(original, encoding="utf-8")
+        for name in ("meridian-integration.lock", "meridian-integration.json"):
+            with self.subTest(retained=name):
+                retained = self.primary / ".git" / name
+                retained.write_text(json.dumps({"task_id": "056"}), encoding="utf-8")
+                with self.assertRaisesRegex(meridian.MeridianError, "integration lease or staged merge"):
+                    self.resume()
+                retained.unlink()
+        self.git("checkout", "-b", "elsewhere", cwd=worktree)
+        with self.assertRaisesRegex(meridian.MeridianError, "canonical worktree mismatch"):
+            self.resume()
+        self.git("checkout", "task-056", cwd=worktree)
+        self.git("commit", "--allow-empty", "-m", "advance", cwd=worktree)
+        self.assertTrue(self.resume()["dirty"])
+        self.git("worktree", "remove", "--force", str(worktree))
+        with self.assertRaisesRegex(meridian.MeridianError, "partial task state"):
+            self.resume()
+        self.git("branch", "-D", "task-056")
+        collision = Path(str(prepared["worktree"]))
+        collision.mkdir(parents=True)
+        with self.assertRaisesRegex(meridian.MeridianError, "nothing to resume"):
+            self.resume()
+        with self.assertRaisesRegex(meridian.MeridianError, "worktree path collision"):
+            self.prepare()
+
+    def test_console_resume_directive_is_accepted_by_prepare_resume(self) -> None:
+        prepared, worktree = self.dirty_worktree()
+        task = project_console.Task(
+            task_id="056", title="t", status="IN_PROGRESS", phase=(), dependencies=(), path=None,
+            objective=(), criteria=(), readiness="IN PROGRESS", lifecycle="in_progress",
+            active_writer=True,
+        )
+        directive = str(task.launch_command)
+        match = re.fullmatch(r"Proceed with 056 \(Resume: run (meridian worktree prepare 056 .*)\)", directive)
+        self.assertIsNotNone(match, directive)
+        arguments = match.group(1).split()[1:]
+        self.assertIn("--resume", arguments)
+        clean = project_console.Task(**{**task.__dict__, "active_writer": False})
+        self.assertEqual(clean.launch_command, "Proceed with 056")
+        command = [sys.executable, str(ROOT / "scripts/meridian.py"), *arguments,
+                   "--project", str(self.primary), "--worktree-root", str(self.worktree_root)]
+        ordinary = [part for part in command if part != "--resume"]
+        refused = subprocess.run(ordinary, cwd=self.primary, text=True, capture_output=True, check=False)
+        self.assertNotEqual(refused.returncode, 0)
+        accepted = subprocess.run(command, cwd=self.primary, text=True, capture_output=True, check=False)
+        self.assertEqual(accepted.returncode, 0, accepted.stderr)
+        output = json.loads(accepted.stdout)
+        self.assertEqual((output["resumed"], output["dirty"]), (True, True))
+        self.assertEqual(output["started_at"], prepared["started_at"])
+        self.assertEqual((worktree / "README.md").read_text(encoding="utf-8"), "edited\n")
 
     def test_prepare_is_idempotent_and_check_rejects_wrong_worker(self) -> None:
         prepared = self.prepare()

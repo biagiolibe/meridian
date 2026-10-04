@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -49,6 +50,9 @@ def _osacompile_can_resolve_iterm2_dictionary() -> tuple[bool, str]:
     if result.returncode:
         return False, result.stderr
     return True, ""
+
+
+RESUME_001 = "Proceed with 001 (Resume: run meridian worktree prepare 001 --resume --format json)"
 
 
 class ProjectConsoleTest(unittest.TestCase):
@@ -340,7 +344,7 @@ class AgentLaunchTest(unittest.TestCase):
                 self.assertEqual(
                     self.task(workflow=workflow, readiness="IN PROGRESS",
                               lifecycle="in_progress", active_writer=True).launch_command,
-                    "Proceed with 001",
+                    RESUME_001,
                 )
                 self.assertEqual(
                     self.task(workflow=workflow, readiness="IN PROGRESS",
@@ -517,8 +521,41 @@ class AgentLaunchTest(unittest.TestCase):
         with mock.patch.object(console, "_launch_request") as request:
             success, message = console._launch_selected(state, selected, "codex")
         self.assertFalse(success)
+        self.assertIn("state changed", message)  # the directive changed to the resume form
+        request.assert_not_called()
+
+    def test_unconfirmed_dirty_resume_is_refused_before_launch(self) -> None:
+        task = self.task(readiness="IN PROGRESS", lifecycle="in_progress", active_writer=True)
+        state = mock.Mock(project=Path("/project"), error=None,
+                          snapshot=mock.Mock(tasks=(task,)))
+        with mock.patch.object(console, "_launch_request") as request:
+            success, message = console._launch_selected(state, task, "codex")
+        self.assertFalse(success)
         self.assertIn("became dirty", message)
         request.assert_not_called()
+
+    def test_resume_flag_is_only_in_the_dirty_resume_directive(self) -> None:
+        for workflow in ("lean-delivery", "governed-sdd"):
+            for fields in (
+                dict(readiness="READY", lifecycle="todo"),
+                dict(readiness="IN PROGRESS", lifecycle="in_progress"),
+                dict(readiness="READY FOR REVIEW", lifecycle="ready_for_review", review="REQUIRED"),
+                dict(readiness="IN PROGRESS", lifecycle="in_progress", changes_requested=True),
+            ):
+                with self.subTest(workflow=workflow, fields=fields):
+                    directive = self.task(workflow=workflow, **fields).launch_command
+                    self.assertTrue(directive is None or "--resume" not in directive)
+        resume = self.task(readiness="IN PROGRESS", lifecycle="in_progress", active_writer=True)
+        self.assertEqual(resume.launch_command, RESUME_001)
+        self.assertIn("prepare 001 --resume --format json", RESUME_001)
+        request, error = console._launch_request(resume, Path("/project"), "codex")
+        self.assertIsNone(request)  # no iTerm session here; the directive itself is unchanged
+        with mock.patch.dict(os.environ, {"ITERM_SESSION_ID": "w0t1p2:12345678-1234-1234-1234-123456789abc"}), \
+             mock.patch.object(console, "_primary_checkout", return_value=(Path("/project"), None)):
+            request, error = console._launch_request(resume, Path("/project"), "codex")
+        self.assertIsNone(error)
+        self.assertEqual(request.directive, RESUME_001)
+        self.assertIn(RESUME_001, request.shell_command)
 
     def test_request_refuses_missing_or_malformed_console_session(self) -> None:
         for session_id in (None, "w0t1p2:not-a-uuid", "wrong:12345678-1234-1234-1234-123456789abc"):
@@ -1015,7 +1052,8 @@ class LeanEffectiveStateTest(RepoCase):
         self.assertTrue(dirty.active_writer)
         self.assertEqual((clean.readiness, clean.lifecycle), (dirty.readiness, dirty.lifecycle))
         self.assertEqual(dirty.markers, ("active writer",))
-        self.assertEqual(dirty.launch_command, "Proceed with 001")
+        self.assertEqual(clean.launch_command, "Proceed with 001")
+        self.assertEqual(dirty.launch_command, RESUME_001)
 
     def test_branch_behind_primary_is_a_mismatch_without_directive(self) -> None:
         self.setup_project({"001": "/"})
@@ -1192,7 +1230,10 @@ class GovernedEffectiveStateTest(RepoCase):
         task = self.load()["TASK-001"]
         self.assertTrue(task.active_writer)
         self.assertEqual(task.readiness, "IN PROGRESS")
-        self.assertEqual(task.launch_command, "Proceed with TASK-001")
+        self.assertEqual(
+            task.launch_command,
+            "Proceed with TASK-001 (Resume: run meridian worktree prepare TASK-001 --resume --format json)",
+        )
 
     def test_uncommitted_in_progress_row_supersedes_committed_queued(self) -> None:
         self.setup_project([("TASK-001", "QUEUED", "REQUIRED", "—")])
