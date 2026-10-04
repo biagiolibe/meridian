@@ -166,6 +166,14 @@ class TaskIdentityPolicy:
 
 
 @dataclass(frozen=True)
+class TaskIdentityContext:
+    """Inputs shared by multiple identity resolutions in one command."""
+    policy: TaskIdentityPolicy
+    locations: "ProjectLocations"
+    authorities: dict[str, "_TaskAuthority"]
+
+
+@dataclass(frozen=True)
 class ResolvedTaskIdentity:
     policy_version: int
     mode: str
@@ -247,6 +255,7 @@ class SetupPlan:
     claude_state: str
     claude_plan: ClaudeConfigurationPlan | None
     claude_detail: str
+    claude_hook_duplicates: tuple[str, ...]
     candidate_validation_state: str
     candidate_validation_path: Path
     candidate_validation_proposal: dict[str, object] | None
@@ -1001,20 +1010,21 @@ def active_worktree_task(directory: Path) -> dict[str, object] | None:
     if registered is None:
         return None
     branch = registered.get("branch", "").removeprefix("refs/heads/")
-    locations = resolve_project_locations(primary)
-    for task_id in sorted(_task_authorities(primary, locations)):
-        try:
-            identity = resolve_task_identity(primary, task_id, "existing")
-        except MeridianError:
-            continue
-        state_path, _lease, _integration = _lifecycle_paths(primary, identity)
-        if identity.branch_name != branch or not state_path.is_file():
-            continue
+    state_directory = canonical_git_common_dir(primary) / WORKTREE_STATE_DIRECTORY
+    context: TaskIdentityContext | None = None
+    for state_path in sorted(state_directory.glob("*.json")) if state_directory.is_dir() else ():
         try:
             state = _read_json_object(state_path, "worktree lifecycle state")
+            if state.get("branch") != branch or state.get("worktree") != str(current):
+                continue
+            task_id = state.get("task_id")
+            if not isinstance(task_id, str):
+                continue
+            context = context or task_identity_context(primary)
+            identity = resolve_task_identity(primary, task_id, "existing", context=context)
         except MeridianError:
             continue
-        if state.get("task_id") != identity.canonical_id or state.get("branch") != branch or state.get("worktree") != str(current):
+        if state_path.name != f"{identity.artifact_stem}.json" or identity.branch_name != branch or state.get("task_id") != identity.canonical_id:
             continue
         archived = identity.task_path.parent / "done" / identity.task_path.name
         exempt = [identity.task_path, archived, identity.handoff_path, identity.review_path]
@@ -1030,21 +1040,26 @@ def active_worktree_task(directory: Path) -> dict[str, object] | None:
 def registered_worktree_task_states(project_root: Path) -> list[dict[str, str]]:
     """Return in-flight task states from lifecycle registrations and records."""
     primary = canonical_project_root(project_root)
-    locations = resolve_project_locations(primary)
     worktrees = {
         Path(item["worktree"]).resolve(): item.get("branch", "").removeprefix("refs/heads/")
         for item in _git_worktrees(primary) if "worktree" in item
     }
     states: list[dict[str, str]] = []
-    for task_id in sorted(_task_authorities(primary, locations)):
+    state_directory = canonical_git_common_dir(primary) / WORKTREE_STATE_DIRECTORY
+    context: TaskIdentityContext | None = None
+    for state_path in sorted(state_directory.glob("*.json")) if state_directory.is_dir() else ():
         try:
-            identity = resolve_task_identity(primary, task_id, "existing")
-            state_path, _lease, _integration = _lifecycle_paths(primary, identity)
             lifecycle = _read_json_object(state_path, "worktree lifecycle state")
+            task_id = lifecycle.get("task_id")
+            if not isinstance(task_id, str):
+                continue
+            context = context or task_identity_context(primary)
+            identity = resolve_task_identity(primary, task_id, "existing", context=context)
             worktree = Path(str(lifecycle["worktree"])).resolve()
         except (KeyError, TypeError, MeridianError):
             continue
-        if (lifecycle.get("task_id") != identity.canonical_id
+        if (state_path.name != f"{identity.artifact_stem}.json"
+                or lifecycle.get("task_id") != identity.canonical_id
                 or lifecycle.get("branch") != identity.branch_name
                 or worktrees.get(worktree) != identity.branch_name):
             continue
@@ -2607,6 +2622,41 @@ def apply_claude_project_allowlist(plan: ClaudeConfigurationPlan) -> bool:
     return True
 
 
+def claude_hook_duplicate_advisories(project_root: Path, home: Path) -> tuple[str, ...]:
+    """Report direct hook registrations when the Meridian Claude plugin is enabled.
+
+    This is deliberately advisory and read-only: Meridian never writes Claude
+    hook registrations, so a hand-written duplicate must remain the user's
+    choice to remove.
+    """
+    paths = (home / ".claude/settings.json", project_root / ".claude/settings.json",
+             project_root / ".claude/settings.local.json")
+    parsed: list[tuple[Path, object]] = []
+    for path in paths:
+        if not path.is_file():
+            continue
+        try:
+            parsed.append((path, json.loads(path.read_text(encoding="utf-8"))))
+        except (OSError, json.JSONDecodeError):
+            continue
+    plugin_enabled = any(
+        isinstance(settings, dict)
+        and isinstance(settings.get("enabledPlugins"), dict)
+        and any("meridian" in str(name).lower() and enabled is True
+                for name, enabled in settings["enabledPlugins"].items())
+        for _path, settings in parsed
+    )
+    if not plugin_enabled:
+        return ()
+    advisories: list[str] = []
+    for path, settings in parsed:
+        rendered = json.dumps(settings, sort_keys=True) if isinstance(settings, (dict, list)) else ""
+        for command in ("queue-briefing.sh", "read-guard.sh"):
+            if command in rendered:
+                advisories.append(f"{path}: direct {command} registration duplicates the enabled Meridian plugin")
+    return tuple(advisories)
+
+
 def plan_setup(
     worktree_root: Path | None,
     codex_config: Path,
@@ -2663,6 +2713,7 @@ def plan_setup(
     claude_plan = plan_claude_project_allowlist(project_root)
     claude_state = claude_plan.status
     claude_detail = claude_plan.detail
+    claude_hook_duplicates = claude_hook_duplicate_advisories(project_root, home)
     candidate_validation_path = project_root / CANDIDATE_VALIDATION_PATH
     candidate_validation_proposal: dict[str, object] | None = None
     try:
@@ -2797,6 +2848,7 @@ def plan_setup(
         claude_state,
         claude_plan,
         claude_detail,
+        claude_hook_duplicates,
         candidate_validation_state,
         candidate_validation_path,
         candidate_validation_proposal,
@@ -2828,6 +2880,8 @@ def print_setup_plan(plan: SetupPlan) -> None:
     print(f"codex-detail: {plan.codex_detail}")
     print(f"claude-project-allowlist: {plan.claude_state}")
     print(f"claude-detail: {plan.claude_detail}")
+    for advisory in plan.claude_hook_duplicates:
+        print(f"claude-hook-duplicate: {advisory}")
     print(f"candidate-validation-commands: {plan.candidate_validation_state}")
     if plan.candidate_validation_proposal is not None:
         print("candidate-validation-proposal: " + json.dumps(plan.candidate_validation_proposal, sort_keys=True))
@@ -7848,6 +7902,7 @@ def resolve_task_identity(
     intent: str,
     *,
     check_queue_links: bool = True,
+    context: TaskIdentityContext | None = None,
 ) -> ResolvedTaskIdentity:
     if intent not in ("existing", "new"):
         raise MeridianError(f"unsupported task identity intent: {intent!r}")
@@ -7855,9 +7910,10 @@ def resolve_task_identity(
     supplied = supplied_id.strip()
     if not supplied or supplied != supplied_id.strip() or any(separator in supplied for separator in ("/", "\\")):
         raise MeridianError(f"invalid task ID: {supplied_id!r}")
-    policy = read_task_identity_policy(project_root)
-    locations = resolve_project_locations(project_root)
-    authorities = _task_authorities(project_root, locations)
+    context = context or task_identity_context(project_root)
+    policy = context.policy
+    locations = context.locations
+    authorities = context.authorities
     matches = _authority_matches(authorities, supplied)
     if len(matches) > 1:
         raise MeridianError(f"ambiguous task identity {supplied_id!r}: {', '.join(sorted(matches))}")
@@ -7936,11 +7992,20 @@ def resolve_task_identity(
     )
 
 
+def task_identity_context(project_root: Path) -> TaskIdentityContext:
+    """Build the authoritative identity inputs once for a command."""
+    project_root = project_root.resolve()
+    policy = read_task_identity_policy(project_root)
+    locations = resolve_project_locations(project_root)
+    return TaskIdentityContext(policy, locations, _task_authorities(project_root, locations))
+
+
 def next_milestone_task_identity(
     project_root: Path, milestone: str, workstream: str
 ) -> ResolvedTaskIdentity:
     """Resolve the next unused structured identity from the task authorities."""
-    if read_task_identity_policy(project_root).mode != "milestone":
+    context = task_identity_context(project_root)
+    if context.policy.mode != "milestone":
         raise MeridianError("next task identity requires a milestone task-identity policy")
     if re.fullmatch(r"[1-9][0-9]*", milestone) is None:
         raise MeridianError("invalid milestone: expected a positive integer without a leading zero")
@@ -7948,7 +8013,7 @@ def next_milestone_task_identity(
         raise MeridianError("invalid workstream: expected canonical uppercase task-ID grammar")
 
     project_root = project_root.resolve()
-    authorities = _task_authorities(project_root, resolve_project_locations(project_root))
+    authorities = context.authorities
     highest = 0
     for canonical_id in authorities:
         structured = STRUCTURED_TASK_ID.fullmatch(canonical_id)
@@ -7959,14 +8024,14 @@ def next_milestone_task_identity(
             continue
         # Reuse the normal resolver to reject duplicate, mismatched, or
         # non-canonical authoritative records before deriving a new ordinal.
-        resolved = resolve_task_identity(project_root, canonical_id, "existing")
+        resolved = resolve_task_identity(project_root, canonical_id, "existing", context=context)
         if structured is not None:
             highest = max(highest, int(structured.group("ordinal")))
 
     if highest >= 999:
         raise MeridianError(f"next ordinal exceeds 999 for M{milestone}-{workstream}")
     return resolve_task_identity(
-        project_root, f"M{milestone}-{workstream}-{highest + 1:03d}", "new"
+        project_root, f"M{milestone}-{workstream}-{highest + 1:03d}", "new", context=context
     )
 
 

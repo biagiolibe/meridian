@@ -5367,6 +5367,24 @@ class WorktreeRootSetupTest(unittest.TestCase):
         self.assertEqual(repeated.claude_state, "ready")
         self.assertFalse(meridian.apply_setup(repeated))
 
+    def test_setup_advises_about_direct_hook_registration_with_plugin_enabled(self) -> None:
+        project = self.home / "project"
+        settings = project / ".claude/settings.json"
+        settings.parent.mkdir(parents=True)
+        settings.write_text(json.dumps({
+            "enabledPlugins": {"meridian@local": True},
+            "hooks": {"UserPromptSubmit": [{"command": "/tmp/queue-briefing.sh"}]},
+        }), encoding="utf-8")
+
+        plan = meridian.plan_setup(
+            self.home / "root", self.codex_config, environment=self.environment,
+            home=self.home, project_root=project,
+        )
+
+        self.assertEqual(len(plan.claude_hook_duplicates), 1)
+        self.assertIn(str(settings), plan.claude_hook_duplicates[0])
+        self.assertIn("queue-briefing.sh", plan.claude_hook_duplicates[0])
+
     def test_malformed_claude_settings_block_setup_before_mutation(self) -> None:
         project = self.home / "project"
         settings = project / ".claude/settings.local.json"
