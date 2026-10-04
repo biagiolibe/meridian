@@ -125,7 +125,7 @@ USAGE_PRIVACY_BOUNDARY = (
 )
 USAGE_ADAPTER_NOTES = {
     "codex": "Codex rollout JSONL adapter (observed token_count event schema, 2026-10-03).",
-    "claude": "Claude Code project JSONL adapter (observed assistant usage schema, 2026-10-03).",
+    "claude": "Claude Code project JSONL adapter (observed assistant usage schema, 2026-10-04; input = input_tokens + cache_read_input_tokens + cache_creation_input_tokens).",
 }
 
 
@@ -8264,6 +8264,14 @@ def _usage_counter(value: object) -> int:
     return value if type(value) is int and value >= 0 else 0
 
 
+def _claude_usage_call(usage: dict[str, object]) -> dict[str, object] | None:
+    """Return total input (fresh + cache read + cache creation) or None when no field is present."""
+    fields = [usage.get(name) for name in ("input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens")]
+    if not any(type(value) is int and value >= 0 for value in fields):
+        return None
+    return {"input": sum(_usage_counter(value) for value in fields), "cached": usage.get("cache_read_input_tokens"), "output": usage.get("output_tokens")}
+
+
 def _usage_start(value: object) -> datetime | None:
     if not isinstance(value, str):
         return None
@@ -8341,6 +8349,7 @@ def _claude_usage_session(path: Path, breakdown: bool) -> dict[str, object] | No
     project_name = path.parent.name.removeprefix("-Users-").replace("-", "/").split("/")[-1]
     model: object = None
     calls: list[dict[str, object]] = []
+    unavailable = 0
     with path.open(encoding="utf-8") as handle:
         for line in handle:
             try:
@@ -8359,8 +8368,15 @@ def _claude_usage_session(path: Path, breakdown: bool) -> dict[str, object] | No
             if isinstance(message, dict) and model is None:
                 model = message.get("model")
             if isinstance(usage, dict):
-                calls.append({"input": usage.get("input_tokens"), "cached": usage.get("cache_read_input_tokens"), "output": usage.get("output_tokens")})
-    return _usage_session("claude", start, project_name, model, calls, breakdown) if start else None
+                call = _claude_usage_call(usage)
+                if call is None:
+                    unavailable += 1
+                else:
+                    calls.append(call)
+    session = _usage_session("claude", start, project_name, model, calls, breakdown) if start else None
+    if session is not None and unavailable:
+        session["unavailable_calls"] = unavailable
+    return session
 
 
 def usage_report(host: str | None, project_root: Path | None, since: str | None, breakdown: bool, home: Path | None = None) -> dict[str, object]:
@@ -8400,7 +8416,10 @@ def usage_report(host: str | None, project_root: Path | None, since: str | None,
         "privacy": USAGE_PRIVACY_BOUNDARY,
         "adapters": adapter_status,
         "sessions": sessions,
-        "summary": "Startup cost is first_call_input; later growth is measured separately in per-call input and --breakdown.",
+        "summary": (
+            "Startup cost is first_call_input; later growth is measured separately in per-call input and --breakdown. "
+            "Input includes cached input for both hosts; cached is the cache-read part and cache_ratio = cached / input."
+        ),
     }
 
 
@@ -8414,6 +8433,7 @@ def format_usage_report(report: dict[str, object]) -> str:
             f"calls={session['calls']} startup={session['first_call_input']} mean={session['mean_call_input']} "
             f"peak={session['peak_call_input']} input={session['cumulative_input']} cached={session['cached_input']} "
             f"output={session['output']} cache_ratio={session['cache_ratio']}"
+            + (f" unavailable_calls={session['unavailable_calls']}" if "unavailable_calls" in session else "")
         )
         if "breakdown" in session:
             growth = session["breakdown"]["largest_input_growth"]

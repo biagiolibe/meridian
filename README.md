@@ -463,7 +463,12 @@ project name, or date with `--host`, `--project`, and `--since`; add
 `--breakdown` to identify the call where input grew most. The command is
 read-only and local: it prints only timestamps, project directory names, model
 metadata when recorded, and aggregate counters—not prompts, tool arguments,
-file contents, or full paths. Private host log formats can change; an absent or
+file contents, or full paths. For both hosts `input` is the total input of a
+call including cached input (Claude Code: `input_tokens` plus cache-read and
+cache-creation tokens); `cached` is the cache-read part and `cache_ratio` is
+`cached / input`. In JSON, `first_call_input`, `mean_call_input`,
+`peak_call_input`, and `cumulative_input` use that total. A Claude Code call
+with no usage counters is excluded and counted in `unavailable_calls`. Private host log formats can change; an absent or
 unrecognized format reports `unsupported` clearly.
 
 ## How the governed workflow works
