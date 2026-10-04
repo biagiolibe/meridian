@@ -143,7 +143,7 @@
       "version": 1
     },
     "long-command-waits": {
-      "sha256": "0e11a63887ad621ac7dd65f03e743f94b0b12ef96316613055e0bb75dc0abcdb",
+      "sha256": "942c3ebfa010f7aba0385d4e0fbb241edf1c17eea89158531a24cddb162198a8",
       "version": 1
     }
   },
@@ -361,7 +361,7 @@
   },
   "templates/workflows/lean-delivery/docs/EXECUTION_EVIDENCE_PROFILE.md": {
     "long-command-waits": {
-      "sha256": "0e11a63887ad621ac7dd65f03e743f94b0b12ef96316613055e0bb75dc0abcdb",
+      "sha256": "942c3ebfa010f7aba0385d4e0fbb241edf1c17eea89158531a24cddb162198a8",
       "version": 1
     }
   },

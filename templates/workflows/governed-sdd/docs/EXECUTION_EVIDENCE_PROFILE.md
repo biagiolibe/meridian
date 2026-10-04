@@ -89,9 +89,11 @@ Long commands and suite runs:
   not when the command ends, so ask for a wait that covers the expected
   duration in the call that starts the command. If the host caps the wait below
   that duration, use the cap once and then one further wait, not repeated short
-  polls. Verified on codex-cli 0.160.0: the wait is `yield_time_ms` and the
-  output bound is `max_output_tokens`, both non-negative integers; the
-  accepted maximum depends on the host version and is not stated here.
+  polls. Observed on codex-cli 0.160.0: a command cell starts with
+  `yield_time_ms` and `max_output_tokens`, and a still-running cell is resumed
+  with `wait` (`cell_id`, `yield_time_ms`, `max_tokens`). A wait of 60000 ms
+  was honored in full; no larger value was exercised, so the maximum is not
+  stated here.
 - During implementation, run only the tests of the modules the task touches.
   Run the full suite once, after the last code change, as the validation of
   record, and rerun it only when code changed since. This does not change the

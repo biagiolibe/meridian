@@ -24,44 +24,44 @@ full suite is run so it is not repeated without a code change.
 
 ## Acceptance Criteria
 
-- [ ] `docs/EXECUTION_EVIDENCE_PROFILE.md` and the Lean Delivery and Governed SDD
+- [x] `docs/EXECUTION_EVIDENCE_PROFILE.md` and the Lean Delivery and Governed SDD
   template profiles gain a host-neutral statement and a Codex-specific one:
   a command expected to take longer than one minute is started with a wait long
   enough to cover its expected duration in the same call, and an agent polls an
   already running command at most once and only after that wait expired.
-- [ ] Before writing the Codex wording, verify on the installed Codex version the
+- [x] Before writing the Codex wording, verify on the installed Codex version the
   actual semantics and the maximum allowed value of the wait parameter
   (`yield_time_ms` for `exec_command`) and of the output-bound parameter, and
   record the version and the values in the handoff. If the maximum is lower than
   the duration of the full suite, the text says to use the maximum once and then a
   single further wait, not repeated short polls.
-- [ ] The wording is stated as observable behavior (a wait that covers the
+- [x] The wording is stated as observable behavior (a wait that covers the
   expected duration, no empty `write_stdin` loop) and does not name a private
   tool signature that can change; the exact parameter names appear only with the
   verified version noted.
-- [ ] The profile also states the suite-run rule, host-neutral: during
+- [x] The profile also states the suite-run rule, host-neutral: during
   implementation run only the tests of the modules the task touches; run the full
   suite once, after the last code change, as the validation of record; rerun it
   only when code changed since. It must not weaken the declared candidate
   validation (`REUSE`, `BOUNDED`, `FULL`), which stays as defined by tasks 121,
   122, and 125. In the seven sessions measured, `unittest` ran about five times
   per session.
-- [ ] The existing Claude Code wording stays and remains correct: foreground with a
+- [x] The existing Claude Code wording stays and remains correct: foreground with a
   timeout of up to 600 seconds, never detached and polled.
-- [ ] The expected duration of this project's full suite is stated in this
+- [x] The expected duration of this project's full suite is stated in this
   repository's profile (measured on 2026-10-03: about two minutes) so the agent
   does not need to guess, and is marked as a measurement that can change.
-- [ ] Changes to managed template text follow the capability-marker and migration
+- [x] Changes to managed template text follow the capability-marker and migration
   rules. The change is additive; it shares the unreleased template-changing
   migration with other pending template tasks if one exists (confirm the current
   state of migrations and `VERSION` before adding another).
-- [ ] A recorded check after adoption, using `meridian usage report` if task 135
+- [x] A recorded check after adoption, using `meridian usage report` if task 135
   is integrated and otherwise a manual count from the host's session log counters,
   compares the share of calls made only of empty polls before and after, on at
   least two sessions each. The handoff states whether it dropped; if the data is
   not available the handoff says so.
-- [ ] One changelog fragment with an Upgrade note is added per `CONTRIBUTING.md`.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
+- [x] One changelog fragment with an Upgrade note is added per `CONTRIBUTING.md`.
+- [x] `python3 scripts/check_repository.py` and the unit tests pass.
 
 ## Relevant Files
 
