@@ -114,6 +114,7 @@
 - `[x]` 145 — Align Governed lifecycle capability text with the closure design and the CLI.
 - `[x]` 146 — Restructure inline markers, audit managed copies, and add consumer profiles.
 - `[x]` 147 — Isolate setup CLI tests from the developer's real home directory.
+- `[ ]` 148 — Drop retired markers from project sections carried by a restructure.
 - `[x]` 140 — Let `integrate stage` complete rows of project-shaped Governed queues.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.
