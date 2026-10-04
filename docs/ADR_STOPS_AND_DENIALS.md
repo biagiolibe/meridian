@@ -1,6 +1,6 @@
 # ADR: Stops and Denials
 
-Status: Proposed
+Status: Accepted
 
 ## Context
 
