@@ -61,3 +61,4 @@ are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 | `[x]` | 158 | Migrate legacy budget state only at upgrade, never from a read | 🔴 P1 | — | [158](done/158-budget-state-migration-only-at-upgrade.md) |
 | `[ ]` | 159 | Retire the reasoning budget contract | 🔴 P1 | — | [159](159-retire-reasoning-budget-contract.md) |
 | `[x]` | 160 | Give the Claude Code allowlist parity with the Codex execution-command rules | 🟡 P2 | — | [160](done/160-claude-allowlist-execution-commands.md) |
+| `[ ]` | 161 | State that a local `main` ahead of `origin/main` does not block integration | 🟡 P2 | — | [161](161-state-main-ahead-of-origin-is-allowed.md) |
