@@ -1,5 +1,6 @@
 # Bounded Worktree Lifecycle
 
+<!-- MERIDIAN:BEGIN capability=worktree-lifecycle v1 -->
 Use the host-neutral `meridian worktree` namespace for task checkout lifecycle
 operations. Commands exit `0` on success, `2` when blocked, and `64` on usage
 errors. The root resolves from an explicit option, the environment, user
@@ -71,3 +72,4 @@ root yields the same path on every machine. A repository without a usable remote
 uses a local name plus a Git-common-directory hash, so its value is stable only
 on the machines that share that hash. `check` also accepts a legacy absolute
 `Worktree:` value in an existing handoff.
+<!-- MERIDIAN:END -->

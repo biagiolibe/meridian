@@ -343,6 +343,42 @@
   },
   "catalogVersion": 1,
   "profiles": {
+    "governed-sdd-consumer": {
+      "capabilities": {
+        "context-budgeting": 1,
+        "execution-evidence": 1,
+        "language-policy": 1,
+        "minimal-read-only-status": 1,
+        "validation-scoping": 1
+      },
+      "hostProbes": {
+        "claude-project": ".meridian/probes/governed-sdd-consumer/claude-project-v1.json",
+        "codex-project": ".meridian/probes/governed-sdd-consumer/codex-project-v1.json"
+      },
+      "verificationProbe": ".meridian/probes/governed-sdd-consumer/host-neutral-ci-v1.json",
+      "version": 1,
+      "workflowModes": [
+        "governed-sdd"
+      ]
+    },
+    "lean-delivery-consumer": {
+      "capabilities": {
+        "context-budgeting": 1,
+        "execution-evidence": 1,
+        "language-policy": 1,
+        "minimal-read-only-status": 1,
+        "validation-scoping": 1
+      },
+      "hostProbes": {
+        "claude-project": ".meridian/probes/lean-delivery-consumer/claude-project-v1.json",
+        "codex-project": ".meridian/probes/lean-delivery-consumer/codex-project-v1.json"
+      },
+      "verificationProbe": ".meridian/probes/lean-delivery-consumer/host-neutral-ci-v1.json",
+      "version": 1,
+      "workflowModes": [
+        "lean-delivery"
+      ]
+    },
     "meridian-self-hosting": {
       "capabilities": {
         "context-budgeting": 1,

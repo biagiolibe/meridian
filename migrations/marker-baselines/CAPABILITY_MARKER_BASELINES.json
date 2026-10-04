@@ -65,7 +65,7 @@
   },
   "templates/workflows/governed-sdd/docs/AUDIT_PROMPT_READ_ONLY.md": {
     "audit-prompt": {
-      "sha256": "8a51e81c15a418de25a09a21953f50324fb7dd4ec0aa60d002cd863a600d8e44",
+      "sha256": "7da37634221221a532dcb5ca7b1009d56eb295a0ace84b347cefd96a7a36a249",
       "version": 3
     }
   },
@@ -76,17 +76,9 @@
     }
   },
   "templates/workflows/governed-sdd/docs/CODE_REVIEW_PROMPT.md": {
-    "ci-verified-validation": {
-      "sha256": "fb3cdf763f143aadb73cc75f9e2e1a7bfa5ac60a67f446de619cb021a46f81f7",
+    "code-review-prompt": {
+      "sha256": "c8a9179440fb1810cb0ecd04992d696db30777e3578f815e06475ee690af2e7c",
       "version": 1
-    },
-    "manual-verification-review-check": {
-      "sha256": "298f88d5c9b4ad1d7384ef36b627b702d5dd8f1f1540314cc655a46a3f1d437f",
-      "version": 1
-    },
-    "task-worktree-review": {
-      "sha256": "2ee89b0993f9cf922f1c4a82ba88accce2077280aa58f25163ea5a525ad0eb28",
-      "version": 4
     }
   },
   "templates/workflows/governed-sdd/docs/COMPLETION_REPORT_TEMPLATE.md": {
@@ -133,8 +125,8 @@
       "version": 1
     },
     "read-guard": {
-      "sha256": "3a8178017c24e9d8a1d33bceb09184d72ffe8ac5ceddf4ec4681594732d3e4e4",
-      "version": 1
+      "sha256": "0ed9579cf7807597c65ea59c9eb63c577bd168ebaaf96afe3c3d6cde1a77f1b9",
+      "version": 2
     },
     "reasoning-budget-contract": {
       "sha256": "61399cc90c87a4de172354cb3626c20d185c7ec88a665192cf70663dcc7a4bba",
@@ -142,7 +134,7 @@
     },
     "validation-scoping": {
       "sha256": "fe8f3d6bf7bd3b49f613c1e9759583bda5cf8678396d52578ef877b504c3c68f",
-      "version": 1
+      "version": 2
     }
   },
   "templates/workflows/governed-sdd/docs/EXECUTION_EVIDENCE_PROFILE.md": {
@@ -166,6 +158,10 @@
       "sha256": "17e153168949bf116474e1503f037010f0010ca51e6e1ef717de31877580ef8b",
       "version": 1
     },
+    "remote-branch-cleanup": {
+      "sha256": "d555c877df687a5598bcf34534c563d26ca14d1df162200ca49925ee13e728cc",
+      "version": 1
+    },
     "task-worktree-integration": {
       "sha256": "89b7ed87efc8ae9c8430d9f2b052a17a97fff5ce43eb60a2bf5687635fb4d5cb",
       "version": 4
@@ -179,6 +175,12 @@
     "review-remediation-record": {
       "sha256": "a5801e3b837d0e225fd19e13ae7c0548c9bff7a3aec3a8dc54f79a3085024c7e",
       "version": 3
+    }
+  },
+  "templates/workflows/governed-sdd/docs/WORKTREE_LIFECYCLE.md": {
+    "worktree-lifecycle": {
+      "sha256": "06b0a2450f9482644130366a77abd5e0ac734676641e7c511af41a7e3bf3ac7a",
+      "version": 1
     }
   },
   "templates/workflows/governed-sdd/docs/workflows/IMPLEMENTATION.md": {
@@ -211,8 +213,8 @@
       "version": 7
     },
     "validation-scoping": {
-      "sha256": "447faaddb875883d676be4c53abf218fc555325cbb591e411412249f7077012d",
-      "version": 1
+      "sha256": "100a0d27e15610af351b9446cb66a3afa1e270f8498fd26181995cccf42918ab",
+      "version": 2
     }
   },
   "templates/workflows/governed-sdd/docs/workflows/LIFECYCLE.md": {
@@ -324,7 +326,7 @@
     },
     "validation-scoping": {
       "sha256": "e96c1d406eb517daa36e43819dedddc16bb9574b080115d3961fa1c4edac8f2c",
-      "version": 1
+      "version": 2
     }
   },
   "templates/workflows/lean-delivery/docs/CONTEXT_BUDGET_POLICY.md": {
@@ -345,11 +347,17 @@
       "version": 1
     },
     "read-guard": {
-      "sha256": "84eead3e10d82d2859bf53b7477c304b2e71030a9e6912d4dd7b4e53b41b4a98",
-      "version": 1
+      "sha256": "7acce046ff647dab6dba45db6d8c439f483af29956416392b2de384edf9992d3",
+      "version": 2
     },
     "validation-scoping": {
       "sha256": "8e165c94ec1b84f1e2da7d5ef6d355c0c009c9e7b2b799aa13422420cf41dd45",
+      "version": 2
+    }
+  },
+  "templates/workflows/lean-delivery/docs/WORKTREE_LIFECYCLE.md": {
+    "worktree-lifecycle": {
+      "sha256": "d6a93f14576c683f00d51455daa362e72e1801a14f4283dc79e3b97131478753",
       "version": 1
     }
   }
