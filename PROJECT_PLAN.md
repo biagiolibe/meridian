@@ -131,7 +131,7 @@
 - `[ ]` 162 — Add the stop-code registry and emit closure stops through it.
 - `[ ]` 163 — Check that managed text and tests agree with the stop-code registry.
 - `[ ]` 164 — State the stop and denial rules in the managed workflow text.
-- `[ ]` 165 — Install the deny list as host permission rules.
+- `[x]` 165 — Install the deny list as host permission rules.
 - `[ ]` 166 — Give codes and actionable messages to the execution and handoff gates.
 - `[ ]` 167 — Make the execution preflight satisfiable during remediation.
 - `[ ]` 168 — Report queue sections that archival cannot read.

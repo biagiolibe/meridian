@@ -5570,8 +5570,11 @@ class WorktreeRootSetupTest(unittest.TestCase):
         )
 
         self.assertEqual(plan.claude_state, "approval-required")
-        self.assertIn("project Claude Code command allowlist", "\n".join(plan.changes))
+        self.assertIn("project Claude Code command allowlist and deny rules", "\n".join(plan.changes))
+        self.assertIn("Bash(git push --force:*)", plan.claude_detail)
+        self.assertIn("defense in depth", plan.claude_detail)
         self.assertEqual(json.loads(settings.read_text(encoding="utf-8"))["permissions"]["allow"], ["Bash(existing command)"])
+        self.assertNotIn("deny", json.loads(settings.read_text(encoding="utf-8"))["permissions"])
         self.assertTrue(meridian.apply_setup(plan))
         configured = json.loads(settings.read_text(encoding="utf-8"))
         self.assertTrue(configured["preserve"])
@@ -5579,6 +5582,7 @@ class WorktreeRootSetupTest(unittest.TestCase):
             configured["permissions"]["allow"],
             ["Bash(existing command)", *meridian.CLAUDE_PROJECT_ALLOWLIST],
         )
+        self.assertEqual(configured["permissions"]["deny"], list(meridian.CLAUDE_PROJECT_DENYLIST))
         repeated = meridian.plan_setup(
             root,
             self.codex_config,
@@ -5588,6 +5592,72 @@ class WorktreeRootSetupTest(unittest.TestCase):
         )
         self.assertEqual(repeated.claude_state, "ready")
         self.assertFalse(meridian.apply_setup(repeated))
+
+    def test_setup_keeps_user_deny_entries_and_adds_each_missing_rule_once(self) -> None:
+        project = self.home / "project"
+        settings = project / ".claude/settings.local.json"
+        settings.parent.mkdir(parents=True)
+        settings.write_text(
+            json.dumps({"permissions": {
+                "allow": list(meridian.CLAUDE_PROJECT_ALLOWLIST),
+                "deny": ["Bash(rm:*)", "Bash(git tag:*)"],
+            }}),
+            encoding="utf-8",
+        )
+        plan = meridian.plan_claude_project_allowlist(project)
+        self.assertEqual(plan.status, "approval-required")
+        self.assertNotIn("Bash(git tag:*)", plan.detail)
+        self.assertIn("Bash(git rebase:*)", plan.detail)
+        self.assertTrue(meridian.apply_claude_project_allowlist(plan))
+        deny = json.loads(settings.read_text(encoding="utf-8"))["permissions"]["deny"]
+        self.assertEqual(deny[:2], ["Bash(rm:*)", "Bash(git tag:*)"])
+        self.assertEqual(len(deny), len(set(deny)))
+        self.assertEqual(set(deny), {"Bash(rm:*)", *meridian.CLAUDE_PROJECT_DENYLIST})
+        again = meridian.plan_claude_project_allowlist(project)
+        self.assertEqual(again.status, "ready")
+        self.assertFalse(meridian.apply_claude_project_allowlist(again))
+
+    def test_setup_blocks_a_malformed_deny_list(self) -> None:
+        project = self.home / "project"
+        settings = project / ".claude/settings.local.json"
+        settings.parent.mkdir(parents=True)
+        settings.write_text(json.dumps({"permissions": {"deny": "Bash(rm:*)"}}), encoding="utf-8")
+        self.assertEqual(meridian.plan_claude_project_allowlist(project).status, "blocked")
+
+    def test_claude_deny_rules_cover_the_denied_actions_and_spare_the_lifecycle(self) -> None:
+        def matches(rule: str, command: str) -> bool:
+            prefix = rule.removeprefix("Bash(").removesuffix(":*)")
+            return command == prefix or command.startswith(prefix + " ")
+
+        deny = meridian.CLAUDE_PROJECT_DENYLIST
+        for denied in (
+            "git push --force origin main",
+            "git push -f origin main",
+            "git push --force-with-lease origin main",
+            "git push --mirror origin",
+            "git push --delete origin task-165",
+            "git tag v1.2.9",
+            "git rebase main",
+            "git reset --hard HEAD~1",
+            "git cherry-pick abc123",
+            "git branch -D task-165",
+            "git worktree remove --force /tmp/worktree",
+        ):
+            self.assertTrue(any(matches(rule, denied) for rule in deny), denied)
+        for needed in (
+            "git push origin main",
+            "git push origin task-165",
+            "git branch -d task-165",
+            "git branch --show-current",
+            "git worktree remove /tmp/worktree",
+            "git worktree list",
+            "git reset HEAD file",
+            "git merge --ff-only task-165",
+            "git commit -m message",
+        ):
+            self.assertFalse(any(matches(rule, needed) for rule in deny), needed)
+        for rule in meridian.CLAUDE_PROJECT_ALLOWLIST:
+            self.assertNotIn(rule, deny)
 
     def test_setup_advises_about_direct_hook_registration_with_plugin_enabled(self) -> None:
         project = self.home / "project"
