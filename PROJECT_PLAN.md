@@ -104,7 +104,7 @@
 - `[x]` 134 — Add `meridian context size` to measure the startup read set.
 - `[x]` 135 — Report measured token usage of agent sessions.
 - `[x]` 136 — Load workflow context by phase and point agents to bounded readers.
-- `[ ]` 137 — Tell Codex agents to wait once for long commands.
+- `[x]` 137 — Tell Codex agents to wait once for long commands.
 - `[ ]` 138 — Run the unit suite in parallel without changing what it covers.
 - `[x]` 139 — Make `check_repository.py` catch managed-copy digest drift.
 - `[ ]` 141 — Count cached input in the Claude Code usage report.

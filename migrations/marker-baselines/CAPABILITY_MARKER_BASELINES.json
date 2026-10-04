@@ -141,6 +141,10 @@
     "investigation-scope": {
       "sha256": "7240335b50be2872123ce878fc37eb988f3c0bf0c84db887e0a02d93363f25ca",
       "version": 1
+    },
+    "long-command-waits": {
+      "sha256": "942c3ebfa010f7aba0385d4e0fbb241edf1c17eea89158531a24cddb162198a8",
+      "version": 1
     }
   },
   "templates/workflows/governed-sdd/docs/LIFECYCLE_ORCHESTRATION.md": {
@@ -353,6 +357,12 @@
     "validation-scoping": {
       "sha256": "8e165c94ec1b84f1e2da7d5ef6d355c0c009c9e7b2b799aa13422420cf41dd45",
       "version": 2
+    }
+  },
+  "templates/workflows/lean-delivery/docs/EXECUTION_EVIDENCE_PROFILE.md": {
+    "long-command-waits": {
+      "sha256": "942c3ebfa010f7aba0385d4e0fbb241edf1c17eea89158531a24cddb162198a8",
+      "version": 1
     }
   },
   "templates/workflows/lean-delivery/docs/WORKTREE_LIFECYCLE.md": {
