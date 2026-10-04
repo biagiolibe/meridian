@@ -442,7 +442,7 @@ class BoundedWorktreeLifecycleTest(unittest.TestCase):
                 "candidate_tree": staged["candidate_tree"],
                 "passed": True,
                 "scope": "bounded",
-                "commands": ["python3 scripts/check_repository.py"],
+                "commands": ["git diff --check", "python3 scripts/check_repository.py"],
             }),
             encoding="utf-8",
         )
@@ -460,13 +460,13 @@ class BoundedWorktreeLifecycleTest(unittest.TestCase):
         baseline = "set -o pipefail; python3 scripts/check_repository.py 2>&1 | tail -n 200"
         suite = "python3 -m unittest discover -s tests -q 2>&1 | tail -n 40"
         for decision, commands, expected in (
-            ("REUSE", [baseline], ()),
-            ("BOUNDED", [baseline], ()),
-            ("FULL", [baseline, suite], ()),
-            ("REUSE", [], ("scripts/check_repository.py",)),
-            ("BOUNDED", [], ("scripts/check_repository.py",)),
-            ("FULL", [suite], ("scripts/check_repository.py",)),
-            ("FULL", [baseline], ("unittest discover",)),
+            ("REUSE", ["git diff --check", baseline], ()),
+            ("BOUNDED", ["git diff --check", baseline], ()),
+            ("FULL", ["git diff --check", baseline, suite], ()),
+            ("REUSE", [baseline], ("git diff --check",)),
+            ("BOUNDED", [], ("git diff --check", "scripts/check_repository.py")),
+            ("FULL", [suite], ("git diff --check", "scripts/check_repository.py")),
+            ("FULL", ["git diff --check", baseline], ("unittest discover",)),
         ):
             with self.subTest(decision=decision, commands=commands):
                 self.assertEqual(
@@ -530,10 +530,15 @@ class BoundedWorktreeLifecycleTest(unittest.TestCase):
         validation_path = self.root / "candidate-validation.json"
         validation_path.write_text(json.dumps({
             "candidate_tree": staged["candidate_tree"], "passed": True,
-            "scope": "bounded", "commands": ["git diff --check"],
+            "scope": "bounded", "commands": ["python3 scripts/check_repository.py"],
         }), encoding="utf-8")
 
-        with self.assertRaisesRegex(meridian.MeridianError, r"scripts/check_repository.py"):
+        with self.assertRaisesRegex(meridian.MeridianError, r"git diff --check"):
+            meridian.finalize_task_integration("056", validation_path, self.primary)
+        (self.primary / ".meridian/candidate-validation.json").write_text(
+            json.dumps({"version": 1, "state": "none"}), encoding="utf-8"
+        )
+        with self.assertRaisesRegex(meridian.MeridianError, r"git diff --check"):
             meridian.finalize_task_integration("056", validation_path, self.primary)
 
         _state, lease_path, integration_path = meridian._lifecycle_paths(
@@ -1117,6 +1122,92 @@ class GovernedCompletionRowsTest(unittest.TestCase):
             (self.primary / "tasks/QUEUE_ARCHIVE.md").read_text(encoding="utf-8"),
         )
         meridian.abort_task_integration("056", self.primary)
+
+    def test_governed_stage_accepts_a_template_spike_row_for_another_task(self) -> None:
+        queue = self.primary / "tasks/QUEUE.md"
+        queue.write_text(
+            "### Phase 1 — Governed\n\n"
+            "| Order | ID | Priority | Status | Review | Dependencies | Task file |\n"
+            "|---:|---|---|---|---|---|---|\n"
+            "| 1 | 055 | P0 | ANSWERED | SPIKE | — | [055](055-spike.md) |\n"
+            "| 2 | 056 | P0 | QUEUED | NOT_REQUIRED | — | [056](056-lifecycle.md) |\n",
+            encoding="utf-8",
+        )
+        self.git("add", "tasks/QUEUE.md")
+        self.git("commit", "-m", "add answered spike row")
+        self.base = self.git("rev-parse", "HEAD").stdout.strip()
+        prepared = self.prepare()
+        task_worktree = Path(str(prepared["worktree"]))
+        (task_worktree / "feature.txt").write_text("implemented\n", encoding="utf-8")
+        self.git("add", "feature.txt", cwd=task_worktree)
+        self.git("commit", "-m", "implement task", cwd=task_worktree)
+        task_commit = self.git("rev-parse", "HEAD", cwd=task_worktree).stdout.strip()
+        evidence_path = self.root / "integration-evidence.json"
+        evidence_path.write_text(json.dumps({
+            "accepted": True, "validation_passed": True,
+            "validated_task_commit": task_commit, "validated_base_commit": self.base,
+            "full_validation_required": False, "interaction_assessment_complete": True,
+            "task_paths": ["feature.txt"], "task_dependencies": [],
+            "task_behavioral_surfaces": [], "main_advanced_dependencies": [],
+            "main_advanced_behavioral_surfaces": [],
+        }), encoding="utf-8")
+        staged = meridian.stage_task_integration("056", self.worktree_root, evidence_path, self.primary)
+        self.assertEqual(staged["completion"]["status"], "COMPLETED")
+        self.assertIn("ANSWERED | SPIKE", (self.primary / "tasks/QUEUE_ARCHIVE.md").read_text(encoding="utf-8"))
+        meridian.abort_task_integration("056", self.primary)
+
+    def test_governed_spike_completion_and_archival_terminal_states(self) -> None:
+        queue = self.primary / "tasks/QUEUE.md"
+        task = self.primary / "tasks/056-lifecycle.md"
+        task.write_text("# Task 056\n\n> **ID**: `056`\n\nClass: SPIKE\nStatus: ANSWERED\n", encoding="utf-8")
+        contents = (
+            "### Phase 1 — Governed\n\n"
+            "| Order | ID | Priority | Status | Review | Dependencies | Task file |\n"
+            "|---:|---|---|---|---|---|---|\n"
+            "| 1 | 056 | P0 | QUEUED | SPIKE | — | [056](056-lifecycle.md) |\n"
+        )
+        queue.write_text(contents, encoding="utf-8")
+        identity = meridian.resolve_task_identity(self.primary, "056", "existing")
+        result = meridian._apply_task_completion_rows(self.primary, identity)
+        self.assertEqual(result["status"], "COMPLETED")
+        self.assertIn("ANSWERED | SPIKE", (self.primary / "tasks/QUEUE_ARCHIVE.md").read_text(encoding="utf-8"))
+        inconclusive = contents.replace("QUEUED", "INCONCLUSIVE")
+        retained, archive = meridian._archive_completed_queue_sections(
+            inconclusive, queue, self.primary / "tasks/QUEUE_ARCHIVE.md", "governed-sdd"
+        )
+        self.assertEqual(retained, inconclusive)
+        self.assertIsNone(archive)
+
+    def test_governed_stage_blocks_a_spike_source_change_before_a_lease(self) -> None:
+        task = self.primary / "tasks/056-lifecycle.md"
+        task.write_text(
+            "# Task 056\n\n> **ID**: `056`\n\nClass: SPIKE\nStatus: ANSWERED\nDeliverable: `docs/answer.md`\n",
+            encoding="utf-8",
+        )
+        self.git("add", "tasks/056-lifecycle.md")
+        self.git("commit", "-m", "declare spike task")
+        self.base = self.git("rev-parse", "HEAD").stdout.strip()
+        prepared = self.prepare()
+        task_worktree = Path(str(prepared["worktree"]))
+        (task_worktree / "source.py").write_text("blocked\n", encoding="utf-8")
+        self.git("add", "source.py", cwd=task_worktree)
+        self.git("commit", "-m", "change source", cwd=task_worktree)
+        task_commit = self.git("rev-parse", "HEAD", cwd=task_worktree).stdout.strip()
+        evidence_path = self.root / "integration-evidence.json"
+        evidence_path.write_text(json.dumps({
+            "accepted": True, "validation_passed": True,
+            "validated_task_commit": task_commit, "validated_base_commit": self.base,
+            "full_validation_required": False, "interaction_assessment_complete": True,
+            "task_paths": ["source.py"], "task_dependencies": [],
+            "task_behavioral_surfaces": [], "main_advanced_dependencies": [],
+            "main_advanced_behavioral_surfaces": [],
+        }), encoding="utf-8")
+        with self.assertRaisesRegex(meridian.MeridianError, r"source.py"):
+            meridian.stage_task_integration("056", self.worktree_root, evidence_path, self.primary)
+        identity = meridian.resolve_task_identity(self.primary, "056", "existing")
+        _state, lease, staged = meridian._lifecycle_paths(self.primary, identity)
+        self.assertFalse(lease.exists())
+        self.assertFalse(staged.exists())
 
     def test_governed_completion_matrix_relinks_archives_and_ignores_plan(self) -> None:
         statuses = ("QUEUED", "IN_PROGRESS", "CHANGES_REQUESTED", "READY_FOR_REVIEW", "ACCEPTED")
