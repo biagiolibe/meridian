@@ -3,7 +3,7 @@
 > **ID**: `143`
 > **Category**: Bugfix
 > **Priority**: 🔴 P1
-> **Estimate**: ~2h
+> **Estimate**: ~2.5h
 > **Assigned to**: unassigned
 > **Session**: Palimpsest defect report D1/D8, design approved 2026-10-04
 
@@ -34,11 +34,20 @@ because the profile is project-owned and upgrades do not add the field.
   status is never consulted. In the primary checkout there is no active task.
 - [ ] The task's own record, its archive under `done/`, its handoff, its review
   record, and its `context authority` sources stay exempt, as today.
-- [ ] The router read set is exempt in both modes: `LANGUAGE_POLICY.md`,
-  `PROJECT_WORKFLOW.md`, `AGENTS.md`, `CLAUDE.md`, and every procedure file the
-  generated router routes to, taken from one shared source (the router or
-  `meridian context size --role`), not a second hard-coded list. The legacy
-  `ENTRY_ROUTER.md` declaration keeps working.
+- [ ] The router read set is exempt from `Read-guard threshold` in both modes, but
+  only up to a per-file ceiling: `LANGUAGE_POLICY.md`, `PROJECT_WORKFLOW.md`,
+  `AGENTS.md`, `CLAUDE.md`, and every procedure file the generated router routes
+  to, taken from one shared source (the router or `meridian context size --role`),
+  not a second hard-coded list. The legacy `ENTRY_ROUTER.md` declaration keeps
+  working. The exemption never removes the bound; it replaces the 400-line runtime
+  denial with a declared ceiling.
+- [ ] The ceiling is the optional `routerFileLinesCeiling` key of
+  `.meridian/context-size.json` (version 1, default 1000 lines). A router file
+  above it is still denied, with a message that says to shrink the file and never
+  to read it in ranges; `LANGUAGE_POLICY.md` keeps its unconditional exemption.
+- [ ] `meridian context size` reports each router file above the ceiling, and a
+  role whose startup read set exceeds its byte ceiling, as a failure; `meridian
+  audit` reports the same condition as a FAIL row, from the same computation.
 - [ ] The denial message says to add or raise `` `Read-guard threshold` `` in
   `docs/EXECUTION_EVIDENCE_PROFILE.md`, and the threshold default stays 400.
 - [ ] The queue briefing derives Governed in-progress and ready-for-review tasks
@@ -50,8 +59,10 @@ because the profile is project-owned and upgrades do not add the field.
   reported the same way (no double count, no error).
 - [ ] Tests cover: the active task found from a task worktree with the queue row
   still `[ ]`/`QUEUED`; no active task in the primary checkout; `PROJECT_WORKFLOW.md`
-  above the threshold readable; an unrelated large file still denied; the new
-  message; and the briefing for Governed and Lean.
+  above the threshold and below the ceiling readable; a router file above the
+  ceiling denied with the shrink message; a custom ceiling; an unrelated large
+  file still denied; `context size` and `audit` failures for an oversized router
+  file; the new message; and the briefing for Governed and Lean.
 - [ ] One changelog fragment is added per `CONTRIBUTING.md`; hook copies installed
   into projects follow the existing managed-hook update path.
 - [ ] `python3 scripts/check_repository.py` and the unit tests pass.
@@ -73,6 +84,13 @@ because the profile is project-owned and upgrades do not add the field.
   corrected by task 146; this task changes behavior only.
 - Prefer one `meridian` subcommand or flag that hooks call over parsing Git state in
   shell.
+- Reading a mandated router file in ranges costs the same bytes in more calls, so
+  the runtime denial saved nothing; the bound moves to a declared, checkable
+  ceiling. The structural fix for an oversized `PROJECT_WORKFLOW.md` is removing
+  restated framework rules (tasks 144 and 145), not a larger ceiling.
+- The context-size configuration parser rejects unknown keys today; adding
+  `routerFileLinesCeiling` keeps version 1 and is documented in
+  `docs/CONTEXT_BUDGET_POLICY.md` next to `fileBytesThreshold`.
 
 ## Validation
 
@@ -82,7 +100,8 @@ because the profile is project-owned and upgrades do not add the field.
 
 ## Out of scope
 
-Changing the threshold default, the console, `integrate stage`, and capability text.
+Changing the threshold default, the console, `integrate stage`, capability text,
+and the size of any project file.
 
 ## Dependencies
 
