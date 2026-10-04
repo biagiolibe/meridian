@@ -953,6 +953,18 @@ class MeridianCliTest(unittest.TestCase):
             ["1.1.1"],
         )
 
+    def test_upgrade_from_1_2_7_reports_migration_062(self) -> None:
+        (self.framework / "VERSION").write_text("1.2.7\n", encoding="utf-8")
+        locked = self.run_cli("lock", "--mode", "governed-sdd")
+        self.assertEqual(locked.returncode, 0, locked.stdout + locked.stderr)
+
+        (self.framework / "VERSION").write_text("1.2.8\n", encoding="utf-8")
+        checked = self.run_cli("upgrade", "--check")
+
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+        self.assertIn("Meridian 1.2.7 -> 1.2.8", checked.stdout)
+        self.assertIn("MIGRATION 062-primary-project-declaration-and-review-authority", checked.stdout)
+
     def test_legacy_manifest_uses_framework_version_as_baseline_fallback(self) -> None:
         self.configure_version_split_fixture()
         manifest_path = self.project / ".meridian/manifest.json"
@@ -7365,9 +7377,12 @@ class LauncherTest(unittest.TestCase):
     def test_the_bin_launcher_starts_outside_the_scripts_directory(self) -> None:
         # runpy.run_path keeps bin/ on sys.path, so every script-local import
         # must resolve after the entry point adds scripts/ itself.
+        environment = dict(os.environ)
+        environment.pop("MERIDIAN_ROOT", None)
         result = subprocess.run(
             [sys.executable, str(ROOT / "bin" / "meridian"), "--version"],
             cwd=tempfile.gettempdir(), capture_output=True, text=True, check=False,
+            env=environment,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.strip(), (ROOT / "VERSION").read_text(encoding="utf-8").strip())
