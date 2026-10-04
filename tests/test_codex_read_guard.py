@@ -72,6 +72,17 @@ class CodexReadGuardTest(unittest.TestCase):
         payload["cwd"] = str(self.project / "outside")
         self.assertTrue(decision(payload)[0])
 
+    def test_router_files_are_exempt_only_up_to_the_declared_ceiling(self) -> None:
+        (self.project / "PROJECT_WORKFLOW.md").write_text("LEAN_DELIVERY\n" * 500, encoding="utf-8")
+        self.assertTrue(decision(self.payload("cat PROJECT_WORKFLOW.md"))[0])
+        (self.project / ".meridian").mkdir()
+        (self.project / ".meridian/context-size.json").write_text(
+            '{"version": 1, "routerFileLinesCeiling": 100}\n', encoding="utf-8"
+        )
+        allowed, reason = decision(self.payload("cat PROJECT_WORKFLOW.md"))
+        self.assertFalse(allowed)
+        self.assertIn("Shrink the file", reason or "")
+
     def test_malformed_input_allows(self) -> None:
         self.assertTrue(decision({})[0])
         self.assertTrue(decision({"tool_name": "Bash", "cwd": str(self.project), "tool_input": {}})[0])

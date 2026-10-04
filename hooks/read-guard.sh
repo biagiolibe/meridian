@@ -92,6 +92,50 @@ is_exempt_path() {
   return 1
 }
 
+# The lifecycle registration is the source of truth for an active task.  A
+# task branch intentionally leaves the shared queue row untouched.
+if [ -n "$MERIDIAN_BIN" ] && [ -x "$MERIDIAN_BIN" ]; then
+  ACTIVE_EXEMPT=$(
+    "$MERIDIAN_BIN" worktree active --format json 2>/dev/null | python3 -c '
+import json, sys
+try:
+    print("\n".join(json.load(sys.stdin).get("exempt_paths", [])))
+except Exception:
+    pass
+' 2>/dev/null
+  )
+  while IFS= read -r SOURCE; do
+    if is_exempt_path "$SOURCE"; then
+      exit 0
+    fi
+  done <<< "$ACTIVE_EXEMPT"
+
+  # `context size` owns this list, so the hook does not carry a second
+  # hard-coded router declaration.  Router files remain bounded by their
+  # independently configured line ceiling.
+  ROUTER_DECISION=$("$MERIDIAN_BIN" context size --role implementation --format json --project "$CWD" 2>/dev/null | python3 -c '
+import json, sys
+try:
+    report = json.load(sys.stdin)
+    path = sys.argv[1]
+    for record in report.get("router_files", []):
+        if record.get("path") == path:
+            print("deny:%s:%s:%s" % (path, record.get("lines"), report.get("router_file_lines_ceiling")) if record.get("over_router_ceiling") else "allow")
+            break
+except Exception:
+    pass
+' "$RELATIVE_PATH" 2>/dev/null)
+  if [[ "$ROUTER_DECISION" == deny:* ]]; then
+    IFS=: read -r _ ROUTER_PATH ROUTER_LINES ROUTER_CEILING <<< "$ROUTER_DECISION"
+    MESSAGE="Blocked: router file $ROUTER_PATH ($ROUTER_LINES lines) exceeds its declared ceiling ($ROUTER_CEILING lines). Shrink the file; do not read it in ranges."
+    printf '%s\n' "$MESSAGE" >&2
+    printf '{"hookSpecificOutput": {"permissionDecision": "deny"}, "systemMessage": "%s"}\n' "$MESSAGE"
+    exit 2
+  elif [ "$ROUTER_DECISION" = "allow" ]; then
+    exit 0
+  fi
+fi
+
 # The active task's own file, and every source task 034's `context
 # authority` resolved from its `Authority` bullets -- a worker must never be
 # blocked from reading the file its own task assigns.

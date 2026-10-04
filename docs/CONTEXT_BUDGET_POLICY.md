@@ -78,6 +78,10 @@ set using byte-derived token estimates (bytes / 4 to bytes / 3.3), not a claim
 of tokenizer accuracy. Set a per-file enforcement threshold in
 `.meridian/context-size.json` as `{ "version": 1, "fileBytesThreshold": 12000 }`,
 or pass `--threshold-bytes`; without either, the report is advisory.
+The same version-1 file may set `routerFileLinesCeiling` (default: 1000).
+Router startup files are exempt from the runtime read-guard threshold only up
+to that ceiling; shrink an oversized router file rather than reading it in
+ranges.
 
 Template read-set ceilings are checked by `scripts/check_repository.py`:
 
