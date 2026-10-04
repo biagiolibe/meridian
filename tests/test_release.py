@@ -352,6 +352,8 @@ class ReleasePublishTest(unittest.TestCase):
             if command[:3] == ["gh", "release", "view"]:
                 return subprocess.CompletedProcess(command, 0, '{"isDraft": false, "isPrerelease": false, "url": "https://example.invalid/release"}', "")
             if command[:2] == ["gh", "api"]:
+                if "--repo" in command:
+                    return subprocess.CompletedProcess(command, 1, "", "unknown flag: --repo")
                 return subprocess.CompletedProcess(command, 0, '{"tag_name": "v1.0.1"}', "")
             return original(root, command)
 
@@ -517,7 +519,7 @@ class ReleasePublishTest(unittest.TestCase):
         self.assertTrue(set(fields) <= {"isDraft", "isPrerelease", "url"})
         self.assertEqual(view[-2:], ["--repo", "owner/repository"])
         api = next(command for command in commands if command[:2] == ["gh", "api"])
-        self.assertEqual(api, ["gh", "api", "repos/owner/repository/releases/latest", "--repo", "owner/repository"])
+        self.assertEqual(api, ["gh", "api", "repos/owner/repository/releases/latest"])
 
     def test_latest_release_mismatch_draft_and_prerelease_are_rejected(self) -> None:
         for release_response, latest_response in (

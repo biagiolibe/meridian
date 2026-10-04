@@ -597,7 +597,7 @@ def wait_for_publication(root: Path, version: str, repository: str | None, tag_h
         raise post_push_verification_error(version, repository, "gh release view returned an unexpected JSON shape")
     if not repository:
         raise post_push_verification_error(version, repository, "GitHub repository could not be resolved for the latest-release check")
-    latest_command = ["gh", "api", f"repos/{repository}/releases/latest", "--repo", repository]
+    latest_command = ["gh", "api", f"repos/{repository}/releases/latest"]
     latest = run_command(root, latest_command)
     if latest.returncode:
         detail = latest.stderr.strip() or latest.stdout.strip() or f"gh api exited {latest.returncode}"
