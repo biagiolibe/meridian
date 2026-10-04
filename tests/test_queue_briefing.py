@@ -25,9 +25,9 @@ GOVERNED_HEADER = (
 )
 
 
-def run_hook(cwd: Path, environment: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+def run_hook(cwd: Path, environment: dict[str, str] | None = None, hook: Path = HOOK) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        ["bash", str(HOOK)], cwd=str(cwd), capture_output=True, text=True,
+        ["bash", str(hook)], cwd=str(cwd), capture_output=True, text=True,
         check=False, env=environment,
     )
 
@@ -298,6 +298,56 @@ class QueueBriefingTest(unittest.TestCase):
         self.assertIn("In progress: Active thing", result.stdout)
         self.assertIn("Queued: 003 - Next thing", result.stdout)
         self.assertIn("Completed: 1", result.stdout)
+
+    def test_governed_states_come_from_registered_worktrees_not_queue_rows(self) -> None:
+        self.write_queue(
+            "| 1 | TASK-001 | P0 | QUEUED | REQUIRED | — | [TASK-001](TASK-001.md) |\n"
+            "| 2 | TASK-002 | P0 | QUEUED | REQUIRED | — | [TASK-002](TASK-002.md) |\n"
+        )
+        hook_root = self.project / "hook-root"
+        hook = hook_root / "hooks/queue-briefing.sh"
+        hook.parent.mkdir(parents=True)
+        hook.write_text(HOOK.read_text(encoding="utf-8"), encoding="utf-8")
+        runner = hook_root / "bin/meridian"
+        runner.parent.mkdir()
+        runner.write_text(
+            "#!/bin/sh\n"
+            "case \"$1 $2\" in\n"
+            "  locations*) echo tasks/QUEUE.md ;;\n"
+            "  worktree\\ states) echo '[{\"task_id\":\"TASK-001\",\"status\":\"IN_PROGRESS\"},{\"task_id\":\"TASK-002\",\"status\":\"READY_FOR_REVIEW\"}]' ;;\n"
+            "esac\n",
+            encoding="utf-8",
+        )
+        runner.chmod(0o755)
+        result = run_hook(self.project, hook=hook)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("In progress: TASK-001", result.stdout)
+        self.assertIn("In review: TASK-002", result.stdout)
+
+    def test_lean_registered_active_task_does_not_require_a_checkbox_edit(self) -> None:
+        (self.project / "tasks/QUEUE.md").write_text(
+            "| Status | ID | Title | File |\n|--------|----|-------|------|\n"
+            "| `[ ]` | 002 | Active thing | [002](002.md) |\n",
+            encoding="utf-8",
+        )
+        hook_root = self.project / "hook-root"
+        hook = hook_root / "hooks/queue-briefing.sh"
+        hook.parent.mkdir(parents=True)
+        hook.write_text(HOOK.read_text(encoding="utf-8"), encoding="utf-8")
+        runner = hook_root / "bin/meridian"
+        runner.parent.mkdir()
+        runner.write_text(
+            "#!/bin/sh\n"
+            "case \"$1 $2\" in\n"
+            "  locations*) echo tasks/QUEUE.md ;;\n"
+            "  worktree\\ active) echo '{\"task_id\":\"002\"}' ;;\n"
+            "esac\n",
+            encoding="utf-8",
+        )
+        runner.chmod(0o755)
+        result = run_hook(self.project, hook=hook)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("In progress: Active thing", result.stdout)
 
     def test_stays_well_under_the_hook_timeout_on_a_200_row_queue(self) -> None:
         rows = []

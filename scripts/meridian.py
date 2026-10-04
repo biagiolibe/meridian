@@ -964,6 +964,35 @@ def active_worktree_task(directory: Path) -> dict[str, object] | None:
     return None
 
 
+def registered_worktree_task_states(project_root: Path) -> list[dict[str, str]]:
+    """Return in-flight task states from lifecycle registrations and records."""
+    primary = canonical_project_root(project_root)
+    locations = resolve_project_locations(primary)
+    worktrees = {
+        Path(item["worktree"]).resolve(): item.get("branch", "").removeprefix("refs/heads/")
+        for item in _git_worktrees(primary) if "worktree" in item
+    }
+    states: list[dict[str, str]] = []
+    for task_id in sorted(_task_authorities(primary, locations)):
+        try:
+            identity = resolve_task_identity(primary, task_id, "existing")
+            state_path, _lease, _integration = _lifecycle_paths(primary, identity)
+            lifecycle = _read_json_object(state_path, "worktree lifecycle state")
+            worktree = Path(str(lifecycle["worktree"])).resolve()
+        except (KeyError, TypeError, MeridianError):
+            continue
+        if (lifecycle.get("task_id") != identity.canonical_id
+                or lifecycle.get("branch") != identity.branch_name
+                or worktrees.get(worktree) != identity.branch_name):
+            continue
+        record = worktree / identity.task_path.relative_to(primary)
+        if not record.is_file():
+            continue
+        status = read_task_field(record.read_text(encoding="utf-8"), "Status") or "IN_PROGRESS"
+        states.append({"task_id": identity.canonical_id, "status": status})
+    return states
+
+
 def closure_status(
     task_id: str,
     worktree_root: Path | None,
@@ -5450,12 +5479,19 @@ def run_audit(
     for status, detail in audit_entry_router(project_root):
         results.append(AuditResult(status, "entry-router", detail))
     try:
-        for role in CONTEXT_SIZE_ROLES[locked_mode]:
-            report = context_size_report(project_root, role)
-            for path in report["exceeded"]:
-                results.append(AuditResult("FAIL", "context-size", f"{role}: {path} exceeds its configured ceiling"))
+        detect_mode(project_root)
     except MeridianError as error:
-        results.append(AuditResult("FAIL", "context-size", str(error)))
+        # Fixture and legacy projects may have a valid manifest but no local
+        # workflow-mode lock, so their router read set is not available.
+        results.append(AuditResult("NOT_APPLICABLE", "context-size", str(error)))
+    else:
+        try:
+            for role in CONTEXT_SIZE_ROLES[locked_mode]:
+                report = context_size_report(project_root, role, workflow_mode=locked_mode)
+                for path in report["exceeded"]:
+                    results.append(AuditResult("FAIL", "context-size", f"{role}: {path} exceeds its configured ceiling"))
+        except MeridianError as error:
+            results.append(AuditResult("FAIL", "context-size", str(error)))
     try:
         validation_state, _fragments = candidate_validation_declaration(project_root)
         if validation_state == "undeclared":
@@ -7619,9 +7655,9 @@ def _context_threshold(project_root: Path, override: int | None) -> int | None:
     return _context_configuration(project_root)[0]
 
 
-def context_router_files(project_root: Path) -> list[Path]:
+def context_router_files(project_root: Path, workflow_mode: str | None = None) -> list[Path]:
     """Return the shared startup-router file set used by read guards and size checks."""
-    mode = detect_mode(project_root)
+    mode = workflow_mode or detect_mode(project_root)
     files = {Path("LANGUAGE_POLICY.md"), Path("PROJECT_WORKFLOW.md")}
     router = _context_router(project_root)
     if (project_root / router).is_file():
@@ -7641,9 +7677,10 @@ def context_router_files(project_root: Path) -> list[Path]:
     return sorted(files, key=lambda item: item.as_posix())
 
 
-def context_size_report(project_root: Path, role: str, task_id: str | None = None, threshold: int | None = None) -> dict[str, object]:
+def context_size_report(project_root: Path, role: str, task_id: str | None = None, threshold: int | None = None,
+                        workflow_mode: str | None = None) -> dict[str, object]:
     """Measure the documents a role is instructed to read without writing or executing a project command."""
-    mode = detect_mode(project_root)
+    mode = workflow_mode or detect_mode(project_root)
     if role not in CONTEXT_SIZE_ROLES[mode]:
         allowed = ", ".join(CONTEXT_SIZE_ROLES[mode])
         raise MeridianError(f"role {role!r} is not available for {mode}; choose: {allowed}")
@@ -7707,7 +7744,7 @@ def context_size_report(project_root: Path, role: str, task_id: str | None = Non
         record = _context_file_record(project_root, path, "deferred")
         record["phase"] = phase
         deferred_documents.append(record)
-    router_records = [_context_file_record(project_root, path, "router-read") for path in context_router_files(project_root)]
+    router_records = [_context_file_record(project_root, path, "router-read") for path in context_router_files(project_root, mode)]
     for record in router_records:
         record["over_router_ceiling"] = bool(record["status"] == "present" and isinstance(record["lines"], int) and record["lines"] > router_ceiling)
     exceeded = [str(record["label"]) for record in records if record["over_threshold"]]
@@ -8706,6 +8743,9 @@ def main() -> int:
     worktree_check.add_argument("--format", choices=("json",), required=True)
     worktree_active = worktree_sub.add_parser("active", help="resolve the active task from this registered worktree")
     worktree_active.add_argument("--format", choices=("json",), required=True)
+    worktree_states = worktree_sub.add_parser("states", help="list task states from registered worktrees")
+    worktree_states.add_argument("--project", type=Path, default=Path.cwd())
+    worktree_states.add_argument("--format", choices=("json",), required=True)
     worktree_evidence = worktree_sub.add_parser(
         "evidence", help="record Git-derived task validation evidence without running commands"
     )
@@ -9012,6 +9052,8 @@ def main() -> int:
         elif arguments.command == "worktree":
             if arguments.worktree_command == "active":
                 print(json.dumps(active_worktree_task(Path.cwd()) or {}, sort_keys=True))
+            elif arguments.worktree_command == "states":
+                print(json.dumps(registered_worktree_task_states(arguments.project), sort_keys=True))
             elif arguments.worktree_command == "path":
                 canonical_project = _verified_lifecycle_project(project_root)
                 path_identity = resolve_task_identity(

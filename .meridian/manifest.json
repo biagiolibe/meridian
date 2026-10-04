@@ -60,7 +60,7 @@
           "hostActivation": {},
           "installation": {
             "evidence": [
-              "sha256:441afba69d5dc025a2e69c0b5d67042642d3c9167e64f47d3fc7e7d615acd423"
+              "sha256:aac7359b81c84a08d896e952b2526629c39ed73a9fa9f3d6d509fa6313c2e090"
             ],
             "notApplicableRationale": null,
             "state": "INSTALLED"
@@ -85,7 +85,7 @@
           "installation": {
             "evidence": [
               "sha256:f5ec22950a45f1148fc9e5bb76f02d904c53701a1dfa3ecfdd3211763d57e9aa",
-              "sha256:441afba69d5dc025a2e69c0b5d67042642d3c9167e64f47d3fc7e7d615acd423"
+              "sha256:aac7359b81c84a08d896e952b2526629c39ed73a9fa9f3d6d509fa6313c2e090"
             ],
             "notApplicableRationale": null,
             "state": "INSTALLED"
@@ -148,7 +148,7 @@
           "hostActivation": {},
           "installation": {
             "evidence": [
-              "sha256:441afba69d5dc025a2e69c0b5d67042642d3c9167e64f47d3fc7e7d615acd423"
+              "sha256:aac7359b81c84a08d896e952b2526629c39ed73a9fa9f3d6d509fa6313c2e090"
             ],
             "notApplicableRationale": null,
             "state": "INSTALLED"
@@ -178,7 +178,7 @@
           },
           "installation": {
             "evidence": [
-              "sha256:362a671dd7a971dd0ab0443d1a2efb82956fa08c0214a5577d98651a4621c20f",
+              "sha256:04ba352247d569983ffe873f83032ef41ec2ac772b96b38cdb77e105c673e1b4",
               "sha256:ea9348fc6be62246eb9b9ee4e8859e58440b4c46b1275d37d56b4a22ac399624"
             ],
             "notApplicableRationale": null,
@@ -219,7 +219,7 @@
           "installation": {
             "evidence": [
               "sha256:b427ae75d05f8d193e2e12367db24fae6687b3ca0aa192a06c23cb8f488cc7dd",
-              "sha256:dec4865f46f836c65b0ed4dd9723ae50550ac4c621062342fbaaaa0105a207f7",
+              "sha256:895968d847cb7a7df0abc4a580569bd46435fc3de53e1ae1f0c7c14f7b66c4f1",
               "sha256:ea9348fc6be62246eb9b9ee4e8859e58440b4c46b1275d37d56b4a22ac399624"
             ],
             "notApplicableRationale": null,
@@ -252,7 +252,7 @@
           "hostActivation": {},
           "installation": {
             "evidence": [
-              "sha256:441afba69d5dc025a2e69c0b5d67042642d3c9167e64f47d3fc7e7d615acd423",
+              "sha256:aac7359b81c84a08d896e952b2526629c39ed73a9fa9f3d6d509fa6313c2e090",
               "sha256:bd32317da3484c5744248d587c3c2418bdd0547226727b4b3a6b6a7b52d99641"
             ],
             "notApplicableRationale": null,
@@ -334,7 +334,7 @@
     "CLAUDE.md": "810ad8d3b969014c2ef26bb7223b675a2130774b8968e989074ef302da060a10",
     "LANGUAGE_POLICY.md": "65fc7654c6d37865fae03290b4c21304efee616bbb8615fa298c3e55abfdf558",
     "PROJECT_WORKFLOW.md": "bd32317da3484c5744248d587c3c2418bdd0547226727b4b3a6b6a7b52d99641",
-    "docs/CONTEXT_BUDGET_POLICY.md": "441afba69d5dc025a2e69c0b5d67042642d3c9167e64f47d3fc7e7d615acd423",
+    "docs/CONTEXT_BUDGET_POLICY.md": "aac7359b81c84a08d896e952b2526629c39ed73a9fa9f3d6d509fa6313c2e090",
     "docs/EXECUTION_EVIDENCE_PROFILE.md": "f5ec22950a45f1148fc9e5bb76f02d904c53701a1dfa3ecfdd3211763d57e9aa"
   },
   "protocolVersion": 2,
