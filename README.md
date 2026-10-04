@@ -632,6 +632,7 @@ CONTRIBUTING.md                   Contribution guidance and validation
 - [Framework upgrade CLI](commands/meridian-upgrade.md)
 - [Distribution and update channel design](docs/DISTRIBUTION_AND_UPDATE_DESIGN.md)
 - [Capability-marker integrity audit](commands/meridian-audit.md)
+- [Consumer profiles and project-owned sections](docs/CONSUMER_PROFILES.md)
 
 ## Development and contributions
 

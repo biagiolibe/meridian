@@ -12,7 +12,15 @@ For an implementation or review:
 4. Expand context only when the task is blocked, an acceptance criterion cannot be verified, or an authoritative conflict is discovered. Record the reason in the completion or review report.
 5. <!-- MERIDIAN:BEGIN capability=queue-briefing v1 -->For the task queue, rely on the resolved briefing that fires at the start of each turn — active, in-review, next-startable, and dependency-blocked rows — instead of opening the queue file. Open it directly only when the briefing did not fire, a row's exact wording or a column it does not surface is needed, or its resolved state conflicts with other evidence.<!-- MERIDIAN:END -->
 6. <!-- MERIDIAN:BEGIN capability=authority-excerpt v1 -->For a task's cited ADRs and specification sections, run `meridian context authority <TASK-ID>` and read its resolved excerpts instead of opening the ADR log or a spec file directly. Open the file itself only when the command reports the entry unresolved or an excerpt is insufficient to verify an acceptance criterion.<!-- MERIDIAN:END -->
-7. <!-- MERIDIAN:BEGIN capability=read-guard v1 -->Item 2's rule is enforced mechanically, not only in prose: a `Read` of a file past the configured `Read-guard threshold` with no `offset`/`limit` is denied outside the task's Authority/exemptions. Locate the needed lines first, then read that range.<!-- MERIDIAN:END -->
+
+<!-- MERIDIAN:BEGIN capability=read-guard v2 -->
+Item 2's rule is enforced mechanically, not only in prose. A `Read` of a file
+past the configured `Read-guard threshold` with no `offset` or `limit` is
+denied. The active task comes from the verified task worktree, and the task's
+Authority and exemption paths are allowed. The router read set is exempt from
+the threshold up to the router file ceiling. Locate the needed lines first,
+then read that range.
+<!-- MERIDIAN:END -->
 
 Dependencies establish readiness; they do not automatically require rereading their entire implementation history.
 
@@ -73,7 +81,7 @@ audit.
 
 ## Validation scope
 
-<!-- MERIDIAN:BEGIN capability=validation-scoping v1 -->
+<!-- MERIDIAN:BEGIN capability=validation-scoping v2 -->
 Before running validation, classify the diff by surface: *documentation/policy
 text* (Markdown, comments, configuration prose with no build or runtime
 effect) versus *source/build* (application code, dependency manifests, build

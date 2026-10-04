@@ -2,7 +2,7 @@
   "id": "061-governed-phase-reads",
   "from": "1.2.6",
   "to": "1.2.7",
-  "description": "Loads Governed SDD documents when the phase that needs them begins, points agents to the bounded ADR, specification, and queue readers, and aligns the Governed lifecycle text with the closure design and the CLI.",
+  "description": "Loads Governed SDD documents when the phase that needs them begins, points agents to the bounded ADR, specification, and queue readers, and aligns the Governed lifecycle text with the closure design and the CLI. Also restructures inline markers into standalone blocks and adds the worktree-lifecycle and remote-branch-cleanup capabilities.",
   "capabilities": [
     {
       "capability": "phase-reads",
@@ -95,9 +95,29 @@
     {
       "capability": "code-organization",
       "capabilityVersion": 2
+    },
+    {
+      "capability": "code-review-prompt",
+      "capabilityVersion": 1
+    },
+    {
+      "capability": "worktree-lifecycle",
+      "capabilityVersion": 1
+    },
+    {
+      "capability": "remote-branch-cleanup",
+      "capabilityVersion": 1
+    },
+    {
+      "capability": "read-guard",
+      "capabilityVersion": 2
+    },
+    {
+      "capability": "validation-scoping",
+      "capabilityVersion": 2
     }
   ],
-  "delta": "Each routed implementation, review, and remediation procedure gains a phase-reads block that states, per document, whether it is read at start or at the phase that needs it, and a bounded-context-readers block that directs ADR and specification reads through meridian context authority and meridian adr show and queue reads through the queue briefing. The status policy gains a phase-reads block and its minimal-read-only-status block names the briefing and the bounded ADR readers. No acceptance criterion, gate, role, or review rule is removed or relaxed; only the time at which a document is read and the way ADRs are read change. The Governed lifecycle text is also aligned with the closure design and the CLI: task branches never edit the queue, queue archive, or plan, and the task record carries IN_PROGRESS, READY_FOR_REVIEW, and CHANGES_REQUESTED while integrate stage applies the queue status; the task branch is the branch value returned by meridian worktree prepare; a task-branch push happens only to obtain T1_CI, at most once per review attempt, never by the reviewer, and not at all without CI; locations and the reviewer author are resolved by meridian locations and meridian project show --field reviewer-author instead of literal paths and placeholders, and the reviewer identity rule lives in one block; Accept appends an owner APPROVE attempt, sets the task record to ACCEPTED, and continues at C6 without a manual merge; a spike integrates only its deliverable; the reviewer verifies the absolute path resolved at runtime from the recorded handoff_worktree; the task-worktree-boundary block states that only the router read set precedes prepare; and code-organization no longer says the project module map is kept out of its own repository, only out of the managed block. Lean Delivery's git-workflow block carries the branch-name and push rules only. Both PROJECT_WORKFLOW.md templates drop the unread Project integration smoke command line: an untouched line is removed by the three-way merge and a customized line is kept or reported as a conflict, never dropped silently, and its command belongs in .meridian/candidate-validation.json, the only candidate-validation declaration. The capability versions listed in capabilityVersions are keyed per workflow mode.",
+  "delta": "Each routed implementation, review, and remediation procedure gains a phase-reads block that states, per document, whether it is read at start or at the phase that needs it, and a bounded-context-readers block that directs ADR and specification reads through meridian context authority and meridian adr show and queue reads through the queue briefing. The status policy gains a phase-reads block and its minimal-read-only-status block names the briefing and the bounded ADR readers. No acceptance criterion, gate, role, or review rule is removed or relaxed; only the time at which a document is read and the way ADRs are read change. The Governed lifecycle text is also aligned with the closure design and the CLI: task branches never edit the queue, queue archive, or plan, and the task record carries IN_PROGRESS, READY_FOR_REVIEW, and CHANGES_REQUESTED while integrate stage applies the queue status; the task branch is the branch value returned by meridian worktree prepare; a task-branch push happens only to obtain T1_CI, at most once per review attempt, never by the reviewer, and not at all without CI; locations and the reviewer author are resolved by meridian locations and meridian project show --field reviewer-author instead of literal paths and placeholders, and the reviewer identity rule lives in one block; Accept appends an owner APPROVE attempt, sets the task record to ACCEPTED, and continues at C6 without a manual merge; a spike integrates only its deliverable; the reviewer verifies the absolute path resolved at runtime from the recorded handoff_worktree; the task-worktree-boundary block states that only the router read set precedes prepare; and code-organization no longer says the project module map is kept out of its own repository, only out of the managed block. Lean Delivery's git-workflow block carries the branch-name and push rules only. Both PROJECT_WORKFLOW.md templates drop the unread Project integration smoke command line: an untouched line is removed by the three-way merge and a customized line is kept or reported as a conflict, never dropped silently, and its command belongs in .meridian/candidate-validation.json, the only candidate-validation declaration. The capability versions listed in capabilityVersions are keyed per workflow mode. Inline markers inside prose are restructured into standalone blocks: docs/CODE_REVIEW_PROMPT.md becomes one code-review-prompt v1 block that applies a project's own '## Project review checklist' section after it, validation-scoping v2 (the implementation procedure's block becomes complete standalone sentences; the context policy and Lean workflow blocks keep their text under the new version) and the context policy's read-guard block (v2, in both modes) become complete standalone sentences, docs/WORKTREE_LIFECYCLE.md is a whole-file worktree-lifecycle v1 block in both modes, the pull request policy's remote task-branch cleanup section is a remote-branch-cleanup v1 block without the duplicated reviewer identity rule, and audit-prompt v3 runs a project's '## Project-specific checks' section after the block. An upgrade that cannot merge cleanly around the retired inline markers preserves the current file in an adjacent collision-safe backup and carries the project's own level-2 sections after the new block.",
   "managedPaths": [
     "AGENTS.md",
     "CLAUDE.md",
@@ -111,6 +131,7 @@
     "docs/OPERATOR_PROMPTS.md",
     "docs/PULL_REQUEST_POLICY.md",
     "docs/REVIEW_RECORD_TEMPLATE.md",
+    "docs/WORKTREE_LIFECYCLE.md",
     "docs/workflows/IMPLEMENTATION.md",
     "docs/workflows/LIFECYCLE.md",
     "docs/workflows/REMEDIATION.md",
@@ -123,7 +144,12 @@
     "marker baselines record the new and bumped capability versions for all managed paths",
     "a clean Governed SDD upgrade installs the bumped lifecycle blocks and a Lean upgrade installs git-workflow v9 while preserving consumer-owned text, including a '## Project module map' section after the code-organization block",
     "python3 scripts/check_repository.py rejects a managed block that says a role edits a queue row, a Governed block that names a literal queue, review, or handoff location outside execution-assets, a placeholder identity, and a second place that states the reviewer identity rule",
-    "python3 scripts/check_repository.py and python3 -m unittest discover -s tests pass"
+    "python3 scripts/check_repository.py and python3 -m unittest discover -s tests pass",
+    "docs/CODE_REVIEW_PROMPT.md carries one code-review-prompt v1 block and none of the retired task-worktree-review v4, manual-verification-review-check v1, or ci-verified-validation v1 inline markers; the PULL_REQUEST_POLICY.md and COMPLETION_REPORT_TEMPLATE.md ci-verified-validation v1 blocks are unchanged",
+    "an upgrade of a project whose retired inline markers sit inside edited prose writes the pre-upgrade file to an adjacent .meridian-pre-restructure.bak backup, reports it, and keeps the project's own level-2 sections after the new block",
+    "meridian audit reports a FAIL row for a markerless managed copy whose digest differs from managedFiles and never for project text outside the capability blocks of a marker-bearing file",
+    "meridian profile bootstrap governed-sdd-consumer and lean-delivery-consumer declare installation evidence on a legacy v2 manifest and leave host activation UNVERIFIED",
+    "an upgrade whose three-way merge conflicts inside docs/WORKTREE_LIFECYCLE.md or the pull request policy's remote task-branch cleanup section reports a conflict instead of appending a duplicate worktree-lifecycle or remote-branch-cleanup block"
   ],
   "capabilityVersions": [
     {
@@ -235,6 +261,91 @@
       "capability": "code-organization",
       "capabilityVersion": 2,
       "workflowMode": "governed-sdd"
+    },
+    {
+      "capability": "code-review-prompt",
+      "capabilityVersion": 1,
+      "workflowMode": "governed-sdd"
+    },
+    {
+      "capability": "worktree-lifecycle",
+      "capabilityVersion": 1,
+      "workflowMode": "governed-sdd"
+    },
+    {
+      "capability": "worktree-lifecycle",
+      "capabilityVersion": 1,
+      "workflowMode": "lean-delivery"
+    },
+    {
+      "capability": "remote-branch-cleanup",
+      "capabilityVersion": 1,
+      "workflowMode": "governed-sdd"
+    },
+    {
+      "capability": "read-guard",
+      "capabilityVersion": 2,
+      "workflowMode": "governed-sdd"
+    },
+    {
+      "capability": "read-guard",
+      "capabilityVersion": 2,
+      "workflowMode": "lean-delivery"
+    },
+    {
+      "capability": "validation-scoping",
+      "capabilityVersion": 2,
+      "workflowMode": "governed-sdd"
+    },
+    {
+      "capability": "validation-scoping",
+      "capabilityVersion": 2,
+      "workflowMode": "lean-delivery"
+    }
+  ],
+  "removes": [
+    {
+      "capability": "task-worktree-review",
+      "capabilityVersion": 4
+    },
+    {
+      "capability": "manual-verification-review-check",
+      "capabilityVersion": 1
+    }
+  ],
+  "restructures": [
+    {
+      "path": "docs/CODE_REVIEW_PROMPT.md",
+      "replacedBy": {
+        "capability": "code-review-prompt",
+        "capabilityVersion": 1
+      },
+      "retiredMarkers": [
+        {
+          "capability": "task-worktree-review",
+          "capabilityVersion": 4
+        },
+        {
+          "capability": "manual-verification-review-check",
+          "capabilityVersion": 1
+        },
+        {
+          "capability": "ci-verified-validation",
+          "capabilityVersion": 1
+        }
+      ]
+    }
+  ],
+  "wraps": [
+    {
+      "path": "docs/WORKTREE_LIFECYCLE.md",
+      "capability": "worktree-lifecycle",
+      "capabilityVersion": 1
+    },
+    {
+      "path": "docs/PULL_REQUEST_POLICY.md",
+      "capability": "remote-branch-cleanup",
+      "capabilityVersion": 1
     }
   ]
 }

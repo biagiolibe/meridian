@@ -112,7 +112,7 @@
 - `[x]` 143 — Make the read-guard and queue-briefing hooks independent of queue status.
 - `[x]` 144 — Add `.meridian/project.json` as the project declaration surface.
 - `[x]` 145 — Align Governed lifecycle capability text with the closure design and the CLI.
-- `[ ]` 146 — Restructure inline markers, audit managed copies, and add consumer profiles.
+- `[x]` 146 — Restructure inline markers, audit managed copies, and add consumer profiles.
 - `[x]` 147 — Isolate setup CLI tests from the developer's real home directory.
 - `[x]` 140 — Let `integrate stage` complete rows of project-shaped Governed queues.
 - `[x]` 069 — Document Codex install from a tagged checkout.

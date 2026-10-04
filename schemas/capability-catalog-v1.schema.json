@@ -169,6 +169,16 @@
           "verificationProbe": {
             "minLength": 1,
             "type": "string"
+          },
+          "workflowModes": {
+            "items": {
+              "enum": [
+                "governed-sdd",
+                "lean-delivery"
+              ]
+            },
+            "minItems": 1,
+            "type": "array"
           }
         },
         "required": [

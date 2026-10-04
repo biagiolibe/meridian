@@ -109,8 +109,8 @@ claim that cannot be checked is not evidence.
 
 ## Remote task-branch cleanup
 
+<!-- MERIDIAN:BEGIN capability=remote-branch-cleanup v1 -->
 A remote task branch may intentionally lack a local review-and-status `ACCEPTED` commit: its acceptance evidence is published through the subsequent `main` push. Once `main` contains and has pushed the accepted work, local integration is complete and the local task branch may be deleted.
 
 Remote task-branch deletion is optional and non-blocking. After successful `main` integration, an agent may attempt `git push origin --delete <task-branch>` without force. If the remote deletion fails or the branch is already absent, report a warning only. Never block accepted integration, fetch/rebase, or force-delete solely to clean up a remote task branch.
-
-If the forge requires an approving review, a distinct authorized reviewer identity is required. The PR author cannot satisfy that gate.
+<!-- MERIDIAN:END -->

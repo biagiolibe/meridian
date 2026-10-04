@@ -573,18 +573,12 @@ def managed_digest_diagnostics(root: Path = ROOT) -> list[str]:
                 failure for failure in failures
                 if "managed-copy" in failure or failure.startswith("stale digest evidence")
             )
-    for relative, expected in managed_files.items():
-        if relative in declared_paths:
-            continue
-        path = root / relative
-        if not path.is_file():
-            diagnostics.append(f"missing managed-copy surface {relative}")
-            continue
-        current = meridian.sha256(path)
-        if expected != current:
-            diagnostics.append(
-                f"drifted managed-copy surface {relative}: expected {expected}, got {current}"
-            )
+    diagnostics.extend(
+        diagnostic
+        for _relative, diagnostic in meridian.managed_copy_drift(
+            root, managed_files, skip_paths=declared_paths
+        )
+    )
     return diagnostics
 
 
