@@ -26,6 +26,17 @@ The explicit option remains available for finishing a worktree in an old root.
   Its lifecycle state records `started_at` as an ISO-8601 UTC timestamp when it
   first creates the worktree; repeat preparation preserves that value. Older
   state files without it remain valid and report timing as unavailable.
+  With `--resume`, `prepare` also accepts an existing canonical worktree of that
+  task that has uncommitted changes. Only the console's Resume directive for a
+  dirty worktree uses it; ordinary preparation still refuses a dirty worktree.
+  A resume never creates, moves, removes, resets, stages, or commits anything,
+  leaves `started_at` and `base_commit` as recorded, and refuses when the task
+  has no worktree, on every mismatch ordinary preparation blocks, and while an
+  integration lease or staged merge names the task. It adds `resumed: true`,
+  `dirty`, `changed_paths`, and `untracked_paths` (counts only, never names or
+  contents) to the result; a dirty result has `next_action` `inspect-dirty`, and
+  `check` then reports `dirty-worktree` and no other error. The agent reads
+  `git status` and the diff before continuing.
 - `meridian worktree check <TASK-ID> --project <primary> --format json` is
   read-only. It succeeds only inside the exact prepared
   worker directory and reports repository, path, branch, HEAD, base, clean

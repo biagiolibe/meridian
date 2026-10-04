@@ -122,7 +122,7 @@ class StandaloneBlockTemplateTest(unittest.TestCase):
     def test_lifecycle_and_remote_cleanup_are_managed_capabilities(self) -> None:
         for mode in ("governed-sdd", "lean-delivery"):
             text = self.read(f"{mode}/docs/WORKTREE_LIFECYCLE.md")
-            self.assertEqual(meridian.marker_pairs(text), [("worktree-lifecycle", 1)])
+            self.assertEqual(meridian.marker_pairs(text), [("worktree-lifecycle", 2)])
         policy = self.read("governed-sdd/docs/PULL_REQUEST_POLICY.md")
         self.assertIn(("remote-branch-cleanup", 1), meridian.marker_pairs(policy))
         self.assertNotIn("distinct authorized reviewer identity", policy)
@@ -233,7 +233,8 @@ class WrappedTextUpgradeTest(unittest.TestCase):
                 shutil.copytree(ROOT / name, framework / name)
             template = framework / "templates/workflows" / mode / relative
             current = template.read_text(encoding="utf-8")
-            legacy = current.replace(f"<!-- MERIDIAN:BEGIN capability={capability} v1 -->\n", "")
+            version = re.search(rf"capability={capability} v(\d+) -->", current).group(1)
+            legacy = current.replace(f"<!-- MERIDIAN:BEGIN capability={capability} v{version} -->\n", "")
             end = legacy.rindex("<!-- MERIDIAN:END -->\n")
             legacy = legacy[:end] + legacy[end + len("<!-- MERIDIAN:END -->\n"):]
             template.write_text(legacy, encoding="utf-8")
@@ -256,7 +257,7 @@ class WrappedTextUpgradeTest(unittest.TestCase):
             local.write_text(edited.replace(*edit, 1), encoding="utf-8")
             checked = run("upgrade", "--check")
             applied = run("upgrade", "--apply")
-            self.assertEqual(local.read_text(encoding="utf-8").count(f"capability={capability} v1"), 0)
+            self.assertEqual(local.read_text(encoding="utf-8").count(f"capability={capability} v{version}"), 0)
             return checked.stdout, applied.stderr
 
     def test_a_customized_lean_lifecycle_document_is_a_conflict_not_a_duplicate(self) -> None:

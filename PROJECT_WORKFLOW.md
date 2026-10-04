@@ -56,6 +56,14 @@ runtime launch inputs only: a handoff or other tracked record that names the
 worktree uses the `handoff_worktree` value returned by `meridian worktree
 prepare`, the path relative to the worktree root, never an absolute path.
 
+A `Proceed with <TASK-ID>` directive that says to Resume starts with `meridian
+worktree prepare <task-id> --resume --project <primary-checkout> --format json`
+instead. `--resume` is allowed only for that directive: it accepts the task's
+existing worktree even when it has uncommitted changes, never creates or
+changes anything, and refuses when no worktree exists. When it returns `dirty:
+true`, `dirty-worktree` is the only error `worktree check` may report; any other
+error is `BLOCKED`. Read `git status` and the diff before continuing.
+
 Reservation, completion, review, and archive edits are committed on the task
 branch. Concurrent tasks edit only their own task rows and records; they do
 not reorder shared files, update shared timestamps, or archive a phase. A

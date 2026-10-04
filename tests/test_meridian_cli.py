@@ -291,7 +291,7 @@ class MeridianCliTest(unittest.TestCase):
             "",
         ))
         previous_implementation = re.sub(
-            r"<!-- MERIDIAN:BEGIN capability=task-worktree-boundary v7 -->.*?<!-- MERIDIAN:END -->\n",
+            r"<!-- MERIDIAN:BEGIN capability=task-worktree-boundary v8 -->.*?<!-- MERIDIAN:END -->\n",
             legacy_implementation,
             current_implementation,
             count=1,
@@ -1103,7 +1103,7 @@ class MeridianCliTest(unittest.TestCase):
         self.assertIn("capability=git-workflow v9", project_workflow.read_text(encoding="utf-8"))
         self.assertIn("Consumer-owned note.", project_workflow.read_text(encoding="utf-8"))
         self.assertIn(
-            "capability=task-worktree-boundary v7",
+            "capability=task-worktree-boundary v8",
             (self.project / "docs/workflows/IMPLEMENTATION.md").read_text(encoding="utf-8"),
         )
         report = (self.project / "docs/COMPLETION_REPORT_TEMPLATE.md").read_text(encoding="utf-8")
@@ -1357,7 +1357,7 @@ worktree before the branch only after validated integration succeeds.
         applied = self.run_cli("upgrade", "--apply")
         self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
 
-        self.assertIn("capability=task-worktree-boundary v7", implementation.read_text(encoding="utf-8"))
+        self.assertIn("capability=task-worktree-boundary v8", implementation.read_text(encoding="utf-8"))
         self.assertIn("**Manually triggered.**", implementation.read_text(encoding="utf-8"))
         upgraded_workflow = project_workflow.read_text(encoding="utf-8")
         self.assertIn("capability=bounded-worktree-lifecycle v4", upgraded_workflow)
@@ -1485,7 +1485,7 @@ worktree before the branch only after validated integration succeeds.
                 flags=re.DOTALL,
             ),
             "docs/workflows/IMPLEMENTATION.md": re.sub(
-                r"\n<!-- MERIDIAN:BEGIN capability=task-worktree-boundary v7 -->.*?<!-- MERIDIAN:END -->\n",
+                r"\n<!-- MERIDIAN:BEGIN capability=task-worktree-boundary v8 -->.*?<!-- MERIDIAN:END -->\n",
                 "\n",
                 current["docs/workflows/IMPLEMENTATION.md"],
                 flags=re.DOTALL,
@@ -1527,7 +1527,7 @@ worktree before the branch only after validated integration succeeds.
         upgraded_review = (self.project / "docs/workflows/REVIEW.md").read_text(encoding="utf-8")
         self.assertIn("capability=git-workflow v9", upgraded_workflow)
         self.assertIn("Review: REQUIRED` is a gate, not a request for authorization", upgraded_workflow)
-        self.assertIn("capability=task-worktree-boundary v7", upgraded_implementation)
+        self.assertIn("capability=task-worktree-boundary v8", upgraded_implementation)
         self.assertIn("REVIEW_REQUIRED`; it is a gate", upgraded_implementation)
         self.assertIn("capability=task-worktree-review-procedure v9", upgraded_review)
         self.assertIn("reviewer-integrator performs C6 through C10", upgraded_review)
