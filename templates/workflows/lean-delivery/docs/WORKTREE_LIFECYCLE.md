@@ -31,7 +31,8 @@ main assessment flag, and arrays for task paths, dependencies, behavioral
 surfaces, and matching advanced-main identities. Candidate evidence records
 the exact candidate tree, `passed: true`, the required `bounded` or `full`
 scope, and the successful commands. The CLI rejects stale or incomplete
-evidence and never executes project-provided commands.
+evidence, requires `git diff --check` in every candidate command list, and
+never executes project-provided commands.
 
 ## Candidate validation by integration outcome
 
