@@ -59,7 +59,13 @@ STRICT_DIGEST_PROFILES = frozenset({"meridian-self-hosting"})
 # Managed paths whose body a project owns or extends by design. A digest check
 # never applies to them.
 PROJECT_EDITABLE_MANAGED_PATHS = frozenset(
-    {"AGENTS.md", "CLAUDE.md", "docs/ARCHITECTURE_DECISIONS.md", "tasks/QUEUE.md"}
+    {
+        "AGENTS.md",
+        "CLAUDE.md",
+        "docs/ARCHITECTURE_DECISIONS.md",
+        "docs/EXECUTION_EVIDENCE_PROFILE.md",
+        "tasks/QUEUE.md",
+    }
 )
 INSTALLATION_STATES = ("INSTALLED", "MISSING", "DRIFTED", "NOT_APPLICABLE")
 HOST_ACTIVATION_STATES = ("ENFORCED", "ADVISORY", "UNSUPPORTED", "UNVERIFIED", "NOT_APPLICABLE")
@@ -4205,6 +4211,24 @@ def pending_restructured_markers(
     return result
 
 
+def pending_wrapped_capabilities(
+    framework_root: Path, migration_ids_to_find: list[str], target: Path
+) -> list[tuple[str, int]]:
+    """Capability blocks a pending upgrade newly wraps around text the file
+    already carried unmarked. A local copy that edited that text cannot take the
+    block as an additive insertion without duplicating the text."""
+    wanted = set(migration_ids_to_find)
+    result: list[tuple[str, int]] = []
+    for path in sorted((framework_root / "migrations").glob("*.json")):
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if str(data["id"]) not in wanted:
+            continue
+        for entry in data.get("wraps", []):
+            if Path(str(entry["path"])) == target:
+                result.append((str(entry["capability"]), int(entry["capabilityVersion"])))
+    return result
+
+
 def project_sections(local_text: str, base_text: str, template_text: str) -> list[str]:
     """Level-2 sections of `local_text` whose heading neither the installed
     baseline nor the target template carries: the project's own sections,
@@ -5337,6 +5361,13 @@ def _audit_snapshot_evidence(
     ]
 
 
+def _digest_exempt(relative: str, path: Path) -> bool:
+    """Whether a consumer profile verifies this managed copy without its digest."""
+    return relative in PROJECT_EDITABLE_MANAGED_PATHS or (
+        CAPABILITY_MARKER.search(path.read_text(encoding="utf-8")) is not None
+    )
+
+
 def installation_surface_diagnostics(
     project_root: Path,
     declaration: CapabilityDeclaration,
@@ -5364,10 +5395,10 @@ def installation_surface_diagnostics(
         if (
             marker_files_exempt
             and surface.form == "managed-copy"
-            and CAPABILITY_MARKER.search(path.read_text(encoding="utf-8"))
+            and _digest_exempt(surface.path, path)
         ):
-            # Verified by the marker-integrity rows; project text outside the
-            # protected blocks is not drift.
+            # Verified by the marker-integrity rows, or configured by the project
+            # by design; neither is drift.
             continue
         digest = sha256(path)
         surface_digests.add(digest)
@@ -5952,24 +5983,24 @@ def bootstrap_capability_profile(
                 continue
             if form != "declaration-only":
                 digest = sha256(path)
-                marker_verified = (
+                digest_exempt = (
                     form == "managed-copy"
                     and not strict
-                    and CAPABILITY_MARKER.search(path.read_text(encoding="utf-8")) is not None
+                    and _digest_exempt(surface.path, path)
                 )
                 if form == "managed-copy":
                     recorded = managed_files.get(surface.path)
                     # Recording the current digest over a different recorded one would
                     # launder a drifted copy. A marker-bearing consumer file is verified
                     # region by region, so its recorded digest is left alone.
-                    if recorded is not None and recorded != digest and not marker_verified:
+                    if recorded is not None and recorded != digest and not digest_exempt:
                         raise MeridianError(
                             f"managed copy {surface.path} differs from the digest recorded at install; "
                             "restore the released text before bootstrapping"
                         )
-                    if not marker_verified:
+                    if not digest_exempt:
                         managed_files[surface.path] = digest
-                evidence.append(f"path:{surface.path}" if marker_verified else f"sha256:{digest}")
+                evidence.append(f"path:{surface.path}" if digest_exempt else f"sha256:{digest}")
         declarations[capability_id] = {
             "requiredVersion": required_version,
             "managedSurface": surfaces,
@@ -6689,6 +6720,23 @@ def plan_from_baseline(
                         action,
                         "project declares CLAUDE.md as an AGENTS.md pointer; shared markers are current or "
                         "will be updated safely in AGENTS.md",
+                    )
+                )
+                continue
+            wrapped = [
+                f"{capability} v{version}"
+                for capability, version in pending_wrapped_capabilities(
+                    framework_root, pending_migrations, item.target
+                )
+                if extract_marker_block(local_text, capability, version) is None
+            ]
+            if wrapped:
+                plan.append(
+                    PlanItem(
+                        item,
+                        "conflict",
+                        f"three-way merge conflicted inside text the new {', '.join(wrapped)} block wraps; "
+                        "reconcile the edit by hand or move project text outside the block",
                     )
                 )
                 continue

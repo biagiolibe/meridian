@@ -222,6 +222,62 @@ class RetiredInlineMarkerUpgradeTest(FrameworkFixture):
         self.assertEqual(requirements["code-review-prompt"][0], 1)
 
 
+class WrappedTextUpgradeTest(unittest.TestCase):
+    """A block that newly wraps unmarked text never duplicates a customized copy."""
+
+    def scenario(self, mode: str, relative: str, capability: str, edit: tuple[str, str]) -> tuple[str, str]:
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            framework, project = base / "framework", base / "project"
+            for name in ("templates", "migrations", "release-baselines", "capabilities"):
+                shutil.copytree(ROOT / name, framework / name)
+            template = framework / "templates/workflows" / mode / relative
+            current = template.read_text(encoding="utf-8")
+            legacy = current.replace(f"<!-- MERIDIAN:BEGIN capability={capability} v1 -->\n", "")
+            end = legacy.rindex("<!-- MERIDIAN:END -->\n")
+            legacy = legacy[:end] + legacy[end + len("<!-- MERIDIAN:END -->\n"):]
+            template.write_text(legacy, encoding="utf-8")
+            (framework / "VERSION").write_text("1.2.6\n", encoding="utf-8")
+            project.mkdir()
+            copy_tree(framework / "templates/workflows" / mode, project)
+
+            def run(*arguments: str) -> subprocess.CompletedProcess[str]:
+                return subprocess.run(
+                    [sys.executable, str(CLI), "--framework-root", str(framework), *arguments, "--project", str(project)],
+                    text=True, capture_output=True, check=False,
+                )
+
+            self.assertEqual(run("lock", "--mode", mode).returncode, 0)
+            template.write_text(current, encoding="utf-8")
+            (framework / "VERSION").write_text("1.2.7\n", encoding="utf-8")
+            local = project / relative
+            edited = local.read_text(encoding="utf-8")
+            self.assertIn(edit[0], edited)
+            local.write_text(edited.replace(*edit, 1), encoding="utf-8")
+            checked = run("upgrade", "--check")
+            applied = run("upgrade", "--apply")
+            self.assertEqual(local.read_text(encoding="utf-8").count(f"capability={capability} v1"), 0)
+            return checked.stdout, applied.stderr
+
+    def test_a_customized_lean_lifecycle_document_is_a_conflict_not_a_duplicate(self) -> None:
+        stdout, stderr = self.scenario(
+            "lean-delivery", "docs/WORKTREE_LIFECYCLE.md", "worktree-lifecycle",
+            ("Use the host-neutral", "Use the project-specific host-neutral"),
+        )
+        self.assertRegex(stdout, r"CONFLICT\s+docs/WORKTREE_LIFECYCLE.md")
+        self.assertNotIn("APPEND-MARKERS", stdout)
+        self.assertIn("blocking plan items", stderr)
+
+    def test_a_customized_remote_cleanup_section_is_a_conflict_not_a_duplicate(self) -> None:
+        stdout, stderr = self.scenario(
+            "governed-sdd", "docs/PULL_REQUEST_POLICY.md", "remote-branch-cleanup",
+            ("may intentionally lack a local", "may, in this project, lack a local"),
+        )
+        self.assertRegex(stdout, r"CONFLICT\s+docs/PULL_REQUEST_POLICY.md")
+        self.assertNotIn("APPEND-MARKERS", stdout)
+        self.assertIn("blocking plan items", stderr)
+
+
 class ManagedCopyDigestAuditTest(FrameworkFixture):
     def test_a_drifted_markerless_copy_fails_the_audit(self) -> None:
         self.lock()
@@ -370,21 +426,44 @@ class ConsumerProfileTest(unittest.TestCase):
         _code, later = self.audit(project, "governed-sdd")
         self.assertNotRegex(later, r"(?m)^FAIL\s")
 
-    def test_bootstrap_does_not_launder_a_drifted_markerless_copy(self) -> None:
+    def test_a_configured_evidence_profile_does_not_block_a_lean_consumer(self) -> None:
         project = self.legacy_project("lean-delivery")
         profile_file = project / "docs/EXECUTION_EVIDENCE_PROFILE.md"
-        profile_file.write_text(profile_file.read_text(encoding="utf-8") + "\nLocal edit.\n", encoding="utf-8")
+        profile_file.write_text(
+            profile_file.read_text(encoding="utf-8").replace("400\n  lines", "800\n  lines"), encoding="utf-8"
+        )
+
+        meridian.bootstrap_capability_profile(project, ROOT, "lean-delivery-consumer", apply=True)
+        code, output = self.audit(project, "lean-delivery")
+
+        self.assertNotRegex(output, r"(?m)^FAIL\s")
+        self.assertNotIn("EXECUTION_EVIDENCE_PROFILE.md: differs", output)
+        evidence = json.loads((project / ".meridian/manifest.json").read_text(encoding="utf-8"))[
+            "capabilityProfiles"
+        ]["lean-delivery-consumer"]["capabilities"]["execution-evidence"]["installation"]["evidence"]
+        self.assertIn("path:docs/EXECUTION_EVIDENCE_PROFILE.md", evidence)
+        self.assertLess(code, 2, output)
+
+    def test_bootstrap_does_not_launder_a_drifted_copy_under_the_strict_profile(self) -> None:
+        project = self.legacy_project("lean-delivery")
+        catalog = meridian.load_capability_catalog(ROOT)
+        for capability_id, _version in catalog.profile("meridian-self-hosting").capabilities:
+            for surface in catalog.capability(capability_id).managed_surfaces:
+                destination = project / surface.path
+                if not destination.exists():
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copyfile(ROOT / surface.path, destination)
         manifest_path = project / ".meridian/manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["managedFiles"]["docs/CONTEXT_BUDGET_POLICY.md"] = "0" * 64
+        manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
         before = manifest_path.read_text(encoding="utf-8")
 
         with self.assertRaises(meridian.MeridianError) as error:
-            meridian.bootstrap_capability_profile(project, ROOT, "lean-delivery-consumer", apply=True)
+            meridian.bootstrap_capability_profile(project, ROOT, "meridian-self-hosting", apply=True)
 
-        self.assertIn("docs/EXECUTION_EVIDENCE_PROFILE.md", str(error.exception))
+        self.assertIn("docs/CONTEXT_BUDGET_POLICY.md", str(error.exception))
         self.assertEqual(manifest_path.read_text(encoding="utf-8"), before)
-        code, output = self.audit(project, "lean-delivery")
-        self.assertEqual(code, 2, output)
-        self.assertRegex(output, r"FAIL\s+managed-copy-digest — docs/EXECUTION_EVIDENCE_PROFILE\.md")
 
     def test_a_consumer_profile_rejects_the_other_workflow_mode(self) -> None:
         project = self.legacy_project("lean-delivery")

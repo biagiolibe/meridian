@@ -65,7 +65,7 @@
   },
   "templates/workflows/governed-sdd/docs/AUDIT_PROMPT_READ_ONLY.md": {
     "audit-prompt": {
-      "sha256": "7da37634221221a532dcb5ca7b1009d56eb295a0ace84b347cefd96a7a36a249",
+      "sha256": "e497af3d69cc4bf87e56789dc209c8b04f8496e503a4970cb149270788a38e4e",
       "version": 3
     }
   },
@@ -77,7 +77,7 @@
   },
   "templates/workflows/governed-sdd/docs/CODE_REVIEW_PROMPT.md": {
     "code-review-prompt": {
-      "sha256": "c8a9179440fb1810cb0ecd04992d696db30777e3578f815e06475ee690af2e7c",
+      "sha256": "0937ba7015ef19de538bb342514b5833361b169dd0dbc36f62c5eecf48c5f565",
       "version": 1
     }
   },

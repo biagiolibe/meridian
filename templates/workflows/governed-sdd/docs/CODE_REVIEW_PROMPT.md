@@ -16,7 +16,7 @@ Read LANGUAGE_POLICY.md, PROJECT_WORKFLOW.md, AGENTS.md/CLAUDE.md, the assigned 
 
 Review scope, dependencies, non-goals, acceptance criteria, validation evidence, project invariants, and unrelated changes. If the task declared `Manual verification: required`, confirm its `Manual verification rationale` names a genuine tier-3 perceptual property and that the evidence actually gathered matches that rationale, not a substitute derived-value check. Read only task-cited documents and the exact diff. For validation evidence, follow `docs/PULL_REQUEST_POLICY.md`'s CI-first rule: use a completed CI run for this exact commit when one exists and covers the task's validation surface; otherwise perform your own validation scoped to the diff per `docs/CONTEXT_BUDGET_POLICY.md`. Never accept a bare "tests passed" claim without a command/exit-status or CI reference behind it. Report only actionable findings with P0/P1/P2 priority and file/line evidence; omit style-only commentary.
 
-If this file has a `## Project review checklist` section after the managed block, apply every item in it as additional review scope and report an unmet item as a finding with its priority and evidence.
+If `docs/CODE_REVIEW_PROMPT.md` has a `## Project review checklist` section after the managed block, apply every item in it as additional review scope and report an unmet item as a finding with its priority and evidence.
 
 Return APPROVE, CHANGES_REQUESTED, or BLOCKED. Review is read-only until an
 explicit `APPROVE` verdict: do not edit source, tests, manifests, or

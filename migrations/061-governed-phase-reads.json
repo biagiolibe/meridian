@@ -148,7 +148,8 @@
     "docs/CODE_REVIEW_PROMPT.md carries one code-review-prompt v1 block and none of the retired task-worktree-review v4, manual-verification-review-check v1, or ci-verified-validation v1 inline markers; the PULL_REQUEST_POLICY.md and COMPLETION_REPORT_TEMPLATE.md ci-verified-validation v1 blocks are unchanged",
     "an upgrade of a project whose retired inline markers sit inside edited prose writes the pre-upgrade file to an adjacent .meridian-pre-restructure.bak backup, reports it, and keeps the project's own level-2 sections after the new block",
     "meridian audit reports a FAIL row for a markerless managed copy whose digest differs from managedFiles and never for project text outside the capability blocks of a marker-bearing file",
-    "meridian profile bootstrap governed-sdd-consumer and lean-delivery-consumer declare installation evidence on a legacy v2 manifest and leave host activation UNVERIFIED"
+    "meridian profile bootstrap governed-sdd-consumer and lean-delivery-consumer declare installation evidence on a legacy v2 manifest and leave host activation UNVERIFIED",
+    "an upgrade whose three-way merge conflicts inside docs/WORKTREE_LIFECYCLE.md or the pull request policy's remote task-branch cleanup section reports a conflict instead of appending a duplicate worktree-lifecycle or remote-branch-cleanup block"
   ],
   "capabilityVersions": [
     {
@@ -333,6 +334,18 @@
           "capabilityVersion": 1
         }
       ]
+    }
+  ],
+  "wraps": [
+    {
+      "path": "docs/WORKTREE_LIFECYCLE.md",
+      "capability": "worktree-lifecycle",
+      "capabilityVersion": 1
+    },
+    {
+      "path": "docs/PULL_REQUEST_POLICY.md",
+      "capability": "remote-branch-cleanup",
+      "capabilityVersion": 1
     }
   ]
 }
