@@ -31,39 +31,39 @@ class of error cannot recur.
 
 ## Acceptance Criteria
 
-- [ ] `meridian upgrade --check` on a project whose manifest declares a profile
+- [x] `meridian upgrade --check` on a project whose manifest declares a profile
   surface set older than the catalog no longer reports `BLOCKED`. The plan shows
   one row per profile capability whose declared surface differs from the catalog
   (for example `PROFILE-SURFACE governed-sdd-consumer/execution-evidence:
   add docs/COMPLETION_REPORT_TEMPLATE.md`). The check writes nothing.
-- [ ] `meridian upgrade` on that project installs the missing managed files and
+- [x] `meridian upgrade` on that project installs the missing managed files and
   rewrites each affected declaration from the target catalog using the same
   construction as `bootstrap_capability_profile`: surfaces and forms from the
   catalog, installation evidence with recorded digests, and existing
   `hostActivation` and `verification` snapshots preserved for unchanged
   surfaces. The written manifest validates against the catalog.
-- [ ] The existing refusal to record a digest over a different recorded one
+- [x] The existing refusal to record a digest over a different recorded one
   (drifted managed copy) is kept; a drifted copy still stops the upgrade.
-- [ ] Validation of a manifest whose surfaces *differ from the catalog in any
+- [x] Validation of a manifest whose surfaces *differ from the catalog in any
   other way* (a path not in the catalog, an unsupported form, a duplicate path,
   a missing capability, a wrong profile or capability version) still fails with
   today's messages. Only "catalog surface is a superset of the declared surface"
   is deferred to the plan.
-- [ ] Tests on fixtures prove: the current failure reproduces on an old manifest
+- [x] Tests on fixtures prove: the current failure reproduces on an old manifest
   and is gone; `--check` is read-only and prints the row; `upgrade` produces a
   manifest equal to the one a fresh `bootstrap` would write for the same files;
   drift, unknown-path, and version-mismatch cases still fail.
-- [ ] `scripts/check_repository.py` fails, naming the capability and path, when
+- [x] `scripts/check_repository.py` fails, naming the capability and path, when
   the catalog's managed surface for a capability changes relative to the
   previous release's catalog (`release-baselines` or the latest tag) and no
   migration in the next release lists the added path in `managedPaths`. Tests
   cover the failing and passing cases.
-- [ ] `meridian upgrade --check` run against copies of the Palimpsest and Fusa
+- [x] `meridian upgrade --check` run against copies of the Palimpsest and Fusa
   manifests (read-only, outside their repositories) reports the new row and no
   `BLOCKED`; results are recorded in the handoff.
-- [ ] One changelog fragment states the fix and, under `Upgrade notes`, that
+- [x] One changelog fragment states the fix and, under `Upgrade notes`, that
   projects with `capabilityProfiles` gain the completion report template.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
+- [x] `python3 scripts/check_repository.py` and the unit tests pass.
 
 ## Relevant Files
 
