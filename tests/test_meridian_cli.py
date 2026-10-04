@@ -2100,6 +2100,19 @@ worktree before the branch only after validated integration succeeds.
         self.assertEqual(upgraded.count("Investigation scope: 2 per task."), 1)
         self.assertIn("capability=investigation-scope v1", upgraded)
 
+    def test_long_command_waits_block_is_added_once_to_a_customized_profile(self) -> None:
+        for mode in ("lean-delivery", "governed-sdd"):
+            with self.subTest(mode=mode):
+                template = (
+                    ROOT / "templates" / "workflows" / mode / "docs" / "EXECUTION_EVIDENCE_PROFILE.md"
+                ).read_text(encoding="utf-8")
+                self.assertIsNotNone(meridian.extract_marker_block(template, "long-command-waits", 1))
+                local = "# Project profile\n\nProject-owned rule.\n"
+                upgraded = meridian.append_only_new_markers(local, "# Project profile\n", template)
+                self.assertIsNotNone(upgraded)
+                self.assertEqual(upgraded.count("capability=long-command-waits v1"), 1)
+                self.assertIn("Project-owned rule.", upgraded)
+
     def test_marker_normalization_accepts_prose_reflow_but_not_fenced_content(self) -> None:
         template = (
             "<!-- MERIDIAN:BEGIN capability=example v1 -->\n"
