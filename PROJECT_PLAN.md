@@ -126,6 +126,7 @@
 - `[x]` 157 — Stop `handoff-check` requiring one hard-coded Meridian test as the only valid skip.
 - `[x]` 158 — Migrate legacy budget state only at upgrade, never from a read.
 - `[ ]` 159 — Retire the reasoning budget contract.
+- `[ ]` 160 — Give the Claude Code allowlist parity with the Codex execution-command rules.
 - `[x]` 140 — Let `integrate stage` complete rows of project-shaped Governed queues.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.

@@ -60,3 +60,4 @@ are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 | `[x]` | 157 | Stop `handoff-check` requiring one hard-coded Meridian test as the only valid skip | 🟡 P2 | — | [157](done/157-handoff-check-validation-skips-not-project-specific.md) |
 | `[x]` | 158 | Migrate legacy budget state only at upgrade, never from a read | 🔴 P1 | — | [158](done/158-budget-state-migration-only-at-upgrade.md) |
 | `[ ]` | 159 | Retire the reasoning budget contract | 🔴 P1 | — | [159](159-retire-reasoning-budget-contract.md) |
+| `[ ]` | 160 | Give the Claude Code allowlist parity with the Codex execution-command rules | 🟡 P2 | — | [160](160-claude-allowlist-execution-commands.md) |
