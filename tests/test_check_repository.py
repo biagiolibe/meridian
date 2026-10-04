@@ -676,5 +676,72 @@ class ManagedDigestTest(unittest.TestCase):
         self.assertIn("Never join it with `&&` or `;`", profile)
 
 
+class CatalogSurfaceMigrationTest(unittest.TestCase):
+    """A catalog surface added after a release must be carried by a migration."""
+
+    ADDED = "docs/NEW_SURFACE.md"
+
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory()
+        self.root = Path(self.temporary.name)
+        (self.root / "capabilities").mkdir()
+        (self.root / "migrations").mkdir()
+        (self.root / "VERSION").write_text("1.2.8\n", encoding="utf-8")
+        self.previous = {
+            "capabilities": {"alpha": {"managedSurfaces": [{"path": "docs/A.md"}]}}
+        }
+        current = {
+            "capabilities": {
+                "alpha": {"managedSurfaces": [{"path": "docs/A.md"}, {"path": self.ADDED}]},
+                "beta": {"managedSurfaces": [{"path": "docs/B.md"}]},
+            }
+        }
+        (self.root / "capabilities/catalog-v1.json").write_text(
+            json.dumps(current), encoding="utf-8"
+        )
+
+    def tearDown(self) -> None:
+        self.temporary.cleanup()
+
+    def write_migration(self, name: str, to: str, managed_paths: list[str]) -> None:
+        (self.root / "migrations" / name).write_text(
+            json.dumps({"id": name[:-5], "to": to, "managedPaths": managed_paths}),
+            encoding="utf-8",
+        )
+
+    def test_additions_name_only_new_paths_of_known_capabilities(self) -> None:
+        current = json.loads((self.root / "capabilities/catalog-v1.json").read_text())
+
+        self.assertEqual(
+            cr.catalog_surface_additions(self.previous, current), [("alpha", self.ADDED)]
+        )
+
+    def test_added_surface_without_a_listing_migration_fails_naming_both(self) -> None:
+        self.write_migration("001-other.json", "1.2.8", ["docs/A.md"])
+        output = io.StringIO()
+
+        with contextlib.redirect_stdout(output), self.assertRaises(SystemExit):
+            cr.check_catalog_surface_migrations(self.root, self.previous, "1.2.7")
+
+        self.assertIn("alpha", output.getvalue())
+        self.assertIn(self.ADDED, output.getvalue())
+
+    def test_listing_in_a_next_release_migration_passes(self) -> None:
+        self.write_migration("001-other.json", "1.2.8", ["docs/A.md", self.ADDED])
+
+        cr.check_catalog_surface_migrations(self.root, self.previous, "1.2.7")
+
+    def test_a_listing_in_an_already_released_migration_does_not_count(self) -> None:
+        self.write_migration("001-old.json", "1.2.7", [self.ADDED])
+
+        with contextlib.redirect_stdout(io.StringIO()), self.assertRaises(SystemExit):
+            cr.check_catalog_surface_migrations(self.root, self.previous, "1.2.7")
+
+    def test_unchanged_catalog_passes_without_migrations(self) -> None:
+        unchanged = json.loads((self.root / "capabilities/catalog-v1.json").read_text())
+
+        cr.check_catalog_surface_migrations(self.root, unchanged, "1.2.7")
+
+
 if __name__ == "__main__":
     unittest.main()
