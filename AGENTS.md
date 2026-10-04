@@ -15,7 +15,7 @@ Work only on the task explicitly assigned by the developer. Before changing code
 - Use one writer per task worktree. A review uses the same task worktree only after the implementer has stopped; it never switches the primary checkout to the task branch.
 - A requested review is read-only unless the developer separately authorizes a fix. Report actionable findings; do not silently correct implementation code during review.
 
-<!-- MERIDIAN:BEGIN capability=git-workflow v9 -->
+<!-- MERIDIAN:BEGIN capability=git-workflow v10 -->
 ## Authority of `Proceed with`
 
 `Proceed with <TASK-ID>` authorizes that task's whole lifecycle when every gate
@@ -48,8 +48,9 @@ worktree, and unarchived record.
 
 Close a validated task in order: verify acceptance criteria; run task and
 baseline validation; commit its completion record and handoff; run `worktree
-check`; record machine evidence; stage from a clean primary checkout at
-`origin/main`; run the selected candidate validation; finalize with
+check`; record machine evidence; stage from a clean primary checkout whose `main` equals `origin/main` or is
+ahead of it with commits not yet pushed (they are pushed with the integration;
+`main` behind the fetched `origin/main` is `MAIN_BEHIND_ORIGIN`); run the selected candidate validation; finalize with
 candidate-bound evidence; push `origin main`; and clean up. Respectively stop
 with `ACCEPTANCE_UNMET`, `VALIDATION_FAILED`, `REVIEW_REQUIRED`,
 `WRONG_WORKTREE`, `EVIDENCE_INCOMPLETE`, `PRIMARY_DIRTY`,
