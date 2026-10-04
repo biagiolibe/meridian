@@ -124,6 +124,8 @@ CODEX_MANAGED_END = "# MERIDIAN:END worktree-permissions"
 SAFE_PATH_COMPONENT = re.compile(r"[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?")
 TASK_IDENTITY_PATH = Path(".meridian/task-identity.json")
 CANDIDATE_VALIDATION_PATH = Path(".meridian/candidate-validation.json")
+PROJECT_DECLARATION_PATH = Path(".meridian/project.json")
+_LEGACY_LOCATION_WARNING_PROJECTS: set[Path] = set()
 WORKTREE_STATE_DIRECTORY = "meridian-worktrees"
 INTEGRATION_LEASE_NAME = "meridian-integration.lock"
 INTEGRATION_STATE_NAME = "meridian-integration.json"
@@ -233,6 +235,9 @@ class SetupPlan:
     candidate_validation_state: str
     candidate_validation_path: Path
     candidate_validation_proposal: dict[str, object] | None
+    project_declaration_state: str
+    project_declaration_path: Path
+    project_declaration_proposal: dict[str, object] | None
     task_identity_mode: str | None
     task_identity_state: str
     task_identity_path: Path
@@ -1277,13 +1282,14 @@ def _lifecycle_changes_after_validation(
     if active_record.parts[:2] == ("tasks", "done"):
         active_record = Path("tasks") / active_record.name
     archive_record = Path("tasks") / "done" / active_record.name
+    plan_path = resolve_project_locations(project_root).plan
     allowed = {
         str(active_record),
         str(archive_record),
         str(identity.queue_path.relative_to(project_root)),
         str(identity.handoff_path.relative_to(project_root)),
         str(identity.review_path.relative_to(project_root)),
-        "PROJECT_PLAN.md",
+        str(plan_path),
         "tasks/QUEUE_ARCHIVE.md",
     }
     output = _run_git(
@@ -1589,7 +1595,7 @@ def _apply_task_completion_rows(project_root: Path, identity: ResolvedTaskIdenti
         if archive_contents is not None:
             archive_path.write_text(archive_contents, encoding="utf-8")
         return {"status": "COMPLETED", "reason": reason}
-    plan_path = project_root / "PROJECT_PLAN.md"
+    plan_path = project_root / resolve_project_locations(project_root).plan
     plan_contents = plan_path.read_text(encoding="utf-8") if plan_path.is_file() else ""
     queue_completed = _completed_task_row(
         queue_contents,
@@ -1789,7 +1795,7 @@ def stage_task_integration(
         completion = _apply_task_completion_rows(project_root, identity)
         lifecycle_paths = [str(identity.queue_path.relative_to(project_root))]
         if detect_mode(project_root) == "lean-delivery":
-            lifecycle_paths.append("PROJECT_PLAN.md")
+            lifecycle_paths.append(str(resolve_project_locations(project_root).plan))
         archive_path = identity.queue_path.with_name("QUEUE_ARCHIVE.md")
         if archive_path.exists():
             lifecycle_paths.append(str(archive_path.relative_to(project_root)))
@@ -2612,6 +2618,27 @@ def plan_setup(
     except MeridianError:
         candidate_validation_state = "blocked"
 
+    project_declaration_path = project_root / PROJECT_DECLARATION_PATH
+    project_declaration_proposal: dict[str, object] | None = None
+    try:
+        if project_declaration_path.exists():
+            read_project_declaration(project_root)
+            project_declaration_state = "present"
+        else:
+            locations = resolve_project_locations(project_root)
+            project_declaration_state = "advisory-missing"
+            project_declaration_proposal = {
+                "version": 1,
+                "locations": {
+                    "queue": str(locations.queue), "taskRoots": [str(root) for root in locations.task_roots],
+                    "reviewRoot": str(locations.review_root), "handoffRoot": str(locations.handoff_root),
+                    "adrLog": str(locations.adr_log), "plan": str(locations.plan),
+                },
+            }
+            parse_project_declaration(project_declaration_proposal)
+    except MeridianError:
+        project_declaration_state = "blocked"
+
     task_identity_path = project_root / TASK_IDENTITY_PATH
     task_identity_proposal: dict[str, object] | None = None
     task_identity_detail = "no task-identity choice requested"
@@ -2656,6 +2683,8 @@ def plan_setup(
         changes.append(
             f"write candidate-validation declaration in {candidate_validation_path} after explicit --apply consent"
         )
+    if project_declaration_proposal is not None:
+        changes.append(f"write project declaration in {project_declaration_path} after explicit --apply consent")
     if task_identity_proposal is not None:
         changes.append(f"write {task_identity_path} with task identity mode {task_identity}")
     if (
@@ -2663,6 +2692,7 @@ def plan_setup(
         or codex_state == "blocked"
         or claude_state == "blocked"
         or candidate_validation_state == "blocked"
+        or project_declaration_state == "blocked"
         or task_identity_state == "blocked"
     ):
         changes = ["none; setup is blocked before mutation"]
@@ -2712,6 +2742,9 @@ def plan_setup(
         candidate_validation_state,
         candidate_validation_path,
         candidate_validation_proposal,
+        project_declaration_state,
+        project_declaration_path,
+        project_declaration_proposal,
         task_identity,
         task_identity_state,
         task_identity_path,
@@ -2740,6 +2773,9 @@ def print_setup_plan(plan: SetupPlan) -> None:
     print(f"candidate-validation-commands: {plan.candidate_validation_state}")
     if plan.candidate_validation_proposal is not None:
         print("candidate-validation-proposal: " + json.dumps(plan.candidate_validation_proposal, sort_keys=True))
+    print(f"project-declaration: {plan.project_declaration_state}")
+    if plan.project_declaration_proposal is not None:
+        print("project-declaration-proposal: " + json.dumps(plan.project_declaration_proposal, sort_keys=True))
     print(f"task-identity: {plan.task_identity_state}")
     print(f"task-identity-detail: {plan.task_identity_detail}")
     if plan.task_identity_proposal is not None:
@@ -2769,6 +2805,7 @@ def apply_setup(plan: SetupPlan) -> bool:
         or plan.codex_state == "blocked"
         or plan.claude_state == "blocked"
         or plan.candidate_validation_state == "blocked"
+        or plan.project_declaration_state == "blocked"
         or plan.task_identity_state == "blocked"
         or plan.skill_links_state in ("blocked", "conflict")
         or plan.codex_plan is None
@@ -2807,6 +2844,11 @@ def apply_setup(plan: SetupPlan) -> bool:
     changed = apply_claude_project_allowlist(plan.claude_plan) or changed
     if plan.candidate_validation_proposal is not None:
         _write_json_atomic(plan.candidate_validation_path, plan.candidate_validation_proposal)
+        changed = True
+    if plan.project_declaration_proposal is not None:
+        if plan.project_declaration_path.exists():
+            raise MeridianError("project declaration appeared since it was planned; rerun --check")
+        _write_json_atomic(plan.project_declaration_path, plan.project_declaration_proposal)
         changed = True
     if plan.task_identity_proposal is not None:
         if plan.task_identity_path.exists():
@@ -3156,6 +3198,7 @@ class ProjectLocations:
     adr_log: Path
     handoff_root: Path
     review_root: Path
+    plan: Path
 
 
 def sha256(path: Path) -> str:
@@ -7027,12 +7070,81 @@ def contract_requires_execution_commands(text: str) -> bool:
     return "- Execution commands: `required via meridian execution`" in text
 
 
+def _safe_project_path(value: object, key: str) -> Path:
+    if not isinstance(value, str) or not value or Path(value).is_absolute() or ".." in Path(value).parts:
+        raise MeridianError(f"project declaration key {key!r} must be a safe project-relative path")
+    return Path(value)
+
+
+def parse_project_declaration(declaration: object) -> dict[str, object]:
+    """Validate the closed, consumer-owned project declaration v1."""
+    if not isinstance(declaration, dict):
+        raise MeridianError("project declaration must be a JSON object")
+    allowed = {"version", "project", "locations", "validationScoping", "ci"}
+    unknown = sorted(set(declaration) - allowed)
+    if unknown:
+        raise MeridianError(f"project declaration unknown key: {unknown[0]}")
+    if type(declaration.get("version")) is not int or declaration["version"] != 1:
+        raise MeridianError("project declaration key 'version' must be 1")
+    project = declaration.get("project")
+    if project is not None:
+        if not isinstance(project, dict) or set(project) != {"name", "slug"} or not all(
+            isinstance(project.get(key), str) and project[key] for key in ("name", "slug")
+        ):
+            raise MeridianError("project declaration key 'project' must contain non-empty name and slug")
+    locations = declaration.get("locations")
+    if locations is not None:
+        if not isinstance(locations, dict):
+            raise MeridianError("project declaration key 'locations' must be an object")
+        allowed_locations = {"queue", "taskRoots", "reviewRoot", "handoffRoot", "adrLog", "plan"}
+        unknown_locations = sorted(set(locations) - allowed_locations)
+        if unknown_locations:
+            raise MeridianError(f"project declaration key 'locations.{unknown_locations[0]}' is unknown")
+        for key in ("queue", "reviewRoot", "handoffRoot", "adrLog", "plan"):
+            if key in locations:
+                _safe_project_path(locations[key], f"locations.{key}")
+        if "taskRoots" in locations:
+            roots = locations["taskRoots"]
+            if not isinstance(roots, list) or not roots:
+                raise MeridianError("project declaration key 'locations.taskRoots' must be a non-empty array")
+            for index, root in enumerate(roots):
+                _safe_project_path(root, f"locations.taskRoots[{index}]")
+    scoping = declaration.get("validationScoping")
+    if scoping is not None:
+        if not isinstance(scoping, list):
+            raise MeridianError("project declaration key 'validationScoping' must be an array")
+        for index, item in enumerate(scoping):
+            if not isinstance(item, dict) or set(item) != {"paths", "commands"}:
+                raise MeridianError(f"project declaration key 'validationScoping[{index}]' must contain paths and commands")
+            if not all(isinstance(value, list) and value and all(isinstance(entry, str) and entry for entry in value)
+                       for value in (item["paths"], item["commands"])):
+                raise MeridianError(f"project declaration key 'validationScoping[{index}]' has invalid paths or commands")
+    ci = declaration.get("ci")
+    if ci is not None and ci != "none":
+        if not isinstance(ci, dict) or set(ci) != {"provider", "requiredChecks"} or not isinstance(ci["provider"], str) or not ci["provider"] or not isinstance(ci["requiredChecks"], list) or not all(isinstance(item, str) and item for item in ci["requiredChecks"]):
+            raise MeridianError("project declaration key 'ci' must be 'none' or contain provider and requiredChecks")
+    return declaration
+
+
+def read_project_declaration(project_root: Path) -> dict[str, object] | None:
+    path = project_root / PROJECT_DECLARATION_PATH
+    if not path.exists():
+        return None
+    if not path.is_file():
+        raise MeridianError(f"invalid project declaration: {path}")
+    try:
+        return parse_project_declaration(json.loads(path.read_text(encoding="utf-8")))
+    except (json.JSONDecodeError, UnicodeDecodeError) as error:
+        raise MeridianError(f"invalid project declaration: {path}") from error
+
+
 def resolve_project_locations(project_root: Path) -> ProjectLocations:
     """Resolve project customizations declared after execution-assets.
 
     The same resolver backs the CLI and the hook, avoiding separate default
     paths for a project's queue and its nested task records.
     """
+    declaration = read_project_declaration(project_root)
     workflow = project_root / "PROJECT_WORKFLOW.md"
     zone = ""
     block_zone = ""
@@ -7075,6 +7187,23 @@ def resolve_project_locations(project_root: Path) -> ProjectLocations:
         review_matches = re.findall(r"(?:durable )?review records (?:live )?at `([^`]+)/<TASK-ID>\.md`", block_zone, re.IGNORECASE)
     handoff_root = Path(handoff_matches[0]) if len(set(handoff_matches)) == 1 else Path("tasks/handoffs")
     review_root = Path(review_matches[0]) if len(set(review_matches)) == 1 else Path("tasks/reviews")
+    legacy_used = declaration is None and (queue != Path("tasks/QUEUE.md") or len(roots) != 1 or adr_log != Path("docs/ARCHITECTURE_DECISIONS.md") or handoff_root != Path("tasks/handoffs") or review_root != Path("tasks/reviews"))
+    if declaration is not None:
+        declared_locations = declaration.get("locations", {})
+        assert isinstance(declared_locations, dict)
+        if "queue" in declared_locations:
+            queue = _safe_project_path(declared_locations["queue"], "locations.queue")
+        if "taskRoots" in declared_locations:
+            roots = [_safe_project_path(value, "locations.taskRoots") for value in declared_locations["taskRoots"]]
+        if "adrLog" in declared_locations:
+            adr_log = _safe_project_path(declared_locations["adrLog"], "locations.adrLog")
+        if "handoffRoot" in declared_locations:
+            handoff_root = _safe_project_path(declared_locations["handoffRoot"], "locations.handoffRoot")
+        if "reviewRoot" in declared_locations:
+            review_root = _safe_project_path(declared_locations["reviewRoot"], "locations.reviewRoot")
+        plan = _safe_project_path(declared_locations["plan"], "locations.plan") if "plan" in declared_locations else Path("PROJECT_PLAN.md")
+    else:
+        plan = Path("PROJECT_PLAN.md")
     for label, path in (
         ("queue", queue),
         ("ADR log", adr_log),
@@ -7084,12 +7213,17 @@ def resolve_project_locations(project_root: Path) -> ProjectLocations:
     ):
         if path.is_absolute() or ".." in path.parts:
             raise MeridianError(f"canonical {label} must be a safe project-relative path: {path}")
+    project_root = project_root.resolve()
+    if legacy_used and project_root not in _LEGACY_LOCATION_WARNING_PROJECTS:
+        print("DEPRECATED: resolve canonical locations with .meridian/project.json", file=sys.stderr)
+        _LEGACY_LOCATION_WARNING_PROJECTS.add(project_root)
     return ProjectLocations(
         queue=queue,
         task_roots=tuple(roots),
         adr_log=adr_log,
         handoff_root=handoff_root,
         review_root=review_root,
+        plan=plan,
     )
 
 
@@ -8688,9 +8822,15 @@ def main() -> int:
     profile_action.add_argument("--check", action="store_true")
     profile_action.add_argument("--apply", action="store_true")
 
-    locations = subparsers.add_parser("locations", help="print resolved project queue and task locations")
+    locations = subparsers.add_parser("locations", help="print resolved project locations")
     locations.add_argument("--project", type=Path, default=Path.cwd())
-    locations.add_argument("--field", choices=("queue", "task-roots"))
+    locations.add_argument("--field", choices=("queue", "queue-archive", "task-roots", "review-root", "handoff-root", "adr-log", "plan"))
+
+    project = subparsers.add_parser("project", help="show the resolved project declaration")
+    project.add_argument("show", nargs="?", default="show")
+    project.add_argument("--project", type=Path, default=Path.cwd())
+    project.add_argument("--field", choices=("project", "locations", "validation-scoping", "ci", "reviewer-author"))
+    project.add_argument("--format", choices=("json", "text"), default="text")
 
     setup = subparsers.add_parser("setup", help="plan or apply worktree, Codex, and project Claude Code setup")
     setup_group = setup.add_mutually_exclusive_group(required=True)
@@ -8996,10 +9136,50 @@ def main() -> int:
             locations = resolve_project_locations(project_root)
             if arguments.field == "queue":
                 print(locations.queue)
+            elif arguments.field == "queue-archive":
+                print(locations.queue.with_name("QUEUE_ARCHIVE.md"))
             elif arguments.field == "task-roots":
                 print("\n".join(str(root) for root in locations.task_roots))
+            elif arguments.field == "review-root":
+                print(locations.review_root)
+            elif arguments.field == "handoff-root":
+                print(locations.handoff_root)
+            elif arguments.field == "adr-log":
+                print(locations.adr_log)
+            elif arguments.field == "plan":
+                print(locations.plan)
             else:
                 print(json.dumps({"queue": str(locations.queue), "taskRoots": [str(root) for root in locations.task_roots]}))
+        elif arguments.command == "project":
+            declaration = read_project_declaration(project_root) or {"version": 1}
+            locations = resolve_project_locations(project_root)
+            resolved = {
+                **declaration,
+                "locations": {
+                    "queue": str(locations.queue), "taskRoots": [str(root) for root in locations.task_roots],
+                    "reviewRoot": str(locations.review_root), "handoffRoot": str(locations.handoff_root),
+                    "adrLog": str(locations.adr_log), "plan": str(locations.plan),
+                },
+            }
+            if arguments.field == "reviewer-author":
+                project_info = declaration.get("project")
+                if not isinstance(project_info, dict):
+                    raise MeridianError("project declaration key 'project' is required for reviewer-author")
+                value = f"{project_info['name']} Reviewer-Integrator <reviewer-integrator@{project_info['slug']}.local>"
+            elif arguments.field == "validation-scoping":
+                value = declaration.get("validationScoping", [])
+            elif arguments.field == "ci":
+                value = declaration.get("ci", "none")
+            elif arguments.field:
+                value = resolved.get(arguments.field)
+            else:
+                value = resolved
+            if arguments.format == "json":
+                print(json.dumps(value, sort_keys=True))
+            elif isinstance(value, (dict, list)):
+                print(json.dumps(value, indent=2, sort_keys=True))
+            else:
+                print(value)
         elif arguments.command == "setup":
             plan = plan_setup(
                 arguments.worktree_root,
