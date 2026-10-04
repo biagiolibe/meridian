@@ -2587,6 +2587,22 @@ CLAUDE_PROJECT_ALLOWLIST = (
     "Bash(grep:*)",
 )
 
+# Prefix rules are defense in depth: a reworded command can evade them, so the
+# managed denial text stays in force (docs/ADR_STOPS_AND_DENIALS.md, Decision 5).
+CLAUDE_PROJECT_DENYLIST = (
+    "Bash(git push --force:*)",
+    "Bash(git push -f:*)",
+    "Bash(git push --force-with-lease:*)",
+    "Bash(git push --mirror:*)",
+    "Bash(git push --delete:*)",
+    "Bash(git tag:*)",
+    "Bash(git rebase:*)",
+    "Bash(git reset --hard:*)",
+    "Bash(git cherry-pick:*)",
+    "Bash(git branch -D:*)",
+    "Bash(git worktree remove --force:*)",
+)
+
 
 def plan_claude_project_allowlist(project_root: Path) -> ClaudeConfigurationPlan:
     """Plan one explicit, project-local Claude Code command allowlist update."""
@@ -2616,22 +2632,39 @@ def plan_claude_project_allowlist(project_root: Path) -> ClaudeConfigurationPlan
         return ClaudeConfigurationPlan(
             "blocked", settings_path, None, "Claude settings permissions.allow must contain strings", current_text
         )
-    missing = [item for item in CLAUDE_PROJECT_ALLOWLIST if item not in allow]
-    if not missing:
+    deny = permissions.get("deny", [])
+    if not isinstance(deny, list) or not all(isinstance(item, str) for item in deny):
         return ClaudeConfigurationPlan(
-            "ready", settings_path, None, "project command allowlist is already effective", current_text
+            "blocked", settings_path, None, "Claude settings permissions.deny must contain strings", current_text
+        )
+    missing = [item for item in CLAUDE_PROJECT_ALLOWLIST if item not in allow]
+    missing_deny = [item for item in CLAUDE_PROJECT_DENYLIST if item not in deny]
+    if not missing and not missing_deny:
+        return ClaudeConfigurationPlan(
+            "ready",
+            settings_path,
+            None,
+            "project command allowlist and deny rules are already effective",
+            current_text,
         )
     proposed = copy.deepcopy(settings)
     proposed_permissions = copy.deepcopy(permissions)
-    proposed_permissions["allow"] = [*allow, *missing]
+    if missing:
+        proposed_permissions["allow"] = [*allow, *missing]
+    if missing_deny:
+        proposed_permissions["deny"] = [*deny, *missing_deny]
     proposed["permissions"] = proposed_permissions
-    return ClaudeConfigurationPlan(
-        "approval-required",
-        settings_path,
-        proposed,
-        "explicit --apply adds the missing project command allowlist entries",
-        current_text,
-    )
+    detail = "explicit --apply adds the missing project command allowlist entries"
+    if missing_deny:
+        detail = (
+            ("explicit --apply adds the missing project command allowlist entries and "
+             if missing else "explicit --apply adds the missing ")
+            + "deny rules: "
+            + ", ".join(missing_deny)
+            + "; prefix rules are defense in depth, a reworded command can evade them,"
+            + " and the managed denial text remains in force"
+        )
+    return ClaudeConfigurationPlan("approval-required", settings_path, proposed, detail, current_text)
 
 
 def apply_claude_project_allowlist(plan: ClaudeConfigurationPlan) -> bool:
@@ -2820,7 +2853,9 @@ def plan_setup(
         verb = "repair" if codex_state in ("repair-required", "repair-and-replace-required") else "configure"
         changes.append(f"{verb} Codex permission profile in {codex_config} for {resolution.path}")
     if claude_plan.proposed_settings is not None:
-        changes.append(f"add project Claude Code command allowlist in {claude_plan.settings_path}")
+        changes.append(
+            f"add project Claude Code command allowlist and deny rules in {claude_plan.settings_path}"
+        )
     if candidate_validation_proposal is not None:
         changes.append(
             f"write candidate-validation declaration in {candidate_validation_path} after explicit --apply consent"
@@ -2913,6 +2948,10 @@ def print_setup_plan(plan: SetupPlan) -> None:
     print(f"codex-detail: {plan.codex_detail}")
     print(f"claude-project-allowlist: {plan.claude_state}")
     print(f"claude-detail: {plan.claude_detail}")
+    print(
+        "claude-deny-note: deny rules are prefix rules and defense in depth; a reworded command can "
+        "evade them, and the managed denial text remains in force"
+    )
     for advisory in plan.claude_hook_duplicates:
         print(f"claude-hook-duplicate: {advisory}")
     print(f"candidate-validation-commands: {plan.candidate_validation_state}")
