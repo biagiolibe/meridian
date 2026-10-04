@@ -31,38 +31,38 @@ F1-BEVY-001 and stopped before the `ACCEPTED` commit for three framework reasons
 
 ## Acceptance Criteria
 
-- [ ] `meridian project show` and `meridian locations` resolve the declaration
+- [x] `meridian project show` and `meridian locations` resolve the declaration
   from the canonical primary checkout (the first `git worktree list --porcelain`
   entry) when run from a linked task worktree or with `--project` pointing at
   one, exactly as lifecycle commands resolve their project. Every internal reader
   of `.meridian/project.json` uses the same resolution. A test proves a worktree
   created before a `project` change on `main` reports the updated reviewer author.
-- [ ] `meridian setup --check` proposes a `project` object (name and slug) when it
+- [x] `meridian setup --check` proposes a `project` object (name and slug) when it
   is missing, derived deterministically (for example from the repository name)
   and shown for review; `--apply` writes it only after the existing consent flow
   and never overwrites declared values. A declaration that has `locations` but no
   `project` is reported as `advisory-incomplete`, not `present`.
-- [ ] Budget runtime state no longer dirties the primary checkout: it is written to
+- [x] Budget runtime state no longer dirties the primary checkout: it is written to
   an untracked location (for example under the Git common directory or an ignored
   `.meridian/` path) and read from there, with a one-time migration that moves an
   existing tracked `.meridian/budget.json` and makes the project stop tracking it.
   If the design keeps a tracked file instead, the handoff explains why and how
   `integrate stage` stays unblocked. `integrate stage` never fails `PRIMARY_DIRTY`
   because of budget state alone.
-- [ ] `git-workflow` (Governed SDD) gains, in additive wording within its
+- [x] `git-workflow` (Governed SDD) gains, in additive wording within its
   authority paragraph, that after `APPROVE` the `Review <TASK-ID>` trigger carries
   the same authority as `Proceed with` for C6 through C10, including the single
   plain `git push origin main` and `cleanup`, and the same prohibitions.
   `task-worktree-review-procedure` states the same in one sentence. Both get new
   versions in a template-changing migration, with an Upgrade note.
-- [ ] `meridian audit` or `setup --check` reports a tracked `.meridian/budget.json`
+- [x] `meridian audit` or `setup --check` reports a tracked `.meridian/budget.json`
   and an incomplete project declaration as advisories, without writing.
-- [ ] Tests cover: project show and locations from a stale worktree; setup
+- [x] Tests cover: project show and locations from a stale worktree; setup
   proposal and refusal to overwrite; the incomplete-declaration state; budget
   writes leaving `git status` clean in the primary checkout; the budget migration;
   stage with only budget activity not blocked; and the new authority text.
-- [ ] One changelog fragment with an Upgrade note is added per `CONTRIBUTING.md`.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
+- [x] One changelog fragment with an Upgrade note is added per `CONTRIBUTING.md`.
+- [x] `python3 scripts/check_repository.py` and the unit tests pass.
 
 ## Relevant Files
 

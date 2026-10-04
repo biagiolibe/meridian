@@ -180,7 +180,7 @@ record that names the worktree uses the `handoff_worktree` value returned by
 absolute path.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=git-workflow v9 -->
+<!-- MERIDIAN:BEGIN capability=git-workflow v10 -->
 ## Git workflow
 
 ### Authority of `Proceed with`
@@ -192,6 +192,10 @@ validation, and `integrate finalize` or `abort`; one plain `git push origin
 main` of the resulting integration; and `meridian worktree cleanup`. Do not
 ask for confirmation at any of these steps. When a gate fails, stop once with
 `BLOCKED <reason>` and the resume command.
+
+After `APPROVE`, `Review <TASK-ID>` carries the same authority for C6 through
+C10, including the one plain `git push origin main` and cleanup, subject to the
+same gates and prohibitions.
 
 It also authorizes, for the first review attempt, one plain `git push origin
 <task-branch>`, where `<task-branch>` is the `branch` value returned by
