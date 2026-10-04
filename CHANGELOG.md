@@ -15,6 +15,74 @@ records which release moved it.
 
 ## [Unreleased]
 
+## [1.2.7]
+
+Template-changing release: migration `061-governed-phase-reads` advances `workflowBaselineVersion` to `1.2.7`. It aligns the Governed SDD lifecycle text with the closure design and the CLI, adds the `.meridian/project.json` declaration, phase-based context loading, bounded router reads, and consumer capability profiles, and resolves the conformance defects reported by a Governed SDD consumer. The manifest shape and `protocolVersion` 2 are unchanged.
+
+### Added
+
+- Let `meridian setup` record an explicit opaque or milestone task-identity choice for new projects.
+- Add a read-only `meridian task identity next` command for deterministic milestone task IDs.
+- `meridian worktree prepare <TASK-ID> --resume` accepts an existing canonical worktree of that task that has uncommitted changes. It changes nothing, keeps `started_at` and `base_commit`, refuses when the task has no worktree or while an integration lease or staged merge names it, and still blocks every other mismatch. The result adds `resumed`, `dirty`, `changed_paths`, and `untracked_paths` (counts only); a dirty result has `next_action` `inspect-dirty`, after which `worktree check` reports `dirty-worktree` and no other error.
+- Add `meridian context size` to report workflow-role startup read sets, estimated token ranges, and optional size-limit failures.
+- Add `meridian usage report` for private, local-only summaries of Codex and Claude Code session token counters.
+- Add a `phase-reads` managed block to the Governed SDD implementation, review, remediation, and status procedures that states, per document, whether it is read at start or at the phase that needs it, and teach `meridian context size` to report such documents as `deferred` outside the startup total.
+- Add a `bounded-context-readers` managed block to the implementation, review, and remediation procedures that directs ADR and specification reads through `meridian context authority` and `meridian adr show` and queue reads through the queue briefing.
+- The execution-evidence profile gains the `long-command-waits` v1 block: a command expected to take longer than one minute is started with a wait that covers its expected duration and is polled at most once afterwards, which removes the empty-poll loop Codex agents ran while the suite was executing. During implementation an agent runs only the tests of the modules the task touches and runs the full suite once, after the last code change, as the validation of record; the declared `REUSE`, `BOUNDED`, and `FULL` candidate validation is unchanged.
+- Added the consumer-owned `.meridian/project.json` declaration and `meridian project show` for resolved project metadata.
+- Added the `governed-sdd-consumer` and `lean-delivery-consumer` catalog profiles. `meridian profile bootstrap <id> --check` then `--apply` turns a legacy protocol v2 manifest's `UNVERIFIED` declaration row into a declared profile with installation evidence; host activation and verification stay `UNVERIFIED` until a probe exists. Catalog profiles may now declare `workflowModes`.
+- `meridian audit` reports a `managed-copy-digest` row for each markerless managed copy: `FAIL` when its digest differs from `managedFiles`. Files with capability markers, `AGENTS.md`, `CLAUDE.md`, `docs/ARCHITECTURE_DECISIONS.md`, `docs/EXECUTION_EVIDENCE_PROFILE.md`, and the queue are never digest-checked.
+- `docs/CODE_REVIEW_PROMPT.md` applies a project's `## Project review checklist` section and `audit-prompt` runs a project's `## Project-specific checks` section, each placed after the managed block.
+
+### Changed
+
+- Name the queue briefing and the bounded ADR readers in the minimal read-only status procedure.
+- Aligned the Governed SDD lifecycle capability text with the closure design and the CLI: task branches never edit the queue, queue archive, or plan; the task record carries `IN_PROGRESS`, `READY_FOR_REVIEW`, and `CHANGES_REQUESTED`; the task branch is the `branch` value from `meridian worktree prepare`; and a task-branch push happens only to obtain `T1_CI`, at most once per review attempt, never by the reviewer, and not at all without CI.
+- `Accept <TASK-ID>` now appends an owner `APPROVE` attempt to the review record, sets the task record to `ACCEPTED`, and continues at C6 under the `Proceed with` authority; a manual merge is never permitted.
+- Managed text names resolved locations (`meridian locations`) and the reviewer author (`meridian project show --field reviewer-author`) instead of literal paths and placeholders, and the reviewer identity rule now lives in one block.
+- `code-organization` v2 allows the project module map in the project's architecture documentation or in a `## Project module map` section after the managed block.
+- Lean Delivery's `git-workflow` v9 carries only the task-branch name and push rules.
+- Inline markers inside prose became standalone blocks: `code-review-prompt` v1 replaces the three inline markers in `docs/CODE_REVIEW_PROMPT.md`, `validation-scoping` v2 (complete sentences in the implementation procedure; unchanged text elsewhere), and `read-guard` v2 (the active task comes from the verified worktree and the router read set is exempt; both modes).
+- `docs/WORKTREE_LIFECYCLE.md` is the whole-file `worktree-lifecycle` v1 capability in both modes, and the pull request policy's remote task-branch cleanup section is `remote-branch-cleanup` v1.
+- `meridian profile bootstrap` refuses a markerless managed copy whose digest differs from the recorded one instead of recording the edited file.
+
+### Removed
+
+- Removed the unread `Project integration smoke command:` line from both `PROJECT_WORKFLOW.md` templates; `.meridian/candidate-validation.json` is the only candidate-validation declaration.
+- Removed the unmarked duplicate of the reviewer identity rule from the Governed `docs/PULL_REQUEST_POLICY.md`.
+
+### Fixed
+
+- Verify published releases with supported GitHub CLI fields and the latest-release API.
+- The console Resume for a task with a dirty worktree launched `Proceed with <ID>`, whose `prepare` refused the dirty worktree, so the agent stopped at once with `BLOCKED`. It now launches a directive that runs `prepare --resume`; a clean worktree, a first launch, `Review`, and `Address review` keep their ordinary directives.
+- Detect managed-copy digest drift during the repository check and provide an explicit refresh command.
+- Let `meridian worktree integrate stage` complete Governed queue rows with project-specific column layouts.
+- Count cache-read and cache-creation tokens in the Claude Code input of `meridian usage report`, so startup, mean, peak, and `cache_ratio` match the Codex meaning of input.
+- Governed integration now handles SPIKE rows safely and always requires candidate `git diff --check` evidence.
+- Made read-guard router exemptions bounded by a declared ceiling and derived task activity from registered worktrees.
+
+### Documentation
+
+- Document the Claude Code settings-pinned marketplace refusal and ways to confirm the active Meridian plugin version.
+
+### Upgrade notes
+
+- Run `meridian upgrade --apply`. The change reaches Lean Delivery `bounded-worktree-lifecycle` v4 in `PROJECT_WORKFLOW.md`, Governed SDD `task-worktree-boundary` v8 in `docs/workflows/IMPLEMENTATION.md`, and `worktree-lifecycle` v2 in `docs/WORKTREE_LIFECYCLE.md` for both modes. Each adds wording that a Resume directive starts with `prepare --resume`, that `--resume` is allowed only for that directive, and that the agent reads `git status` and the diff before continuing. Project text outside the capability blocks is untouched.
+- The shipped Codex rule already allows `meridian worktree prepare` by prefix, so `--resume` needs no rule change.
+- Template-changing release 1.2.7 adds `phase-reads` v1 and `bounded-context-readers` v1 and bumps `minimal-read-only-status` to v2 in Governed SDD `docs/workflows/IMPLEMENTATION.md`, `docs/workflows/REVIEW.md`, `docs/workflows/REMEDIATION.md`, and `docs/CONTEXT_BUDGET_POLICY.md`. Run `meridian upgrade --apply`; adapted projects may conflict in those four files, and no minimum framework or `protocolVersion` change applies.
+- Run `meridian upgrade --apply`. The change reaches `long-command-waits` v1 in `docs/EXECUTION_EVIDENCE_PROFILE.md` for both Lean Delivery and Governed SDD; the block is added after the existing Claude Code foreground-timeout rule, which is unchanged, and project text outside the block is preserved.
+- Existing projects continue to use legacy workflow location prose until they add `.meridian/project.json`; the legacy resolver now warns on use.
+- Run `meridian upgrade --apply`. The change reaches Governed SDD `git-workflow` v9, `roles` v3, `review-policy` v3, `task-lifecycle` v3, `execution-assets` v3, `document-precedence` v2, `review-mode-boundary` v2, `review-remediation-record` v3, `implementer-reviewer-handoff` v4, `reviewer-integrator-identity` v2, `task-worktree-boundary` v7, `task-worktree-review-procedure` v9, `task-worktree-integration` v4, `task-worktree-handoff` v5, `owner-acceptance-workflow` v2, `execution-command-gate` v2, `lifecycle-orchestration` v8, `rejected-attempt-restart` v4, `audit-prompt` v3, `task-blueprint` v13, and `code-organization` v2, plus Lean Delivery `git-workflow` v9, in `PROJECT_WORKFLOW.md`, `AGENTS.md`, `CLAUDE.md`, and the Governed `docs/` and `tasks/TASK_BLUEPRINT.md` files they list.
+- Adapted projects are most likely to conflict in `PROJECT_WORKFLOW.md` (`git-workflow`, `roles`) and `docs/workflows/REVIEW.md`. Upgrade merges managed files three-way, so an untouched `Project integration smoke command: `none`` line is removed; a customized line is never dropped silently (it is kept or reported as a conflict), so move any real command into `.meridian/candidate-validation.json` and delete the line.
+- Declare the project name and slug in `.meridian/project.json` so `meridian project show --field reviewer-author` can print the reviewer author for the acceptance commit.
+- `meridian project show --field ci` defaults to `none`, and under the new push rule a task-branch push needs CI. A project that relies on `T1_CI` must declare `ci` in `.meridian/project.json`, otherwise the task-branch pushes stop.
+- A `## Project module map` section placed after the `code-organization` block is preserved unchanged by upgrade.
+- The unmarked prose of a project's own `tasks/QUEUE.md` is not managed; update its status-editing sentence to match the task-record rule by hand.
+- Run `meridian upgrade --apply`. The change reaches Governed SDD `code-review-prompt` v1, `worktree-lifecycle` v1, `remote-branch-cleanup` v1, `validation-scoping` v2, `read-guard` v2, and `audit-prompt` v3, plus Lean Delivery `worktree-lifecycle` v1, `read-guard` v2, and `validation-scoping` v2, in `docs/CODE_REVIEW_PROMPT.md`, `docs/AUDIT_PROMPT_READ_ONLY.md`, `docs/CONTEXT_BUDGET_POLICY.md`, `docs/PULL_REQUEST_POLICY.md`, `docs/WORKTREE_LIFECYCLE.md`, `docs/workflows/IMPLEMENTATION.md`, and `PROJECT_WORKFLOW.md`.
+- A project that edited prose around the retired `task-worktree-review` v4, `manual-verification-review-check` v1, or `ci-verified-validation` v1 inline markers in `docs/CODE_REVIEW_PROMPT.md` gets a `RESTRUCTURE` plan row. Upgrade writes the current file to `docs/CODE_REVIEW_PROMPT.md.meridian-pre-restructure.bak` (a numeric suffix is added when that name exists), installs the standalone block, and carries the project's own level-2 sections after it. Re-apply any project prose from the backup in a `## Project review checklist` section.
+- Whole-file `worktree-lifecycle` v1 and `remote-branch-cleanup` v1 are protected regions. When the three-way merge conflicts inside text a project edited there, upgrade reports a conflict instead of adding a duplicate block; reconcile the edit by hand and put project text outside the block. A merge that applies cleanly around a project edit leaves the edited block, which `meridian audit` then reports as a protected-content `FAIL`. See `docs/CONSUMER_PROFILES.md` for project-owned sections and the consumer-profile procedure.
+- A markerless managed copy edited by hand now fails `meridian audit`; restore the released text.
+
 ## [1.2.6]
 
 Template-changing release: migrations `058-lean-closure-procedure`, `059-governed-closure-procedure`, and `060-unattended-closure-command-policy` advance `workflowBaselineVersion` to `1.2.6`. This release also ships the changes prepared for the unpublished versions `1.2.4` and `1.2.5`, which have no separate tag. The Lean Delivery and Governed SDD closure procedures, the Codex command policy, and project-declared candidate-validation commands arrive together.
