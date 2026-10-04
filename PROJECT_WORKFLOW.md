@@ -10,6 +10,8 @@ Do not fall back to Governed SDD. In particular, do not invent ADR gates, review
 
 Lean Delivery is the workflow for this repository's bounded framework maintenance. Use Governed SDD if a future change introduces public API, dependency, security, persistence, state, deterministic-behavior, or unresolved architectural risk.
 
+Use `docs/COMPLETION_REPORT_TEMPLATE.md` as the required handoff format.
+
 ## Lifecycle
 
 ```text

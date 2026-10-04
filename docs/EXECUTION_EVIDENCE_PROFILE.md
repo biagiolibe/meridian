@@ -25,6 +25,10 @@ git diff --check 2>&1 | tail -n 200
 ```
 
 Record each literal command, its exit status, and the material final lines.
+Run every validation command of record as its own command with its own exit
+status. Never join it with `&&` or `;` to exploratory reads (`sed`, `cat`,
+`rg`, or `ls`) or to another validation command whose individual status must
+be reported. Reads may be batched with other reads.
 Run a command expected to take longer than one minute in the foreground with a
 timeout of up to 600 seconds, or in a persistent terminal session; never
 detach it and poll for completion.
