@@ -127,6 +127,7 @@
 - `[x]` 158 — Migrate legacy budget state only at upgrade, never from a read.
 - `[ ]` 159 — Retire the reasoning budget contract.
 - `[x]` 160 — Give the Claude Code allowlist parity with the Codex execution-command rules.
+- `[ ]` 161 — State that a local `main` ahead of `origin/main` does not block integration.
 - `[x]` 140 — Let `integrate stage` complete rows of project-shaped Governed queues.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.
