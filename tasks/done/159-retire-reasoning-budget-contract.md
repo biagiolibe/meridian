@@ -24,7 +24,7 @@ templates, with a migration that removes it from adopted projects.
 
 ## Acceptance Criteria
 
-- [ ] The managed `reasoning-budget-contract` block is removed from
+- [x] The managed `reasoning-budget-contract` block is removed from
   `templates/workflows/governed-sdd/docs/CONTEXT_BUDGET_POLICY.md`, together with
   every sentence of that file and of the other Governed SDD templates that
   requires choosing, recording, matching, confirming, or escalating a reasoning
@@ -32,32 +32,32 @@ templates, with a migration that removes it from adopted projects.
   `docs/OPERATOR_PROMPTS.md`, `docs/PULL_REQUEST_POLICY.md`, workflow procedures,
   and the lifecycle-orchestration paragraph). Mentions that only describe
   context size, not a reasoning level, stay.
-- [ ] `TASK_BLUEPRINT.md` no longer has `Reasoning` and `Reasoning
+- [x] `TASK_BLUEPRINT.md` no longer has `Reasoning` and `Reasoning
   justification` fields. Existing tasks that still carry them are not an error:
   no check requires or rejects the fields.
-- [ ] A migration whose `to` is the next release retires the capability using the
+- [x] A migration whose `to` is the next release retires the capability using the
   existing retirement mechanism for protected marker blocks, so
   `upgrade --check` on a project with the 1.2.8 text shows the block removal and
   `upgrade` applies it without touching local text. The catalog, the capability
   marker documents, and the marker baselines are updated consistently;
   `meridian-audit` reports no stale marker for the retired capability.
-- [ ] Lean Delivery templates are unchanged unless they mention reasoning levels
+- [x] Lean Delivery templates are unchanged unless they mention reasoning levels
   (none were found).
-- [ ] No acceptance criterion, check, or hook anywhere reads, requires, or
+- [x] No acceptance criterion, check, or hook anywhere reads, requires, or
   compares a reasoning level. The test that asserts the exact-cap contract
   (`test_reasoning_budget_contract_uses_an_exact_cap_without_auto_escalation`)
   and the marker-pair expectation naming `reasoning-budget-contract` are removed
   or replaced by a test that the retired block is absent.
-- [ ] `scripts/project_console.py` and its tests keep reading
+- [x] `scripts/project_console.py` and its tests keep reading
   `model_reasoning_effort` only as a display value, unchanged.
-- [ ] `VERSION`, `.claude-plugin/plugin.json`, and the release ledger are bumped
+- [x] `VERSION`, `.claude-plugin/plugin.json`, and the release ledger are bumped
   for the template-changing release in this task's commits, as `CONTRIBUTING.md`
   requires; nothing is tagged or published.
-- [ ] One changelog fragment states the removal under `Removed` and the required
+- [x] One changelog fragment states the removal under `Removed` and the required
   action under `Upgrade notes`.
-- [ ] `meridian upgrade --check` on copies of the Palimpsest and Fusa manifests
+- [x] `meridian upgrade --check` on copies of the Palimpsest and Fusa manifests
   reports the block removal and no `BLOCKED`; results go in the handoff.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
+- [x] `python3 scripts/check_repository.py` and the unit tests pass.
 
 ## Relevant Files
 
