@@ -62,7 +62,12 @@ The explicit option remains available for finishing a worktree in an old root.
   changing lifecycle records. A `REQUIRED` row becomes `ACCEPTED` only when its
   merged review record's latest attempt is `APPROVE`; otherwise stage reports
   `REVIEW_PENDING`, retains its status, and still relinks an archived task
-  record. Any fully closed section moves to `tasks/QUEUE_ARCHIVE.md` using that
+  record. A task record with `Class: SPIKE` needs no review record: stage sets its
+  row to its terminal `ANSWERED` or `INCONCLUSIVE` status. A spike may integrate
+  only its task record or exact archive rename, handoff, ADR log, documentation
+  paths named in its deliverable, and changelog fragments; any other task diff
+  path blocks stage before a lease or merge. Any fully closed section moves to
+  `tasks/QUEUE_ARCHIVE.md` using that
   mode's template table shape, creating it when needed; a project-shaped
   Governed section is not archived. It returns `REUSE`, `BOUNDED`, or `FULL`
   with the exact candidate tree. Unknown row or section shapes are blocked
@@ -189,7 +194,8 @@ consumer-owned file. This repository's own fragments live only in its
 A stricter gate is always permitted: an agent may run the full suite for any
 outcome, and neither the lifecycle command nor this policy rejects it.
 Missing, failed, stale, or mismatched evidence is blocked without creating a
-merge commit.
+merge commit. Every candidate evidence record, including one under a `none`
+declaration, must include `git diff --check`.
 
 Lifecycle state is stored under the repository's absolute Git common
 directory. Interruptions retain enough ownership and candidate identity for
