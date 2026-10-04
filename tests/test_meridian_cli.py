@@ -5602,10 +5602,46 @@ class WorktreeRootSetupTest(unittest.TestCase):
             "Bash(grep:*)",
         ):
             self.assertIn(command, allowlist)
+        for subcommand in (
+            "validate",
+            "ready-check",
+            "handoff-check",
+            "preflight",
+            "evidence",
+            "contract",
+            "investigate",
+        ):
+            self.assertIn(f"Bash(meridian execution {subcommand}:*)", allowlist)
+            self.assertIn(f"Bash(python3 scripts/meridian.py execution {subcommand}:*)", allowlist)
         for unrelated in ("Bash(git mv:*)", "Bash(mv:*)", "Bash(sed:*)", "Bash(rg:*)", "Bash(find:*)"):
             self.assertNotIn(unrelated, allowlist)
+        self.assertNotIn("Bash(meridian execution reconcile:*)", allowlist)
+        self.assertNotIn("Bash(python3 scripts/meridian.py execution reconcile:*)", allowlist)
+        self.assertNotIn("Bash(meridian:*)", allowlist)
         for forbidden in ("--tags", "--force", "rebase", "reset", "branch -D", "worktree add", "worktree remove", "worktree prune"):
             self.assertFalse(any(forbidden in command for command in allowlist), forbidden)
+
+    def test_claude_allowlist_execution_commands_match_the_codex_rule(self) -> None:
+        rules = (ROOT / "templates/workflows/governed-sdd/.codex/rules/meridian.rules").read_text(encoding="utf-8")
+        match = re.search(
+            r'prefix_rule\(pattern=\["meridian", "execution", \[(.*?)\]\], decision="allow"\)',
+            rules,
+        )
+        self.assertIsNotNone(match)
+        codex_subcommands = set(re.findall(r'"([^"]+)"', match.group(1)))
+        allowlist = set(meridian.CLAUDE_PROJECT_ALLOWLIST)
+        claude_subcommands = {
+            command.removeprefix("Bash(meridian execution ").removesuffix(":*)")
+            for command in allowlist
+            if command.startswith("Bash(meridian execution ")
+        }
+        python_subcommands = {
+            command.removeprefix("Bash(python3 scripts/meridian.py execution ").removesuffix(":*)")
+            for command in allowlist
+            if command.startswith("Bash(python3 scripts/meridian.py execution ")
+        }
+        self.assertEqual(claude_subcommands, codex_subcommands)
+        self.assertEqual(python_subcommands, codex_subcommands)
 
 
 class CodexProfileRepairTest(unittest.TestCase):

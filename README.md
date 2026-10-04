@@ -395,6 +395,8 @@ adds its bounded command allowlist to the ignored
 `.claude/settings.local.json` for the selected project (the current directory
 by default, or `--project <path>`). It never writes that allowlist during
 `setup --check`; `codex doctor` reports whether the project still needs it.
+Its execution entries run whatever a task's `## Validation` declares, so review
+declared commands in the task file rather than at the permission prompt.
 For a new project, run `meridian init` (or `/meridian-init`) and lifecycle
 commands resolve this root automatically. For an existing project, use
 `meridian upgrade --check` and the consented `--apply` to receive current
