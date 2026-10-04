@@ -202,7 +202,7 @@ what Git and lifecycle state show is undone.
 | C3 | Commit completion records on the task branch (task file to `tasks/done/`, handoff) | `REVIEW_REQUIRED` when an independent review is declared (Decision 9) | After approval, continue at C4 |
 | C4 | `meridian worktree check` from the prepared worktree | `WRONG_WORKTREE` | Restart in the path `prepare` returned |
 | C5 | Record machine evidence (Decision 4) | `EVIDENCE_INCOMPLETE` | Record the missing field |
-| C6 | In the primary checkout, require a clean tree and `main` equal to `origin/main`; `integrate stage` | `PRIMARY_DIRTY`, `MAIN_BEHIND_ORIGIN`, `LEASE_HELD`, `INTEGRATION_CONFLICT` | Resolve the named condition; an active integration is resumed at C7 or aborted |
+| C6 | In the primary checkout, require a clean tree and `main` equal to, or ahead of, the fetched `origin/main` (clarified in 1.2.9: unpushed commits ahead are pushed with the integration at C9); `integrate stage` | `PRIMARY_DIRTY`, `MAIN_BEHIND_ORIGIN`, `LEASE_HELD`, `INTEGRATION_CONFLICT` | Resolve the named condition; an active integration is resumed at C7 or aborted |
 | C7 | Run the selected candidate validation outside the lifecycle command | `CANDIDATE_VALIDATION_FAILED` | `integrate abort`; fix on the task branch; rerun from C2 |
 | C8 | `integrate finalize` with candidate-bound evidence | `EVIDENCE_MISMATCH` | `integrate abort`; restage at C6 |
 | C9 | `git push origin main` | `PUSH_REJECTED` (origin advanced during integration) | No force and no rebase: local `main` is ahead by the merge commit; the developer decides |
@@ -219,6 +219,11 @@ step, the stop reason if any, and the resume command from Git and lifecycle
 state alone, so a resumed session does not rely on the previous session's
 memory. Every stop prints one line:
 `BLOCKED <REASON>; resume: <command>`.
+
+*Clarification (1.2.9):* `MAIN_BEHIND_ORIGIN` is raised only when local `main` is
+behind the already fetched `origin/main`. A `main` that is equal to it, or ahead
+of it with commits not yet pushed, is accepted; the ahead commits are pushed by
+C9 together with the integration.
 
 `MAIN_BEHIND_ORIGIN` turns the push race (`PUSH_REJECTED`) into an earlier,
 cheaper check; it cannot remove the race window, so C9 remains.

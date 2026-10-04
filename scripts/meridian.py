@@ -1793,7 +1793,9 @@ def stage_task_integration(
         )
     ):
         raise MeridianError(
-            "MAIN_BEHIND_ORIGIN: local main lacks commits from the already fetched origin/main"
+            "MAIN_BEHIND_ORIGIN: local main is behind the already fetched origin/main "
+            f"(local main {git_output(project_root, 'rev-parse', '--short=12', 'main')}, "
+            f"origin/main {git_output(project_root, 'rev-parse', '--short=12', 'refs/remotes/origin/main')})"
         )
     evidence = _integration_evidence(evidence_path)
     declaration_state, _fragments = candidate_validation_declaration(project_root)
