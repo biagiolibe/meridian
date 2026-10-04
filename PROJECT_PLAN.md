@@ -100,7 +100,7 @@
 - `[x]` 130 — Make task creation follow the project's task-identity mode.
 - `[x]` 131 — Verify the latest release without the removed `isLatest` field.
 - `[x]` 132 — Document the settings-pinned marketplace refusal and how to check the installed version.
-- `[ ]` 133 — Let a confirmed Resume reach a dirty task worktree.
+- `[x]` 133 — Let a confirmed Resume reach a dirty task worktree.
 - `[x]` 134 — Add `meridian context size` to measure the startup read set.
 - `[x]` 135 — Report measured token usage of agent sessions.
 - `[x]` 136 — Load workflow context by phase and point agents to bounded readers.

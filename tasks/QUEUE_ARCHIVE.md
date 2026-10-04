@@ -589,3 +589,9 @@ reasons, and creates the implementation follow-ups.
 | `[x]` | 145 | Align Governed lifecycle capability text with the closure design and the CLI | 🔴 P1 | 142, 143, 144 | [145](done/145-governed-lifecycle-text-alignment.md) |
 | `[x]` | 146 | Restructure inline markers, audit managed copies, and add consumer profiles | 🟡 P2 | 145 | [146](done/146-marker-structure-audit-and-consumer-profiles.md) |
 | `[x]` | 147 | Isolate setup CLI tests from the developer's real home directory | 🔴 P1 | — | [147](done/147-isolate-setup-tests-from-real-home.md) |
+
+### Phase 50 — Interrupted task recovery
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 133 | Let a confirmed Resume reach a dirty task worktree | 🟡 P2 | — | [133](done/133-resume-dirty-task-worktree.md) |
