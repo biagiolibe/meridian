@@ -317,6 +317,13 @@ class WrappedTextUpgradeTest(unittest.TestCase):
 
 
 class ManagedCopyDigestAuditTest(FrameworkFixture):
+    def change_template_heading(self, relative: str, replacement: str) -> Path:
+        template = self.framework / "templates/workflows" / self.MODE / relative
+        text = template.read_text(encoding="utf-8")
+        first_line, remainder = text.split("\n", 1)
+        template.write_text(replacement + "\n" + remainder, encoding="utf-8")
+        return self.project / relative
+
     def test_a_drifted_markerless_copy_fails_the_audit(self) -> None:
         self.lock()
         prompts = self.project / "docs/OPERATOR_PROMPTS.md"
@@ -328,6 +335,64 @@ class ManagedCopyDigestAuditTest(FrameworkFixture):
         self.assertRegex(
             output, r"(?m)^FAIL\s+managed-copy-digest — docs/OPERATOR_PROMPTS\.md: differs"
         )
+
+    def test_upgrade_warns_for_an_edited_markerless_copy_and_the_audit_matches(self) -> None:
+        self.lock()
+        prompts = self.change_template_heading("docs/OPERATOR_PROMPTS.md", "# Released Operator Prompts")
+        prompts.write_text(prompts.read_text(encoding="utf-8") + "\nProject-specific note.\n", encoding="utf-8")
+
+        checked = self.run_cli("upgrade", "--check")
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+        self.assertRegex(checked.stdout, r"EDITED-COPY\s+docs/OPERATOR_PROMPTS\.md")
+        self.assertIn("will fail the digest audit", checked.stdout)
+        self.assertIn("WARNING: 1 edited managed copy", checked.stdout)
+        self.assertRegex(checked.stdout, r"MERGE\s+docs/OPERATOR_PROMPTS\.md")
+
+        applied = self.run_cli("upgrade", "--apply")
+        self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+        self.assertIn("# Released Operator Prompts", prompts.read_text(encoding="utf-8"))
+        self.assertIn("Project-specific note.", prompts.read_text(encoding="utf-8"))
+        code, output = self.audit()
+        self.assertEqual(code, 2, output)
+        self.assertIn("managed-copy-digest — docs/OPERATOR_PROMPTS.md: differs", output)
+
+    def test_upgrade_warns_before_a_markerless_copy_conflict(self) -> None:
+        self.lock()
+        prompts = self.change_template_heading("docs/OPERATOR_PROMPTS.md", "# Released Operator Prompts")
+        prompts.write_text(
+            prompts.read_text(encoding="utf-8").replace(
+                "# Governed SDD Operator Prompts", "# Project Operator Prompts", 1
+            ),
+            encoding="utf-8",
+        )
+
+        checked = self.run_cli("upgrade", "--check")
+        self.assertNotEqual(checked.returncode, 0)
+        self.assertRegex(checked.stdout, r"EDITED-COPY\s+docs/OPERATOR_PROMPTS\.md")
+        self.assertRegex(checked.stdout, r"CONFLICT\s+docs/OPERATOR_PROMPTS\.md")
+        applied = self.run_cli("upgrade", "--apply")
+        self.assertNotEqual(applied.returncode, 0)
+        self.assertIn("blocking plan items", applied.stderr)
+
+    def test_upgrade_does_not_warn_for_an_unedited_markerless_copy(self) -> None:
+        self.lock()
+        self.change_template_heading("docs/OPERATOR_PROMPTS.md", "# Released Operator Prompts")
+
+        checked = self.run_cli("upgrade", "--check")
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+        self.assertNotIn("EDITED-COPY", checked.stdout)
+        self.assertRegex(checked.stdout, r"REPLACE\s+docs/OPERATOR_PROMPTS\.md")
+
+    def test_upgrade_does_not_warn_for_marker_or_project_editable_files(self) -> None:
+        self.lock()
+        organization = self.change_template_heading("docs/CODE_ORGANIZATION.md", "# Released Code Organization")
+        decisions = self.change_template_heading("docs/ARCHITECTURE_DECISIONS.md", "# Released Architecture Decisions")
+        for path in (organization, decisions):
+            path.write_text(path.read_text(encoding="utf-8") + "\nProject-specific note.\n", encoding="utf-8")
+
+        checked = self.run_cli("upgrade", "--check")
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+        self.assertNotIn("EDITED-COPY", checked.stdout)
 
     def test_project_text_outside_capability_blocks_never_fails(self) -> None:
         self.lock()

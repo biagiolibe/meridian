@@ -115,7 +115,7 @@
 - `[x]` 146 — Restructure inline markers, audit managed copies, and add consumer profiles.
 - `[x]` 147 — Isolate setup CLI tests from the developer's real home directory.
 - `[x]` 148 — Drop retired markers from project sections carried by a restructure.
-- `[ ]` 149 — Warn at upgrade when a markerless managed copy keeps local edits.
+- `[x]` 149 — Warn at upgrade when a markerless managed copy keeps local edits.
 - `[ ]` 150 — Publish a `stable` branch so the Claude Code plugin follows releases.
 - `[ ]` 151 — Make hook task-state lookups linear and keep the briefing within its timeout.
 - `[x]` 140 — Let `integrate stage` complete rows of project-shaped Governed queues.
