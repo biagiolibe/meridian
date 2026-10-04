@@ -4736,7 +4736,7 @@ class WorktreeRootSetupTest(unittest.TestCase):
         self.xdg = self.home / "xdg"
         self.user_config = self.xdg / "meridian/config.json"
         self.codex_config = self.home / "codex/config.toml"
-        self.environment = {"XDG_CONFIG_HOME": str(self.xdg)}
+        self.environment = {"HOME": str(self.home), "XDG_CONFIG_HOME": str(self.xdg)}
 
     def tearDown(self) -> None:
         self.cwd_patch.stop()
@@ -5072,6 +5072,33 @@ class WorktreeRootSetupTest(unittest.TestCase):
             identity_path.read_text(encoding="utf-8"),
             '{\n  "mode": "milestone",\n  "version": 1\n}\n',
         )
+
+    def test_setup_cli_ignores_conflicting_skill_links_in_an_unrelated_home(self) -> None:
+        unrelated_home = self.home / "unrelated-home"
+        skills = unrelated_home / ".agents/skills"
+        skills.mkdir(parents=True)
+        for name in meridian.CODEX_SKILL_NAMES:
+            (skills / name).symlink_to(unrelated_home / "elsewhere")
+
+        checked = subprocess.run(
+            [
+                sys.executable,
+                str(CLI),
+                "setup",
+                "--check",
+                "--worktree-root",
+                str(self.home / "root"),
+                "--config",
+                str(self.codex_config),
+            ],
+            text=True,
+            capture_output=True,
+            check=False,
+            env={**os.environ, "HOME": str(unrelated_home), **self.environment},
+        )
+
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+        self.assertIn("codex-skill-links: missing", checked.stdout)
 
     def test_setup_task_identity_refuses_invalid_and_preserves_existing_declarations(self) -> None:
         project = self.home / "project"
