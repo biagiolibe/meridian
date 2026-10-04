@@ -4051,29 +4051,46 @@ Evidence plan:
         )
         self.assertEqual(self.run_cli("execution", "handoff-check", "TASK-013", str(report)).returncode, 0)
 
-    def test_handoff_accepts_task_099_named_skip_and_rejects_an_unnamed_failure(self) -> None:
+    def test_handoff_accepts_non_project_specific_skips_and_rejects_failures(self) -> None:
         self.write_task("TASK-009", "IN_PROGRESS")
         report = self.project / "validation-skips.md"
         report.write_text(
             "## Completion Report — TASK-009\n\n- Files changed: none\n"
             "- Validation: `python3 -m unittest discover -s tests -v` exit 0\n"
-            "- Validation skips: AgentLaunchTest.test_split_payload_compiles_as_applescript — "
-            "osacompile cannot resolve the iTerm2 dictionary in this environment: "
-            "Connection invalid; reported by `python3 -m unittest discover -s tests -v`\n"
+            "- Validation skips: none\n"
             "- Manual verification: none\n- Acceptance criteria: all met\n"
             "- Budget usage: 0/3\n- Isolated exploration: none\n"
             "- Blockers/deviations: none\n",
             encoding="utf-8",
         )
-        accepted = self.run_cli("execution", "handoff-check", "TASK-009", str(report))
-        self.assertEqual(accepted.returncode, 0, accepted.stderr)
+        self.assertEqual(self.run_cli("execution", "handoff-check", "TASK-009", str(report)).returncode, 0)
+
+        report.write_text(
+            report.read_text(encoding="utf-8").replace(
+                "- Validation skips: none\n",
+                "- Validation skips: ConsumerSuite.test_unavailable_service — service unavailable; "
+                "reported by `consumer-test --network`\n",
+            ),
+            encoding="utf-8",
+        )
+        documented_form = self.run_cli("execution", "handoff-check", "TASK-009", str(report))
+        self.assertEqual(documented_form.returncode, 0, documented_form.stderr)
+
+        report.write_text(
+            report.read_text(encoding="utf-8").replace(
+                "- Validation skips: ConsumerSuite.test_unavailable_service — service unavailable; "
+                "reported by `consumer-test --network`\n",
+                "- Validation skips: network fixture unavailable\n",
+            ),
+            encoding="utf-8",
+        )
+        free_text = self.run_cli("execution", "handoff-check", "TASK-009", str(report))
+        self.assertEqual(free_text.returncode, 0, free_text.stderr)
 
         report.write_text(
             report.read_text(encoding="utf-8").replace(
                 "- Validation: `python3 -m unittest discover -s tests -v` exit 0\n"
-                "- Validation skips: AgentLaunchTest.test_split_payload_compiles_as_applescript — "
-                "osacompile cannot resolve the iTerm2 dictionary in this environment: "
-                "Connection invalid; reported by `python3 -m unittest discover -s tests -v`\n",
+                "- Validation skips: network fixture unavailable\n",
                 "- Validation: `python3 -m unittest discover -s tests -v` exit 1\n"
                 "- Validation skips: none\n",
             ),
@@ -4082,6 +4099,25 @@ Evidence plan:
         rejected = self.run_cli("execution", "handoff-check", "TASK-009", str(report))
         self.assertNotEqual(rejected.returncode, 0)
         self.assertIn("failing validation without a named skip", rejected.stderr)
+
+        report.write_text(
+            report.read_text(encoding="utf-8").replace(
+                "- Validation skips: none\n",
+                "- Validation skips: network fixture unavailable\n",
+            ),
+            encoding="utf-8",
+        )
+        named_skip_failure = self.run_cli("execution", "handoff-check", "TASK-009", str(report))
+        self.assertNotEqual(named_skip_failure.returncode, 0)
+        self.assertIn("a named skip does not make a failing validation pass", named_skip_failure.stderr)
+
+        report.write_text(
+            report.read_text(encoding="utf-8").replace("- Validation skips: network fixture unavailable\n", ""),
+            encoding="utf-8",
+        )
+        absent = self.run_cli("execution", "handoff-check", "TASK-009", str(report))
+        self.assertNotEqual(absent.returncode, 0)
+        self.assertIn("Validation skips", absent.stderr)
 
     def test_validation_runs_only_a_declared_literal_command_and_records_status(self) -> None:
         (self.project / "docs").mkdir()

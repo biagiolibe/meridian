@@ -123,7 +123,7 @@
 - `[x]` 154 — Retarget migration 062 to 1.2.8 and reject same-version migrations.
 - `[x]` 155 — Align capability-profile surfaces at upgrade and keep `upgrade --check` from blocking on them.
 - `[ ]` 156 — Stop `release.py` passing `--repo` to `gh api`.
-- `[ ]` 157 — Stop `handoff-check` requiring one hard-coded Meridian test as the only valid skip.
+- `[x]` 157 — Stop `handoff-check` requiring one hard-coded Meridian test as the only valid skip.
 - `[x]` 140 — Let `integrate stage` complete rows of project-shaped Governed queues.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.
