@@ -65,7 +65,7 @@ Independent review, acceptance evidence, and forge gates remain mandatory.
 candidate validation, finalize or abort, one plain `git push origin main`, and
 cleanup; it also authorizes the first attempt's plain task-branch push, and
 `Address review <TASK-ID>` the next one, only to obtain `T1_CI` for that commit, at most once per review attempt, and not at all when the project has no CI. The reviewer never pushes the
-task branch. It never authorizes tags, releases, force/deleting/mirroring pushes, history
+task branch. `Proceed with` never authorizes tags, releases, force/deleting/mirroring pushes, history
 rewrites, forced worktree removal, bypassing this independent review, textual
 conflict resolution, or work on another task. This review is the gate:
 `Review: REQUIRED` stops at `REVIEW_REQUIRED`, not to ask whether review may be

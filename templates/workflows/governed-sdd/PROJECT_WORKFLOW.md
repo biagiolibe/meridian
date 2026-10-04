@@ -198,7 +198,7 @@ It also authorizes, for the first review attempt, one plain `git push origin
 `meridian worktree prepare`, only when needed to obtain `T1_CI` validation for
 that task commit. `Address review <TASK-ID>` authorizes the one push for the
 next attempt. A task-branch push is never made by the reviewer, at most once per
-review attempt, and not at all when the project has no CI. It never authorizes creating,
+review attempt, and not at all when the project has no CI. `Proceed with` never authorizes creating,
 moving, or pushing a tag; publishing a release; a force push or a push that
 deletes or mirrors references; rewriting history (amend of pushed commits,
 rebase, reset, cherry-pick); deleting an unmerged branch or force-removing a
