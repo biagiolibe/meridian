@@ -324,6 +324,34 @@ class QueueBriefingTest(unittest.TestCase):
         self.assertIn("In progress: TASK-001", result.stdout)
         self.assertIn("In review: TASK-002", result.stdout)
 
+    def test_times_out_only_the_optional_worktree_state_lookup(self) -> None:
+        self.write_language_policy("Italian")
+        self.write_queue("| 1 | TASK-001 | P0 | QUEUED | REQUIRED | — | [TASK-001](TASK-001.md) |\n")
+        hook_root = self.project / "hook-root"
+        hook = hook_root / "hooks/queue-briefing.sh"
+        hook.parent.mkdir(parents=True)
+        hook.write_text(HOOK.read_text(encoding="utf-8"), encoding="utf-8")
+        runner = hook_root / "bin/meridian"
+        runner.parent.mkdir()
+        runner.write_text(
+            "#!/bin/sh\n"
+            "case \"$1 $2\" in\n"
+            "  locations*) echo tasks/QUEUE.md ;;\n"
+            "  worktree\\ states) sleep 3; echo '[]' ;;\n"
+            "esac\n",
+            encoding="utf-8",
+        )
+        runner.chmod(0o755)
+
+        started = time.monotonic()
+        result = run_hook(self.project, hook=hook)
+        elapsed = time.monotonic() - started
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertLess(elapsed, 2.8, result.stdout)
+        self.assertIn("In-progress lookup skipped", result.stdout)
+        self.assertLess(result.stdout.index("[Meridian Language Policy]"), result.stdout.index("In-progress lookup skipped"))
+
     def test_lean_registered_active_task_does_not_require_a_checkbox_edit(self) -> None:
         (self.project / "tasks/QUEUE.md").write_text(
             "| Status | ID | Title | File |\n|--------|----|-------|------|\n"
@@ -349,9 +377,9 @@ class QueueBriefingTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("In progress: Active thing", result.stdout)
 
-    def test_stays_well_under_the_hook_timeout_on_a_200_row_queue(self) -> None:
+    def test_stays_under_two_seconds_on_a_300_row_queue(self) -> None:
         rows = []
-        for i in range(1, 201):
+        for i in range(1, 301):
             task_id = f"TASK-{i:03d}"
             status = "IN_PROGRESS" if i == 100 else ("ACCEPTED" if i % 7 == 0 else "QUEUED")
             dep = "—" if i == 1 else f"TASK-{i - 1:03d}"
@@ -363,7 +391,7 @@ class QueueBriefingTest(unittest.TestCase):
         elapsed = time.monotonic() - started
 
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertLess(elapsed, 4.0, f"queue briefing took {elapsed:.2f}s, close to the 5s hook timeout")
+        self.assertLess(elapsed, 2.0, f"queue briefing took {elapsed:.2f}s")
         self.assertIn("[Meridian Governed Queue]", result.stdout)
         self.assertIn("In progress: TASK-100", result.stdout)
 
