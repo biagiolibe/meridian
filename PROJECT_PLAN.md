@@ -121,7 +121,7 @@
 - `[x]` 152 — Read project declarations from the primary checkout, keep budget state out of it, and state Review's closure authority.
 - `[x]` 153 — Install the completion template here and keep validation commands unchained.
 - `[x]` 154 — Retarget migration 062 to 1.2.8 and reject same-version migrations.
-- `[ ]` 155 — Align capability-profile surfaces at upgrade and keep `upgrade --check` from blocking on them.
+- `[x]` 155 — Align capability-profile surfaces at upgrade and keep `upgrade --check` from blocking on them.
 - `[x]` 140 — Let `integrate stage` complete rows of project-shaped Governed queues.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.
