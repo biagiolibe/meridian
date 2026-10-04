@@ -63,6 +63,12 @@
             "managed-copy"
           ],
           "path": "docs/EXECUTION_EVIDENCE_PROFILE.md"
+        },
+        {
+          "forms": [
+            "managed-copy"
+          ],
+          "path": "docs/COMPLETION_REPORT_TEMPLATE.md"
         }
       ],
       "selfHostingEligible": true,

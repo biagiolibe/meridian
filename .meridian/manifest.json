@@ -84,8 +84,9 @@
           "hostActivation": {},
           "installation": {
             "evidence": [
-              "sha256:162a365f23b8758154664756b6f44cb82dea3f70c85a9892e327cdc14782b464",
-              "sha256:50386055561fd45a1809340403492dd8d0f8dbb1b0aa04e7c7838b3bf6987735"
+              "sha256:8ac9a419ae3dc4fee630bc95f53684bf0a0edab76386315a75ad0d4ffc3e605f",
+              "sha256:50386055561fd45a1809340403492dd8d0f8dbb1b0aa04e7c7838b3bf6987735",
+              "sha256:953355ac1a1afb49744f9f95e17c074bbf785b106615af90ed50c4b4b5f723fa"
             ],
             "notApplicableRationale": null,
             "state": "INSTALLED"
@@ -98,6 +99,10 @@
             {
               "form": "managed-copy",
               "path": "docs/EXECUTION_EVIDENCE_PROFILE.md"
+            },
+            {
+              "form": "managed-copy",
+              "path": "docs/COMPLETION_REPORT_TEMPLATE.md"
             }
           ],
           "requiredVersion": 1,
@@ -253,7 +258,7 @@
           "installation": {
             "evidence": [
               "sha256:50386055561fd45a1809340403492dd8d0f8dbb1b0aa04e7c7838b3bf6987735",
-              "sha256:4287ba9ca50ff7181bd594f726596fa43e56ca09f4e7d1e50f7f8228f160e7d8"
+              "sha256:f03a4e0ec2571b9bfd1525175cbfe94dbd0647ee07d1a8ebd2278991ed3afcfa"
             ],
             "notApplicableRationale": null,
             "state": "INSTALLED"
@@ -290,7 +295,7 @@
               "sha256:b7a86ddcdca8f930ca4fba91a6d156d50c82fafa4adabe26dfec0d37b1cd00c3",
               "sha256:2435cdb3b7c6cb2b26012bcdb323f259049736c7c67d106f48a18625aa9c6cfe",
               "sha256:5f91cd0840dcbeacfdcbaaefd125005e076490a223d71f1d3b82a11fbaf222a3",
-              "sha256:4287ba9ca50ff7181bd594f726596fa43e56ca09f4e7d1e50f7f8228f160e7d8"
+              "sha256:f03a4e0ec2571b9bfd1525175cbfe94dbd0647ee07d1a8ebd2278991ed3afcfa"
             ],
             "notApplicableRationale": null,
             "state": "INSTALLED"
@@ -333,9 +338,10 @@
     "AGENTS.md": "2435cdb3b7c6cb2b26012bcdb323f259049736c7c67d106f48a18625aa9c6cfe",
     "CLAUDE.md": "b7a86ddcdca8f930ca4fba91a6d156d50c82fafa4adabe26dfec0d37b1cd00c3",
     "LANGUAGE_POLICY.md": "65fc7654c6d37865fae03290b4c21304efee616bbb8615fa298c3e55abfdf558",
-    "PROJECT_WORKFLOW.md": "4287ba9ca50ff7181bd594f726596fa43e56ca09f4e7d1e50f7f8228f160e7d8",
+    "PROJECT_WORKFLOW.md": "f03a4e0ec2571b9bfd1525175cbfe94dbd0647ee07d1a8ebd2278991ed3afcfa",
+    "docs/COMPLETION_REPORT_TEMPLATE.md": "953355ac1a1afb49744f9f95e17c074bbf785b106615af90ed50c4b4b5f723fa",
     "docs/CONTEXT_BUDGET_POLICY.md": "50386055561fd45a1809340403492dd8d0f8dbb1b0aa04e7c7838b3bf6987735",
-    "docs/EXECUTION_EVIDENCE_PROFILE.md": "162a365f23b8758154664756b6f44cb82dea3f70c85a9892e327cdc14782b464"
+    "docs/EXECUTION_EVIDENCE_PROFILE.md": "8ac9a419ae3dc4fee630bc95f53684bf0a0edab76386315a75ad0d4ffc3e605f"
   },
   "protocolVersion": 2,
   "workflowBaselineVersion": "1.1.49",
