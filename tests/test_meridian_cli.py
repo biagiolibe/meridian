@@ -1906,7 +1906,7 @@ worktree before the branch only after validated integration succeeds.
         local_policy = self.project / "docs/CONTEXT_BUDGET_POLICY.md"
         local_text = local_policy.read_text(encoding="utf-8")
         validation = re.search(
-            r"<!-- MERIDIAN:BEGIN capability=validation-scoping v1 -->\n?.*?"
+            r"<!-- MERIDIAN:BEGIN capability=validation-scoping v2 -->\n?.*?"
             r"<!-- MERIDIAN:END -->\n?",
             local_text,
             re.DOTALL,
@@ -1946,7 +1946,7 @@ worktree before the branch only after validated integration succeeds.
         self.assertEqual(applied.returncode, 0, applied.stderr)
         upgraded = local_policy.read_text(encoding="utf-8")
         self.assertIn("## Project validation baseline", upgraded)
-        self.assertIn("capability=validation-scoping v1", upgraded)
+        self.assertIn("capability=validation-scoping v2", upgraded)
         self.assertIn("capability=execution-evidence-profile v3", upgraded)
         self.assertTrue((self.project / "docs/EXECUTION_EVIDENCE_PROFILE.md").is_file())
 
@@ -2164,7 +2164,7 @@ worktree before the branch only after validated integration succeeds.
         # The unrelated local customization survives untouched.
         self.assertIn("## Task-First Loading (project wording)", upgraded)
         # Every other still-required capability in this file is untouched.
-        self.assertIn("capability=validation-scoping v1", upgraded)
+        self.assertIn("capability=validation-scoping v2", upgraded)
         self.assertIn("capability=evidence-tiers v1", upgraded)
 
         audited = self.run_cli("audit", "--mode", "governed-sdd")
@@ -2359,7 +2359,7 @@ worktree before the branch only after validated integration succeeds.
         upgraded = local_policy.read_text(encoding="utf-8")
         self.assertNotIn("role-scoped-agent-rules", upgraded)
         self.assertNotIn("Role-scoped agent-rules reading", upgraded)
-        self.assertIn("capability=validation-scoping v1", upgraded)
+        self.assertIn("capability=validation-scoping v2", upgraded)
 
         audited = self.run_cli("audit", "--mode", "governed-sdd")
         self.assertEqual(audited.returncode, 1, audited.stdout + audited.stderr)
@@ -2499,7 +2499,7 @@ worktree before the branch only after validated integration succeeds.
                     "from": "1.1.0",
                     "to": "1.1.1",
                     "description": "test-only retirement",
-                    "removes": [{"capability": "validation-scoping", "capabilityVersion": 1}],
+                    "removes": [{"capability": "validation-scoping", "capabilityVersion": 2}],
                     "managedPaths": ["docs/CONTEXT_BUDGET_POLICY.md"],
                     "verification": ["test-only"],
                 }
@@ -2509,7 +2509,7 @@ worktree before the branch only after validated integration succeeds.
         policy = self.framework / "templates/workflows/governed-sdd/docs/CONTEXT_BUDGET_POLICY.md"
         policy_text = policy.read_text(encoding="utf-8")
         marker = re.search(
-            r"<!-- MERIDIAN:BEGIN capability=validation-scoping v1 -->\n?.*?"
+            r"<!-- MERIDIAN:BEGIN capability=validation-scoping v2 -->\n?.*?"
             r"<!-- MERIDIAN:END -->\n?",
             policy_text,
             re.DOTALL,
@@ -2524,7 +2524,7 @@ worktree before the branch only after validated integration succeeds.
         audited = self.run_cli("audit", "--mode", "governed-sdd")
         self.assertEqual(audited.returncode, 2, audited.stdout + audited.stderr)
         self.assertIn("FAIL", audited.stdout)
-        self.assertIn("validation-scoping v1 is retired but still present", audited.stdout)
+        self.assertIn("validation-scoping v2 is retired but still present", audited.stdout)
 
     def test_apply_refuses_conflicting_local_change(self) -> None:
         self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
@@ -4182,7 +4182,7 @@ class CapabilityMarkerTest(unittest.TestCase):
         self.assertIn(("review-remediation-record", "3"), self.marker_pairs((self.WORKFLOW / "docs/workflows/REMEDIATION.md").read_text(encoding="utf-8")))
         self.assertIn(("lifecycle-orchestration", "3"), self.marker_pairs((self.WORKFLOW / "docs/workflows/LIFECYCLE.md").read_text(encoding="utf-8")))
         implementation = self.marker_pairs((self.WORKFLOW / "docs/workflows/IMPLEMENTATION.md").read_text(encoding="utf-8"))
-        for pair in (("execution-command-gate", "2"), ("validation-scoping", "1"), ("spike-routing", "1"), ("host-impact-routing", "1")):
+        for pair in (("execution-command-gate", "2"), ("validation-scoping", "2"), ("spike-routing", "1"), ("host-impact-routing", "1")):
             self.assertIn(pair, implementation)
 
     def test_manual_proceed_migration_leaves_review_and_remediation_bytes_unchanged(self) -> None:
@@ -4231,10 +4231,10 @@ class CapabilityMarkerTest(unittest.TestCase):
             [
                 ("queue-briefing", "1"),
                 ("authority-excerpt", "1"),
-                ("read-guard", "1"),
+                ("read-guard", "2"),
                 ("isolated-exploration", "1"),
                 ("minimal-read-only-status", "2"),
-                ("validation-scoping", "1"),
+                ("validation-scoping", "2"),
                 ("evidence-tiers", "1"),
                 ("execution-evidence-profile", "3"),
                 ("phase-reads", "1"),
@@ -4315,17 +4315,17 @@ class CapabilityMarkerTest(unittest.TestCase):
         pull_request_policy = (self.WORKFLOW / "docs/PULL_REQUEST_POLICY.md").read_text(encoding="utf-8")
         self.assertEqual(
             self.marker_pairs(pull_request_policy),
-            [("task-worktree-integration", "4"), ("ci-verified-validation", "1")],
+            [
+                ("task-worktree-integration", "4"),
+                ("ci-verified-validation", "1"),
+                ("remote-branch-cleanup", "1"),
+            ],
         )
 
         code_review_prompt = (self.WORKFLOW / "docs/CODE_REVIEW_PROMPT.md").read_text(encoding="utf-8")
         self.assertEqual(
             self.marker_pairs(code_review_prompt),
-            [
-                ("task-worktree-review", "4"),
-                ("manual-verification-review-check", "1"),
-                ("ci-verified-validation", "1"),
-            ],
+            [("code-review-prompt", "1")],
         )
 
         completion_report = (self.WORKFLOW / "docs/COMPLETION_REPORT_TEMPLATE.md").read_text(encoding="utf-8")

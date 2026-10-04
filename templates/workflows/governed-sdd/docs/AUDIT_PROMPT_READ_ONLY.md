@@ -23,6 +23,8 @@ Verify and report, with file/line references:
 12. Git history shows no task marked `ACCEPTED` without either an `APPROVE` verdict in the task's review record from a reviewer-integrator or the owner (for `Review: REQUIRED`) or complete self-reported validation evidence (for `Review: NOT_REQUIRED`); every `CHANGES_REQUESTED` review has an evidence-backed record and a matching return of the task record to `IN_PROGRESS`.
 13. When `Run lifecycle <TASK-ID>` is used, its implementer and reviewer sessions are distinct, all handoffs use durable repository evidence rather than copied chat context, the retry limit is respected, and integration occurs only after the required repository and forge gates.
 
+If this file has a `## Project-specific checks` section after the managed block, also run each check listed there. Each such check must cite an accepted ADR; report a check that cites none as a finding instead of running it.
+
 Output: a concise audit report with PASS/FAIL per item, discrepancies, ambiguous requirements, stale lower-precedence text, and recommended documentation-only follow-ups. Do not propose feature implementation.
 ```
 <!-- MERIDIAN:END -->

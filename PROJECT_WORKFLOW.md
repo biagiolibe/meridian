@@ -111,7 +111,7 @@ reporting command as `Validation skips:` in the handoff.
 
 ## Completion and integration
 
-<!-- MERIDIAN:BEGIN capability=validation-scoping v1 -->
+<!-- MERIDIAN:BEGIN capability=validation-scoping v2 -->
 Classify the changed surface before validation. Documentation-only changes may
 skip unrelated build, test, or lint commands when the task does not require
 them, and the completion evidence records that skip. Source, build, runtime,

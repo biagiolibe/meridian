@@ -16,10 +16,12 @@ whole queue. Open the queue only when the briefing is absent, omits a required
 field, or conflicts with another project record.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=read-guard v1 -->
+<!-- MERIDIAN:BEGIN capability=read-guard v2 -->
 Large-file reads are bounded mechanically where the host supports an adapter.
-Locate the relevant range first; adapter installation is not proof that the
-host loaded or enforced it.
+The active task comes from the verified task worktree, and the router read set
+is exempt from the read threshold up to the router file ceiling. Locate the
+relevant range first; adapter installation is not proof that the host loaded or
+enforced it.
 <!-- MERIDIAN:END -->
 
 ## Bounded exploration
@@ -38,7 +40,7 @@ Do not load completed history or perform a conformance audit unless a concrete
 discrepancy or explicit request requires it.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=validation-scoping v1 -->
+<!-- MERIDIAN:BEGIN capability=validation-scoping v2 -->
 ## Validation scope
 
 Classify the diff as documentation/policy or source/build/runtime. Skip checks
