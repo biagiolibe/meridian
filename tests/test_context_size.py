@@ -79,6 +79,18 @@ class ContextSizeTest(unittest.TestCase):
         after = {path.relative_to(self.project): path.stat().st_mtime_ns for path in self.project.rglob("*") if path.is_file()}
         self.assertEqual(before, after)
 
+    def test_router_file_ceiling_is_reported_and_fails(self) -> None:
+        (self.project / "PROJECT_WORKFLOW.md").write_text("LEAN_DELIVERY\n" * 3, encoding="utf-8")
+        (self.project / ".meridian").mkdir()
+        (self.project / ".meridian/context-size.json").write_text(
+            '{"version": 1, "routerFileLinesCeiling": 1}\n', encoding="utf-8"
+        )
+        result = self.run_cli("--role", "implementation", "--format", "json")
+        self.assertEqual(result.returncode, 2, result.stderr)
+        report = json.loads(result.stdout)
+        self.assertEqual(report["router_file_lines_ceiling"], 1)
+        self.assertIn("PROJECT_WORKFLOW.md", report["exceeded"])
+
 
     def test_phase_reads_defer_documents_outside_the_startup_total(self) -> None:
         self.governed()

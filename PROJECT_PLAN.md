@@ -109,7 +109,7 @@
 - `[ ]` 139 — Make `check_repository.py` catch managed-copy digest drift.
 - `[ ]` 141 — Count cached input in the Claude Code usage report.
 - `[x]` 142 — Recognize spike rows at stage and require `git diff --check` at finalize.
-- `[ ]` 143 — Make the read-guard and queue-briefing hooks independent of queue status.
+- `[x]` 143 — Make the read-guard and queue-briefing hooks independent of queue status.
 - `[ ]` 144 — Add `.meridian/project.json` as the project declaration surface.
 - `[ ]` 145 — Align Governed lifecycle capability text with the closure design and the CLI.
 - `[ ]` 146 — Restructure inline markers, audit managed copies, and add consumer profiles.
