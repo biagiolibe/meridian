@@ -136,6 +136,7 @@
 - `[ ]` 167 — Make the execution preflight satisfiable during remediation.
 - `[ ]` 168 — Report queue sections that archival cannot read.
 - `[ ]` 169 — Code the remaining gates and require every stop to carry a code.
+- `[ ]` 170 — Require a declared validation ID for every command that proves a criterion.
 - `[x]` 140 — Let `integrate stage` complete rows of project-shaped Governed queues.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.

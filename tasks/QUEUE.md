@@ -62,6 +62,7 @@ are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 | `[x]` | 159 | Retire the reasoning budget contract | 🔴 P1 | — | [159](done/159-retire-reasoning-budget-contract.md) |
 | `[x]` | 160 | Give the Claude Code allowlist parity with the Codex execution-command rules | 🟡 P2 | — | [160](done/160-claude-allowlist-execution-commands.md) |
 | `[ ]` | 161 | State that a local `main` ahead of `origin/main` does not block integration | 🟡 P2 | — | [161](161-state-main-ahead-of-origin-is-allowed.md) |
+| `[ ]` | 170 | Require a declared validation ID for every command that proves a criterion | 🟡 P2 | — | [170](170-declare-validation-id-for-every-proving-command.md) |
 
 ### Phase 54 — Stops and denials
 
