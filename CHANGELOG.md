@@ -15,6 +15,29 @@ records which release moved it.
 
 ## [Unreleased]
 
+## [1.2.8]
+
+Template-changing release: migration `062-primary-project-declaration-and-review-authority` advances `workflowBaselineVersion` to `1.2.8`. It updates `PROJECT_WORKFLOW.md` (`git-workflow` v10) and `docs/workflows/REVIEW.md` (`task-worktree-review-procedure` v10), and lists `docs/COMPLETION_REPORT_TEMPLATE.md` as a managed path. The manifest shape and `protocolVersion` 2 are unchanged.
+
+### Fixed
+
+- Remove retired inline marker blocks from project sections carried during a restructure upgrade.
+- Warn before an upgrade preserves edits in a markerless managed copy that will fail the digest audit.
+- Keep lifecycle-backed hook task-state lookups bounded and degrade queue briefings when their optional lookup times out.
+- Resolve project declarations from the primary checkout and keep budget runtime state out of tracked project files.
+- Mark the 1.2.8 release as template-changing through migration 062, so 1.2.7 projects receive the updated primary-project declaration and Review authority guidance.
+- `meridian upgrade --check` no longer stops with `BLOCKED` on a project whose `capabilityProfiles` declare an older managed surface than the catalog. The plan shows one `PROFILE-SURFACE` row per affected capability, and `meridian upgrade` rewrites those declarations from the target catalog. A managed copy that drifted from its recorded digest still blocks the upgrade, and every other surface mismatch still fails validation.
+- `scripts/check_repository.py` now fails when a capability's catalog surface gains a path that no migration of the next release lists in `managedPaths`.
+
+### Upgrade notes
+
+- Governed SDD upgrades add explicit post-approval Review authority for C6 through C10; legacy tracked `.meridian/budget.json` migrates on the next budget write.
+- Projects that declare `capabilityProfiles` gain `docs/COMPLETION_REPORT_TEMPLATE.md` in their `execution-evidence` declaration; the file itself is already part of the managed baseline.
+- Affected capabilities: `git-workflow` v10, `task-worktree-review-procedure` v10, and `execution-evidence` (profile surface). Managed paths: `PROJECT_WORKFLOW.md`, `docs/workflows/REVIEW.md`, `docs/COMPLETION_REPORT_TEMPLATE.md`.
+- Required action: run `meridian upgrade --check`, then `meridian upgrade --apply`.
+- Likely conflict areas for adapted projects: the `git-workflow` block of `PROJECT_WORKFLOW.md` and the review-procedure block of `docs/workflows/REVIEW.md`; resolve in place and keep protected markers intact.
+- No minimum framework or `protocolVersion` change.
+
 ## [1.2.7]
 
 Template-changing release: migration `061-governed-phase-reads` advances `workflowBaselineVersion` to `1.2.7`. It aligns the Governed SDD lifecycle text with the closure design and the CLI, adds the `.meridian/project.json` declaration, phase-based context loading, bounded router reads, and consumer capability profiles, and resolves the conformance defects reported by a Governed SDD consumer. The manifest shape and `protocolVersion` 2 are unchanged.
