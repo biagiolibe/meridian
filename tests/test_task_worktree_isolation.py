@@ -660,6 +660,38 @@ class BoundedWorktreeLifecycleTest(unittest.TestCase):
         self.assertIn("- `[x]` 056 — Lifecycle", plan.read_text(encoding="utf-8"))
         meridian.abort_task_integration("056", self.primary)
 
+    def test_stage_uses_the_declared_project_plan(self) -> None:
+        plan = self.primary / "docs/PLAN.md"
+        plan.parent.mkdir()
+        (self.primary / "PROJECT_PLAN.md").rename(plan)
+        declaration = self.primary / ".meridian/project.json"
+        declaration.write_text(json.dumps({"version": 1, "locations": {"plan": "docs/PLAN.md"}}), encoding="utf-8")
+        self.git("add", "-A")
+        self.git("commit", "-m", "declare custom project plan")
+        self.base = self.git("rev-parse", "HEAD").stdout.strip()
+
+        prepared = self.prepare()
+        task_worktree = Path(str(prepared["worktree"]))
+        (task_worktree / "feature.txt").write_text("implemented\n", encoding="utf-8")
+        self.git("add", "feature.txt", cwd=task_worktree)
+        self.git("commit", "-m", "implement task", cwd=task_worktree)
+        task_commit = self.git("rev-parse", "HEAD", cwd=task_worktree).stdout.strip()
+        evidence_path = self.root / "integration-evidence.json"
+        evidence_path.write_text(json.dumps({
+            "accepted": True, "validation_passed": True,
+            "validated_task_commit": task_commit, "validated_base_commit": self.base,
+            "full_validation_required": False, "interaction_assessment_complete": True,
+            "task_paths": ["feature.txt"], "task_dependencies": [],
+            "task_behavioral_surfaces": [], "main_advanced_dependencies": [],
+            "main_advanced_behavioral_surfaces": [],
+        }), encoding="utf-8")
+
+        meridian.stage_task_integration("056", self.worktree_root, evidence_path, self.primary)
+        self.assertIn("- `[x]` 056 — Lifecycle", plan.read_text(encoding="utf-8"))
+        self.assertFalse((self.primary / "PROJECT_PLAN.md").exists())
+        self.assertIn("docs/PLAN.md", self.git("diff", "--cached", "--name-only").stdout.splitlines())
+        meridian.abort_task_integration("056", self.primary)
+
     def test_stage_accepts_exact_task_record_archive_after_validation(self) -> None:
         prepared = self.prepare()
         task_worktree = Path(str(prepared["worktree"]))

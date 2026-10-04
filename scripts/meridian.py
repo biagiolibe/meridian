@@ -125,6 +125,7 @@ SAFE_PATH_COMPONENT = re.compile(r"[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?")
 TASK_IDENTITY_PATH = Path(".meridian/task-identity.json")
 CANDIDATE_VALIDATION_PATH = Path(".meridian/candidate-validation.json")
 PROJECT_DECLARATION_PATH = Path(".meridian/project.json")
+_LEGACY_LOCATION_WARNING_PROJECTS: set[Path] = set()
 WORKTREE_STATE_DIRECTORY = "meridian-worktrees"
 INTEGRATION_LEASE_NAME = "meridian-integration.lock"
 INTEGRATION_STATE_NAME = "meridian-integration.json"
@@ -1281,13 +1282,14 @@ def _lifecycle_changes_after_validation(
     if active_record.parts[:2] == ("tasks", "done"):
         active_record = Path("tasks") / active_record.name
     archive_record = Path("tasks") / "done" / active_record.name
+    plan_path = resolve_project_locations(project_root).plan
     allowed = {
         str(active_record),
         str(archive_record),
         str(identity.queue_path.relative_to(project_root)),
         str(identity.handoff_path.relative_to(project_root)),
         str(identity.review_path.relative_to(project_root)),
-        "PROJECT_PLAN.md",
+        str(plan_path),
         "tasks/QUEUE_ARCHIVE.md",
     }
     output = _run_git(
@@ -1593,7 +1595,7 @@ def _apply_task_completion_rows(project_root: Path, identity: ResolvedTaskIdenti
         if archive_contents is not None:
             archive_path.write_text(archive_contents, encoding="utf-8")
         return {"status": "COMPLETED", "reason": reason}
-    plan_path = project_root / "PROJECT_PLAN.md"
+    plan_path = project_root / resolve_project_locations(project_root).plan
     plan_contents = plan_path.read_text(encoding="utf-8") if plan_path.is_file() else ""
     queue_completed = _completed_task_row(
         queue_contents,
@@ -1793,7 +1795,7 @@ def stage_task_integration(
         completion = _apply_task_completion_rows(project_root, identity)
         lifecycle_paths = [str(identity.queue_path.relative_to(project_root))]
         if detect_mode(project_root) == "lean-delivery":
-            lifecycle_paths.append("PROJECT_PLAN.md")
+            lifecycle_paths.append(str(resolve_project_locations(project_root).plan))
         archive_path = identity.queue_path.with_name("QUEUE_ARCHIVE.md")
         if archive_path.exists():
             lifecycle_paths.append(str(archive_path.relative_to(project_root)))
@@ -7211,8 +7213,10 @@ def resolve_project_locations(project_root: Path) -> ProjectLocations:
         plan = _safe_project_path(declared_locations["plan"], "locations.plan") if "plan" in declared_locations else Path("PROJECT_PLAN.md")
     else:
         plan = Path("PROJECT_PLAN.md")
-    if legacy_used:
+    project_root = project_root.resolve()
+    if legacy_used and project_root not in _LEGACY_LOCATION_WARNING_PROJECTS:
         print("DEPRECATED: resolve canonical locations with .meridian/project.json", file=sys.stderr)
+        _LEGACY_LOCATION_WARNING_PROJECTS.add(project_root)
     return ProjectLocations(
         queue=queue,
         task_roots=tuple(roots),

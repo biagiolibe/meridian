@@ -5994,6 +5994,18 @@ class ProjectDeclarationTest(unittest.TestCase):
         self.assertEqual(author.stdout.strip(), "Example Reviewer-Integrator <reviewer-integrator@example.local>")
         self.assertEqual(meridian.resolve_project_locations(self.project).queue.with_name("QUEUE_ARCHIVE.md"), Path("docs/QUEUE_ARCHIVE.md"))
 
+    def test_legacy_location_warning_is_emitted_once_per_process(self) -> None:
+        (self.project / "PROJECT_WORKFLOW.md").write_text(
+            "<!-- MERIDIAN:BEGIN capability=execution-assets v2 -->\n<!-- MERIDIAN:END -->\n"
+            "Task files live at `legacy/tasks/<TASK-ID>.md`; queue is `legacy/QUEUE.md`.\n",
+            encoding="utf-8",
+        )
+        output = io.StringIO()
+        with redirect_stderr(output):
+            meridian.resolve_project_locations(self.project)
+            meridian.resolve_project_locations(self.project)
+        self.assertEqual(output.getvalue().count("DEPRECATED: resolve canonical locations"), 1)
+
 
 class CapabilityVersionDetectionTest(unittest.TestCase):
     """Phase 2 of migrations/CAPABILITY_MARKERS.md: version-aware detection.
