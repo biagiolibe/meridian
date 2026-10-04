@@ -56,7 +56,7 @@ are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 | `[x]` | 153 | Install the completion template here and keep validation commands unchained | 🟡 P2 | — | [153](done/153-completion-template-and-unchained-validation.md) |
 | `[x]` | 154 | Retarget migration 062 to 1.2.8 and reject same-version migrations | 🔴 P1 | — | [154](done/154-retarget-migration-062-to-1-2-8.md) |
 | `[x]` | 155 | Align capability-profile surfaces at upgrade and keep `upgrade --check` from blocking on them | 🔴 P1 | 154 | [155](done/155-align-profile-surfaces-at-upgrade.md) |
-| `[ ]` | 156 | Stop `release.py` passing `--repo` to `gh api` | 🟡 P2 | — | [156](156-release-verify-gh-api-repo-flag.md) |
+| `[x]` | 156 | Stop `release.py` passing `--repo` to `gh api` | 🟡 P2 | — | [156](done/156-release-verify-gh-api-repo-flag.md) |
 | `[x]` | 157 | Stop `handoff-check` requiring one hard-coded Meridian test as the only valid skip | 🟡 P2 | — | [157](done/157-handoff-check-validation-skips-not-project-specific.md) |
 | `[ ]` | 158 | Migrate legacy budget state only at upgrade, never from a read | 🔴 P1 | — | [158](158-budget-state-migration-only-at-upgrade.md) |
 | `[ ]` | 159 | Retire the reasoning budget contract | 🔴 P1 | — | [159](159-retire-reasoning-budget-contract.md) |
