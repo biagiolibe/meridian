@@ -29,25 +29,25 @@ Two causes:
 
 ## Acceptance Criteria
 
-- [x] This repository has `docs/COMPLETION_REPORT_TEMPLATE.md`, installed from
+- [ ] This repository has `docs/COMPLETION_REPORT_TEMPLATE.md`, installed from
   `templates/workflows/lean-delivery/docs/COMPLETION_REPORT_TEMPLATE.md` as a
   managed copy: its digest is recorded in `.meridian/manifest.json` and the
   self-hosting profile evidence where applicable, and `python3
   scripts/check_repository.py` and `meridian audit` pass. Existing handoffs in
   `tasks/handoffs/` are not rewritten.
-- [x] `PROJECT_WORKFLOW.md` names `docs/COMPLETION_REPORT_TEMPLATE.md` as the
+- [ ] `PROJECT_WORKFLOW.md` names `docs/COMPLETION_REPORT_TEMPLATE.md` as the
   handoff format, outside managed blocks, in one line.
-- [x] This repository's `docs/EXECUTION_EVIDENCE_PROFILE.md` states, outside
+- [ ] This repository's `docs/EXECUTION_EVIDENCE_PROFILE.md` states, outside
   managed blocks: each validation command of record runs as its own command with
   its own exit status; it is never joined with `&&` or `;` to exploratory reads
   (`sed`, `cat`, `rg`, `ls`) or to other validation commands whose individual
   status must be reported. Reads may be batched with each other.
-- [x] The handoff records whether the same profile rule should ship in the Lean
+- [ ] The handoff records whether the same profile rule should ship in the Lean
   and Governed templates, with the evidence for it; the templates are not changed
   in this task.
-- [x] Tests or repository checks prove the managed copy is recorded and that the
+- [ ] Tests or repository checks prove the managed copy is recorded and that the
   profile contains the rule.
-- [x] `python3 scripts/check_repository.py` and the unit tests pass.
+- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
 
 ## Relevant Files
 
