@@ -965,6 +965,38 @@ class MeridianCliTest(unittest.TestCase):
         self.assertIn("Meridian 1.2.7 -> 1.2.8", checked.stdout)
         self.assertIn("MIGRATION 062-primary-project-declaration-and-review-authority", checked.stdout)
 
+    def test_upgrade_migrates_a_tracked_legacy_budget_file_only_on_apply(self) -> None:
+        (self.framework / "VERSION").write_text("1.2.8\n", encoding="utf-8")
+        subprocess.run(("git", "init", str(self.project)), check=True, capture_output=True, text=True)
+        locked = self.run_cli("lock", "--mode", "governed-sdd")
+        self.assertEqual(locked.returncode, 0, locked.stdout + locked.stderr)
+        legacy = self.project / ".meridian/budget.json"
+        legacy.write_text('{"TASK-001:1": {"diagnostic": 1}}\n', encoding="utf-8")
+        subprocess.run(("git", "-C", str(self.project), "add", "."), check=True, capture_output=True, text=True)
+        subprocess.run(
+            ("git", "-C", str(self.project), "-c", "user.name=Test", "-c", "user.email=test@example.invalid",
+             "commit", "-m", "legacy budget"),
+            check=True, capture_output=True, text=True,
+        )
+
+        checked = self.run_cli("upgrade", "--check")
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+        self.assertIn("MIGRATE  .meridian/budget.json", checked.stdout)
+        self.assertEqual(
+            subprocess.run(("git", "-C", str(self.project), "status", "--porcelain"),
+                           check=True, capture_output=True, text=True).stdout,
+            "",
+        )
+
+        applied = self.run_cli("upgrade", "--apply")
+        self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+        self.assertIn("commit its deletion", applied.stderr)
+        self.assertFalse(legacy.exists())
+        self.assertIn("D  .meridian/budget.json", subprocess.run(
+            ("git", "-C", str(self.project), "status", "--porcelain"),
+            check=True, capture_output=True, text=True,
+        ).stdout)
+
     def test_legacy_manifest_uses_framework_version_as_baseline_fallback(self) -> None:
         self.configure_version_split_fixture()
         manifest_path = self.project / ".meridian/manifest.json"
@@ -4256,11 +4288,49 @@ Evidence plan:
         legacy.write_text(json.dumps({"TASK-016:1": {"diagnostic": 1}}), encoding="utf-8")
         subprocess.run(("git", "-C", str(self.project), "add", "."), check=True, capture_output=True, text=True)
         subprocess.run(("git", "-C", str(self.project), "-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "-m", "legacy state"), check=True, capture_output=True, text=True)
+        shown = self.run_cli("budget", "show", "TASK-016")
+        self.assertEqual(shown.returncode, 0, shown.stderr)
+        self.assertIn("Diagnostics 1/3", shown.stdout)
+        self.assertEqual(subprocess.run(
+            ("git", "-C", str(self.project), "status", "--porcelain"),
+            check=True, capture_output=True, text=True,
+        ).stdout, "")
+
         result = self.run_cli("budget", "spend", "TASK-016", "diagnostic")
         self.assertEqual(result.stdout.strip(), "TASK-016: diagnostic 2/3")
+        self.assertIn("commit its deletion", result.stderr)
         self.assertFalse(legacy.exists())
         self.assertEqual(json.loads(meridian.budget_state_path(self.project).read_text(encoding="utf-8"))["TASK-016:1"]["diagnostic"], 2)
         self.assertNotEqual(subprocess.run(("git", "-C", str(self.project), "ls-files", "--error-unmatch", ".meridian/budget.json"), capture_output=True, text=True, check=False).returncode, 0)
+        second = self.run_cli("budget", "spend", "TASK-016", "diagnostic")
+        self.assertEqual(second.returncode, 0, second.stderr)
+        self.assertNotIn("commit its deletion", second.stderr)
+
+    def test_budget_command_from_a_task_worktree_leaves_its_index_unchanged(self) -> None:
+        self.write_task("TASK-017", "IN_PROGRESS")
+        subprocess.run(("git", "init", str(self.project)), check=True, capture_output=True, text=True)
+        legacy = self.project / ".meridian/budget.json"
+        legacy.parent.mkdir(exist_ok=True)
+        legacy.write_text('{"TASK-017:1": {"diagnostic": 1}}\n', encoding="utf-8")
+        subprocess.run(("git", "-C", str(self.project), "add", "."), check=True, capture_output=True, text=True)
+        subprocess.run(
+            ("git", "-C", str(self.project), "-c", "user.name=Test", "-c", "user.email=test@example.invalid",
+             "commit", "-m", "legacy state"), check=True, capture_output=True, text=True,
+        )
+        worktree = Path(self.temporary.name) / "task-worktree"
+        subprocess.run(("git", "-C", str(self.project), "worktree", "add", "-b", "task-017", str(worktree)),
+                       check=True, capture_output=True, text=True)
+
+        count, cap = meridian.budget_spend(worktree, "TASK-017", "diagnostic")
+        self.assertEqual((count, cap), (2, 3))
+        self.assertEqual(subprocess.run(
+            ("git", "-C", str(worktree), "status", "--porcelain"),
+            check=True, capture_output=True, text=True,
+        ).stdout, "")
+        self.assertIn("D  .meridian/budget.json", subprocess.run(
+            ("git", "-C", str(self.project), "status", "--porcelain"),
+            check=True, capture_output=True, text=True,
+        ).stdout)
 
     def test_new_review_attempt_gets_a_fresh_allocation(self) -> None:
         self.write_task("TASK-006", "IN_PROGRESS")
@@ -4269,7 +4339,9 @@ Evidence plan:
 
         # Reviewer's handoff commit moves the task to READY_FOR_REVIEW...
         self.write_task("TASK-006", "READY_FOR_REVIEW")
-        self.run_cli("budget", "show", "TASK-006")
+        # A mutation at that status records the transition; `budget show` is
+        # deliberately read-only and must not do so.
+        self.run_cli("budget", "spend", "TASK-006", "diagnostic")
         # ...then `Address review TASK-006` moves it back to IN_PROGRESS: a
         # new remediation attempt, which must not inherit the old counters.
         self.write_task("TASK-006", "IN_PROGRESS")
@@ -4280,7 +4352,7 @@ Evidence plan:
 
         state = self.budget_state()
         self.assertEqual(state["TASK-006"]["attempt"], 2)
-        self.assertEqual(state["TASK-006:1"]["diagnostic"], 2)
+        self.assertEqual(state["TASK-006:1"]["diagnostic"], 3)
         self.assertEqual(state["TASK-006:2"]["diagnostic"], 1)
 
 
@@ -7370,7 +7442,10 @@ class WorktreeLifecycleCliTest(unittest.TestCase):
                 if path.is_file()
             }
 
-        def status(expected_step: str, expected_reason: str | None, *, text: bool = False) -> None:
+        def status(
+            expected_step: str, expected_reason: str | None, *, text: bool = False,
+            resume_contains: str | None = None,
+        ) -> None:
             before = snapshot(self.project, worktree)
             result = self.run_cli(
                 "worktree", "closure-status", "056", "--project", str(self.project),
@@ -7389,6 +7464,8 @@ class WorktreeLifecycleCliTest(unittest.TestCase):
             self.assertEqual(report["step"], expected_step)
             self.assertEqual(report["stop_reason"], expected_reason)
             self.assertIn("resume", report)
+            if resume_contains is not None:
+                self.assertIn(resume_contains, report["resume"])
 
         worktree = self.worktree_root / "unused"
         status("C4", "WRONG_WORKTREE", text=True)
@@ -7438,6 +7515,13 @@ class WorktreeLifecycleCliTest(unittest.TestCase):
         status("C5", "EVIDENCE_INCOMPLETE")
         evidence_path.write_text(json.dumps(evidence), encoding="utf-8")
         status("C6", None)
+        legacy = self.project / ".meridian/budget.json"
+        legacy.parent.mkdir(exist_ok=True)
+        legacy.write_text("{}\n", encoding="utf-8")
+        subprocess.run(["git", "add", ".meridian/budget.json"], cwd=self.project, check=True)
+        status("C6", "PRIMARY_DIRTY", resume_contains="legacy budget file; commit its deletion")
+        subprocess.run(["git", "reset", "HEAD", "--", ".meridian/budget.json"], cwd=self.project, check=True)
+        legacy.unlink()
         evidence_path.unlink()
         lease.write_text(json.dumps({"task_id": identity.canonical_id}), encoding="utf-8")
         integration.write_text(json.dumps({"task_id": identity.canonical_id}), encoding="utf-8")
