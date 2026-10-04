@@ -1,7 +1,7 @@
 # Concise Completion Report
 
 Use this handoff after validation. Keep it short and make every deviation explicit.
-Save it at `tasks/handoffs/<TASK-ID>.md`; `meridian execution handoff-check`
+Save it at the handoff location `meridian locations` resolves; `meridian execution handoff-check`
 and `ready-check` use that canonical path when no report path is supplied.
 
 ```md
@@ -10,7 +10,7 @@ and `ready-check` use that canonical path when no report path is supplied.
 - Files changed: `<paths>`
 Candidate validation declaration: `<declared fragments per REUSE/BOUNDED/FULL | none; undeclared blocks before stage>`
 
-<!-- MERIDIAN:BEGIN capability=task-worktree-handoff v4 -->
+<!-- MERIDIAN:BEGIN capability=task-worktree-handoff v5 -->
 - Branch: `<task-branch>`
 - Worktree: `<task-worktree path relative to the worktree root, as returned in handoff_worktree; never an absolute path>`
 - Implementation commit: `<commit SHA, or the descriptive form below>`
@@ -30,8 +30,8 @@ the report, name every earlier commit by full SHA and describe only the new
 commit. The current task commit always identifies task branch `HEAD`; never
 record the validated base `main` commit or any other commit in that field. To
 correct a wrong commit field, create a new lifecycle-only commit changing only
-the handoff record, push the task branch once, then begin the next review
-attempt. Amend and force-push remain prohibited.
+the handoff record, then begin the next review attempt; push the task branch
+only to obtain `T1_CI`, at most once for that attempt. Amend and force-push remain prohibited.
 <!-- MERIDIAN:END -->
 - Validation: `<exact commands run with their exit status, or the CI check run and its conclusion for this exact commit — not a bare "passed">`
 - Validation skips: `<none | test name — test-reported reason; reported by `command`>`
@@ -42,7 +42,7 @@ attempt. Amend and force-push remain prohibited.
 - Blockers/deviations: `<none | concrete issue, scope expansion, or context expansion and reason>`
 ```
 
-Do not claim completion when validation fails or an acceptance criterion is unresolved. For reviews, retain the same four fields in `tasks/reviews/<TASK-ID>.md` and add the required verdict from `docs/CODE_REVIEW_PROMPT.md`. For `CHANGES_REQUESTED`, name that review-record path and its local handoff commit in the concise chat report; the record itself remains the canonical evidence.
+Do not claim completion when validation fails or an acceptance criterion is unresolved. For reviews, retain the same four fields in the review record and add the required verdict from `docs/CODE_REVIEW_PROMPT.md`. For `CHANGES_REQUESTED`, name that review-record path and its local handoff commit in the concise chat report; the record itself remains the canonical evidence.
 
 A named sandbox skip is not a passing result for an unrelated failure. Record a
 skip only when the test itself names it, including the test-reported reason and

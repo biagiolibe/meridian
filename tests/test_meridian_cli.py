@@ -291,7 +291,7 @@ class MeridianCliTest(unittest.TestCase):
             "",
         ))
         previous_implementation = re.sub(
-            r"<!-- MERIDIAN:BEGIN capability=task-worktree-boundary v6 -->.*?<!-- MERIDIAN:END -->\n",
+            r"<!-- MERIDIAN:BEGIN capability=task-worktree-boundary v7 -->.*?<!-- MERIDIAN:END -->\n",
             legacy_implementation,
             current_implementation,
             count=1,
@@ -982,7 +982,7 @@ class MeridianCliTest(unittest.TestCase):
         blueprint = self.framework / "templates/workflows/governed-sdd/tasks/TASK_BLUEPRINT.md"
         current = blueprint.read_text(encoding="utf-8")
         declaration = current.split("\n## Host impact\n", 1)[1].split("\n## Goal\n", 1)[0]
-        previous = current.replace("capability=task-blueprint v12", "capability=task-blueprint v11", 1)
+        previous = current.replace("capability=task-blueprint v13", "capability=task-blueprint v11", 1)
         previous = previous.replace("\n## Host impact\n" + declaration, "", 1)
 
         installed_baseline = self.project / ".meridian/baselines/1.1.39"
@@ -1015,7 +1015,7 @@ class MeridianCliTest(unittest.TestCase):
         applied = self.run_cli("upgrade", "--apply")
         self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
         upgraded_blueprint = (self.project / "tasks/TASK_BLUEPRINT.md").read_text(encoding="utf-8")
-        self.assertIn("capability=task-blueprint v12", upgraded_blueprint)
+        self.assertIn("capability=task-blueprint v13", upgraded_blueprint)
         self.assertIn("Classification: NOT_APPLICABLE", upgraded_blueprint)
         self.assertIn("Classification: REQUIRED", upgraded_blueprint)
         self.assertIn("Project-owned task note.", upgraded_blueprint)
@@ -1063,9 +1063,9 @@ class MeridianCliTest(unittest.TestCase):
                     previous,
                     flags=re.DOTALL,
                 )
-            previous = previous.replace("capability=roles v2", "capability=roles v1")
+            previous = previous.replace("capability=roles v3", "capability=roles v1")
             previous = previous.replace("capability=git-workflow v5", "capability=git-workflow v1")
-            previous = previous.replace("capability=audit-prompt v2", "capability=audit-prompt v1")
+            previous = previous.replace("capability=audit-prompt v3", "capability=audit-prompt v1")
             previous = previous.replace(
                 "capability=lifecycle-orchestration v6",
                 "capability=lifecycle-orchestration v3",
@@ -1100,10 +1100,10 @@ class MeridianCliTest(unittest.TestCase):
         self.assertIn("MIGRATION 047-codex-worktree-access", checked.stdout)
         applied = self.run_cli("upgrade", "--apply")
         self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
-        self.assertIn("capability=git-workflow v8", project_workflow.read_text(encoding="utf-8"))
+        self.assertIn("capability=git-workflow v9", project_workflow.read_text(encoding="utf-8"))
         self.assertIn("Consumer-owned note.", project_workflow.read_text(encoding="utf-8"))
         self.assertIn(
-            "capability=task-worktree-boundary v6",
+            "capability=task-worktree-boundary v7",
             (self.project / "docs/workflows/IMPLEMENTATION.md").read_text(encoding="utf-8"),
         )
         report = (self.project / "docs/COMPLETION_REPORT_TEMPLATE.md").read_text(encoding="utf-8")
@@ -1172,10 +1172,10 @@ class MeridianCliTest(unittest.TestCase):
         self.assertIn("MIGRATION 047-codex-worktree-access", checked.stdout)
         applied = self.run_cli("upgrade", "--apply")
         self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
-        self.assertIn("capability=git-workflow v8", project_workflow.read_text(encoding="utf-8"))
+        self.assertIn("capability=git-workflow v9", project_workflow.read_text(encoding="utf-8"))
         self.assertIn("Consumer-owned note.", project_workflow.read_text(encoding="utf-8"))
         self.assertIn(
-            "capability=task-worktree-handoff v4",
+            "capability=task-worktree-handoff v5",
             (self.project / "docs/COMPLETION_REPORT_TEMPLATE.md").read_text(encoding="utf-8"),
         )
         manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
@@ -1237,7 +1237,7 @@ worktree before the branch only after validated integration succeeds.
 
         previous = current.copy()
         previous["docs/workflows/REVIEW.md"] = re.sub(
-            r"<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v8 -->.*?<!-- MERIDIAN:END -->",
+            r"<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v9 -->.*?<!-- MERIDIAN:END -->",
             legacy_preflight,
             previous["docs/workflows/REVIEW.md"],
             count=1,
@@ -1254,11 +1254,11 @@ worktree before the branch only after validated integration succeeds.
             "capability=task-worktree-review v4", "capability=task-worktree-review v2"
         )
         previous["PROJECT_WORKFLOW.md"] = previous["PROJECT_WORKFLOW.md"].replace(
-            "capability=git-workflow v8", "capability=git-workflow v4"
+            "capability=git-workflow v9", "capability=git-workflow v4"
         )
         previous["docs/LIFECYCLE_ORCHESTRATION.md"] = previous[
             "docs/LIFECYCLE_ORCHESTRATION.md"
-        ].replace("capability=lifecycle-orchestration v7", "capability=lifecycle-orchestration v5")
+        ].replace("capability=lifecycle-orchestration v8", "capability=lifecycle-orchestration v5")
 
         for relative, text in previous.items():
             (workflow / relative).write_text(text, encoding="utf-8")
@@ -1283,8 +1283,8 @@ worktree before the branch only after validated integration succeeds.
         self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
 
         upgraded = review.read_text(encoding="utf-8")
-        self.assertIn("capability=implementer-reviewer-handoff v3", upgraded)
-        self.assertIn("capability=task-worktree-review-procedure v8", upgraded)
+        self.assertIn("capability=implementer-reviewer-handoff v4", upgraded)
+        self.assertIn("capability=task-worktree-review-procedure v9", upgraded)
         self.assertIn("Consumer-owned review note.", upgraded)
         self.assertNotIn("uses that same primary checkout", upgraded)
         self.assertNotIn("git switch <task-branch>", upgraded)
@@ -1357,7 +1357,7 @@ worktree before the branch only after validated integration succeeds.
         applied = self.run_cli("upgrade", "--apply")
         self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
 
-        self.assertIn("capability=task-worktree-boundary v6", implementation.read_text(encoding="utf-8"))
+        self.assertIn("capability=task-worktree-boundary v7", implementation.read_text(encoding="utf-8"))
         self.assertIn("**Manually triggered.**", implementation.read_text(encoding="utf-8"))
         upgraded_workflow = project_workflow.read_text(encoding="utf-8")
         self.assertIn("capability=bounded-worktree-lifecycle v4", upgraded_workflow)
@@ -1388,8 +1388,8 @@ worktree before the branch only after validated integration succeeds.
         )
         current = {relative: (workflow / relative).read_text(encoding="utf-8") for relative in paths}
         previous = {
-            relative: text.replace("task-worktree-handoff v4", "task-worktree-handoff v3").replace(
-                "task-worktree-review-procedure v8", "task-worktree-review-procedure v6"
+            relative: text.replace("task-worktree-handoff v5", "task-worktree-handoff v3").replace(
+                "task-worktree-review-procedure v9", "task-worktree-review-procedure v6"
             )
             for relative, text in current.items()
         }
@@ -1413,11 +1413,11 @@ worktree before the branch only after validated integration succeeds.
         self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
 
         upgraded_report = report.read_text(encoding="utf-8")
-        self.assertIn("capability=task-worktree-handoff v4", upgraded_report)
+        self.assertIn("capability=task-worktree-handoff v5", upgraded_report)
         self.assertIn("created after this report", upgraded_report)
         self.assertIn("Consumer-owned handoff note.", upgraded_report)
         upgraded_review = (self.project / "docs/workflows/REVIEW.md").read_text(encoding="utf-8")
-        self.assertIn("capability=task-worktree-review-procedure v8", upgraded_review)
+        self.assertIn("capability=task-worktree-review-procedure v9", upgraded_review)
         self.assertIn("resolve it to the registered task branch `HEAD`", upgraded_review)
         manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
         self.assertEqual(manifest["workflowBaselineVersion"], "1.1.55")
@@ -1429,7 +1429,7 @@ worktree before the branch only after validated integration succeeds.
         current = {relative: (workflow / relative).read_text(encoding="utf-8") for relative in paths}
         previous = {
             relative: re.sub(
-                r"\n<!-- MERIDIAN:BEGIN capability=git-workflow v8 -->.*?<!-- MERIDIAN:END -->\n",
+                r"\n<!-- MERIDIAN:BEGIN capability=git-workflow v9 -->.*?<!-- MERIDIAN:END -->\n",
                 "\n",
                 text,
                 flags=re.DOTALL,
@@ -1462,7 +1462,7 @@ worktree before the branch only after validated integration succeeds.
 
         for relative in paths:
             upgraded = (self.project / relative).read_text(encoding="utf-8")
-            self.assertIn("MERIDIAN:BEGIN capability=git-workflow v8", upgraded)
+            self.assertIn("MERIDIAN:BEGIN capability=git-workflow v9", upgraded)
             self.assertIn("Task branches do not edit `tasks/QUEUE.md`", upgraded)
         self.assertIn("Consumer-owned closure note.", agents.read_text(encoding="utf-8"))
         manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
@@ -1479,19 +1479,19 @@ worktree before the branch only after validated integration succeeds.
         current = {relative: (workflow / relative).read_text(encoding="utf-8") for relative in paths}
         previous = {
             "PROJECT_WORKFLOW.md": re.sub(
-                r"\n<!-- MERIDIAN:BEGIN capability=git-workflow v8 -->.*?<!-- MERIDIAN:END -->\n",
+                r"\n<!-- MERIDIAN:BEGIN capability=git-workflow v9 -->.*?<!-- MERIDIAN:END -->\n",
                 "\n",
                 current["PROJECT_WORKFLOW.md"],
                 flags=re.DOTALL,
             ),
             "docs/workflows/IMPLEMENTATION.md": re.sub(
-                r"\n<!-- MERIDIAN:BEGIN capability=task-worktree-boundary v6 -->.*?<!-- MERIDIAN:END -->\n",
+                r"\n<!-- MERIDIAN:BEGIN capability=task-worktree-boundary v7 -->.*?<!-- MERIDIAN:END -->\n",
                 "\n",
                 current["docs/workflows/IMPLEMENTATION.md"],
                 flags=re.DOTALL,
             ),
             "docs/workflows/REVIEW.md": re.sub(
-                r"\n<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v8 -->.*?<!-- MERIDIAN:END -->\n",
+                r"\n<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v9 -->.*?<!-- MERIDIAN:END -->\n",
                 "\n",
                 current["docs/workflows/REVIEW.md"],
                 flags=re.DOTALL,
@@ -1525,16 +1525,88 @@ worktree before the branch only after validated integration succeeds.
         upgraded_workflow = (self.project / "PROJECT_WORKFLOW.md").read_text(encoding="utf-8")
         upgraded_implementation = implementation.read_text(encoding="utf-8")
         upgraded_review = (self.project / "docs/workflows/REVIEW.md").read_text(encoding="utf-8")
-        self.assertIn("capability=git-workflow v8", upgraded_workflow)
+        self.assertIn("capability=git-workflow v9", upgraded_workflow)
         self.assertIn("Review: REQUIRED` is a gate, not a request for authorization", upgraded_workflow)
-        self.assertIn("capability=task-worktree-boundary v6", upgraded_implementation)
+        self.assertIn("capability=task-worktree-boundary v7", upgraded_implementation)
         self.assertIn("REVIEW_REQUIRED`; it is a gate", upgraded_implementation)
-        self.assertIn("capability=task-worktree-review-procedure v8", upgraded_review)
+        self.assertIn("capability=task-worktree-review-procedure v9", upgraded_review)
         self.assertIn("reviewer-integrator performs C6 through C10", upgraded_review)
         self.assertIn("Consumer-owned closure note.", upgraded_implementation)
         manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
         self.assertEqual(manifest["workflowBaselineVersion"], "1.2.5")
         self.assertEqual(manifest["appliedMigrations"][-1], "059-governed-closure-procedure")
+
+    def test_upgrade_installs_code_organization_v2_and_preserves_the_project_module_map(self) -> None:
+        workflow = self.framework / "templates/workflows/governed-sdd"
+        relative = "docs/CODE_ORGANIZATION.md"
+        current = (workflow / relative).read_text(encoding="utf-8")
+        new_sentence = re.search(r"^The project records its layered module map.*$", current, re.MULTILINE)
+        self.assertNotIn("\n## Project module map", current)
+        self.assertIsNotNone(new_sentence)
+        previous = current.replace("capability=code-organization v2", "capability=code-organization v1").replace(
+            new_sentence.group(0),
+            "Record this project's actual layered module map in its own architecture documentation, not in this file.",
+        )
+        self.assertNotEqual(previous, current)
+        (workflow / relative).write_text(previous, encoding="utf-8")
+        for path in workflow.rglob("*"):
+            if path.is_file():
+                destination = self.project / path.relative_to(workflow)
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(path, destination)
+        (self.framework / "VERSION").write_text("1.2.6\n", encoding="utf-8")
+        self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
+
+        module_map = "\n## Project module map\n\nThe `core` module owns domain rules; `app` depends on `core`.\n"
+        organization = self.project / relative
+        organization.write_text(organization.read_text(encoding="utf-8") + module_map, encoding="utf-8")
+
+        (workflow / relative).write_text(current, encoding="utf-8")
+        (self.framework / "VERSION").write_text("1.2.7\n", encoding="utf-8")
+        applied = self.run_cli("upgrade", "--apply")
+        self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+
+        upgraded = organization.read_text(encoding="utf-8")
+        self.assertIn("capability=code-organization v2", upgraded)
+        self.assertIn(new_sentence.group(0), upgraded)
+        self.assertTrue(upgraded.endswith(module_map))
+        self.assertEqual(len(re.findall(r"^## Project module map$", upgraded, re.MULTILINE)), 1)
+
+    def test_upgrade_removes_an_untouched_smoke_line_and_never_drops_a_customized_one(self) -> None:
+        workflow = self.framework / "templates/workflows/governed-sdd"
+        relative = "PROJECT_WORKFLOW.md"
+        current = (workflow / relative).read_text(encoding="utf-8")
+        anchor = "<!-- MERIDIAN:BEGIN capability=execution-discipline v1 -->"
+        self.assertIn(anchor, current)
+        smoke = "Project integration smoke command: `none`.\n\n"
+        (workflow / relative).write_text(current.replace(anchor, smoke + anchor, 1), encoding="utf-8")
+        for path in workflow.rglob("*"):
+            if path.is_file():
+                destination = self.project / path.relative_to(workflow)
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(path, destination)
+        (self.framework / "VERSION").write_text("1.2.6\n", encoding="utf-8")
+        self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
+        project_workflow = self.project / relative
+        locked = project_workflow.read_text(encoding="utf-8")
+
+        (workflow / relative).write_text(current, encoding="utf-8")
+        (self.framework / "VERSION").write_text("1.2.7\n", encoding="utf-8")
+        applied = self.run_cli("upgrade", "--apply")
+        self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+        self.assertNotIn("Project integration smoke command", project_workflow.read_text(encoding="utf-8"))
+
+        project_workflow.write_text(locked.replace("`none`", "`make smoke`"), encoding="utf-8")
+        shutil.rmtree(self.project / ".meridian")
+        (self.framework / "VERSION").write_text("1.2.6\n", encoding="utf-8")
+        (workflow / relative).write_text(current.replace(anchor, smoke + anchor, 1), encoding="utf-8")
+        self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
+        project_workflow.write_text(locked.replace("`none`", "`make smoke`"), encoding="utf-8")
+        (workflow / relative).write_text(current, encoding="utf-8")
+        (self.framework / "VERSION").write_text("1.2.7\n", encoding="utf-8")
+        applied = self.run_cli("upgrade", "--apply")
+        self.assertIn(applied.returncode, (0, 2), applied.stdout + applied.stderr)
+        self.assertIn("Project integration smoke command: `make smoke`", project_workflow.read_text(encoding="utf-8"))
 
     def _assert_upgrade_installs_closure_command_policy(self, mode: str) -> None:
         workflow = self.framework / f"templates/workflows/{mode}"
@@ -2750,20 +2822,20 @@ worktree before the branch only after validated integration succeeds.
         # The evidence text proves the legacy fallback did its job (v1 found),
         # distinct from "no marker found" — it's the v1->v2 gap that's real.
         self.assertIn(
-            "CAPABILITY MISSING 008-review-remediation-record-v2 — no marker found; "
-            "legacy pre-marker evidence only confirms v1, but v2 is required",
+            "CAPABILITY MISSING 061-governed-phase-reads — no marker found; "
+            "legacy pre-marker evidence only confirms v1, but v3 is required",
             planned.stdout,
         )
         self.assertIn(
-            "CAPABILITY MISSING 051-bounded-worktree-lifecycle — no marker found; "
-            "legacy pre-marker evidence only confirms v1, but v7 is required",
+            "CAPABILITY MISSING 061-governed-phase-reads — no marker found; "
+            "legacy pre-marker evidence only confirms v1, but v8 is required",
             planned.stdout,
         )
         self.assertIn("\nNEXT_ACTION IMPLEMENT_MIGRATION\n", planned.stdout)
         # The implementer is pointed at the delta, not a from-scratch rewrite:
-        # the capability is already there, only the path reference is stale.
+        # the capability is already there, only its newest version is missing.
         self.assertIn("apply only this", planned.stdout)
-        self.assertIn("008-review-remediation-record-v2: Replace the literal", planned.stdout)
+        self.assertIn("061-governed-phase-reads: Each routed implementation", planned.stdout)
         self.assertIn("045-isolated-task-worktrees", planned.stdout)
 
     def test_assisted_adoption_detects_only_missing_lifecycle(self) -> None:
@@ -2804,9 +2876,12 @@ worktree before the branch only after validated integration succeeds.
         )
         self.assertEqual(planned.returncode, 3)
         # detect_capabilities() names the migration that introduced the
-        # highest required version, not necessarily the original one — 008
-        # carries the v2 delta a project stuck at v1 actually needs to apply.
-        self.assertIn("CAPABILITY PRESENT 008-review-remediation-record-v2", planned.stdout)
+        # highest required version, not necessarily the original one — 061
+        # carries the v3 delta a project stuck below it actually needs to apply.
+        self.assertIn(
+            "CAPABILITY PRESENT 061-governed-phase-reads — marker present at v3 (>= required v3)",
+            planned.stdout,
+        )
         self.assertIn("CAPABILITY MISSING 045-isolated-task-worktrees", planned.stdout)
         self.assertIn("AGENT_REQUIRED", planned.stdout)
         self.assertIn("\nNEXT_ACTION IMPLEMENT_MIGRATION\n", planned.stdout)
@@ -4104,16 +4179,16 @@ class CapabilityMarkerTest(unittest.TestCase):
     def test_agents_and_claude_carry_expected_marker_versions(self) -> None:
         for name in ("AGENTS.md", "CLAUDE.md"):
             self.assertEqual(self.marker_pairs((self.WORKFLOW / name).read_text(encoding="utf-8")), [("command-triggers", "3")])
-        self.assertIn(("review-remediation-record", "2"), self.marker_pairs((self.WORKFLOW / "docs/workflows/REMEDIATION.md").read_text(encoding="utf-8")))
+        self.assertIn(("review-remediation-record", "3"), self.marker_pairs((self.WORKFLOW / "docs/workflows/REMEDIATION.md").read_text(encoding="utf-8")))
         self.assertIn(("lifecycle-orchestration", "3"), self.marker_pairs((self.WORKFLOW / "docs/workflows/LIFECYCLE.md").read_text(encoding="utf-8")))
         implementation = self.marker_pairs((self.WORKFLOW / "docs/workflows/IMPLEMENTATION.md").read_text(encoding="utf-8"))
-        for pair in (("execution-command-gate", "1"), ("validation-scoping", "1"), ("spike-routing", "1"), ("host-impact-routing", "1")):
+        for pair in (("execution-command-gate", "2"), ("validation-scoping", "1"), ("spike-routing", "1"), ("host-impact-routing", "1")):
             self.assertIn(pair, implementation)
 
     def test_manual_proceed_migration_leaves_review_and_remediation_bytes_unchanged(self) -> None:
         expected = {
-            "REVIEW.md": "f288f9014ab7b89c34c1322f6d0532128a24d4e601bd977a17443b2399e7f439",
-            "REMEDIATION.md": "04d084c8f67ea9b481fa6d3a6346adf5454630e9c5e8aff5a9c6c0f6b77ba623",
+            "REVIEW.md": "9709be35ca0a36b8f483a726b121d3b17f6bdc0130f9032231422e0c69d6dc5e",
+            "REMEDIATION.md": "919aac8c9942718b51a56ef30ef2c747abb6c28770ea1767f1658125f99b68a9",
         }
         for name, digest in expected.items():
             path = self.WORKFLOW / "docs/workflows" / name
@@ -4122,7 +4197,7 @@ class CapabilityMarkerTest(unittest.TestCase):
     def test_host_impact_declaration_has_both_governed_shapes_and_evidence_routing(self) -> None:
         blueprint = (self.WORKFLOW / "tasks/TASK_BLUEPRINT.md").read_text(encoding="utf-8")
         implementation = (self.WORKFLOW / "docs/workflows/IMPLEMENTATION.md").read_text(encoding="utf-8")
-        self.assertIn(("task-blueprint", "12"), self.marker_pairs(blueprint))
+        self.assertIn(("task-blueprint", "13"), self.marker_pairs(blueprint))
         self.assertIn("Classification: NOT_APPLICABLE", blueprint)
         self.assertIn("Rationale:", blueprint)
         self.assertIn("Classification: REQUIRED", blueprint)
@@ -4139,14 +4214,14 @@ class CapabilityMarkerTest(unittest.TestCase):
         text = (self.WORKFLOW / "docs/REVIEW_RECORD_TEMPLATE.md").read_text(encoding="utf-8")
         self.assertEqual(
             self.marker_pairs(text),
-            [("review-remediation-record", "2"), ("manual-verification-record", "1")],
+            [("review-remediation-record", "3"), ("manual-verification-record", "1")],
         )
 
     def test_lifecycle_orchestration_carries_its_own_marker(self) -> None:
         text = (self.WORKFLOW / "docs/LIFECYCLE_ORCHESTRATION.md").read_text(encoding="utf-8")
         self.assertEqual(
             self.marker_pairs(text),
-            [("lifecycle-orchestration", "7"), ("rejected-attempt-restart", "3")],
+            [("lifecycle-orchestration", "8"), ("rejected-attempt-restart", "4")],
         )
 
     def test_context_budget_policy_carries_its_capability_markers(self) -> None:
@@ -4190,9 +4265,9 @@ class CapabilityMarkerTest(unittest.TestCase):
             encoding="utf-8"
         )
 
-        self.assertIn(("task-blueprint", "12"), self.marker_pairs(blueprint))
+        self.assertIn(("task-blueprint", "13"), self.marker_pairs(blueprint))
         self.assertIn(("reasoning-budget-contract", "1"), self.marker_pairs(policy))
-        self.assertIn(("lifecycle-orchestration", "7"), self.marker_pairs(lifecycle))
+        self.assertIn(("lifecycle-orchestration", "8"), self.marker_pairs(lifecycle))
         self.assertIn("[low / medium / high / xhigh]", blueprint)
         self.assertIn("exact permitted runtime cap", blueprint)
         self.assertIn("must never raise its effort", blueprint)
@@ -4240,7 +4315,7 @@ class CapabilityMarkerTest(unittest.TestCase):
         pull_request_policy = (self.WORKFLOW / "docs/PULL_REQUEST_POLICY.md").read_text(encoding="utf-8")
         self.assertEqual(
             self.marker_pairs(pull_request_policy),
-            [("task-worktree-integration", "3"), ("ci-verified-validation", "1")],
+            [("task-worktree-integration", "4"), ("ci-verified-validation", "1")],
         )
 
         code_review_prompt = (self.WORKFLOW / "docs/CODE_REVIEW_PROMPT.md").read_text(encoding="utf-8")
@@ -4257,7 +4332,7 @@ class CapabilityMarkerTest(unittest.TestCase):
         self.assertEqual(
             self.marker_pairs(completion_report),
             [
-                ("task-worktree-handoff", "4"),
+                ("task-worktree-handoff", "5"),
                 ("manual-verification-record", "1"),
                 ("ci-verified-validation", "1"),
             ],
@@ -4304,22 +4379,23 @@ class CapabilityMarkerTest(unittest.TestCase):
                 "execution-discipline",
             )
         }
-        expected["execution-assets"] = "2"
-        expected["roles"] = "2"
-        expected["git-workflow"] = "8"
+        expected["document-precedence"] = "2"
+        expected["execution-assets"] = "3"
+        expected["roles"] = "3"
+        expected["git-workflow"] = "9"
         expected["bounded-worktree-lifecycle"] = "4"
         expected["codex-worktree-access"] = "3"
         expected["task-identity-policy"] = "1"
-        expected["task-lifecycle"] = "2"
-        expected["review-policy"] = "2"
+        expected["task-lifecycle"] = "3"
+        expected["review-policy"] = "3"
         self.assertEqual(sorted(pairs), sorted(expected.items()))
 
     def test_whole_file_baseline_capabilities_each_carry_one_marker(self) -> None:
         expectations = {
             "LANGUAGE_POLICY.md": ("language-policy", "2"),
-            "tasks/TASK_BLUEPRINT.md": ("task-blueprint", "12"),
-            "docs/CODE_ORGANIZATION.md": ("code-organization", "1"),
-            "docs/AUDIT_PROMPT_READ_ONLY.md": ("audit-prompt", "2"),
+            "tasks/TASK_BLUEPRINT.md": ("task-blueprint", "13"),
+            "docs/CODE_ORGANIZATION.md": ("code-organization", "2"),
+            "docs/AUDIT_PROMPT_READ_ONLY.md": ("audit-prompt", "3"),
         }
         for name, pair in expectations.items():
             text = (self.WORKFLOW / name).read_text(encoding="utf-8")
@@ -4343,10 +4419,10 @@ class CapabilityMarkerTest(unittest.TestCase):
     def test_agents_and_claude_carry_the_five_residual_capabilities(self) -> None:
         self.assertIn(("command-triggers", "3"), self.marker_pairs((self.WORKFLOW / "AGENTS.md").read_text(encoding="utf-8")))
         review = self.marker_pairs((self.WORKFLOW / "docs/workflows/REVIEW.md").read_text(encoding="utf-8"))
-        self.assertIn(("review-mode-boundary", "1"), review)
-        self.assertIn(("implementer-reviewer-handoff", "3"), review)
-        self.assertIn(("reviewer-integrator-identity", "1"), review)
-        self.assertIn(("task-worktree-review-procedure", "8"), review)
+        self.assertIn(("review-mode-boundary", "2"), review)
+        self.assertIn(("implementer-reviewer-handoff", "4"), review)
+        self.assertIn(("reviewer-integrator-identity", "2"), review)
+        self.assertIn(("task-worktree-review-procedure", "9"), review)
 
     def test_review_preflight_fails_closed_before_substantive_inspection(self) -> None:
         review = (self.WORKFLOW / "docs/workflows/REVIEW.md").read_text(encoding="utf-8")
@@ -4383,7 +4459,7 @@ class CapabilityMarkerTest(unittest.TestCase):
     def test_review_mode_boundary_has_no_hardcoded_review_record_path(self) -> None:
         text = (self.WORKFLOW / "docs/workflows/REVIEW.md").read_text(encoding="utf-8")
         match = re.search(
-            r"<!-- MERIDIAN:BEGIN capability=review-mode-boundary v1 -->\n?(.*?)"
+            r"<!-- MERIDIAN:BEGIN capability=review-mode-boundary v2 -->\n?(.*?)"
             r"<!-- MERIDIAN:END -->",
             text,
             re.DOTALL,

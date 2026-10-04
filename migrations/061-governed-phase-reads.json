@@ -2,23 +2,239 @@
   "id": "061-governed-phase-reads",
   "from": "1.2.6",
   "to": "1.2.7",
-  "description": "Loads Governed SDD documents when the phase that needs them begins and points agents to the bounded ADR, specification, and queue readers.",
+  "description": "Loads Governed SDD documents when the phase that needs them begins, points agents to the bounded ADR, specification, and queue readers, and aligns the Governed lifecycle text with the closure design and the CLI.",
   "capabilities": [
-    {"capability": "phase-reads", "capabilityVersion": 1},
-    {"capability": "bounded-context-readers", "capabilityVersion": 1},
-    {"capability": "minimal-read-only-status", "capabilityVersion": 2}
+    {
+      "capability": "phase-reads",
+      "capabilityVersion": 1
+    },
+    {
+      "capability": "bounded-context-readers",
+      "capabilityVersion": 1
+    },
+    {
+      "capability": "minimal-read-only-status",
+      "capabilityVersion": 2
+    },
+    {
+      "capability": "git-workflow",
+      "capabilityVersion": 9
+    },
+    {
+      "capability": "roles",
+      "capabilityVersion": 3
+    },
+    {
+      "capability": "review-policy",
+      "capabilityVersion": 3
+    },
+    {
+      "capability": "task-lifecycle",
+      "capabilityVersion": 3
+    },
+    {
+      "capability": "execution-assets",
+      "capabilityVersion": 3
+    },
+    {
+      "capability": "document-precedence",
+      "capabilityVersion": 2
+    },
+    {
+      "capability": "review-mode-boundary",
+      "capabilityVersion": 2
+    },
+    {
+      "capability": "review-remediation-record",
+      "capabilityVersion": 3
+    },
+    {
+      "capability": "implementer-reviewer-handoff",
+      "capabilityVersion": 4
+    },
+    {
+      "capability": "reviewer-integrator-identity",
+      "capabilityVersion": 2
+    },
+    {
+      "capability": "task-worktree-boundary",
+      "capabilityVersion": 7
+    },
+    {
+      "capability": "task-worktree-review-procedure",
+      "capabilityVersion": 9
+    },
+    {
+      "capability": "task-worktree-integration",
+      "capabilityVersion": 4
+    },
+    {
+      "capability": "task-worktree-handoff",
+      "capabilityVersion": 5
+    },
+    {
+      "capability": "owner-acceptance-workflow",
+      "capabilityVersion": 2
+    },
+    {
+      "capability": "execution-command-gate",
+      "capabilityVersion": 2
+    },
+    {
+      "capability": "lifecycle-orchestration",
+      "capabilityVersion": 8
+    },
+    {
+      "capability": "audit-prompt",
+      "capabilityVersion": 3
+    },
+    {
+      "capability": "task-blueprint",
+      "capabilityVersion": 13
+    },
+    {
+      "capability": "code-organization",
+      "capabilityVersion": 2
+    }
   ],
-  "delta": "Each routed implementation, review, and remediation procedure gains a phase-reads block that states, per document, whether it is read at start or at the phase that needs it, and a bounded-context-readers block that directs ADR and specification reads through meridian context authority and meridian adr show and queue reads through the queue briefing. The status policy gains a phase-reads block and its minimal-read-only-status block names the briefing and the bounded ADR readers. No acceptance criterion, gate, role, or review rule is removed or relaxed; only the time at which a document is read and the way ADRs are read change.",
+  "delta": "Each routed implementation, review, and remediation procedure gains a phase-reads block that states, per document, whether it is read at start or at the phase that needs it, and a bounded-context-readers block that directs ADR and specification reads through meridian context authority and meridian adr show and queue reads through the queue briefing. The status policy gains a phase-reads block and its minimal-read-only-status block names the briefing and the bounded ADR readers. No acceptance criterion, gate, role, or review rule is removed or relaxed; only the time at which a document is read and the way ADRs are read change. The Governed lifecycle text is also aligned with the closure design and the CLI: task branches never edit the queue, queue archive, or plan, and the task record carries IN_PROGRESS, READY_FOR_REVIEW, and CHANGES_REQUESTED while integrate stage applies the queue status; the task branch is the branch value returned by meridian worktree prepare; a task-branch push happens only to obtain T1_CI, at most once per review attempt, never by the reviewer, and not at all without CI; locations and the reviewer author are resolved by meridian locations and meridian project show --field reviewer-author instead of literal paths and placeholders, and the reviewer identity rule lives in one block; Accept appends an owner APPROVE attempt, sets the task record to ACCEPTED, and continues at C6 without a manual merge; a spike integrates only its deliverable; the reviewer verifies the absolute path resolved at runtime from the recorded handoff_worktree; the task-worktree-boundary block states that only the router read set precedes prepare; and code-organization no longer says the project module map is kept out of its own repository, only out of the managed block. Lean Delivery's git-workflow block carries the branch-name and push rules only. Both PROJECT_WORKFLOW.md templates drop the unread Project integration smoke command line: an untouched line is removed by the three-way merge and a customized line is kept or reported as a conflict, never dropped silently, and its command belongs in .meridian/candidate-validation.json, the only candidate-validation declaration. The capability versions listed in capabilityVersions are keyed per workflow mode.",
   "managedPaths": [
+    "AGENTS.md",
+    "CLAUDE.md",
+    "PROJECT_WORKFLOW.md",
+    "docs/AUDIT_PROMPT_READ_ONLY.md",
+    "docs/CODE_ORGANIZATION.md",
+    "docs/CODE_REVIEW_PROMPT.md",
+    "docs/COMPLETION_REPORT_TEMPLATE.md",
     "docs/CONTEXT_BUDGET_POLICY.md",
+    "docs/LIFECYCLE_ORCHESTRATION.md",
+    "docs/OPERATOR_PROMPTS.md",
+    "docs/PULL_REQUEST_POLICY.md",
+    "docs/REVIEW_RECORD_TEMPLATE.md",
     "docs/workflows/IMPLEMENTATION.md",
+    "docs/workflows/LIFECYCLE.md",
     "docs/workflows/REMEDIATION.md",
-    "docs/workflows/REVIEW.md"
+    "docs/workflows/REVIEW.md",
+    "tasks/TASK_BLUEPRINT.md"
   ],
   "verification": [
     "a clean Governed SDD upgrade installs phase-reads v1 and bounded-context-readers v1 in the three role procedures and minimal-read-only-status v2 in the context policy while preserving consumer-owned text",
     "meridian context size reports each deferred document separately and leaves it out of the startup total",
     "marker baselines record the new and bumped capability versions for all managed paths",
+    "a clean Governed SDD upgrade installs the bumped lifecycle blocks and a Lean upgrade installs git-workflow v9 while preserving consumer-owned text, including a '## Project module map' section after the code-organization block",
+    "python3 scripts/check_repository.py rejects a managed block that says a role edits a queue row, a Governed block that names a literal queue, review, or handoff location outside execution-assets, a placeholder identity, and a second place that states the reviewer identity rule",
     "python3 scripts/check_repository.py and python3 -m unittest discover -s tests pass"
+  ],
+  "capabilityVersions": [
+    {
+      "capability": "git-workflow",
+      "capabilityVersion": 9,
+      "workflowMode": "governed-sdd"
+    },
+    {
+      "capability": "git-workflow",
+      "capabilityVersion": 9,
+      "workflowMode": "lean-delivery"
+    },
+    {
+      "capability": "roles",
+      "capabilityVersion": 3,
+      "workflowMode": "governed-sdd"
+    },
+    {
+      "capability": "review-policy",
+      "capabilityVersion": 3,
+      "workflowMode": "governed-sdd"
+    },
+    {
+      "capability": "task-lifecycle",
+      "capabilityVersion": 3,
+      "workflowMode": "governed-sdd"
+    },
+    {
+      "capability": "execution-assets",
+      "capabilityVersion": 3,
+      "workflowMode": "governed-sdd"
+    },
+    {
+      "capability": "document-precedence",
+      "capabilityVersion": 2,
+      "workflowMode": "governed-sdd"
+    },
+    {
+      "capability": "review-mode-boundary",
+      "capabilityVersion": 2,
+      "workflowMode": "governed-sdd"
+    },
+    {
+      "capability": "review-remediation-record",
+      "capabilityVersion": 3,
+      "workflowMode": "governed-sdd"
+    },
+    {
+      "capability": "implementer-reviewer-handoff",
+      "capabilityVersion": 4,
+      "workflowMode": "governed-sdd"
+    },
+    {
+      "capability": "reviewer-integrator-identity",
+      "capabilityVersion": 2,
+      "workflowMode": "governed-sdd"
+    },
+    {
+      "capability": "task-worktree-boundary",
+      "capabilityVersion": 7,
+      "workflowMode": "governed-sdd"
+    },
+    {
+      "capability": "task-worktree-review-procedure",
+      "capabilityVersion": 9,
+      "workflowMode": "governed-sdd"
+    },
+    {
+      "capability": "task-worktree-integration",
+      "capabilityVersion": 4,
+      "workflowMode": "governed-sdd"
+    },
+    {
+      "capability": "task-worktree-handoff",
+      "capabilityVersion": 5,
+      "workflowMode": "governed-sdd"
+    },
+    {
+      "capability": "owner-acceptance-workflow",
+      "capabilityVersion": 2,
+      "workflowMode": "governed-sdd"
+    },
+    {
+      "capability": "execution-command-gate",
+      "capabilityVersion": 2,
+      "workflowMode": "governed-sdd"
+    },
+    {
+      "capability": "lifecycle-orchestration",
+      "capabilityVersion": 8,
+      "workflowMode": "governed-sdd"
+    },
+    {
+      "capability": "rejected-attempt-restart",
+      "capabilityVersion": 4,
+      "workflowMode": "governed-sdd"
+    },
+    {
+      "capability": "audit-prompt",
+      "capabilityVersion": 3,
+      "workflowMode": "governed-sdd"
+    },
+    {
+      "capability": "task-blueprint",
+      "capabilityVersion": 13,
+      "workflowMode": "governed-sdd"
+    },
+    {
+      "capability": "code-organization",
+      "capabilityVersion": 2,
+      "workflowMode": "governed-sdd"
+    }
   ]
 }

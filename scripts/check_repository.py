@@ -208,8 +208,11 @@ def check_governed_review_worktree_contract(root: Path = ROOT) -> None:
                 )
 
     review = review_paths[-1].read_text(encoding="utf-8")
-    preflight = "<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v8 -->"
-    boundary = "<!-- MERIDIAN:BEGIN capability=review-mode-boundary v1 -->"
+    preflight_match = re.search(r"<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v\d+ -->", review)
+    boundary_match = re.search(r"<!-- MERIDIAN:BEGIN capability=review-mode-boundary v\d+ -->", review)
+    if preflight_match is None or boundary_match is None:
+        fail("governed review must begin with the task-worktree preflight")
+    preflight, boundary = preflight_match.group(0), boundary_match.group(0)
     required = (
         "Before reading the assigned task",
         "meridian worktree check <TASK-ID>",
@@ -226,6 +229,73 @@ def check_governed_review_worktree_contract(root: Path = ROOT) -> None:
     for fragment in required:
         if fragment not in review:
             fail(f"governed task-worktree review preflight is incomplete: {fragment}")
+
+
+MANAGED_BLOCK = re.compile(
+    r"<!-- MERIDIAN:BEGIN capability=(?P<capability>[\w-]+) v(?P<version>\d+) -->(?P<body>.*?)<!-- MERIDIAN:END -->",
+    re.DOTALL,
+)
+FORBIDDEN_TEMPLATE_TEXT = (
+    "task-<TASK-ID>",
+    "<PROJECT_NAME>",
+    "<project-slug>",
+    "meridian Reviewer-Integrator",
+    "Project integration smoke command",
+)
+# A managed block may state what the queue is or who applies its status, but never
+# that a task branch, reviewer, or owner edits a queue row.
+QUEUE_EDIT_STATEMENT = re.compile(
+    r"queue (?:row|status|record)s?\b|task(?:/| and )queue|queue and task", re.IGNORECASE
+)
+# Governed blocks name a queue, queue-archive, review, or handoff location by role
+# and defer to `meridian locations`; only execution-assets may state the defaults.
+LITERAL_LOCATION = re.compile(r"tasks/QUEUE\.md|QUEUE_ARCHIVE\.md|TASK_QUEUE\.md|tasks/reviews/|tasks/handoffs/")
+LITERAL_LOCATION_EXEMPT_CAPABILITIES = ("execution-assets",)
+REVIEWER_IDENTITY_CAPABILITY = "reviewer-integrator-identity"
+
+
+def check_governed_lifecycle_text(root: Path = ROOT) -> None:
+    """Keep managed lifecycle text free of queue edits, literal locations, and placeholders.
+
+    The literal-location rule is Governed-only: Lean's `git-workflow` block keeps
+    naming the governance files its task branches must not edit, because task 145
+    scopes Lean to the branch-name and push rules.
+    """
+    workflows = root / "templates" / "workflows"
+    for path in sorted(workflows.rglob("*.md")):
+        relative = path.relative_to(root)
+        text = path.read_text(encoding="utf-8")
+        for phrase in FORBIDDEN_TEMPLATE_TEXT:
+            if phrase in text:
+                fail(f"{relative} contains retired or placeholder text: {phrase}")
+        governed = "governed-sdd" in path.parts
+        for block in MANAGED_BLOCK.finditer(text):
+            capability, body = block.group("capability"), block.group("body")
+            edit = QUEUE_EDIT_STATEMENT.search(body)
+            if edit:
+                fail(f"{relative}: capability {capability} says a role edits a queue row: {edit.group(0)!r}")
+            if governed and capability not in LITERAL_LOCATION_EXEMPT_CAPABILITIES:
+                literal = LITERAL_LOCATION.search(body)
+                if literal:
+                    fail(f"{relative}: capability {capability} names a literal location: {literal.group(0)!r}")
+    governed_root = workflows / "governed-sdd"
+    identity_blocks = []
+    for path in sorted(governed_root.rglob("*.md")):
+        text = path.read_text(encoding="utf-8")
+        for match in re.finditer(r"--author=", text):
+            enclosing = next(
+                (block for block in MANAGED_BLOCK.finditer(text) if block.start() <= match.start() < block.end()),
+                None,
+            )
+            identity_blocks.append((path.relative_to(root), enclosing.group("capability") if enclosing else None))
+    if len(identity_blocks) != 1 or identity_blocks[0][1] != REVIEWER_IDENTITY_CAPABILITY:
+        fail(
+            "the reviewer identity rule must appear in exactly one managed block "
+            f"({REVIEWER_IDENTITY_CAPABILITY}): {identity_blocks}"
+        )
+    repository_workflow = root / "PROJECT_WORKFLOW.md"
+    if repository_workflow.is_file() and "Project integration smoke command" in repository_workflow.read_text(encoding="utf-8"):
+        fail("PROJECT_WORKFLOW.md contains retired text: Project integration smoke command")
 
 
 def check_json() -> None:
@@ -625,6 +695,7 @@ def main() -> None:
     check_template_context_sizes()
     check_language_policy()
     check_governed_review_worktree_contract()
+    check_governed_lifecycle_text()
     check_json()
     check_plugin_version()
     check_capability_catalog()

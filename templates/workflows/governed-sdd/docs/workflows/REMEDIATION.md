@@ -12,20 +12,20 @@ in the primary checkout, create a replacement worktree, or run concurrently
 with a reviewer. A mismatch is `BLOCKED` and preserves the existing state.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=review-remediation-record v2 -->
+<!-- MERIDIAN:BEGIN capability=review-remediation-record v3 -->
 ### Review-remediation workflow
 
 For `Address review <TASK-ID>`, read the assigned task, its cited authority,
 the current review record at the location `PROJECT_WORKFLOW.md` declares for
 it, and `git status --short`. Confirm the
-task and queue both say `IN_PROGRESS`, that the review record has unchecked
+task record says `IN_PROGRESS`, that the review record has unchecked
 findings, and that its local review-handoff commit is present. Do not implement
 new work, reinterpret a finding, or erase prior reviewer evidence. Resolve
 every unchecked finding, mark each with implementation evidence in a new
 attempt in the review record, rerun the task and baseline validation, and set
-both task and queue status to `READY_FOR_REVIEW`. Commit the remediation and
-updated review record, then push the task branch once for this next review
-attempt. Report the review-record path, resolved findings, commit, and
+the task record to `READY_FOR_REVIEW`. Commit the remediation and
+updated review record, then push the task branch only to obtain `T1_CI` for that commit, at most once per review attempt, and not at all when the project has no CI; `Address review` authorizes
+that one push. Report the review-record path, resolved findings, commit, and
 validation. If a finding needs an authority or scope change, leave it
 unchecked and return `BLOCKED`.
 <!-- MERIDIAN:END -->
