@@ -1026,7 +1026,7 @@ class MeridianCliTest(unittest.TestCase):
         blueprint = self.framework / "templates/workflows/governed-sdd/tasks/TASK_BLUEPRINT.md"
         current = blueprint.read_text(encoding="utf-8")
         declaration = current.split("\n## Host impact\n", 1)[1].split("\n## Goal\n", 1)[0]
-        previous = current.replace("capability=task-blueprint v13", "capability=task-blueprint v11", 1)
+        previous = current.replace("capability=task-blueprint v14", "capability=task-blueprint v11", 1)
         previous = previous.replace("\n## Host impact\n" + declaration, "", 1)
 
         installed_baseline = self.project / ".meridian/baselines/1.1.39"
@@ -1059,7 +1059,7 @@ class MeridianCliTest(unittest.TestCase):
         applied = self.run_cli("upgrade", "--apply")
         self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
         upgraded_blueprint = (self.project / "tasks/TASK_BLUEPRINT.md").read_text(encoding="utf-8")
-        self.assertIn("capability=task-blueprint v13", upgraded_blueprint)
+        self.assertIn("capability=task-blueprint v14", upgraded_blueprint)
         self.assertIn("Classification: NOT_APPLICABLE", upgraded_blueprint)
         self.assertIn("Classification: REQUIRED", upgraded_blueprint)
         self.assertIn("Project-owned task note.", upgraded_blueprint)
@@ -1302,7 +1302,7 @@ worktree before the branch only after validated integration succeeds.
         )
         previous["docs/LIFECYCLE_ORCHESTRATION.md"] = previous[
             "docs/LIFECYCLE_ORCHESTRATION.md"
-        ].replace("capability=lifecycle-orchestration v8", "capability=lifecycle-orchestration v5")
+        ].replace("capability=lifecycle-orchestration v9", "capability=lifecycle-orchestration v5")
 
         for relative, text in previous.items():
             (workflow / relative).write_text(text, encoding="utf-8")
@@ -1984,7 +1984,7 @@ worktree before the branch only after validated integration succeeds.
         profile = self.framework / "templates/workflows/governed-sdd/docs/EXECUTION_EVIDENCE_PROFILE.md"
         incoming_policy = policy.read_text(encoding="utf-8")
         marker = re.search(
-            r"<!-- MERIDIAN:BEGIN capability=execution-evidence-profile v3 -->\n?.*?"
+            r"<!-- MERIDIAN:BEGIN capability=execution-evidence-profile v4 -->\n?.*?"
             r"<!-- MERIDIAN:END -->\n?",
             incoming_policy,
             re.DOTALL,
@@ -2031,7 +2031,7 @@ worktree before the branch only after validated integration succeeds.
         )
         self.assertIsNotNone(appended)
         self.assertIn("## Project validation baseline", appended)
-        self.assertIn("capability=execution-evidence-profile v3", appended)
+        self.assertIn("capability=execution-evidence-profile v4", appended)
 
         checked = self.run_cli("upgrade", "--check")
         self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
@@ -2042,7 +2042,7 @@ worktree before the branch only after validated integration succeeds.
         upgraded = local_policy.read_text(encoding="utf-8")
         self.assertIn("## Project validation baseline", upgraded)
         self.assertIn("capability=validation-scoping v2", upgraded)
-        self.assertIn("capability=execution-evidence-profile v3", upgraded)
+        self.assertIn("capability=execution-evidence-profile v4", upgraded)
         self.assertTrue((self.project / "docs/EXECUTION_EVIDENCE_PROFILE.md").is_file())
 
     def test_upgrade_preserves_a_verified_agents_pointer_claude_file(self) -> None:
@@ -2472,6 +2472,85 @@ worktree before the branch only after validated integration succeeds.
         audited = self.run_cli("audit", "--mode", "governed-sdd")
         self.assertEqual(audited.returncode, 1, audited.stdout + audited.stderr)
         self.assertIn("declaration/legacy-compatibility", audited.stdout)
+
+    REASONING_CONTRACT_BLOCK = (
+        "<!-- MERIDIAN:BEGIN capability=reasoning-budget-contract v1 -->\n"
+        "## Reasoning budget contract\n\n"
+        "Select the lowest reliable reasoning effort while designing the task.\n"
+        "<!-- MERIDIAN:END -->\n\n"
+    )
+
+    def _lock_project_with_reasoning_contract(self) -> tuple[Path, Path]:
+        """Lock a governed project from templates that still carry the retired
+        block and the superseded `execution-evidence-profile` v3 marker."""
+        policy = self.framework / "templates/workflows/governed-sdd/docs/CONTEXT_BUDGET_POLICY.md"
+        current = (ROOT / "templates/workflows/governed-sdd/docs/CONTEXT_BUDGET_POLICY.md").read_text(
+            encoding="utf-8"
+        )
+        previous = current.replace(
+            "capability=execution-evidence-profile v4", "capability=execution-evidence-profile v3"
+        ).replace(
+            "\n## Lifecycle orchestration", "\n" + self.REASONING_CONTRACT_BLOCK + "## Lifecycle orchestration", 1
+        )
+        self.assertIn("reasoning-budget-contract", previous)
+        policy.write_text(previous, encoding="utf-8")
+        (self.framework / "VERSION").write_text("1.2.8\n", encoding="utf-8")
+        shutil.rmtree(self.project)
+        self.project.mkdir()
+        self.copy_governed_templates()
+        self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
+        policy.write_text(current, encoding="utf-8")
+        (self.framework / "VERSION").write_text("1.2.9\n", encoding="utf-8")
+        return policy, self.project / "docs/CONTEXT_BUDGET_POLICY.md"
+
+    def test_upgrade_retires_reasoning_contract_alongside_a_marker_supersession(self) -> None:
+        """Migration 063 both supersedes execution-evidence-profile v3 and
+        retires reasoning-budget-contract in one file; when the three-way merge
+        conflicts, the retirement must still apply, not be skipped."""
+        policy, local_policy = self._lock_project_with_reasoning_contract()
+        local_policy.write_text(
+            local_policy.read_text(encoding="utf-8").replace(
+                "## Task-first loading", "## Task-First Loading (project wording)"
+            ),
+            encoding="utf-8",
+        )
+        policy.write_text(
+            policy.read_text(encoding="utf-8").replace(
+                "## Task-first loading", "## Task-First Loading (framework wording)"
+            ),
+            encoding="utf-8",
+        )
+
+        checked = self.run_cli("upgrade", "--check")
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+        self.assertIn("APPEND-RETIRE-MARKERS docs/CONTEXT_BUDGET_POLICY.md", checked.stdout)
+
+        applied = self.run_cli("upgrade", "--apply")
+        self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+        upgraded = local_policy.read_text(encoding="utf-8")
+        self.assertNotIn("reasoning-budget-contract", upgraded)
+        self.assertIn("capability=execution-evidence-profile v4", upgraded)
+        self.assertIn("Task-First Loading (project wording)", upgraded)
+
+    def test_upgrade_refuses_to_retire_a_locally_edited_reasoning_contract(self) -> None:
+        policy, local_policy = self._lock_project_with_reasoning_contract()
+        local_policy.write_text(
+            local_policy.read_text(encoding="utf-8")
+            .replace("while designing the task.", "while designing the task, locally customized.")
+            .replace("## Task-first loading", "## Task-First Loading (project wording)"),
+            encoding="utf-8",
+        )
+        policy.write_text(
+            policy.read_text(encoding="utf-8").replace(
+                "## Task-first loading", "## Task-First Loading (framework wording)"
+            ),
+            encoding="utf-8",
+        )
+
+        checked = self.run_cli("upgrade", "--check")
+        self.assertEqual(checked.returncode, 2, checked.stdout + checked.stderr)
+        self.assertIn("CONFLICT docs/CONTEXT_BUDGET_POLICY.md", checked.stdout)
+        self.assertIn("locally customized.", local_policy.read_text(encoding="utf-8"))
 
     def test_upgrade_refuses_role_scoped_agent_rules_removal_when_locally_modified(self) -> None:
         """Task 008's other half of AC3: the real migration 025 must refuse
@@ -2935,8 +3014,8 @@ worktree before the branch only after validated integration succeeds.
             planned.stdout,
         )
         self.assertIn(
-            "CAPABILITY MISSING 061-governed-phase-reads — no marker found; "
-            "legacy pre-marker evidence only confirms v1, but v8 is required",
+            "CAPABILITY MISSING 063-retire-reasoning-budget-contract — no marker found; "
+            "legacy pre-marker evidence only confirms v1, but v9 is required",
             planned.stdout,
         )
         self.assertIn("\nNEXT_ACTION IMPLEMENT_MIGRATION\n", planned.stdout)
@@ -4394,7 +4473,7 @@ class CapabilityMarkerTest(unittest.TestCase):
     def test_host_impact_declaration_has_both_governed_shapes_and_evidence_routing(self) -> None:
         blueprint = (self.WORKFLOW / "tasks/TASK_BLUEPRINT.md").read_text(encoding="utf-8")
         implementation = (self.WORKFLOW / "docs/workflows/IMPLEMENTATION.md").read_text(encoding="utf-8")
-        self.assertIn(("task-blueprint", "13"), self.marker_pairs(blueprint))
+        self.assertIn(("task-blueprint", "14"), self.marker_pairs(blueprint))
         self.assertIn("Classification: NOT_APPLICABLE", blueprint)
         self.assertIn("Rationale:", blueprint)
         self.assertIn("Classification: REQUIRED", blueprint)
@@ -4418,7 +4497,7 @@ class CapabilityMarkerTest(unittest.TestCase):
         text = (self.WORKFLOW / "docs/LIFECYCLE_ORCHESTRATION.md").read_text(encoding="utf-8")
         self.assertEqual(
             self.marker_pairs(text),
-            [("lifecycle-orchestration", "8"), ("rejected-attempt-restart", "4")],
+            [("lifecycle-orchestration", "9"), ("rejected-attempt-restart", "4")],
         )
 
     def test_context_budget_policy_carries_its_capability_markers(self) -> None:
@@ -4433,9 +4512,8 @@ class CapabilityMarkerTest(unittest.TestCase):
                 ("minimal-read-only-status", "2"),
                 ("validation-scoping", "2"),
                 ("evidence-tiers", "1"),
-                ("execution-evidence-profile", "3"),
+                ("execution-evidence-profile", "4"),
                 ("phase-reads", "1"),
-                ("reasoning-budget-contract", "1"),
             ],
         )
 
@@ -4444,36 +4522,47 @@ class CapabilityMarkerTest(unittest.TestCase):
         profile = (self.WORKFLOW / "docs/EXECUTION_EVIDENCE_PROFILE.md").read_text(
             encoding="utf-8"
         )
-        self.assertIn(("execution-evidence-profile", "3"), self.marker_pairs(policy))
+        self.assertIn(("execution-evidence-profile", "4"), self.marker_pairs(policy))
         self.assertIn("Successful validation output", profile)
         self.assertIn("Failure diagnostics", profile)
         self.assertIn("Manual evidence", profile)
         self.assertNotIn("cargo", profile.lower())
 
-    def test_reasoning_budget_contract_uses_an_exact_cap_without_auto_escalation(self) -> None:
-        blueprint = (self.WORKFLOW / "tasks/TASK_BLUEPRINT.md").read_text(encoding="utf-8")
-        policy = (self.WORKFLOW / "docs/CONTEXT_BUDGET_POLICY.md").read_text(
-            encoding="utf-8"
-        )
-        lifecycle = (self.WORKFLOW / "docs/LIFECYCLE_ORCHESTRATION.md").read_text(
-            encoding="utf-8"
-        )
-        prompts = (self.WORKFLOW / "docs/OPERATOR_PROMPTS.md").read_text(
-            encoding="utf-8"
-        )
+    def test_reasoning_budget_contract_was_retired_from_governed_templates(self) -> None:
+        """Migration 063 retires `reasoning-budget-contract` through `removes`;
+        no managed Governed SDD text may require choosing, recording, matching,
+        confirming, or escalating a reasoning level."""
+        paths = [
+            "tasks/TASK_BLUEPRINT.md",
+            "docs/CONTEXT_BUDGET_POLICY.md",
+            "docs/LIFECYCLE_ORCHESTRATION.md",
+            "docs/OPERATOR_PROMPTS.md",
+            "docs/PULL_REQUEST_POLICY.md",
+            "docs/EXECUTION_EVIDENCE_PROFILE.md",
+        ]
+        texts = {path: (self.WORKFLOW / path).read_text(encoding="utf-8") for path in paths}
 
-        self.assertIn(("task-blueprint", "13"), self.marker_pairs(blueprint))
-        self.assertIn(("reasoning-budget-contract", "1"), self.marker_pairs(policy))
-        self.assertIn(("lifecycle-orchestration", "8"), self.marker_pairs(lifecycle))
-        self.assertIn("[low / medium / high / xhigh]", blueprint)
-        self.assertIn("exact permitted runtime cap", blueprint)
-        self.assertIn("must never raise its effort", blueprint)
-        self.assertIn("automatically", blueprint)
-        self.assertIn("cannot be confirmed", policy)
-        self.assertIn("explicit authorization", policy)
-        self.assertIn("Never escalate either worker", lifecycle)
-        self.assertIn("automatically", lifecycle)
-        self.assertIn("exact permitted cap", prompts)
+        self.assertIn(("task-blueprint", "14"), self.marker_pairs(texts["tasks/TASK_BLUEPRINT.md"]))
+        self.assertIn(
+            ("lifecycle-orchestration", "9"), self.marker_pairs(texts["docs/LIFECYCLE_ORCHESTRATION.md"])
+        )
+        self.assertNotIn(
+            "reasoning-budget-contract", dict(self.marker_pairs(texts["docs/CONTEXT_BUDGET_POLICY.md"]))
+        )
+        for path, text in texts.items():
+            self.assertNotIn("reasoning-budget-contract", text, path)
+            self.assertNotIn("`Reasoning`", text, path)
+            self.assertNotIn("Reasoning justification", text, path)
+            self.assertNotIn("reasoning level", text, path)
+            self.assertNotIn("reasoning cap", text, path)
+        migration = json.loads(
+            (ROOT / "migrations/063-retire-reasoning-budget-contract.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(
+            migration["removes"], [{"capability": "reasoning-budget-contract", "capabilityVersion": 1}]
+        )
+        self.assertIn("reasoning-budget-contract", meridian.retired_capability_ids(ROOT))
+        self.assertNotIn("reasoning-budget-contract", meridian.capability_requirements(ROOT))
 
     def test_role_scoped_agent_rules_was_retired_not_merely_deleted_by_hand(self) -> None:
         """Task 008 retired `role-scoped-agent-rules` (docs/AUDIT_TOKEN_EFFICIENCY.md
@@ -4577,7 +4666,7 @@ class CapabilityMarkerTest(unittest.TestCase):
             )
         }
         expected["document-precedence"] = "2"
-        expected["execution-assets"] = "3"
+        expected["execution-assets"] = "4"
         expected["roles"] = "3"
         expected["git-workflow"] = "10"
         expected["bounded-worktree-lifecycle"] = "4"
@@ -4590,7 +4679,7 @@ class CapabilityMarkerTest(unittest.TestCase):
     def test_whole_file_baseline_capabilities_each_carry_one_marker(self) -> None:
         expectations = {
             "LANGUAGE_POLICY.md": ("language-policy", "2"),
-            "tasks/TASK_BLUEPRINT.md": ("task-blueprint", "13"),
+            "tasks/TASK_BLUEPRINT.md": ("task-blueprint", "14"),
             "docs/CODE_ORGANIZATION.md": ("code-organization", "2"),
             "docs/AUDIT_PROMPT_READ_ONLY.md": ("audit-prompt", "3"),
         }
