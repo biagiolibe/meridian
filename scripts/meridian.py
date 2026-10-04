@@ -5560,6 +5560,34 @@ def managed_copy_drift(
     return diagnostics
 
 
+def declared_managed_copy_paths(
+    manifest: dict[str, object], framework_root: Path
+) -> set[str]:
+    """Return managed-copy surfaces a capability profile audits independently."""
+    if int(manifest.get("protocolVersion", 0)) < PROTOCOL_VERSION:
+        return set()
+    return {
+        surface.path
+        for declared in parse_capability_profiles(manifest, load_capability_catalog(framework_root))
+        for declaration in declared.capabilities
+        for surface in declaration.managed_surface
+        if surface.form == "managed-copy"
+    }
+
+
+def is_markerless_managed_copy_digest_audited(
+    project_root: Path, relative: str, declared_paths: set[str]
+) -> bool:
+    """Whether the managed-copy digest audit checks this local file."""
+    path = project_root / relative
+    return (
+        relative not in PROJECT_EDITABLE_MANAGED_PATHS
+        and relative not in declared_paths
+        and path.is_file()
+        and CAPABILITY_MARKER.search(path.read_text(encoding="utf-8")) is None
+    )
+
+
 def audit_managed_copy_digests(
     project_root: Path, managed_files: dict[str, object], declared_paths: set[str]
 ) -> list[AuditResult]:
@@ -5569,7 +5597,7 @@ def audit_managed_copy_digests(
     candidates = {
         relative: expected
         for relative, expected in managed_files.items()
-        if relative not in PROJECT_EDITABLE_MANAGED_PATHS and (project_root / relative).is_file()
+        if is_markerless_managed_copy_digest_audited(project_root, relative, declared_paths)
     }
     drifted = {
         relative
@@ -5580,8 +5608,6 @@ def audit_managed_copy_digests(
     results: list[AuditResult] = []
     for relative in sorted(candidates):
         path = project_root / relative
-        if relative in declared_paths or CAPABILITY_MARKER.search(path.read_text(encoding="utf-8")):
-            continue
         if relative in drifted:
             results.append(
                 AuditResult(
@@ -5823,17 +5849,7 @@ def run_audit(
     try:
         digest_manifest = load_manifest(project_root, framework_root)
         recorded_digests = digest_manifest.get("managedFiles", {})
-        declared_copy_paths: set[str] = set()
-        if int(digest_manifest.get("protocolVersion", 0)) >= PROTOCOL_VERSION:
-            for declared in parse_capability_profiles(
-                digest_manifest, load_capability_catalog(framework_root)
-            ):
-                for declaration in declared.capabilities:
-                    declared_copy_paths.update(
-                        surface.path
-                        for surface in declaration.managed_surface
-                        if surface.form == "managed-copy"
-                    )
+        declared_copy_paths = declared_managed_copy_paths(digest_manifest, framework_root)
         if isinstance(recorded_digests, dict):
             results.extend(
                 audit_managed_copy_digests(project_root, recorded_digests, declared_copy_paths)
@@ -6685,6 +6701,7 @@ def plan_from_baseline(
     }
     if capability_profiles is not None:
         manifest["capabilityProfiles"] = capability_profiles
+        manifest["protocolVersion"] = PROTOCOL_VERSION
 
     requirements = capability_requirements(framework_root)
     applied = {str(migration) for migration in applied_migrations}
@@ -6696,6 +6713,7 @@ def plan_from_baseline(
     adoptable_paths = adopt_existing_paths(framework_root, pending_migrations)
 
     planned_files = managed_files_override or managed_files(framework_root, mode)
+    declared_copy_paths = declared_managed_copy_paths(manifest, framework_root)
     router_project = project_uses_entry_router(project_root)
     router_problems = entry_router_trigger_requirements(
         project_root, framework_root, pending_migrations, planned_files
@@ -6744,6 +6762,20 @@ def plan_from_baseline(
         if not local.is_file():
             plan.append(PlanItem(item, "conflict", "local managed file is missing"))
             continue
+        if (
+            sha256(local) != sha256(base)
+            and is_markerless_managed_copy_digest_audited(
+                project_root, str(item.target), declared_copy_paths
+            )
+        ):
+            plan.append(
+                PlanItem(
+                    item,
+                    "edited-copy",
+                    "local edits will remain outside the released digest and make `meridian audit` fail; "
+                    "restore the released text and keep project content in the project's own files",
+                )
+            )
         if sha256(item.source) == sha256(base):
             local_text = local.read_text(encoding="utf-8")
             if (
@@ -7053,7 +7085,10 @@ def print_plan(
         for problem in item.problems:
             print(f"MISSING-ROUTER {problem}")
     conflicts = sum(item.action == "conflict" for item in plan)
+    edited_copies = sum(item.action == "edited-copy" for item in plan)
     router_blockers = sum(bool(item.problems) for item in plan)
+    if edited_copies:
+        print(f"WARNING: {edited_copies} edited managed copy/copies will fail the digest audit after upgrade.")
     if conflicts:
         print(f"BLOCKED: {conflicts} conflict(s); no files were changed.")
     if router_blockers:
