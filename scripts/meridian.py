@@ -5253,6 +5253,42 @@ def _audit_snapshot_evidence(
     ]
 
 
+def installation_surface_diagnostics(
+    project_root: Path, declaration: CapabilityDeclaration, managed_files: dict[str, object]
+) -> tuple[list[str], list[str]]:
+    """Compare declared installation surfaces without resolving host probes.
+
+    Repository validation and the profile doctor share this comparison so a
+    managed-copy edit receives the same verdict before either command examines
+    host-specific evidence.
+    """
+    failures: list[str] = []
+    surface_digests: set[str] = set()
+    identities: list[str] = []
+    for surface in declaration.managed_surface:
+        identities.append(f"{surface.form}:{surface.path}")
+        path = project_root / surface.path
+        if surface.form == "declaration-only":
+            continue
+        if not path.is_file():
+            failures.append(f"missing {surface.form} surface {surface.path}")
+            continue
+        digest = sha256(path)
+        surface_digests.add(digest)
+        if f"sha256:{digest}" not in declaration.installation.evidence:
+            failures.append(f"{surface.form} surface {surface.path} lacks matching digest evidence")
+        if surface.form == "managed-copy":
+            expected_digest = managed_files.get(surface.path)
+            if expected_digest is None:
+                failures.append(f"managed-copy surface {surface.path} has no managedFiles digest")
+            elif expected_digest != digest:
+                failures.append(
+                    f"drifted managed-copy surface {surface.path}: expected {expected_digest}, got {digest}"
+                )
+    failures.extend(_audit_snapshot_evidence(project_root, declaration.installation, surface_digests))
+    return identities, failures
+
+
 def _audit_probe_evidence(project_root: Path, snapshot: EvidenceSnapshot) -> list[str]:
     """Require runtime/behavior claims to name concrete probe artifacts."""
     diagnostics: list[str] = []
@@ -5362,42 +5398,13 @@ def audit_declared_capabilities(
                 )
                 continue
 
-            surface_failures: list[str] = []
-            surface_digests: set[str] = set()
-            surface_identities: list[str] = []
-            for surface in declaration.managed_surface:
-                surface_identities.append(f"{surface.form}:{surface.path}")
-                path = project_root / surface.path
-                if surface.form == "declaration-only":
-                    continue
-                if not path.is_file():
-                    surface_failures.append(f"missing {surface.form} surface {surface.path}")
-                    continue
-                digest = sha256(path)
-                surface_digests.add(digest)
-                if f"sha256:{digest}" not in declaration.installation.evidence:
-                    surface_failures.append(
-                        f"{surface.form} surface {surface.path} lacks matching digest evidence"
-                    )
-                if surface.form == "managed-copy":
-                    expected_digest = managed_files.get(surface.path)
-                    if expected_digest is None:
-                        surface_failures.append(
-                            f"managed-copy surface {surface.path} has no managedFiles digest"
-                        )
-                    elif expected_digest != digest:
-                        surface_failures.append(
-                            f"drifted managed-copy surface {surface.path}: expected {expected_digest}, got {digest}"
-                        )
-
-            installation_evidence_failures = _audit_snapshot_evidence(
-                project_root, declaration.installation, surface_digests
+            surface_identities, surface_failures = installation_surface_diagnostics(
+                project_root, declaration, managed_files
             )
             if declaration.installation.state != "INSTALLED":
                 surface_failures.append(
                     f"declared installation state is {declaration.installation.state}"
                 )
-            surface_failures.extend(installation_evidence_failures)
             installation_status = "FAIL" if surface_failures else "PASS"
             results.append(
                 AuditResult(

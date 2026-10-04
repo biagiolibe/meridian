@@ -455,5 +455,100 @@ class MachinePathTest(unittest.TestCase):
         cr.check_no_machine_paths()
 
 
+class ManagedDigestTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory()
+        self.root = Path(self.temporary.name) / "project"
+        shutil.copytree(ROOT, self.root, ignore=shutil.ignore_patterns(".git", "__pycache__"))
+        self.target = self.root / "docs/CONTEXT_BUDGET_POLICY.md"
+
+    def tearDown(self) -> None:
+        self.temporary.cleanup()
+
+    def manifest(self) -> dict[str, object]:
+        return json.loads((self.root / ".meridian/manifest.json").read_text(encoding="utf-8"))
+
+    def write_manifest(self, manifest: dict[str, object]) -> None:
+        (self.root / ".meridian/manifest.json").write_text(
+            json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
+        )
+
+    def drift(self) -> None:
+        self.target.write_text(self.target.read_text(encoding="utf-8") + "\nDrift.\n", encoding="utf-8")
+
+    def test_no_drift_passes_without_writing(self) -> None:
+        before = (self.root / ".meridian/manifest.json").read_bytes()
+
+        cr.check_managed_digests(self.root)
+
+        self.assertEqual(before, (self.root / ".meridian/manifest.json").read_bytes())
+
+    def test_drift_names_file_digests_and_refresh_command(self) -> None:
+        self.drift()
+        output = io.StringIO()
+
+        with contextlib.redirect_stdout(output), self.assertRaises(SystemExit):
+            cr.check_managed_digests(self.root)
+
+        message = output.getvalue()
+        self.assertIn("docs/CONTEXT_BUDGET_POLICY.md", message)
+        self.assertIn("expected", message)
+        self.assertIn("got", message)
+        self.assertIn("--write-managed-digests", message)
+
+    def test_stale_digest_evidence_fails(self) -> None:
+        manifest = self.manifest()
+        profiles = manifest["capabilityProfiles"]
+        assert isinstance(profiles, dict)
+        capabilities = profiles["meridian-self-hosting"]["capabilities"]
+        assert isinstance(capabilities, dict)
+        installation = capabilities["context-budgeting"]["installation"]
+        assert isinstance(installation, dict)
+        installation["evidence"][0] = "sha256:" + "0" * 64
+        self.write_manifest(manifest)
+        output = io.StringIO()
+
+        with contextlib.redirect_stdout(output), self.assertRaises(SystemExit):
+            cr.check_managed_digests(self.root)
+
+        self.assertIn("stale digest evidence", output.getvalue())
+
+    def test_refresh_fixes_drift_and_is_idempotent(self) -> None:
+        self.drift()
+
+        changes = cr.write_managed_digests(self.root)
+        after_first_write = (self.root / ".meridian/manifest.json").read_bytes()
+        cr.check_managed_digests(self.root)
+
+        self.assertTrue(any("docs/CONTEXT_BUDGET_POLICY.md" in change for change in changes))
+        self.assertEqual([], cr.write_managed_digests(self.root))
+        self.assertEqual(after_first_write, (self.root / ".meridian/manifest.json").read_bytes())
+
+    def test_refresh_refuses_a_missing_listed_file(self) -> None:
+        self.target.unlink()
+        output = io.StringIO()
+
+        with contextlib.redirect_stdout(output), self.assertRaises(SystemExit):
+            cr.write_managed_digests(self.root)
+
+        self.assertIn("listed file is missing: docs/CONTEXT_BUDGET_POLICY.md", output.getvalue())
+
+    def test_repository_check_and_profile_doctor_agree_on_drift(self) -> None:
+        self.drift()
+        check_output = io.StringIO()
+        doctor_output = io.StringIO()
+        with contextlib.redirect_stdout(check_output), self.assertRaises(SystemExit):
+            cr.check_managed_digests(self.root)
+        with contextlib.redirect_stdout(doctor_output):
+            doctor_status = cr.meridian.profile_doctor(
+                self.root, self.root, "meridian-self-hosting"
+            )
+
+        self.assertEqual(2, doctor_status, doctor_output.getvalue())
+        expected = "drifted managed-copy surface docs/CONTEXT_BUDGET_POLICY.md"
+        self.assertIn(expected, check_output.getvalue())
+        self.assertIn(expected, doctor_output.getvalue())
+
+
 if __name__ == "__main__":
     unittest.main()

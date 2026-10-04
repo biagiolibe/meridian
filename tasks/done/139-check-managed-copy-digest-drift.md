@@ -23,34 +23,34 @@ at once, and give maintainers a deterministic way to refresh the digests.
 
 ## Acceptance Criteria
 
-- [ ] `python3 scripts/check_repository.py` fails when a managed copy listed in
+- [x] `python3 scripts/check_repository.py` fails when a managed copy listed in
   `.meridian/manifest.json` has a different SHA-256 than the recorded one, naming
   each drifted file, the recorded digest, the current digest, and the command that
   refreshes it. It also reports digest evidence entries that no longer match the
   file.
-- [ ] The check reuses the comparison the self-hosting profile doctor already
+- [x] The check reuses the comparison the self-hosting profile doctor already
   performs instead of re-implementing it, so the two cannot disagree. A test proves
   that the repository check and `meridian profile doctor` give the same verdict on
   the same drifted fixture.
-- [ ] The check is read-only and fast (it hashes the listed files only); it does not
+- [x] The check is read-only and fast (it hashes the listed files only); it does not
   run the doctor's host probes.
-- [ ] `python3 scripts/check_repository.py --write-managed-digests` rewrites the
+- [x] `python3 scripts/check_repository.py --write-managed-digests` rewrites the
   recorded digests of the managed copies from the files on disk, in the manifest's
   existing key order and formatting, touching only digest values, and prints each
   change. Running it twice changes nothing. It refuses to run if a listed file is
   missing, instead of recording an empty value.
-- [ ] The refresh is explicit, like `--write-marker-baselines`: a plain check never
+- [x] The refresh is explicit, like `--write-marker-baselines`: a plain check never
   rewrites the manifest. The failure message and `CONTRIBUTING.md` state when to
   run it (after a deliberate edit of a managed copy) and that the resulting diff
   must be reviewed.
-- [ ] A drift introduced by editing a managed copy without refreshing the digests
+- [x] A drift introduced by editing a managed copy without refreshing the digests
   fails the check on a task branch, in the same way as on the candidate tree.
-- [ ] Tests cover: no drift passes; a drifted copy fails with the expected message;
+- [x] Tests cover: no drift passes; a drifted copy fails with the expected message;
   stale digest evidence fails; the refresh fixes both and is idempotent; a missing
   listed file is refused; the check does not write; and agreement with the doctor.
-- [ ] One changelog fragment is added per `CONTRIBUTING.md` if `CONTRIBUTING.md` or
+- [x] One changelog fragment is added per `CONTRIBUTING.md` if `CONTRIBUTING.md` or
   the script output changes for maintainers.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
+- [x] `python3 scripts/check_repository.py` and the unit tests pass.
 
 ## Relevant Files
 
