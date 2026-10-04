@@ -54,29 +54,29 @@ prose.
 
 ## Acceptance Criteria
 
-- [ ] The schema above is documented (reference doc plus a JSON schema under
+- [x] The schema above is documented (reference doc plus a JSON schema under
   `schemas/`) and validated on every read.
-- [ ] `meridian locations` reads `project.json` first and accepts
+- [x] `meridian locations` reads `project.json` first and accepts
   `--field queue|queue-archive|task-roots|review-root|handoff-root|adr-log|plan`.
   Existing `queue` and `task-roots` output is unchanged for projects without the
   file. The legacy prose path still resolves and warns once per invocation.
-- [ ] `meridian project show [--field <name>] [--format json|text]` prints the
+- [x] `meridian project show [--field <name>] [--format json|text]` prints the
   resolved declaration; `--field reviewer-author` prints
   `<name> Reviewer-Integrator <reviewer-integrator@<slug>.local>` and fails with a
   clear message when `project` is undeclared.
-- [ ] Every internal consumer of locations (`resolve_project_locations`, stage,
+- [x] Every internal consumer of locations (`resolve_project_locations`, stage,
   task identity, context authority, hooks via `meridian locations`) uses the same
   resolver; no second default list is introduced.
-- [ ] `meridian setup --check` reports a missing `project.json` as advisory and
+- [x] `meridian setup --check` reports a missing `project.json` as advisory and
   can propose one from the current resolved values; `--apply` writes it only after
   the existing consent flow. `upgrade --apply` never writes it.
-- [ ] Tests cover: no file (defaults); full file; partial file; invalid version,
+- [x] Tests cover: no file (defaults); full file; partial file; invalid version,
   key, absolute or traversing path; legacy prose with warning; `project.json`
   overriding prose; every `--field`; `reviewer-author` with and without `project`.
-- [ ] An independent review approves the schema and CLI before integration; the
+- [x] An independent review approves the schema and CLI before integration; the
   handoff records the reviewer verdict.
-- [ ] One changelog fragment with an Upgrade note is added per `CONTRIBUTING.md`.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
+- [x] One changelog fragment with an Upgrade note is added per `CONTRIBUTING.md`.
+- [x] `python3 scripts/check_repository.py` and the unit tests pass.
 
 ## Relevant Files
 
