@@ -391,6 +391,78 @@ def check_migrations(root: Path = ROOT) -> None:
         fail(f"invalid capability move: {error}")
 
 
+def catalog_surface_additions(
+    previous: dict[str, object], current: dict[str, object]
+) -> list[tuple[str, str]]:
+    """`(capability, path)` pairs the current catalog adds to a capability the
+    previous catalog already declared."""
+    previous_capabilities = previous.get("capabilities", {})
+    additions = []
+    for capability_id, capability in sorted(current.get("capabilities", {}).items()):
+        if capability_id not in previous_capabilities:
+            continue
+        known = {
+            surface["path"] for surface in previous_capabilities[capability_id]["managedSurfaces"]
+        }
+        additions.extend(
+            (capability_id, surface["path"])
+            for surface in capability["managedSurfaces"]
+            if surface["path"] not in known
+        )
+    return additions
+
+
+def check_catalog_surface_migrations(
+    root: Path = ROOT,
+    previous_catalog: dict[str, object] | None = None,
+    previous_version: str = "0.0.0",
+) -> None:
+    """A path added to a capability's managed surface must be listed in `managedPaths`
+    of a migration of the next release; otherwise projects that declare the
+    surface are not told about it."""
+    if previous_catalog is None:
+        current_version = (root / "VERSION").read_text(encoding="utf-8").strip()
+        listing = subprocess.run(
+            ["git", "-C", str(root), "tag", "--list", "v[0-9]*"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        earlier = sorted(
+            (
+                tag
+                for tag in listing.stdout.split()
+                if re.fullmatch(r"v\d+\.\d+\.\d+", tag)
+                and meridian.version_key(tag[1:]) < meridian.version_key(current_version)
+            ),
+            key=lambda tag: meridian.version_key(tag[1:]),
+        )
+        if not earlier:
+            return
+        shown = subprocess.run(
+            ["git", "-C", str(root), "show", f"{earlier[-1]}:{meridian.CAPABILITY_CATALOG_PATH}"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if shown.returncode != 0:
+            return
+        previous_catalog = json.loads(shown.stdout)
+        previous_version = earlier[-1][1:]
+    current_catalog = json.loads((root / meridian.CAPABILITY_CATALOG_PATH).read_text(encoding="utf-8"))
+    listed: set[str] = set()
+    for path in sorted((root / "migrations").glob("[0-9][0-9][0-9]-*.json")):
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if meridian.version_key(str(data["to"])) > meridian.version_key(previous_version):
+            listed.update(str(item) for item in data.get("managedPaths", []))
+    for capability_id, surface_path in catalog_surface_additions(previous_catalog, current_catalog):
+        if surface_path not in listed:
+            fail(
+                f"capability {capability_id} adds managed surface {surface_path} but no migration "
+                "after the previous release lists it in managedPaths"
+            )
+
+
 RELEASE_FIELDS = (
     "version",
     "releaseDate",
@@ -715,6 +787,7 @@ def main() -> None:
     check_plugin_version()
     check_capability_catalog()
     check_migrations()
+    check_catalog_surface_migrations()
     check_releases()
     check_bash()
     check_local_markdown_links()

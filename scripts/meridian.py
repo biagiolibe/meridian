@@ -3274,6 +3274,7 @@ class PlanItem:
     detail: str
     problems: tuple[str, ...] = ()
     backup: Path | None = None
+    profile_surface: tuple[str, str] | None = None
 
 
 @dataclass(frozen=True)
@@ -3967,8 +3968,17 @@ def _parse_evidence_snapshot(
 
 
 def parse_capability_profiles(
-    manifest: dict[str, object], catalog: CapabilityCatalog
+    manifest: dict[str, object],
+    catalog: CapabilityCatalog,
+    surface_gaps: list[tuple[str, str, tuple[str, ...]]] | None = None,
 ) -> tuple[CapabilityProfileDeclaration, ...]:
+    """Parse declared profiles against `catalog`.
+
+    When `surface_gaps` is given, a declared surface that is a strict subset of
+    the catalog surface is recorded there as `(profile, capability, missing
+    paths)` instead of failing: `meridian upgrade` completes it. Every other
+    mismatch still fails.
+    """
     raw_profiles = manifest.get("capabilityProfiles", {})
     profiles = _required_object(raw_profiles, "manifest capabilityProfiles")
     workflow_mode = manifest_workflow_mode(manifest)
@@ -4030,7 +4040,16 @@ def parse_capability_profiles(
             if len({surface.path for surface in surfaces}) != len(surfaces):
                 raise MeridianError(f"{capability_label}.managedSurface contains duplicate paths")
             catalog_surfaces = {surface.path: surface for surface in capability.managed_surfaces}
-            if {surface.path for surface in surfaces} != set(catalog_surfaces):
+            declared_paths = {surface.path for surface in surfaces}
+            if surface_gaps is not None and declared_paths < set(catalog_surfaces):
+                surface_gaps.append(
+                    (
+                        profile_id,
+                        capability_id,
+                        tuple(path for path in catalog_surfaces if path not in declared_paths),
+                    )
+                )
+            elif declared_paths != set(catalog_surfaces):
                 raise MeridianError(
                     f"{capability_label}.managedSurface must completely match the catalog surface"
                 )
@@ -4103,7 +4122,9 @@ def parse_capability_profiles(
 
 
 def validate_manifest(
-    manifest: dict[str, object], catalog: CapabilityCatalog | None = None
+    manifest: dict[str, object],
+    catalog: CapabilityCatalog | None = None,
+    surface_gaps: list[tuple[str, str, tuple[str, ...]]] | None = None,
 ) -> tuple[CapabilityProfileDeclaration, ...]:
     manifest_workflow_mode(manifest)
     applied_migrations = manifest.get("appliedMigrations", [])
@@ -4117,10 +4138,15 @@ def validate_manifest(
         return ()
     if catalog is None:
         raise MeridianError("manifest capabilityProfiles require a capability catalog")
-    return parse_capability_profiles(manifest, catalog)
+    return parse_capability_profiles(manifest, catalog, surface_gaps)
 
 
-def load_manifest(project_root: Path, framework_root: Path | None = None) -> dict[str, object]:
+def load_manifest(
+    project_root: Path,
+    framework_root: Path | None = None,
+    *,
+    defer_surface_gaps: bool = False,
+) -> dict[str, object]:
     manifest_path = project_root / MANIFEST_PATH
     if not manifest_path.is_file():
         raise MeridianError(
@@ -4133,7 +4159,7 @@ def load_manifest(project_root: Path, framework_root: Path | None = None) -> dic
     if not isinstance(manifest, dict):
         raise MeridianError(f"invalid manifest: {manifest_path} must contain a JSON object")
     catalog = load_capability_catalog(framework_root) if framework_root is not None else None
-    validate_manifest(manifest, catalog)
+    validate_manifest(manifest, catalog, [] if defer_surface_gaps else None)
     return manifest
 
 
@@ -5255,7 +5281,9 @@ def audit_capability_moves(project_root: Path, framework_root: Path, mode: str) 
     try:
         applied = {
             str(item)
-            for item in load_manifest(project_root, framework_root).get("appliedMigrations", [])
+            for item in load_manifest(
+                project_root, framework_root, defer_surface_gaps=True
+            ).get("appliedMigrations", [])
         }
     except MeridianError:
         if (project_root / MANIFEST_PATH).is_file():
@@ -5633,7 +5661,9 @@ def declared_managed_copy_paths(
         return set()
     return {
         surface.path
-        for declared in parse_capability_profiles(manifest, load_capability_catalog(framework_root))
+        for declared in parse_capability_profiles(
+            manifest, load_capability_catalog(framework_root), []
+        )
         for declaration in declared.capabilities
         for surface in declaration.managed_surface
         if surface.form == "managed-copy"
@@ -6128,6 +6158,71 @@ def profile_doctor(project_root: Path, framework_root: Path, profile_id: str) ->
     return 2 if failures else 0
 
 
+def _capability_declaration(
+    project_root: Path,
+    capability: CatalogCapability,
+    required_version: int,
+    managed_files: dict[str, object],
+    strict: bool,
+) -> dict[str, object]:
+    """One profile capability declaration built from the catalog surface and the
+    files on disk; records managed-copy digests into `managed_files`."""
+    surfaces: list[dict[str, str]] = []
+    evidence: list[str] = []
+    complete = True
+    for surface in capability.managed_surfaces:
+        form = surface.forms[0]
+        surfaces.append({"path": surface.path, "form": form})
+        path = project_root / surface.path
+        if form != "declaration-only" and not path.is_file():
+            complete = False
+            continue
+        if form != "declaration-only":
+            digest = sha256(path)
+            digest_exempt = (
+                form == "managed-copy"
+                and not strict
+                and _digest_exempt(surface.path, path)
+            )
+            if form == "managed-copy":
+                recorded = managed_files.get(surface.path)
+                # Recording the current digest over a different recorded one
+                # would launder a drifted copy. A marker-bearing consumer file is
+                # verified region by region, so its recorded digest is left alone.
+                if recorded is not None and recorded != digest and not digest_exempt:
+                    raise MeridianError(
+                        f"managed copy {surface.path} differs from the digest recorded at install; "
+                        "restore the released text before bootstrapping"
+                    )
+                if not digest_exempt:
+                    managed_files[surface.path] = digest
+            evidence.append(f"path:{surface.path}" if digest_exempt else f"sha256:{digest}")
+    return {
+        "requiredVersion": required_version,
+        "managedSurface": surfaces,
+        "installation": {
+            "state": "INSTALLED" if complete else "MISSING",
+            "evidence": sorted(set(evidence)),
+            "notApplicableRationale": None,
+        },
+        "hostActivation": {
+            host_id: {
+                "state": "UNVERIFIED",
+                "evidence": [],
+                "notApplicableRationale": None,
+            }
+            for host_id, _evidence_kind in capability.host_profiles
+        },
+        "verification": {
+            "state": "UNVERIFIED",
+            "evidence": [],
+            "verifiedAt": None,
+            "verifierVersion": None,
+            "notApplicableRationale": None,
+        },
+    }
+
+
 def bootstrap_capability_profile(
     project_root: Path, framework_root: Path, profile_id: str, *, apply: bool
 ) -> dict[str, object]:
@@ -6157,60 +6252,9 @@ def bootstrap_capability_profile(
             raise MeridianError(
                 f"profile {profile_id} capability {capability_id} excludes workflow {workflow_mode}"
             )
-        surfaces: list[dict[str, str]] = []
-        evidence: list[str] = []
-        complete = True
-        for surface in capability.managed_surfaces:
-            form = surface.forms[0]
-            surfaces.append({"path": surface.path, "form": form})
-            path = project_root / surface.path
-            if form != "declaration-only" and not path.is_file():
-                complete = False
-                continue
-            if form != "declaration-only":
-                digest = sha256(path)
-                digest_exempt = (
-                    form == "managed-copy"
-                    and not strict
-                    and _digest_exempt(surface.path, path)
-                )
-                if form == "managed-copy":
-                    recorded = managed_files.get(surface.path)
-                    # Recording the current digest over a different recorded one would
-                    # launder a drifted copy. A marker-bearing consumer file is verified
-                    # region by region, so its recorded digest is left alone.
-                    if recorded is not None and recorded != digest and not digest_exempt:
-                        raise MeridianError(
-                            f"managed copy {surface.path} differs from the digest recorded at install; "
-                            "restore the released text before bootstrapping"
-                        )
-                    if not digest_exempt:
-                        managed_files[surface.path] = digest
-                evidence.append(f"path:{surface.path}" if digest_exempt else f"sha256:{digest}")
-        declarations[capability_id] = {
-            "requiredVersion": required_version,
-            "managedSurface": surfaces,
-            "installation": {
-                "state": "INSTALLED" if complete else "MISSING",
-                "evidence": sorted(set(evidence)),
-                "notApplicableRationale": None,
-            },
-            "hostActivation": {
-                host_id: {
-                    "state": "UNVERIFIED",
-                    "evidence": [],
-                    "notApplicableRationale": None,
-                }
-                for host_id, _evidence_kind in capability.host_profiles
-            },
-            "verification": {
-                "state": "UNVERIFIED",
-                "evidence": [],
-                "verifiedAt": None,
-                "verifierVersion": None,
-                "notApplicableRationale": None,
-            },
-        }
+        declarations[capability_id] = _capability_declaration(
+            project_root, capability, required_version, managed_files, strict
+        )
     updated = canonical_manifest(manifest)
     profiles = dict(updated.get("capabilityProfiles", {}))
     profiles[profile_id] = {
@@ -7074,7 +7118,67 @@ def plan_from_baseline(
             baseline_root,
             pending_migrations,
         )
+    if capability_profiles is not None:
+        plan.extend(profile_surface_plan(project_root, framework_root, manifest))
     return manifest, plan
+
+
+def recorded_managed_digests(project_root: Path) -> dict[str, object]:
+    try:
+        recorded = json.loads((project_root / MANIFEST_PATH).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    digests = recorded.get("managedFiles") if isinstance(recorded, dict) else None
+    return dict(digests) if isinstance(digests, dict) else {}
+
+
+def profile_surface_plan(
+    project_root: Path, framework_root: Path, manifest: dict[str, object]
+) -> list[PlanItem]:
+    """One row per profile capability whose declared surface is a strict subset
+    of the target catalog surface. A managed copy that drifted from its recorded
+    digest is a conflict here, so apply stops before it writes anything."""
+    catalog = load_capability_catalog(framework_root)
+    gaps: list[tuple[str, str, tuple[str, ...]]] = []
+    parse_capability_profiles(manifest, catalog, gaps)
+    recorded = recorded_managed_digests(project_root)
+    items: list[PlanItem] = []
+    for profile_id, capability_id, missing in gaps:
+        capability = catalog.capability(capability_id)
+        assert capability is not None
+        label = f"{profile_id}/{capability_id}"
+        drifted = [
+            surface.path
+            for surface in capability.managed_surfaces
+            if surface.forms[0] == "managed-copy"
+            and (project_root / surface.path).is_file()
+            and recorded.get(surface.path) not in (None, sha256(project_root / surface.path))
+            and not (
+                profile_id not in STRICT_DIGEST_PROFILES
+                and _digest_exempt(surface.path, project_root / surface.path)
+            )
+        ]
+        target = ManagedFile(framework_root / missing[0], Path(missing[0]))
+        if drifted:
+            items.append(
+                PlanItem(
+                    target,
+                    "conflict",
+                    f"{label}: managed copy {', '.join(drifted)} differs from the digest recorded at "
+                    "install; restore the released text before upgrading",
+                    profile_surface=(profile_id, capability_id),
+                )
+            )
+        else:
+            items.append(
+                PlanItem(
+                    target,
+                    "profile-surface",
+                    f"{label}: add {', '.join(missing)}",
+                    profile_surface=(profile_id, capability_id),
+                )
+            )
+    return items
 
 
 def prepare_upgrade_targets(
@@ -7085,7 +7189,7 @@ def prepare_upgrade_targets(
     actually narrows the upgrade. Both are `None` when the flag is unset, or
     the pending migrations contain no retirement-stage move (a full,
     unmodified upgrade)."""
-    manifest = load_manifest(project_root, framework_root)
+    manifest = load_manifest(project_root, framework_root, defer_surface_gaps=True)
     if not stop_before_retirement:
         return manifest, None, None
     installed_version = manifest_baseline_version(manifest)
@@ -7157,6 +7261,9 @@ def print_plan(
     for migration in pending:
         print(f"MIGRATION {migration}")
     for item in plan:
+        if item.action == "profile-surface":
+            print(f"PROFILE-SURFACE {item.detail}")
+            continue
         print(f"{item.action.upper():8} {item.file.target} — {item.detail}")
         for problem in item.problems:
             print(f"MISSING-ROUTER {problem}")
@@ -7187,6 +7294,42 @@ def _unused_adoption_backup(path: Path, kind: str = "pre-adoption") -> Path:
         if not candidate.exists():
             return candidate
         suffix += 1
+
+
+def complete_profile_surfaces(
+    project_root: Path,
+    framework_root: Path,
+    manifest: dict[str, object],
+    plan: list[PlanItem],
+) -> None:
+    """Rebuild each declaration the plan marked as lacking catalog surfaces, in the
+    manner of `bootstrap_capability_profile`. Host-activation and verification
+    snapshots are kept; only the surface list and installation evidence change."""
+    affected = [item.profile_surface for item in plan if item.profile_surface is not None]
+    if not affected:
+        return
+    catalog = load_capability_catalog(framework_root)
+    profiles = manifest["capabilityProfiles"]
+    managed = dict(manifest["managedFiles"])
+    for profile_id, capability_id in affected:
+        profile = catalog.profile(profile_id)
+        capability = catalog.capability(capability_id)
+        assert profile is not None and capability is not None
+        declaration = profiles[profile_id]["capabilities"][capability_id]
+        rebuilt = _capability_declaration(
+            project_root,
+            capability,
+            dict(profile.capabilities)[capability_id],
+            managed,
+            profile_id in STRICT_DIGEST_PROFILES,
+        )
+        for field in ("hostActivation", "verification"):
+            if field == "hostActivation":
+                rebuilt[field] = {**rebuilt[field], **declaration[field]}
+            else:
+                rebuilt[field] = declaration[field]
+        profiles[profile_id]["capabilities"][capability_id] = rebuilt
+    manifest["managedFiles"] = dict(sorted(managed.items()))
 
 
 def apply_plan(
@@ -7367,6 +7510,7 @@ def apply_plan(
     prior = {str(item) for item in manifest.get("appliedMigrations", [])}
     prior.update(migration_ids(framework_root, installed_version, target_baseline_version))
     manifest["appliedMigrations"] = sorted(prior)
+    complete_profile_surfaces(project_root, framework_root, manifest, plan)
     write_manifest(project_root, manifest, framework_root)
     print("Upgrade applied. Review the diff, run project checks, then commit it.")
 
