@@ -26,45 +26,45 @@
 
 ## Acceptance Criteria
 
-- [ ] `docs/CODE_REVIEW_PROMPT.md` (Governed) is one standalone managed block
+- [x] `docs/CODE_REVIEW_PROMPT.md` (Governed) is one standalone managed block
   `code-review-prompt` v1 containing the whole prompt; it replaces the three inline
   markers in that file and tells the reviewer to apply the project's
   `## Project review checklist` section, placed after the block, when present.
-- [ ] `validation-scoping` in `IMPLEMENTATION.md` and `read-guard` in
+- [x] `validation-scoping` in `IMPLEMENTATION.md` and `read-guard` in
   `CONTEXT_BUDGET_POLICY.md` become standalone blocks with complete sentences;
   `read-guard` v2 states that the active task comes from the verified worktree and
   the router read set is exempt (behavior from task 143).
-- [ ] `audit-prompt` gains the instruction to run a `## Project-specific checks`
+- [x] `audit-prompt` gains the instruction to run a `## Project-specific checks`
   section after the block, each check citing an accepted ADR (combined with the
   v3 text of task 145, without a second bump).
-- [ ] Upgrade of a project whose inline markers are surrounded by project prose
+- [x] Upgrade of a project whose inline markers are surrounded by project prose
   keeps that prose in a collision-safe adjacent backup and reports it; it never
   silently drops text.
-- [ ] `docs/WORKTREE_LIFECYCLE.md` is a whole-file managed capability
+- [x] `docs/WORKTREE_LIFECYCLE.md` is a whole-file managed capability
   `worktree-lifecycle` v1 in both modes; the unmarked "Remote task-branch cleanup"
   section of `PULL_REQUEST_POLICY.md` becomes `remote-branch-cleanup` v1 and the
   unmarked duplicate of the reviewer identity rule is removed.
-- [ ] `meridian audit` reports a FAIL row for every whole-file managed copy whose
+- [x] `meridian audit` reports a FAIL row for every whole-file managed copy whose
   digest differs from `managedFiles`, reusing the comparison task 139 ships (or the
   profile doctor's, if 139 is not integrated) rather than a third implementation.
-- [ ] The digest check applies only to files without capability markers. A file
+- [x] The digest check applies only to files without capability markers. A file
   with managed blocks and project sections outside them (for example
   `docs/CODE_ORGANIZATION.md` with a `## Project module map` section, or
   `docs/CODE_REVIEW_PROMPT.md` with a `## Project review checklist`) is verified by
   its marker rows only and never fails for project text outside the blocks. A test
   covers that case.
-- [ ] The catalog gains `governed-sdd-consumer` v1 and `lean-delivery-consumer` v1
+- [x] The catalog gains `governed-sdd-consumer` v1 and `lean-delivery-consumer` v1
   profiles listing their capabilities; `meridian profile bootstrap <id> --check`
   then `--apply` turns the legacy `UNVERIFIED` declaration row into declared
   profiles with installation evidence, leaving host activation `UNVERIFIED` until a
   probe exists. The procedure is documented for consumers.
-- [ ] All changes join the single unreleased template-changing migration used by
+- [x] All changes join the single unreleased template-changing migration used by
   task 145; marker baselines and digests are refreshed.
-- [ ] Tests cover: the new blocks parse and audit as PASS; prose around a
+- [x] Tests cover: the new blocks parse and audit as PASS; prose around a
   retired inline marker is preserved on upgrade; a drifted managed copy fails the
   audit; bootstrap of each consumer profile on a legacy fixture.
-- [ ] One changelog fragment with an Upgrade note is added per `CONTRIBUTING.md`.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
+- [x] One changelog fragment with an Upgrade note is added per `CONTRIBUTING.md`.
+- [x] `python3 scripts/check_repository.py` and the unit tests pass.
 
 ## Relevant Files
 

@@ -52,6 +52,21 @@ PROTOCOL_VERSION = 2
 LEGACY_PROTOCOL_VERSION = 1
 WORKFLOW_MODES = ("lean-delivery", "governed-sdd")
 INSTALLATION_FORMS = ("managed-copy", "shared-source", "declaration-only")
+# Profiles whose managed copies are verified byte-for-byte even when a file
+# carries capability markers. A consumer profile verifies marker-bearing files by
+# their marker regions, so project text outside the blocks never fails it.
+STRICT_DIGEST_PROFILES = frozenset({"meridian-self-hosting"})
+# Managed paths whose body a project owns or extends by design. A digest check
+# never applies to them.
+PROJECT_EDITABLE_MANAGED_PATHS = frozenset(
+    {
+        "AGENTS.md",
+        "CLAUDE.md",
+        "docs/ARCHITECTURE_DECISIONS.md",
+        "docs/EXECUTION_EVIDENCE_PROFILE.md",
+        "tasks/QUEUE.md",
+    }
+)
 INSTALLATION_STATES = ("INSTALLED", "MISSING", "DRIFTED", "NOT_APPLICABLE")
 HOST_ACTIVATION_STATES = ("ENFORCED", "ADVISORY", "UNSUPPORTED", "UNVERIFIED", "NOT_APPLICABLE")
 VERIFICATION_STATES = ("PASS", "ADVISORY", "UNVERIFIED", "NOT_APPLICABLE", "FAIL")
@@ -278,6 +293,7 @@ class CatalogProfile:
     capabilities: tuple[tuple[str, int], ...]
     verification_probe: str
     host_probes: tuple[tuple[str, str], ...]
+    workflow_modes: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -3747,8 +3763,19 @@ def parse_capability_catalog(value: object) -> CapabilityCatalog:
                         f"{label} omits dependency {dependency_id} v{dependency_version} "
                         f"required by {capability_id}"
                     )
+        profile_modes = (
+            _required_string_list(profile["workflowModes"], f"{label}.workflowModes", non_empty=True)
+            if "workflowModes" in profile
+            else ()
+        )
+        unsupported_profile_modes = sorted(set(profile_modes) - set(WORKFLOW_MODES))
+        if unsupported_profile_modes:
+            raise MeridianError(
+                f"{label}.workflowModes contains unsupported mode: {unsupported_profile_modes[0]}"
+            )
         profiles.append(
             CatalogProfile(
+                workflow_modes=profile_modes,
                 profile_id=profile_id,
                 version=_required_positive_integer(profile.get("version"), f"{label}.version"),
                 capabilities=required,
@@ -4151,6 +4178,87 @@ def migration_capability_removals(data: dict[str, object]) -> list[tuple[str, in
         (str(entry["capability"]), int(entry["capabilityVersion"]), entry.get("supersededBy"))
         for entry in data.get("removes", [])
     ]
+
+
+def migration_restructures(data: dict[str, object]) -> list[tuple[Path, list[tuple[str, int]]]]:
+    """A migration record's declared `restructures`: for each managed path, the
+    inline marker versions the template no longer carries because a standalone
+    block replaced them. Unlike `removes`, the scope is one path, so a capability
+    that another file still carries stays required."""
+    result = []
+    for entry in data.get("restructures", []):
+        markers = [
+            (str(item["capability"]), int(item["capabilityVersion"]))
+            for item in entry.get("retiredMarkers", [])
+        ]
+        result.append((Path(str(entry["path"])), markers))
+    return result
+
+
+def pending_restructured_markers(
+    framework_root: Path, migration_ids_to_find: list[str], target: Path
+) -> list[tuple[str, int]]:
+    """Retired inline marker versions a pending upgrade restructures in one file."""
+    wanted = set(migration_ids_to_find)
+    result: list[tuple[str, int]] = []
+    for path in sorted((framework_root / "migrations").glob("*.json")):
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if str(data["id"]) not in wanted:
+            continue
+        for restructured_path, markers in migration_restructures(data):
+            if restructured_path == target:
+                result.extend(markers)
+    return result
+
+
+def pending_wrapped_capabilities(
+    framework_root: Path, migration_ids_to_find: list[str], target: Path
+) -> list[tuple[str, int]]:
+    """Capability blocks a pending upgrade newly wraps around text the file
+    already carried unmarked. A local copy that edited that text cannot take the
+    block as an additive insertion without duplicating the text."""
+    wanted = set(migration_ids_to_find)
+    result: list[tuple[str, int]] = []
+    for path in sorted((framework_root / "migrations").glob("*.json")):
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if str(data["id"]) not in wanted:
+            continue
+        for entry in data.get("wraps", []):
+            if Path(str(entry["path"])) == target:
+                result.append((str(entry["capability"]), int(entry["capabilityVersion"])))
+    return result
+
+
+def project_sections(local_text: str, base_text: str, template_text: str) -> list[str]:
+    """Level-2 sections of `local_text` whose heading neither the installed
+    baseline nor the target template carries: the project's own sections,
+    returned verbatim and in order. Headings inside code fences are ignored."""
+    def split(text: str) -> list[tuple[str, str]]:
+        sections: list[tuple[str, list[str]]] = []
+        fenced = False
+        for line in text.splitlines(keepends=True):
+            if line.lstrip().startswith("```"):
+                fenced = not fenced
+            if not fenced and re.match(r"#{1,2}\s", line):
+                sections.append((line.strip() if line.startswith("## ") else "", [line]))
+            elif sections:
+                sections[-1][1].append(line)
+        return [(heading, "".join(lines)) for heading, lines in sections]
+
+    known = {heading for text in (base_text, template_text) for heading, _body in split(text)}
+    return [
+        body.rstrip("\n") + "\n"
+        for heading, body in split(local_text)
+        if heading and heading not in known
+    ]
+
+
+def restructured_text(local_text: str, base_text: str, template_text: str) -> str:
+    """The target template followed by the project's own level-2 sections."""
+    carried = project_sections(local_text, base_text, template_text)
+    if not carried:
+        return template_text
+    return template_text.rstrip("\n") + "\n\n" + "\n".join(carried)
 
 
 def migration_capability_moves(data: dict[str, object]) -> list[CapabilityMove]:
@@ -5253,8 +5361,19 @@ def _audit_snapshot_evidence(
     ]
 
 
+def _digest_exempt(relative: str, path: Path) -> bool:
+    """Whether a consumer profile verifies this managed copy without its digest."""
+    return relative in PROJECT_EDITABLE_MANAGED_PATHS or (
+        CAPABILITY_MARKER.search(path.read_text(encoding="utf-8")) is not None
+    )
+
+
 def installation_surface_diagnostics(
-    project_root: Path, declaration: CapabilityDeclaration, managed_files: dict[str, object]
+    project_root: Path,
+    declaration: CapabilityDeclaration,
+    managed_files: dict[str, object],
+    *,
+    marker_files_exempt: bool = False,
 ) -> tuple[list[str], list[str]]:
     """Compare declared installation surfaces without resolving host probes.
 
@@ -5272,6 +5391,14 @@ def installation_surface_diagnostics(
             continue
         if not path.is_file():
             failures.append(f"missing {surface.form} surface {surface.path}")
+            continue
+        if (
+            marker_files_exempt
+            and surface.form == "managed-copy"
+            and _digest_exempt(surface.path, path)
+        ):
+            # Verified by the marker-integrity rows, or configured by the project
+            # by design; neither is drift.
             continue
         digest = sha256(path)
         surface_digests.add(digest)
@@ -5307,6 +5434,74 @@ def _audit_probe_evidence(project_root: Path, snapshot: EvidenceSnapshot) -> lis
         if not (project_root / relative_path).is_file():
             diagnostics.append(f"missing probe artifact {relative_path}")
     return diagnostics
+
+
+def managed_copy_drift(
+    project_root: Path,
+    managed_files: dict[str, object],
+    *,
+    skip_paths: tuple[str, ...] | set[str] = (),
+    skip_marker_files: bool = False,
+) -> list[tuple[str, str]]:
+    """(path, diagnostic) for each recorded managed copy that is missing or whose
+    digest differs from `managedFiles`. The repository check and the project audit share
+    this comparison. `skip_marker_files` leaves out files carrying capability
+    markers, which the marker-integrity audit verifies region by region."""
+    skipped = set(skip_paths)
+    diagnostics: list[tuple[str, str]] = []
+    for relative, expected in sorted(managed_files.items()):
+        if relative in skipped:
+            continue
+        path = project_root / relative
+        if not path.is_file():
+            diagnostics.append((relative, f"missing managed-copy surface {relative}"))
+            continue
+        if skip_marker_files and CAPABILITY_MARKER.search(path.read_text(encoding="utf-8")):
+            continue
+        current = sha256(path)
+        if expected != current:
+            diagnostics.append(
+                (relative, f"drifted managed-copy surface {relative}: expected {expected}, got {current}")
+            )
+    return diagnostics
+
+
+def audit_managed_copy_digests(
+    project_root: Path, managed_files: dict[str, object], declared_paths: set[str]
+) -> list[AuditResult]:
+    """One row per markerless managed copy: PASS when its digest is the recorded
+    one, FAIL when it drifted. Files that carry markers, project-owned files, and
+    copies a declared profile already verifies are not repeated here."""
+    candidates = {
+        relative: expected
+        for relative, expected in managed_files.items()
+        if relative not in PROJECT_EDITABLE_MANAGED_PATHS and (project_root / relative).is_file()
+    }
+    drifted = {
+        relative
+        for relative, _diagnostic in managed_copy_drift(
+            project_root, candidates, skip_paths=declared_paths, skip_marker_files=True
+        )
+    }
+    results: list[AuditResult] = []
+    for relative in sorted(candidates):
+        path = project_root / relative
+        if relative in declared_paths or CAPABILITY_MARKER.search(path.read_text(encoding="utf-8")):
+            continue
+        if relative in drifted:
+            results.append(
+                AuditResult(
+                    "FAIL",
+                    "managed-copy-digest",
+                    f"{relative}: differs from the digest `meridian upgrade` recorded; restore the released "
+                    "text and put project-specific content in the project's own files",
+                )
+            )
+        else:
+            results.append(
+                AuditResult("PASS", "managed-copy-digest", f"{relative}: matches the recorded digest")
+            )
+    return results
 
 
 def audit_declared_capabilities(
@@ -5399,7 +5594,10 @@ def audit_declared_capabilities(
                 continue
 
             surface_identities, surface_failures = installation_surface_diagnostics(
-                project_root, declaration, managed_files
+                project_root,
+                declaration,
+                managed_files,
+                marker_files_exempt=profile.profile_id not in STRICT_DIGEST_PROFILES,
             )
             if declaration.installation.state != "INSTALLED":
                 surface_failures.append(
@@ -5528,6 +5726,27 @@ def run_audit(
             results.append(AuditResult(normalized_status, check_name, detail))
     for status, detail in audit_entry_router(project_root):
         results.append(AuditResult(status, "entry-router", detail))
+    try:
+        digest_manifest = load_manifest(project_root, framework_root)
+        recorded_digests = digest_manifest.get("managedFiles", {})
+        declared_copy_paths: set[str] = set()
+        if int(digest_manifest.get("protocolVersion", 0)) >= PROTOCOL_VERSION:
+            for declared in parse_capability_profiles(
+                digest_manifest, load_capability_catalog(framework_root)
+            ):
+                for declaration in declared.capabilities:
+                    declared_copy_paths.update(
+                        surface.path
+                        for surface in declaration.managed_surface
+                        if surface.form == "managed-copy"
+                    )
+        if isinstance(recorded_digests, dict):
+            results.extend(
+                audit_managed_copy_digests(project_root, recorded_digests, declared_copy_paths)
+            )
+    except (MeridianError, ValueError):
+        # Projects without a readable manifest have no recorded digests to compare.
+        pass
     try:
         detect_mode(project_root)
     except MeridianError as error:
@@ -5738,6 +5957,11 @@ def bootstrap_capability_profile(
     if profile is None:
         raise MeridianError(f"capability profile is not present in the catalog: {profile_id}")
     workflow_mode = manifest_workflow_mode(manifest)
+    if profile.workflow_modes and workflow_mode not in profile.workflow_modes:
+        raise MeridianError(
+            f"profile {profile_id} applies to {', '.join(profile.workflow_modes)}, not {workflow_mode}"
+        )
+    strict = profile_id in STRICT_DIGEST_PROFILES
     declarations: dict[str, object] = {}
     managed_files = dict(manifest.get("managedFiles", {}))
     for capability_id, required_version in profile.capabilities:
@@ -5759,9 +5983,24 @@ def bootstrap_capability_profile(
                 continue
             if form != "declaration-only":
                 digest = sha256(path)
-                evidence.append(f"sha256:{digest}")
+                digest_exempt = (
+                    form == "managed-copy"
+                    and not strict
+                    and _digest_exempt(surface.path, path)
+                )
                 if form == "managed-copy":
-                    managed_files[surface.path] = digest
+                    recorded = managed_files.get(surface.path)
+                    # Recording the current digest over a different recorded one would
+                    # launder a drifted copy. A marker-bearing consumer file is verified
+                    # region by region, so its recorded digest is left alone.
+                    if recorded is not None and recorded != digest and not digest_exempt:
+                        raise MeridianError(
+                            f"managed copy {surface.path} differs from the digest recorded at install; "
+                            "restore the released text before bootstrapping"
+                        )
+                    if not digest_exempt:
+                        managed_files[surface.path] = digest
+                evidence.append(f"path:{surface.path}" if digest_exempt else f"sha256:{digest}")
         declarations[capability_id] = {
             "requiredVersion": required_version,
             "managedSurface": surfaces,
@@ -6484,6 +6723,45 @@ def plan_from_baseline(
                     )
                 )
                 continue
+            wrapped = [
+                f"{capability} v{version}"
+                for capability, version in pending_wrapped_capabilities(
+                    framework_root, pending_migrations, item.target
+                )
+                if extract_marker_block(local_text, capability, version) is None
+            ]
+            if wrapped:
+                plan.append(
+                    PlanItem(
+                        item,
+                        "conflict",
+                        f"three-way merge conflicted inside text the new {', '.join(wrapped)} block wraps; "
+                        "reconcile the edit by hand or move project text outside the block",
+                    )
+                )
+                continue
+            restructured = [
+                f"{capability} v{version}"
+                for capability, version in pending_restructured_markers(
+                    framework_root, pending_migrations, item.target
+                )
+                if extract_marker_block(local_text, capability, version) is not None
+            ]
+            if restructured:
+                backup = _unused_adoption_backup(local, "pre-restructure").relative_to(project_root)
+                carried = len(project_sections(local_text, base_text, template_text))
+                plan.append(
+                    PlanItem(
+                        item,
+                        "restructure",
+                        f"three-way merge conflicted around retired inline marker(s) ({', '.join(restructured)}); "
+                        f"replace with the standalone template block after preserving the current file as {backup}"
+                        + (f" and carrying over {carried} project section(s)" if carried else "")
+                        + "; re-apply any project prose from the backup after the managed block",
+                        backup=backup,
+                    )
+                )
+                continue
             capability_ids = capability_ids_in_template(item.source)
             marker_append = append_only_new_markers(local_text, base_text, template_text)
             if marker_append is not None:
@@ -6680,9 +6958,9 @@ def plan_has_blockers(plan: list[PlanItem], owner_reconciled: bool = False) -> b
     return any(item.problems or (item.action == "conflict" and not owner_reconciled) for item in plan)
 
 
-def _unused_adoption_backup(path: Path) -> Path:
+def _unused_adoption_backup(path: Path, kind: str = "pre-adoption") -> Path:
     """Choose a deterministic adjacent backup path without reusing an existing name."""
-    first = path.with_name(path.name + ".meridian-pre-adoption.bak")
+    first = path.with_name(path.name + f".meridian-{kind}.bak")
     if not first.exists():
         return first
     suffix = 1
@@ -6733,6 +7011,17 @@ def apply_plan(
                     raise MeridianError(f"adoption backup is missing for {item.file.target}")
                 _write_exclusive_backup(local, project_root / item.backup)
                 shutil.copyfile(item.file.source, local)
+            elif item.action == "restructure":
+                if item.backup is None:
+                    raise MeridianError(f"restructure backup is missing for {item.file.target}")
+                local_text = local.read_text(encoding="utf-8")
+                updated = restructured_text(
+                    local_text,
+                    (baseline_root / item.file.target).read_text(encoding="utf-8"),
+                    item.file.source.read_text(encoding="utf-8"),
+                )
+                _write_exclusive_backup(local, project_root / item.backup)
+                local.write_text(updated, encoding="utf-8")
             elif item.action == "merge":
                 _, merged = merge_clean(local, baseline_root / item.file.target, item.file.source)
                 local.write_bytes(merged)

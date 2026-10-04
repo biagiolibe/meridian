@@ -41,6 +41,20 @@ implementer's job stays scoped instead of implying a from-scratch rewrite.
 `meridian audit` mechanically verifies a project's protected capability
 regions still match the framework's released text.
 
+A migration may declare `restructures`, a list of `{path, retiredMarkers,
+replacedBy}` entries, when a standalone block replaces inline markers that sit
+inside prose. Unlike `removes`, the scope is one managed path, so a capability
+that another file still carries stays required. When a three-way merge of that
+path conflicts around a retired inline marker, upgrade writes the current file
+to an adjacent `<filename>.meridian-pre-restructure.bak` (numeric suffix when the
+name exists), installs the template, carries the project's own level-2 sections
+after it, and reports the backup.
+
+A migration may declare `wraps`, a list of `{path, capability, capabilityVersion}`
+entries, when a new block wraps text the file already carried unmarked. If the
+three-way merge conflicts and the local file lacks the block, the plan reports a
+conflict instead of adding a second copy of the wrapped text.
+
 `.meridian/baselines/<version>/` in a generated project is a snapshot of the
 templates installed at that version — the merge base for the next upgrade's
 three-way merge. Only the snapshot matching the manifest's current
