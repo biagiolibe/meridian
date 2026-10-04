@@ -39,7 +39,7 @@
       "version": 1
     },
     "git-workflow": {
-      "sha256": "59181f604ec7695a98c1b1d8fae03ef07eba131e2e8b6c79bfabd65604249ced",
+      "sha256": "4e66b33548e90aff9b8d9dc5bac591dbb9f02dea5b8bee7eac1d53a600f1d2f4",
       "version": 9
     },
     "review-policy": {
@@ -207,7 +207,7 @@
       "version": 1
     },
     "task-worktree-boundary": {
-      "sha256": "48733cb84b8ed837a9f971c2c558c88963fba8b5ed6b1d589be3cf7371881dc9",
+      "sha256": "b54204d033d2877c186a1304344d79577cf76b1c0d2a15040994d0185759e1a0",
       "version": 7
     },
     "validation-scoping": {
@@ -277,7 +277,7 @@
       "version": 2
     },
     "task-worktree-review-procedure": {
-      "sha256": "7ce3614043b0bc6fa937668ce4b7532d57343c6a0b68020e8eb4211c74ac6af4",
+      "sha256": "1fe5f60e0fe493359bd6c1d5948f5825c145a2d3ef99ff2bd277e79e5bc6982e",
       "version": 9
     }
   },

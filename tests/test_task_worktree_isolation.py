@@ -1156,6 +1156,47 @@ class GovernedCompletionRowsTest(unittest.TestCase):
         )
         meridian.abort_task_integration("056", self.primary)
 
+    def test_governed_stage_accepts_an_owner_approved_required_review_task(self) -> None:
+        queue = self.primary / "tasks/QUEUE.md"
+        queue.write_text(queue.read_text(encoding="utf-8").replace("NOT_REQUIRED", "REQUIRED"), encoding="utf-8")
+        self.git("add", "-A")
+        self.git("commit", "-m", "require review")
+        self.base = self.git("rev-parse", "HEAD").stdout.strip()
+        prepared = self.prepare()
+        task_worktree = Path(str(prepared["worktree"]))
+        (task_worktree / "feature.txt").write_text("implemented\n", encoding="utf-8")
+        self.git("add", "feature.txt", cwd=task_worktree)
+        self.git("commit", "-m", "implement task", cwd=task_worktree)
+        validated = self.git("rev-parse", "HEAD", cwd=task_worktree).stdout.strip()
+        # `Accept <TASK-ID>` per docs/workflows/LIFECYCLE.md: an owner APPROVE
+        # attempt in the review record, committed alone as `docs: accept <TASK-ID>`.
+        review = task_worktree / "tasks/reviews/056.md"
+        review.parent.mkdir(parents=True, exist_ok=True)
+        review.write_text(
+            "# Review Record — 056\n\n## Attempt 1 — APPROVE\n\n- Approved by: owner\n"
+            f"- Reviewed commit: `{validated}`\n- Base `main` commit: `{self.base}`\n",
+            encoding="utf-8",
+        )
+        self.git("add", "tasks/reviews/056.md", cwd=task_worktree)
+        self.git("commit", "-m", "docs: accept 056", cwd=task_worktree)
+        evidence_path = self.root / "integration-evidence.json"
+        evidence_path.write_text(json.dumps({
+            "accepted": True, "validation_passed": True,
+            "validated_task_commit": validated, "validated_base_commit": self.base,
+            "full_validation_required": False, "interaction_assessment_complete": True,
+            "task_paths": ["feature.txt"], "task_dependencies": [],
+            "task_behavioral_surfaces": [], "main_advanced_dependencies": [],
+            "main_advanced_behavioral_surfaces": [],
+        }), encoding="utf-8")
+        staged = meridian.stage_task_integration("056", self.worktree_root, evidence_path, self.primary)
+        self.assertEqual(staged["completion"]["status"], "COMPLETED")
+        self.assertEqual(staged["completion"]["reason"], "latest review verdict is APPROVE")
+        self.assertIn(
+            "| ACCEPTED | REQUIRED |",
+            (self.primary / "tasks/QUEUE_ARCHIVE.md").read_text(encoding="utf-8"),
+        )
+        meridian.abort_task_integration("056", self.primary)
+
     def test_governed_stage_accepts_a_template_spike_row_for_another_task(self) -> None:
         queue = self.primary / "tasks/QUEUE.md"
         queue.write_text(

@@ -7,7 +7,8 @@ Order of operations: before `prepare`, read only the router read set
 (`AGENTS.md` or `CLAUDE.md`, `PROJECT_WORKFLOW.md`, `LANGUAGE_POLICY.md`, and
 this procedure); read no task material and mutate nothing. Apart from the
 read-only lookup of the primary checkout, `prepare` is the only command
-permitted before `check`.
+permitted before `check`. Any other document the phase-reads list names for the
+start of work is read only after `check` passes.
 
 Choose exactly one start mode before reading the task, its handoff,
 implementation files, or any diff. The task ID is taken only from the
@@ -45,7 +46,7 @@ authorizes, for the first review attempt, one plain `git push origin
 <task-branch>` (the `branch` value returned by `prepare`) only to obtain `T1_CI`
 for that task commit; the project's CI is `meridian project show --field ci`,
 and without CI there is no push. `Address review <TASK-ID>` authorizes the next
-attempt's push, and a reviewer never pushes. It never authorizes tags or releases; force, deleting, or
+attempt's push, and a reviewer never pushes. `Proceed with` never authorizes tags or releases; force, deleting, or
 mirroring pushes; history rewrites; forced worktree removal; bypassing a
 required independent review; textual conflict resolution; or another task.
 Do not ask for confirmation within that boundary.

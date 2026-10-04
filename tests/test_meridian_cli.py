@@ -1572,6 +1572,42 @@ worktree before the branch only after validated integration succeeds.
         self.assertTrue(upgraded.endswith(module_map))
         self.assertEqual(len(re.findall(r"^## Project module map$", upgraded, re.MULTILINE)), 1)
 
+    def test_upgrade_removes_an_untouched_smoke_line_and_never_drops_a_customized_one(self) -> None:
+        workflow = self.framework / "templates/workflows/governed-sdd"
+        relative = "PROJECT_WORKFLOW.md"
+        current = (workflow / relative).read_text(encoding="utf-8")
+        anchor = "<!-- MERIDIAN:BEGIN capability=execution-discipline v1 -->"
+        self.assertIn(anchor, current)
+        smoke = "Project integration smoke command: `none`.\n\n"
+        (workflow / relative).write_text(current.replace(anchor, smoke + anchor, 1), encoding="utf-8")
+        for path in workflow.rglob("*"):
+            if path.is_file():
+                destination = self.project / path.relative_to(workflow)
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(path, destination)
+        (self.framework / "VERSION").write_text("1.2.6\n", encoding="utf-8")
+        self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
+        project_workflow = self.project / relative
+        locked = project_workflow.read_text(encoding="utf-8")
+
+        (workflow / relative).write_text(current, encoding="utf-8")
+        (self.framework / "VERSION").write_text("1.2.7\n", encoding="utf-8")
+        applied = self.run_cli("upgrade", "--apply")
+        self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+        self.assertNotIn("Project integration smoke command", project_workflow.read_text(encoding="utf-8"))
+
+        project_workflow.write_text(locked.replace("`none`", "`make smoke`"), encoding="utf-8")
+        shutil.rmtree(self.project / ".meridian")
+        (self.framework / "VERSION").write_text("1.2.6\n", encoding="utf-8")
+        (workflow / relative).write_text(current.replace(anchor, smoke + anchor, 1), encoding="utf-8")
+        self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
+        project_workflow.write_text(locked.replace("`none`", "`make smoke`"), encoding="utf-8")
+        (workflow / relative).write_text(current, encoding="utf-8")
+        (self.framework / "VERSION").write_text("1.2.7\n", encoding="utf-8")
+        applied = self.run_cli("upgrade", "--apply")
+        self.assertIn(applied.returncode, (0, 2), applied.stdout + applied.stderr)
+        self.assertIn("Project integration smoke command: `make smoke`", project_workflow.read_text(encoding="utf-8"))
+
     def _assert_upgrade_installs_closure_command_policy(self, mode: str) -> None:
         workflow = self.framework / f"templates/workflows/{mode}"
         relative = ".codex/rules/meridian.rules"
@@ -2797,9 +2833,9 @@ worktree before the branch only after validated integration succeeds.
         )
         self.assertIn("\nNEXT_ACTION IMPLEMENT_MIGRATION\n", planned.stdout)
         # The implementer is pointed at the delta, not a from-scratch rewrite:
-        # the capability is already there, only the path reference is stale.
+        # the capability is already there, only its newest version is missing.
         self.assertIn("apply only this", planned.stdout)
-        self.assertIn("008-review-remediation-record-v2: Replace the literal", planned.stdout)
+        self.assertIn("061-governed-phase-reads: Each routed implementation", planned.stdout)
         self.assertIn("045-isolated-task-worktrees", planned.stdout)
 
     def test_assisted_adoption_detects_only_missing_lifecycle(self) -> None:
@@ -4151,7 +4187,7 @@ class CapabilityMarkerTest(unittest.TestCase):
 
     def test_manual_proceed_migration_leaves_review_and_remediation_bytes_unchanged(self) -> None:
         expected = {
-            "REVIEW.md": "0a1841987c70634225179339f5d27892b911276cf3a40a8897483ffc4681f8fb",
+            "REVIEW.md": "9709be35ca0a36b8f483a726b121d3b17f6bdc0130f9032231422e0c69d6dc5e",
             "REMEDIATION.md": "919aac8c9942718b51a56ef30ef2c747abb6c28770ea1767f1658125f99b68a9",
         }
         for name, digest in expected.items():
