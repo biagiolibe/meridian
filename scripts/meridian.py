@@ -4271,7 +4271,50 @@ def pending_wrapped_capabilities(
     return result
 
 
-def project_sections(local_text: str, base_text: str, template_text: str) -> list[str]:
+def drop_restructured_marker_blocks(
+    text: str, retired_markers: list[tuple[str, int]]
+) -> str:
+    """Remove complete retired marker blocks from a carried project section.
+
+    Restructuring replaces the managed part of a file, but appends project-owned
+    level-2 sections verbatim. Retired inline blocks in those sections must not
+    hitch a ride into the new file. The removal intentionally accepts modified
+    blocks too: the restructure plan reports those edits and preserves the
+    complete pre-restructure file in its backup.
+    """
+    result = text
+    for capability, version in retired_markers:
+        while (block := extract_marked_block(result, capability, version)) is not None:
+            start = result.index(block)
+            end = start + len(block)
+            before, after = result[:start], result[end:]
+            # Keep normalization bounded to the deletion point so unrelated
+            # project-owned blank-line runs remain byte-for-byte.
+            boundary = re.sub(r"\n{3,}", "\n\n", before[-4:] + after[:4])
+            result = before[:-4] + boundary + after[4:]
+    return result
+
+
+def restructured_marker_edits(
+    local_text: str, base_text: str, retired_markers: list[tuple[str, int]]
+) -> list[tuple[str, int]]:
+    """Retired markers whose local complete block differs from the baseline."""
+    return [
+        (capability, version)
+        for capability, version in retired_markers
+        if any(
+            block != extract_marked_block(base_text, capability, version)
+            for block in marker_blocks(local_text, capability, version)
+        )
+    ]
+
+
+def project_sections(
+    local_text: str,
+    base_text: str,
+    template_text: str,
+    retired_markers: list[tuple[str, int]] | None = None,
+) -> list[str]:
     """Level-2 sections of `local_text` whose heading neither the installed
     baseline nor the target template carries: the project's own sections,
     returned verbatim and in order. Headings inside code fences are ignored."""
@@ -4289,15 +4332,24 @@ def project_sections(local_text: str, base_text: str, template_text: str) -> lis
 
     known = {heading for text in (base_text, template_text) for heading, _body in split(text)}
     return [
-        body.rstrip("\n") + "\n"
+        (
+            drop_restructured_marker_blocks(body, retired_markers or [])
+            if retired_markers
+            else body
+        ).rstrip("\n") + "\n"
         for heading, body in split(local_text)
         if heading and heading not in known
     ]
 
 
-def restructured_text(local_text: str, base_text: str, template_text: str) -> str:
+def restructured_text(
+    local_text: str,
+    base_text: str,
+    template_text: str,
+    retired_markers: list[tuple[str, int]] | None = None,
+) -> str:
     """The target template followed by the project's own level-2 sections."""
-    carried = project_sections(local_text, base_text, template_text)
+    carried = project_sections(local_text, base_text, template_text, retired_markers)
     if not carried:
         return template_text
     return template_text.rstrip("\n") + "\n\n" + "\n".join(carried)
@@ -6792,6 +6844,18 @@ def plan_from_baseline(
             if restructured:
                 backup = _unused_adoption_backup(local, "pre-restructure").relative_to(project_root)
                 carried = len(project_sections(local_text, base_text, template_text))
+                edited = restructured_marker_edits(
+                    local_text,
+                    base_text,
+                    pending_restructured_markers(framework_root, pending_migrations, item.target),
+                )
+                edited_detail = (
+                    "; edited retired marker content "
+                    f"({', '.join(f'{capability} v{version}' for capability, version in edited)}) "
+                    "will be removed from carried project sections; the original remains in the backup"
+                    if edited
+                    else ""
+                )
                 plan.append(
                     PlanItem(
                         item,
@@ -6799,6 +6863,7 @@ def plan_from_baseline(
                         f"three-way merge conflicted around retired inline marker(s) ({', '.join(restructured)}); "
                         f"replace with the standalone template block after preserving the current file as {backup}"
                         + (f" and carrying over {carried} project section(s)" if carried else "")
+                        + edited_detail
                         + "; re-apply any project prose from the backup after the managed block",
                         backup=backup,
                     )
@@ -7061,6 +7126,7 @@ def apply_plan(
                     local_text,
                     (baseline_root / item.file.target).read_text(encoding="utf-8"),
                     item.file.source.read_text(encoding="utf-8"),
+                    pending_restructured_markers(framework_root, pending_migrations, item.file.target),
                 )
                 _write_exclusive_backup(local, project_root / item.backup)
                 local.write_text(updated, encoding="utf-8")
