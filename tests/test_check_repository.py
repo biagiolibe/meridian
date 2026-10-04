@@ -612,6 +612,29 @@ class ManagedDigestTest(unittest.TestCase):
         self.assertIn(expected, check_output.getvalue())
         self.assertIn(expected, doctor_output.getvalue())
 
+    def test_completion_template_and_unchained_validation_rule_are_declared(self) -> None:
+        manifest = self.manifest()
+        managed_files = manifest["managedFiles"]
+        assert isinstance(managed_files, dict)
+        self.assertIn("docs/COMPLETION_REPORT_TEMPLATE.md", managed_files)
+
+        profiles = manifest["capabilityProfiles"]
+        assert isinstance(profiles, dict)
+        capabilities = profiles["meridian-self-hosting"]["capabilities"]
+        assert isinstance(capabilities, dict)
+        execution_evidence = capabilities["execution-evidence"]
+        assert isinstance(execution_evidence, dict)
+        surfaces = execution_evidence["managedSurface"]
+        assert isinstance(surfaces, list)
+        self.assertIn(
+            {"form": "managed-copy", "path": "docs/COMPLETION_REPORT_TEMPLATE.md"},
+            surfaces,
+        )
+
+        profile = (self.root / "docs/EXECUTION_EVIDENCE_PROFILE.md").read_text(encoding="utf-8")
+        self.assertIn("Run every validation command of record as its own command", profile)
+        self.assertIn("Never join it with `&&` or `;`", profile)
+
 
 if __name__ == "__main__":
     unittest.main()
