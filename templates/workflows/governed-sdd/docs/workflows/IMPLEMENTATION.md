@@ -39,7 +39,8 @@ successful `prepare`, change to its returned worktree and run `meridian
 worktree check <TASK-ID> --project <primary-checkout> --format json` there.
 
 For either mode, a blocked `check` result stops all task work and preserves both
-checkouts. If the host cannot run commands or write in the prepared directory,
+checkouts, except the `dirty-worktree` result tolerated after a resumed `dirty:
+true` prepare. If the host cannot run commands or write in the prepared directory,
 return `BLOCKED`, name that exact directory, and tell the developer to restart
 the session there; never fall back to the primary checkout. Run every later
 read, implementation, validation, status, and handoff operation in the same
