@@ -352,6 +352,46 @@ class CheckMigrationsVersionGateTest(unittest.TestCase):
 
         self.assertIn("not contiguous", output.getvalue())
 
+    def test_same_version_migration_fails_and_names_the_file(self) -> None:
+        self.write_chain(("1.0.0", "1.0.0"), version="1.0.0")
+        output = io.StringIO()
+
+        with contextlib.redirect_stdout(output), self.assertRaises(SystemExit):
+            cr.check_migrations(self.root)
+
+        self.assertIn("migrations/001-step.json", output.getvalue())
+        self.assertIn("same version", output.getvalue())
+
+    def initialize_tagged_release(self, version: str, migrations: list[str]) -> None:
+        (self.root / "releases").mkdir()
+        (self.root / "releases" / f"{version}.json").write_text(
+            json.dumps({"migrations": migrations}), encoding="utf-8"
+        )
+        subprocess.run(["git", "init", "-q", "-b", "main"], cwd=self.root, check=True)
+        subprocess.run(["git", "config", "user.name", "Meridian Test"], cwd=self.root, check=True)
+        subprocess.run(["git", "config", "user.email", "meridian@example.invalid"], cwd=self.root, check=True)
+        (self.root / "README.md").write_text("# Test\n", encoding="utf-8")
+        subprocess.run(["git", "add", "README.md"], cwd=self.root, check=True)
+        subprocess.run(["git", "commit", "-qm", "initial"], cwd=self.root, check=True)
+        subprocess.run(["git", "tag", f"v{version}"], cwd=self.root, check=True)
+
+    def test_migration_to_tagged_version_requires_its_release_ledger_entry(self) -> None:
+        self.write_chain(("1.0.0", "1.0.1"), version="1.0.1")
+        self.initialize_tagged_release("1.0.1", [])
+        output = io.StringIO()
+
+        with contextlib.redirect_stdout(output), self.assertRaises(SystemExit):
+            cr.check_migrations(self.root)
+
+        self.assertIn("migrations/001-step.json", output.getvalue())
+        self.assertIn("release-ledger", output.getvalue())
+
+    def test_migration_in_tagged_release_ledger_passes(self) -> None:
+        self.write_chain(("1.0.0", "1.0.1"), version="1.0.1")
+        self.initialize_tagged_release("1.0.1", ["001-step"])
+
+        self.run_check()
+
     def test_malformed_adopt_existing_paths_declaration_fails(self) -> None:
         self.write_chain(("1.0.0", "1.0.1"), version="1.0.1")
         path = self.root / "migrations/001-step.json"
