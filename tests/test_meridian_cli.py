@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import io
 import hashlib
 import json
@@ -7580,9 +7581,10 @@ class WorktreeLifecycleCliTest(unittest.TestCase):
             self.assertEqual(snapshot(self.project, worktree), before)
             self.assertEqual(result.returncode, 2 if expected_reason else 0, result.stderr)
             if text:
-                self.assertRegex(
+                self.assertEqual(
                     result.stdout.strip(),
-                    rf"^BLOCKED {expected_reason}; resume: meridian worktree prepare 056 --project .+ --format json$",
+                    f"BLOCKED {expected_reason}: the task worktree, branch, or lifecycle state is missing or does not "
+                    f"match; resume: meridian worktree prepare 056 --project {self.project.resolve()} --format json",
                 )
                 return
             report = json.loads(result.stdout)
@@ -7745,7 +7747,6 @@ class WorktreeLifecycleCliTest(unittest.TestCase):
             "--format", "json",
         )
         self.assertEqual(result.returncode, 2)
-        self.assertIn("BLOCKED: MAIN_BEHIND_ORIGIN", result.stderr)
         self.assertIn("local main is behind the already fetched origin/main", result.stderr)
         local = subprocess.run(
             ["git", "rev-parse", "--short=12", "main"], cwd=self.project, check=True, capture_output=True, text=True
@@ -7754,8 +7755,176 @@ class WorktreeLifecycleCliTest(unittest.TestCase):
             ["git", "rev-parse", "--short=12", "refs/remotes/origin/main"],
             cwd=self.project, check=True, capture_output=True, text=True,
         ).stdout.strip()
-        self.assertIn(f"local main {local}", result.stderr)
-        self.assertIn(f"origin/main {fetched}", result.stderr)
+        self.assertEqual(
+            result.stderr.strip(),
+            "BLOCKED MAIN_BEHIND_ORIGIN: local main is behind the already fetched origin/main "
+            f"(local main {local}, origin/main {fetched}); resume: bring local main up to the fetched origin/main "
+            "without rewriting history, then rerun meridian worktree integrate stage 056 "
+            f"--project {self.project.resolve()} --evidence {evidence_path} --format json",
+        )
+
+    def _stage_args(self, evidence_path: Path) -> tuple[str, ...]:
+        return (
+            "worktree", "integrate", "stage", "056", "--project", str(self.project),
+            "--worktree-root", str(self.worktree_root), "--evidence", str(evidence_path), "--format", "json",
+        )
+
+    def test_stop_helper_formats_registered_codes_and_rejects_others(self) -> None:
+        self.assertEqual(
+            meridian.format_stop("PUSH_PENDING", "main is ahead"),
+            "BLOCKED PUSH_PENDING: main is ahead; resume: git push origin main",
+        )
+        with self.assertRaises(meridian.InternalStopError):
+            meridian.format_stop("NOT_A_REGISTERED_CODE", "detail", resume="x")
+        with self.assertRaises(meridian.InternalStopError):
+            meridian.stop_resume("WRONG_WORKTREE", task_id="056")
+
+    def test_stop_registry_covers_closure_codes_and_names_real_tests(self) -> None:
+        registry = meridian.load_stop_registry()
+        closure = (
+            "ACCEPTANCE_UNMET", "VALIDATION_FAILED", "REVIEW_REQUIRED", "WRONG_WORKTREE", "EVIDENCE_INCOMPLETE",
+            "PRIMARY_DIRTY", "MAIN_BEHIND_ORIGIN", "LEASE_HELD", "INTEGRATION_CONFLICT",
+            "CANDIDATE_VALIDATION_FAILED", "EVIDENCE_MISMATCH", "PUSH_PENDING", "PUSH_REJECTED", "CLEANUP_BLOCKED",
+            "UNDECLARED_VALIDATION_COMMANDS",
+        )
+        self.assertEqual(set(registry), set(closure))
+        self.assertEqual(
+            {code for code, entry in registry.items() if entry["class"] == "judgment"},
+            {"ACCEPTANCE_UNMET", "REVIEW_REQUIRED"},
+        )
+        self.assertEqual(registry["PUSH_PENDING"]["kind"], "status")
+        for code, entry in registry.items():
+            with self.subTest(code=code):
+                if entry["class"] == "tool" and entry["kind"] == "stop":
+                    module_name, class_name, method = str(entry["test"]).rsplit(".", 2)
+                    owner = getattr(importlib.import_module(module_name), class_name)
+                    self.assertTrue(callable(getattr(owner, method, None)), entry["test"])
+
+    def test_stop_registry_matches_its_schema_shape(self) -> None:
+        schema = json.loads((ROOT / "schemas/stop-codes-v1.schema.json").read_text(encoding="utf-8"))
+        item = schema["properties"]["stops"]["items"]
+        for code, entry in meridian.load_stop_registry().items():
+            with self.subTest(code=code):
+                self.assertLessEqual(set(entry), set(item["properties"]))
+                self.assertTrue(set(item["required"]) <= set(entry))
+                self.assertIn(entry["class"], item["properties"]["class"]["enum"])
+                self.assertIn(entry["kind"], item["properties"]["kind"]["enum"])
+                self.assertTrue(set(entry["workflows"]) <= set(item["properties"]["workflows"]["items"]["enum"]))
+
+    def test_closure_status_text_reports_incomplete_evidence_through_the_registry(self) -> None:
+        prepared = self.run_cli(
+            "worktree", "prepare", "056", "--project", str(self.project),
+            "--worktree-root", str(self.worktree_root), "--format", "json",
+        )
+        worktree = Path(json.loads(prepared.stdout)["worktree"])
+        (worktree / "implementation.txt").write_text("done\n", encoding="utf-8")
+        subprocess.run(["git", "add", "implementation.txt"], cwd=worktree, check=True)
+        subprocess.run(["git", "commit", "-m", "complete task"], cwd=worktree, check=True, capture_output=True)
+        result = self.run_cli(
+            "worktree", "closure-status", "056", "--project", str(self.project),
+            "--worktree-root", str(self.worktree_root),
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(
+            result.stdout.strip(),
+            "BLOCKED EVIDENCE_INCOMPLETE: machine evidence for the validated task commit is missing or "
+            "incomplete; resume: record machine evidence",
+        )
+
+    def test_integrate_stage_reports_primary_dirty_through_the_registry(self) -> None:
+        evidence_path = self._stage_ready_task_with_origin(local_ahead=True)
+        (self.project / "stray.txt").write_text("stray\n", encoding="utf-8")
+        result = self.run_cli(*self._stage_args(evidence_path))
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(
+            result.stderr.strip(),
+            "BLOCKED PRIMARY_DIRTY: primary checkout must be clean; resume: clean the primary checkout and run "
+            "integration stage",
+        )
+
+    def test_integrate_stage_reports_a_held_lease_through_the_registry(self) -> None:
+        evidence_path = self._stage_ready_task_with_origin(local_ahead=True)
+        identity = meridian.resolve_task_identity(self.project, "056", "existing")
+        _state, lease, _integration = meridian._lifecycle_paths(self.project, identity)
+        lease.write_text(json.dumps({"task_id": "056"}), encoding="utf-8")
+        result = self.run_cli(*self._stage_args(evidence_path))
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(
+            result.stderr.strip(),
+            f"BLOCKED LEASE_HELD: an interrupted integration lease is retained at {lease}; use "
+            "`meridian worktree integrate abort`; resume: meridian worktree integrate abort 056 "
+            f"--project {self.project.resolve()} --format json",
+        )
+
+    def test_integrate_stage_reports_undeclared_validation_commands_through_the_registry(self) -> None:
+        evidence_path = self._stage_ready_task_with_origin(local_ahead=True)
+        (self.project / ".meridian/candidate-validation.json").write_text(
+            '{"version": 1, "state": "undeclared"}\n', encoding="utf-8"
+        )
+        subprocess.run(["git", "add", ".meridian/candidate-validation.json"], cwd=self.project, check=True)
+        subprocess.run(["git", "commit", "-m", "undeclare"], cwd=self.project, check=True, capture_output=True)
+        result = self.run_cli(*self._stage_args(evidence_path))
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(
+            result.stderr.strip(),
+            "BLOCKED UNDECLARED_VALIDATION_COMMANDS: no project choice is recorded at "
+            ".meridian/candidate-validation.json. Task validation commands: none recorded. Proposed declaration: "
+            '{"state": "undeclared", "version": 1}; resume: write declared candidate validation fragments or '
+            "state none in .meridian/candidate-validation.json, then rerun the interrupted meridian worktree "
+            "integrate step",
+        )
+
+    def test_integrate_stage_reports_an_integration_conflict_through_the_registry(self) -> None:
+        evidence_path = self._stage_ready_task_with_origin(local_ahead=True)
+        (self.project / "implementation.txt").write_text("main side\n", encoding="utf-8")
+        subprocess.run(["git", "add", "implementation.txt"], cwd=self.project, check=True)
+        subprocess.run(["git", "commit", "-m", "conflicting main change"], cwd=self.project, check=True, capture_output=True)
+        result = self.run_cli(*self._stage_args(evidence_path))
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertEqual(
+            result.stderr.strip(),
+            "BLOCKED INTEGRATION_CONFLICT: integration conflict was aborted; task branch and worktree were "
+            "retained; resume: the developer resolves the conflict on the task branch, then rerun meridian "
+            f"worktree integrate stage 056 --project {self.project.resolve()} --evidence {evidence_path} "
+            "--format json",
+        )
+
+    def test_integrate_finalize_reports_an_evidence_mismatch_through_the_registry(self) -> None:
+        evidence_path = self._stage_ready_task_with_origin(local_ahead=True)
+        staged = self.run_cli(*self._stage_args(evidence_path))
+        self.assertEqual(staged.returncode, 0, staged.stderr)
+        validation = self.root / "candidate-validation-evidence.json"
+        validation.write_text(json.dumps({"passed": False}), encoding="utf-8")
+        result = self.run_cli(
+            "worktree", "integrate", "finalize", "056", "--project", str(self.project),
+            "--evidence", str(validation), "--format", "json",
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(
+            result.stderr.strip(),
+            "BLOCKED EVIDENCE_MISMATCH: candidate validation evidence is stale, mismatched, or failed; resume: "
+            f"meridian worktree integrate abort 056 --project {self.project.resolve()} --format json",
+        )
+
+    def test_cleanup_reports_blocked_cleanup_through_the_registry(self) -> None:
+        prepared = self.run_cli(
+            "worktree", "prepare", "056", "--project", str(self.project),
+            "--worktree-root", str(self.worktree_root), "--format", "json",
+        )
+        worktree = Path(json.loads(prepared.stdout)["worktree"])
+        (worktree / "implementation.txt").write_text("done\n", encoding="utf-8")
+        subprocess.run(["git", "add", "implementation.txt"], cwd=worktree, check=True)
+        subprocess.run(["git", "commit", "-m", "complete task"], cwd=worktree, check=True, capture_output=True)
+        result = self.run_cli(
+            "worktree", "cleanup", "056", "--project", str(self.project),
+            "--worktree-root", str(self.worktree_root), "--format", "json",
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(
+            result.stderr.strip(),
+            "BLOCKED CLEANUP_BLOCKED: task commit is not integrated into main; resume: rerun meridian worktree "
+            f"cleanup 056 --project {self.project.resolve()} --format json after the named condition clears",
+        )
 
     def test_integrate_stage_accepts_local_main_ahead_of_fetched_origin_main(self) -> None:
         evidence_path = self._stage_ready_task_with_origin(local_ahead=True)
