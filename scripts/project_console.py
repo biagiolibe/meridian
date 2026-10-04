@@ -156,6 +156,9 @@ class Task:
         if self.record_problem or self.readiness == "MISMATCH":
             return None
         if self.is_resume:
+            if self.active_writer:
+                return (f"Proceed with {self.task_id} (Resume: run "
+                        f"meridian worktree prepare {self.task_id} --resume --format json)")
             return f"Proceed with {self.task_id}"
         if self.active_writer:
             return None

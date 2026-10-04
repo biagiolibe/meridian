@@ -291,7 +291,7 @@ class MeridianCliTest(unittest.TestCase):
             "",
         ))
         previous_implementation = re.sub(
-            r"<!-- MERIDIAN:BEGIN capability=task-worktree-boundary v7 -->.*?<!-- MERIDIAN:END -->\n",
+            r"<!-- MERIDIAN:BEGIN capability=task-worktree-boundary v8 -->.*?<!-- MERIDIAN:END -->\n",
             legacy_implementation,
             current_implementation,
             count=1,
@@ -1103,7 +1103,7 @@ class MeridianCliTest(unittest.TestCase):
         self.assertIn("capability=git-workflow v9", project_workflow.read_text(encoding="utf-8"))
         self.assertIn("Consumer-owned note.", project_workflow.read_text(encoding="utf-8"))
         self.assertIn(
-            "capability=task-worktree-boundary v7",
+            "capability=task-worktree-boundary v8",
             (self.project / "docs/workflows/IMPLEMENTATION.md").read_text(encoding="utf-8"),
         )
         report = (self.project / "docs/COMPLETION_REPORT_TEMPLATE.md").read_text(encoding="utf-8")
@@ -1357,7 +1357,7 @@ worktree before the branch only after validated integration succeeds.
         applied = self.run_cli("upgrade", "--apply")
         self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
 
-        self.assertIn("capability=task-worktree-boundary v7", implementation.read_text(encoding="utf-8"))
+        self.assertIn("capability=task-worktree-boundary v8", implementation.read_text(encoding="utf-8"))
         self.assertIn("**Manually triggered.**", implementation.read_text(encoding="utf-8"))
         upgraded_workflow = project_workflow.read_text(encoding="utf-8")
         self.assertIn("capability=bounded-worktree-lifecycle v4", upgraded_workflow)
@@ -1485,7 +1485,7 @@ worktree before the branch only after validated integration succeeds.
                 flags=re.DOTALL,
             ),
             "docs/workflows/IMPLEMENTATION.md": re.sub(
-                r"\n<!-- MERIDIAN:BEGIN capability=task-worktree-boundary v7 -->.*?<!-- MERIDIAN:END -->\n",
+                r"\n<!-- MERIDIAN:BEGIN capability=task-worktree-boundary v8 -->.*?<!-- MERIDIAN:END -->\n",
                 "\n",
                 current["docs/workflows/IMPLEMENTATION.md"],
                 flags=re.DOTALL,
@@ -1527,7 +1527,7 @@ worktree before the branch only after validated integration succeeds.
         upgraded_review = (self.project / "docs/workflows/REVIEW.md").read_text(encoding="utf-8")
         self.assertIn("capability=git-workflow v9", upgraded_workflow)
         self.assertIn("Review: REQUIRED` is a gate, not a request for authorization", upgraded_workflow)
-        self.assertIn("capability=task-worktree-boundary v7", upgraded_implementation)
+        self.assertIn("capability=task-worktree-boundary v8", upgraded_implementation)
         self.assertIn("REVIEW_REQUIRED`; it is a gate", upgraded_implementation)
         self.assertIn("capability=task-worktree-review-procedure v9", upgraded_review)
         self.assertIn("reviewer-integrator performs C6 through C10", upgraded_review)
@@ -1652,6 +1652,57 @@ worktree before the branch only after validated integration succeeds.
 
     def test_upgrade_installs_closure_command_policy_for_governed_and_keeps_local_rules(self) -> None:
         self._assert_upgrade_installs_closure_command_policy("governed-sdd")
+
+    def test_upgrade_installs_resume_guidance_for_lean_from_1_2_6(self) -> None:
+        workflow = self.framework / "templates/workflows/lean-delivery"
+        paths = ("PROJECT_WORKFLOW.md", "docs/WORKTREE_LIFECYCLE.md")
+        current = {relative: (workflow / relative).read_text(encoding="utf-8") for relative in paths}
+        resume_paragraph = re.compile(r"\nA `Proceed with <TASK-ID>` directive that says to Resume.*?(?=<!-- MERIDIAN:END -->)", re.DOTALL)
+        resume_bullet = re.compile(r" Only a Resume directive adds `--resume`.*?`dirty-worktree` and no other error\.", re.DOTALL)
+        previous = {
+            "PROJECT_WORKFLOW.md": resume_paragraph.sub(
+                "\n", current["PROJECT_WORKFLOW.md"].replace(
+                    "capability=bounded-worktree-lifecycle v4", "capability=bounded-worktree-lifecycle v3"
+                ), count=1,
+            ),
+            "docs/WORKTREE_LIFECYCLE.md": resume_bullet.sub(
+                "", current["docs/WORKTREE_LIFECYCLE.md"].replace(
+                    "capability=worktree-lifecycle v2", "capability=worktree-lifecycle v1"
+                ), count=1,
+            ),
+        }
+        for relative in paths:
+            self.assertNotEqual(previous[relative], current[relative], relative)
+            self.assertNotIn("--resume", previous[relative])
+            (workflow / relative).write_text(previous[relative], encoding="utf-8")
+        for path in workflow.rglob("*"):
+            if path.is_file():
+                destination = self.project / path.relative_to(workflow)
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(path, destination)
+        (self.framework / "VERSION").write_text("1.2.6\n", encoding="utf-8")
+        self.assertEqual(self.run_cli("lock", "--mode", "lean-delivery").returncode, 0)
+        project_workflow = self.project / "PROJECT_WORKFLOW.md"
+        project_workflow.write_text(
+            project_workflow.read_text(encoding="utf-8") + "\nConsumer-owned resume note.\n", encoding="utf-8"
+        )
+
+        for relative in paths:
+            (workflow / relative).write_text(current[relative], encoding="utf-8")
+        (self.framework / "VERSION").write_text("1.2.7\n", encoding="utf-8")
+        checked = self.run_cli("upgrade", "--check")
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+        self.assertIn("MIGRATION 061-governed-phase-reads", checked.stdout)
+        applied = self.run_cli("upgrade", "--apply")
+        self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+
+        upgraded = project_workflow.read_text(encoding="utf-8")
+        self.assertIn("capability=bounded-worktree-lifecycle v4", upgraded)
+        self.assertIn("`--resume` is allowed only for that directive", upgraded)
+        self.assertIn("Consumer-owned resume note.", upgraded)
+        lifecycle = (self.project / "docs/WORKTREE_LIFECYCLE.md").read_text(encoding="utf-8")
+        self.assertIn("capability=worktree-lifecycle v2", lifecycle)
+        self.assertIn("Only a Resume directive adds `--resume`", lifecycle)
 
     def test_upgrade_installs_closure_command_policy_for_lean_and_keeps_local_rules(self) -> None:
         self._assert_upgrade_installs_closure_command_policy("lean-delivery")

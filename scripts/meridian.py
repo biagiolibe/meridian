@@ -783,11 +783,29 @@ def lifecycle_started_at(task_id: str, supplied_project: Path | None = None) -> 
     return value if parsed.tzinfo is not None else None
 
 
+def _dirty_summary(worktree: Path) -> dict[str, int]:
+    """Count changed and untracked paths without refreshing the index or naming files."""
+    result = _run_git(worktree, "--no-optional-locks", "status", "--porcelain", "-z")
+    if result.returncode != 0:
+        raise MeridianError(result.stderr.strip() or f"cannot inspect task worktree status: {worktree}")
+    records = iter(item for item in result.stdout.split("\0") if item)
+    changed = untracked = 0
+    for record in records:
+        if record.startswith("??"):
+            untracked += 1
+            continue
+        changed += 1
+        if record[0] in "RC" or record[1] in "RC":
+            next(records, None)  # the source path of a rename or copy is its own record
+    return {"changed_paths": changed, "untracked_paths": untracked}
+
+
 def prepare_task_worktree(
     task_id: str,
     worktree_root: Path | None,
     supplied_project: Path | None = None,
     base: str = "main",
+    resume: bool = False,
 ) -> dict[str, object]:
     if base != "main":
         raise MeridianError("worktree prepare permits only the main base")
@@ -795,7 +813,7 @@ def prepare_task_worktree(
     root = _effective_worktree_root(worktree_root)
     identity = resolve_task_identity(project_root, task_id, "existing")
     path = _task_worktree_path_for_identity(project_root, root, identity)
-    state_path, _lease, _integration = _lifecycle_paths(project_root, identity)
+    state_path, lease_path, integration_path = _lifecycle_paths(project_root, identity)
     records = _git_worktrees(project_root)
     registered = next((item for item in records if Path(item["worktree"]).resolve() == path), None)
     branch_commit = _branch_commit(project_root, identity.branch_name)
@@ -806,6 +824,22 @@ def prepare_task_worktree(
     base_commit = git_output(project_root, "rev-parse", "--verify", f"{base}^{{commit}}")
     created = False
     prior: dict[str, object] = {}
+    dirty_summary: dict[str, int] | None = None
+    if resume:
+        if registered is None:
+            raise MeridianError(
+                f"nothing to resume for {identity.canonical_id}: no task branch or canonical worktree exists"
+            )
+        for retained in (lease_path, integration_path):
+            if retained.exists():
+                try:
+                    holder = _read_json_object(retained, "integration state").get("task_id")
+                except MeridianError:
+                    holder = None
+                if holder in (None, identity.canonical_id):
+                    raise MeridianError(
+                        f"cannot resume {identity.canonical_id} while an integration lease or staged merge is active: {retained}"
+                    )
     if registered is None:
         if path.exists():
             raise MeridianError(f"worktree path collision at {path}")
@@ -821,7 +855,9 @@ def prepare_task_worktree(
             raise MeridianError(
                 f"canonical worktree mismatch retained at {path}: expected {expected_ref} at {branch_commit}"
             )
-        if git_output(path, "status", "--porcelain"):
+        if resume:
+            dirty_summary = _dirty_summary(path)
+        elif git_output(path, "status", "--porcelain"):
             raise MeridianError(f"existing task worktree is dirty and was retained: {path}")
         if state_path.is_file():
             prior = _read_json_object(state_path, "worktree lifecycle state")
@@ -847,12 +883,18 @@ def prepare_task_worktree(
         # as unavailable by the read-only console rather than rewritten.
         state["started_at"] = prior["started_at"]
     _write_json_atomic(state_path, state)
-    return {
+    result: dict[str, object] = {
         **state,
         "handoff_worktree": handoff_worktree_value(root, path),
         "created": created,
         "next_action": "check",
     }
+    if dirty_summary is not None:
+        dirty = bool(dirty_summary["changed_paths"] or dirty_summary["untracked_paths"])
+        result.update({"resumed": True, "dirty": dirty, **dirty_summary})
+        if dirty:
+            result["next_action"] = "inspect-dirty"
+    return result
 
 
 def inspect_task_worktree(
@@ -9171,6 +9213,11 @@ def main() -> int:
     worktree_prepare.add_argument("--project", type=Path)
     worktree_prepare.add_argument("--worktree-root", type=Path)
     worktree_prepare.add_argument("--base", choices=("main",), default="main")
+    worktree_prepare.add_argument(
+        "--resume",
+        action="store_true",
+        help="accept an existing dirty worktree of this task; never creates or changes anything",
+    )
     worktree_prepare.add_argument("--format", choices=("json",), required=True)
     worktree_check = worktree_sub.add_parser("check", help="inspect the effective worker worktree without mutation")
     worktree_check.add_argument("task_id")
@@ -9557,6 +9604,7 @@ def main() -> int:
                     arguments.worktree_root,
                     project_root,
                     arguments.base,
+                    arguments.resume,
                 ), sort_keys=True))
             elif arguments.worktree_command == "check":
                 report, ready = inspect_task_worktree(

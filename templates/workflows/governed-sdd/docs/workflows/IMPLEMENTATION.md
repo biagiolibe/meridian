@@ -2,7 +2,7 @@
 
 Use this procedure only for `Proceed with <TASK-ID>` after the entry-point router has applied its always-loaded invariants.
 
-<!-- MERIDIAN:BEGIN capability=task-worktree-boundary v7 -->
+<!-- MERIDIAN:BEGIN capability=task-worktree-boundary v8 -->
 Order of operations: before `prepare`, read only the router read set
 (`AGENTS.md` or `CLAUDE.md`, `PROJECT_WORKFLOW.md`, `LANGUAGE_POLICY.md`, and
 this procedure); read no task material and mutate nothing. Apart from the
@@ -28,12 +28,19 @@ list --porcelain`. Before any other command, run `meridian worktree prepare
 in the trigger, without `--worktree-root`. A non-zero result, including partial
 or mismatched state, an existing active writer, or an unresolvable task ID, is
 `BLOCKED`: report the command's message verbatim and change nothing else.
-`prepare` is the only command permitted before `check` passes. After a
+`prepare` is the only command permitted before `check` passes. A `Proceed with`
+directive that says to Resume instead runs the same command with `--resume`,
+which is allowed only for that directive: it accepts the task's existing dirty
+worktree, never creates or changes anything, and refuses when none exists. When
+it returns `dirty: true`, `dirty-worktree` is the only error `check` may
+report; any other error is `BLOCKED`. Read `git status` and the diff before
+continuing. After a
 successful `prepare`, change to its returned worktree and run `meridian
 worktree check <TASK-ID> --project <primary-checkout> --format json` there.
 
 For either mode, a blocked `check` result stops all task work and preserves both
-checkouts. If the host cannot run commands or write in the prepared directory,
+checkouts, except the `dirty-worktree` result tolerated after a resumed `dirty:
+true` prepare. If the host cannot run commands or write in the prepared directory,
 return `BLOCKED`, name that exact directory, and tell the developer to restart
 the session there; never fall back to the primary checkout. Run every later
 read, implementation, validation, status, and handoff operation in the same

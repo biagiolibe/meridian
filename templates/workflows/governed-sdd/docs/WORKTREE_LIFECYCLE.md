@@ -1,6 +1,6 @@
 # Bounded Worktree Lifecycle
 
-<!-- MERIDIAN:BEGIN capability=worktree-lifecycle v1 -->
+<!-- MERIDIAN:BEGIN capability=worktree-lifecycle v2 -->
 Use the host-neutral `meridian worktree` namespace for task checkout lifecycle
 operations. Commands exit `0` on success, `2` when blocked, and `64` on usage
 errors. The root resolves from an explicit option, the environment, user
@@ -10,6 +10,10 @@ configuration, or `~/.meridian/worktrees`, in that order.
   derives the canonical path.
 - `prepare <TASK-ID> --project <primary> --format json`
   creates or selects the exact branch/worktree pair before any worker starts.
+  Only a Resume directive adds `--resume`, which accepts that
+  task's existing dirty worktree, creates and changes nothing, and reports
+  `dirty` with `next_action` `inspect-dirty`; `check` then reports
+  `dirty-worktree` and no other error.
 - `check <TASK-ID> --project <primary> --format json`
   is read-only and must be the implementer, reviewer, or remediation worker's
   first action in that same prepared directory.

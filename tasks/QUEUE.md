@@ -32,12 +32,6 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, 25, 26, 27, 28, 31, 32, 34, 35, 36, 42, 44, 45, 46, and 47
 are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 
-### Phase 50 — Interrupted task recovery
-
-| Status | ID | Title | Priority | Depends on | File |
-|--------|----|-------|----------|------------|------|
-| `[ ]` | 133 | Let a confirmed Resume reach a dirty task worktree | 🟡 P2 | — | [133](133-resume-dirty-task-worktree.md) |
-
 ### Phase 51 — Context cost
 
 | Status | ID | Title | Priority | Depends on | File |
