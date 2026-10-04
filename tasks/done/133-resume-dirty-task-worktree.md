@@ -4,7 +4,7 @@
 > **Category**: Bugfix
 > **Priority**: 🟡 P2
 > **Estimate**: ~2.5h
-> **Assigned to**: unassigned
+> **Assigned to**: Claude Code (Proceed with 133)
 > **Session**: Interrupted task 129 observed on 2026-10-03
 
 ## Objective
@@ -25,50 +25,50 @@ that no agent is still active.
 
 ## Acceptance Criteria
 
-- [ ] `meridian worktree prepare <TASK-ID> --resume` accepts an existing
+- [x] `meridian worktree prepare <TASK-ID> --resume` accepts an existing
   canonical worktree of that task that has uncommitted changes. It leaves every
   file and the index untouched, preserves `started_at` and `base_commit`, and
   returns JSON that includes `resumed: true` and `dirty: true`.
-- [ ] Without `--resume`, behavior is unchanged: a dirty existing worktree is
+- [x] Without `--resume`, behavior is unchanged: a dirty existing worktree is
   still refused with the same message. `--resume` on a task with no existing
   worktree is refused (nothing is created by a resume), and `--resume` never
   creates, moves, removes, or resets anything.
-- [ ] `--resume` still blocks on every other mismatch that blocks `prepare` today:
+- [x] `--resume` still blocks on every other mismatch that blocks `prepare` today:
   a worktree on a different branch or commit, partial state (branch without
   worktree or the reverse), a path collision, and a lifecycle state that
   disagrees with the branch or worktree. It also blocks while an integration
   lease or staged merge is active for the task.
-- [ ] The returned JSON gives the agent what it needs to continue safely: the
+- [x] The returned JSON gives the agent what it needs to continue safely: the
   branch, the absolute worktree path, `handoff_worktree`, and a short summary of
   the dirty state (count of changed and untracked paths), without file contents.
-- [ ] The console Resume for a task whose worktree is dirty launches a directive
+- [x] The console Resume for a task whose worktree is dirty launches a directive
   that tells the agent to run `prepare --resume`, and for a clean worktree keeps
   using the ordinary directive. The directive text shown by `[copy]` is the same
   string the launch uses.
-- [ ] The Resume is offered only after the existing liveness confirmation and, for
+- [x] The Resume is offered only after the existing liveness confirmation and, for
   a dirty worktree, the existing second confirmation. The console never passes
   `--resume` on its own for a plain launch of a `todo` task, a `Review`, or an
   `Address review`.
-- [ ] The Lean Delivery and Governed SDD workflow guidance states, in additive
+- [x] The Lean Delivery and Governed SDD workflow guidance states, in additive
   wording, that a Resume directive starts with `prepare --resume`, that
   `--resume` is allowed only for that directive, and that the agent must read
   `git status` and the diff before continuing. Because this changes managed
   template text, the task follows the capability-marker and migration rules; the
   release that carries it is a template-changing release.
-- [ ] Fallback if the template change cannot be completed within this task: the
+- [x] Fallback if the template change cannot be completed within this task: the
   console does not offer a launch for a dirty worktree and instead shows an
   instruction to open a session inside the worktree and inspect its diff, and the
   decision is recorded in the handoff. Do not ship a dirty-worktree launch that
   `prepare` will refuse.
-- [ ] Tests cover: `--resume` on a dirty worktree succeeds and changes nothing;
+- [x] Tests cover: `--resume` on a dirty worktree succeeds and changes nothing;
   the dirty message without `--resume`; `--resume` with no worktree refused;
   every mismatch and lease case still blocked; `started_at` preserved; the JSON
   shape; and, end to end, that the directive the console produces for a dirty task
   is one `prepare --resume` accepts.
-- [ ] A rehearsal on a scratch repository is recorded in the handoff: prepare a
+- [x] A rehearsal on a scratch repository is recorded in the handoff: prepare a
   worktree, edit a file without committing, confirm plain `prepare` refuses,
   confirm `prepare --resume` accepts and the edit is intact.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass, and one
+- [x] `python3 scripts/check_repository.py` and the unit tests pass, and one
   changelog fragment is added per `CONTRIBUTING.md`.
 
 ## Relevant Files
