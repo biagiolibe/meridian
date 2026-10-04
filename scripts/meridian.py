@@ -7187,15 +7187,6 @@ def resolve_project_locations(project_root: Path) -> ProjectLocations:
         review_matches = re.findall(r"(?:durable )?review records (?:live )?at `([^`]+)/<TASK-ID>\.md`", block_zone, re.IGNORECASE)
     handoff_root = Path(handoff_matches[0]) if len(set(handoff_matches)) == 1 else Path("tasks/handoffs")
     review_root = Path(review_matches[0]) if len(set(review_matches)) == 1 else Path("tasks/reviews")
-    for label, path in (
-        ("queue", queue),
-        ("ADR log", adr_log),
-        ("handoff root", handoff_root),
-        ("review root", review_root),
-        *(("task root", root) for root in roots),
-    ):
-        if path.is_absolute() or ".." in path.parts:
-            raise MeridianError(f"canonical {label} must be a safe project-relative path: {path}")
     legacy_used = declaration is None and (queue != Path("tasks/QUEUE.md") or len(roots) != 1 or adr_log != Path("docs/ARCHITECTURE_DECISIONS.md") or handoff_root != Path("tasks/handoffs") or review_root != Path("tasks/reviews"))
     if declaration is not None:
         declared_locations = declaration.get("locations", {})
@@ -7213,6 +7204,15 @@ def resolve_project_locations(project_root: Path) -> ProjectLocations:
         plan = _safe_project_path(declared_locations["plan"], "locations.plan") if "plan" in declared_locations else Path("PROJECT_PLAN.md")
     else:
         plan = Path("PROJECT_PLAN.md")
+    for label, path in (
+        ("queue", queue),
+        ("ADR log", adr_log),
+        ("handoff root", handoff_root),
+        ("review root", review_root),
+        *(("task root", root) for root in roots),
+    ):
+        if path.is_absolute() or ".." in path.parts:
+            raise MeridianError(f"canonical {label} must be a safe project-relative path: {path}")
     project_root = project_root.resolve()
     if legacy_used and project_root not in _LEGACY_LOCATION_WARNING_PROJECTS:
         print("DEPRECATED: resolve canonical locations with .meridian/project.json", file=sys.stderr)

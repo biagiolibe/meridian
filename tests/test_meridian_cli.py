@@ -5994,6 +5994,15 @@ class ProjectDeclarationTest(unittest.TestCase):
         self.assertEqual(author.stdout.strip(), "Example Reviewer-Integrator <reviewer-integrator@example.local>")
         self.assertEqual(meridian.resolve_project_locations(self.project).queue.with_name("QUEUE_ARCHIVE.md"), Path("docs/QUEUE_ARCHIVE.md"))
 
+    def test_declaration_overrides_an_invalid_legacy_location(self) -> None:
+        (self.project / "PROJECT_WORKFLOW.md").write_text(
+            "<!-- MERIDIAN:BEGIN capability=execution-assets v2 -->\n<!-- MERIDIAN:END -->\n"
+            "queue is `/tmp/QUEUE.md`.\n",
+            encoding="utf-8",
+        )
+        self.write({"version": 1, "locations": {"queue": "docs/QUEUE.md"}})
+        self.assertEqual(meridian.resolve_project_locations(self.project).queue, Path("docs/QUEUE.md"))
+
     def test_legacy_location_warning_is_emitted_once_per_process(self) -> None:
         (self.project / "PROJECT_WORKFLOW.md").write_text(
             "<!-- MERIDIAN:BEGIN capability=execution-assets v2 -->\n<!-- MERIDIAN:END -->\n"
