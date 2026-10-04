@@ -59,3 +59,4 @@ are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 | `[ ]` | 144 | Add `.meridian/project.json` as the project declaration surface | 🟡 P2 | — | [144](144-project-declaration-file.md) |
 | `[ ]` | 145 | Align Governed lifecycle capability text with the closure design and the CLI | 🔴 P1 | 142, 143, 144 | [145](145-governed-lifecycle-text-alignment.md) |
 | `[ ]` | 146 | Restructure inline markers, audit managed copies, and add consumer profiles | 🟡 P2 | 145 | [146](146-marker-structure-audit-and-consumer-profiles.md) |
+| `[ ]` | 147 | Isolate setup CLI tests from the developer's real home directory | 🔴 P1 | — | [147](147-isolate-setup-tests-from-real-home.md) |
