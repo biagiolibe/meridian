@@ -110,7 +110,7 @@
 - `[ ]` 141 — Count cached input in the Claude Code usage report.
 - `[x]` 142 — Recognize spike rows at stage and require `git diff --check` at finalize.
 - `[x]` 143 — Make the read-guard and queue-briefing hooks independent of queue status.
-- `[ ]` 144 — Add `.meridian/project.json` as the project declaration surface.
+- `[x]` 144 — Add `.meridian/project.json` as the project declaration surface.
 - `[ ]` 145 — Align Governed lifecycle capability text with the closure design and the CLI.
 - `[ ]` 146 — Restructure inline markers, audit managed copies, and add consumer profiles.
 - `[x]` 147 — Isolate setup CLI tests from the developer's real home directory.
