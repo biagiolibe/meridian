@@ -15,13 +15,13 @@ project text outside them never fails an audit.
 ## Whole-file managed copies
 
 A managed file that carries no capability markers, such as
-`docs/OPERATOR_PROMPTS.md` in Governed SDD or `docs/EXECUTION_EVIDENCE_PROFILE.md`
+`docs/OPERATOR_PROMPTS.md` in Governed SDD or `docs/COMPLETION_REPORT_TEMPLATE.md`
 in Lean Delivery, is a verbatim copy. `meridian audit` reports a `FAIL` row
 (`managed-copy-digest`) when its digest differs from the one `meridian upgrade`
 recorded in `.meridian/manifest.json`. Restore the released text and put
-project-specific content in a project file. `docs/ARCHITECTURE_DECISIONS.md`,
-`AGENTS.md`, `CLAUDE.md`, and the queue belong to the project and are never
-digest-checked.
+project-specific content in a project file. `docs/EXECUTION_EVIDENCE_PROFILE.md`, which a project configures for its
+stack, `docs/ARCHITECTURE_DECISIONS.md`, `AGENTS.md`, `CLAUDE.md`, and the queue
+belong to the project and are never digest-checked.
 
 ## Declaring a consumer profile
 
