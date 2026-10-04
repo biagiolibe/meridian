@@ -128,6 +128,14 @@
 - `[x]` 159 — Retire the reasoning budget contract.
 - `[x]` 160 — Give the Claude Code allowlist parity with the Codex execution-command rules.
 - `[ ]` 161 — State that a local `main` ahead of `origin/main` does not block integration.
+- `[ ]` 162 — Add the stop-code registry and emit closure stops through it.
+- `[ ]` 163 — Check that managed text and tests agree with the stop-code registry.
+- `[ ]` 164 — State the stop and denial rules in the managed workflow text.
+- `[ ]` 165 — Install the deny list as host permission rules.
+- `[ ]` 166 — Give codes and actionable messages to the execution and handoff gates.
+- `[ ]` 167 — Make the execution preflight satisfiable during remediation.
+- `[ ]` 168 — Report queue sections that archival cannot read.
+- `[ ]` 169 — Code the remaining gates and require every stop to carry a code.
 - `[x]` 140 — Let `integrate stage` complete rows of project-shaped Governed queues.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.
