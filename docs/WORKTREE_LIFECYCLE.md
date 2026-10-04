@@ -214,6 +214,10 @@ directory. Interruptions retain enough ownership and candidate identity for
 abandoned branches, and arbitrary paths have no routine command and require an
 explicitly authorized exceptional recovery outside the allowlisted surface.
 
+When integration reports `PRIMARY_DIRTY`, it lists the staged or modified paths
+(bounded to ten). A sole `.meridian/budget.json` entry is identified as the
+legacy budget file; commit its deletion before rerunning stage.
+
 After validation, `integrate stage` permits lifecycle changes only to the task
 record, its queue row, handoff, review record, `PROJECT_PLAN.md`, and
 `tasks/QUEUE_ARCHIVE.md`. A task record may be archived only as an exact

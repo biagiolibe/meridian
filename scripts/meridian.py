@@ -1138,11 +1138,19 @@ def closure_status(
             "git push origin main",
         )
 
-    if git_output(project_root, "status", "--porcelain"):
+    dirty_primary = git_output(project_root, "status", "--porcelain").splitlines()
+    if dirty_primary:
+        paths = [line[3:] for line in dirty_primary]
+        listed = ", ".join(paths[:10])
+        if len(paths) > 10:
+            listed += f", … (+{len(paths) - 10} more)"
+        detail = f"primary checkout is dirty ({len(paths)} path(s): {listed})"
+        if paths == [str(BUDGET_PATH)]:
+            detail += "; .meridian/budget.json is the legacy budget file; commit its deletion to continue"
         return report(
             "C6",
             "PRIMARY_DIRTY",
-            "clean the primary checkout and run integration stage",
+            f"{detail}; clean the primary checkout and run integration stage",
         )
     evidence_path = state_path.with_suffix(".evidence.json")
     if evidence_path.is_file():
@@ -7231,6 +7239,7 @@ def plan_upgrade(
 
 
 def print_plan(
+    project_root: Path,
     manifest: dict[str, object],
     framework_root: Path,
     plan: list[PlanItem],
@@ -7267,6 +7276,8 @@ def print_plan(
         print(f"{item.action.upper():8} {item.file.target} — {item.detail}")
         for problem in item.problems:
             print(f"MISSING-ROUTER {problem}")
+    if legacy_budget_migration_needed(project_root):
+        print("MIGRATE  .meridian/budget.json — remove legacy budget state from the index; commit its deletion")
     conflicts = sum(item.action == "conflict" for item in plan)
     edited_copies = sum(item.action == "edited-copy" for item in plan)
     router_blockers = sum(bool(item.problems) for item in plan)
@@ -7342,7 +7353,7 @@ def apply_plan(
     target_version_override: str | None = None,
     managed_files_override: list[ManagedFile] | None = None,
 ) -> None:
-    print_plan(manifest, framework_root, plan, target_version_override=target_version_override)
+    print_plan(project_root, manifest, framework_root, plan, target_version_override=target_version_override)
     if plan_has_blockers(plan, owner_reconciled=owner_reconciled):
         raise MeridianError("upgrade has blocking plan items")
 
@@ -7512,6 +7523,8 @@ def apply_plan(
     manifest["appliedMigrations"] = sorted(prior)
     complete_profile_surfaces(project_root, framework_root, manifest, plan)
     write_manifest(project_root, manifest, framework_root)
+    if migrate_budget_state(project_root):
+        print("Migrated legacy .meridian/budget.json out of the index; commit its deletion.", file=sys.stderr)
     print("Upgrade applied. Review the diff, run project checks, then commit it.")
 
 
@@ -7588,7 +7601,7 @@ def adopt_project(
         snapshot_workflow,
         [],
     )
-    print_plan(manifest, framework_root, plan)
+    print_plan(project_root, manifest, framework_root, plan)
     if not apply:
         return 2 if any(item.action == "conflict" for item in plan) else 0
     if any(item.action == "conflict" for item in plan):
@@ -7678,13 +7691,23 @@ def tracked_budget_state(project_root: Path) -> bool:
     return _run_git(primary, "ls-files", "--error-unmatch", "--", str(BUDGET_PATH)).returncode == 0
 
 
-def migrate_budget_state(project_root: Path) -> None:
-    """Move the legacy project file once and remove it from the Git index."""
+def legacy_budget_migration_needed(project_root: Path) -> bool:
+    """Whether an explicit write or upgrade must retire the tracked legacy file."""
+    primary = primary_project_root(project_root)
+    return (primary / BUDGET_PATH).is_file() and tracked_budget_state(primary)
+
+
+def migrate_budget_state(project_root: Path) -> bool:
+    """Move the legacy project file once and remove it from the Git index.
+
+    This is deliberately called only by mutating operations. Read paths must
+    continue to expose the legacy content without changing the checkout.
+    """
     primary = primary_project_root(project_root)
     legacy = primary / BUDGET_PATH
     destination = budget_state_path(primary)
     if destination == legacy or not legacy.is_file():
-        return
+        return False
     if not destination.exists():
         destination.parent.mkdir(parents=True, exist_ok=True)
         legacy.replace(destination)
@@ -7694,11 +7717,14 @@ def migrate_budget_state(project_root: Path) -> None:
         result = _run_git(primary, "rm", "--cached", "--ignore-unmatch", "--", str(BUDGET_PATH))
         if result.returncode != 0:
             raise MeridianError(result.stderr.strip() or "could not remove legacy budget state from Git")
+    return True
 
 
 def load_budget_state(project_root: Path) -> dict[str, object]:
-    migrate_budget_state(project_root)
     path = budget_state_path(project_root)
+    legacy = primary_project_root(project_root) / BUDGET_PATH
+    if not path.is_file() and legacy.is_file():
+        path = legacy
     if not path.is_file():
         return {}
     try:
@@ -7708,7 +7734,8 @@ def load_budget_state(project_root: Path) -> dict[str, object]:
 
 
 def write_budget_state(project_root: Path, state: dict[str, object]) -> None:
-    migrate_budget_state(project_root)
+    if migrate_budget_state(project_root):
+        print("Migrated legacy .meridian/budget.json out of the index; commit its deletion.", file=sys.stderr)
     path = budget_state_path(project_root)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -8863,7 +8890,6 @@ def resolve_budget_key(project_root: Path, state: dict[str, object], task_id: st
 def budget_show(project_root: Path, task_id: str) -> str:
     state = load_budget_state(project_root)
     key, text = resolve_budget_key(project_root, state, task_id)
-    write_budget_state(project_root, state)
     counters = state.get(key, {})
     parts = []
     for kind, label in (
@@ -10174,7 +10200,7 @@ def main() -> int:
                 installed_framework_version=str(base_manifest.get("frameworkVersion", "")),
                 capability_profiles=base_manifest.get("capabilityProfiles"),
             )
-            print_plan(manifest, framework_root, plan, target_version_override=target_override)
+            print_plan(project_root, manifest, framework_root, plan, target_version_override=target_override)
             if plan_has_blockers(plan):
                 return 2
         else:
