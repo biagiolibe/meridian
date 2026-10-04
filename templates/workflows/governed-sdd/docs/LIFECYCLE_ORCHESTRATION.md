@@ -1,6 +1,6 @@
 # Autonomous Task Lifecycle Orchestration
 
-<!-- MERIDIAN:BEGIN capability=lifecycle-orchestration v8 -->
+<!-- MERIDIAN:BEGIN capability=lifecycle-orchestration v9 -->
 `Run lifecycle <TASK-ID>` authorizes an orchestrator to carry one dependency-ready
 task through implementation, independent review, requested-change remediation,
 acceptance, and `main` integration without further developer prompts. It does
@@ -37,12 +37,7 @@ then run `meridian worktree prepare` from the primary checkout. Pass its exact
 existing path, branch, primary checkout, and worktree root to every worker as
 durable launch inputs. If the host cannot launch a fresh session with that path
 as its effective workspace, return `BLOCKED`; never use automatic isolation,
-`.claude/worktrees`, the primary checkout, or a substitute path. The task's
-declared `Reasoning` value is the exact
-permitted effort for both implementer and reviewer, not a minimum: configure
-each fresh worker session to that value and stop before delegation if the
-effective setting differs or cannot be confirmed. Never escalate either worker
-automatically. Use the lowest available reasoning profile for the orchestrator.
+`.claude/worktrees`, the primary checkout, or a substitute path.
 Do not run implementation and review concurrently in the same worktree. Every
 worker's first action is `meridian worktree check` in the prepared directory,
 before any task or handoff read. Stop the implementer before starting the fresh

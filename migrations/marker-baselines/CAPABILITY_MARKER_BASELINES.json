@@ -31,8 +31,8 @@
       "version": 2
     },
     "execution-assets": {
-      "sha256": "b5b40eb181cc43560c49b6b7b55d0c9cc690b285d21520cd49709b0793def101",
-      "version": 3
+      "sha256": "c0f4a62b5a7bc676c9232f516485ab3cde5e4d44271fd2fa3866c4b012db1b58",
+      "version": 4
     },
     "execution-discipline": {
       "sha256": "c37e3c5244a73a9e8546c4cfb0b887dea1c6c8990eb1e9f8603b4dc4c105c608",
@@ -105,8 +105,8 @@
       "version": 1
     },
     "execution-evidence-profile": {
-      "sha256": "9c5d169d79633b77d84b8492bc2de5bfe3d6b6cbc6ab35894d663069ec505be5",
-      "version": 3
+      "sha256": "ae9d11b60b22b6dbbaead57bc4949b42fdcaee5a8569ab5d03a658ec9ba58c6a",
+      "version": 4
     },
     "isolated-exploration": {
       "sha256": "955337a68eb42e39c91fdd7b7a7a82446b5a78d46d74c9e0d40675357211f937",
@@ -128,10 +128,6 @@
       "sha256": "0ed9579cf7807597c65ea59c9eb63c577bd168ebaaf96afe3c3d6cde1a77f1b9",
       "version": 2
     },
-    "reasoning-budget-contract": {
-      "sha256": "61399cc90c87a4de172354cb3626c20d185c7ec88a665192cf70663dcc7a4bba",
-      "version": 1
-    },
     "validation-scoping": {
       "sha256": "fe8f3d6bf7bd3b49f613c1e9759583bda5cf8678396d52578ef877b504c3c68f",
       "version": 2
@@ -149,8 +145,8 @@
   },
   "templates/workflows/governed-sdd/docs/LIFECYCLE_ORCHESTRATION.md": {
     "lifecycle-orchestration": {
-      "sha256": "5bca052bc0897b4b23edde1913d6aa060e4789f0582301330aa3800df3b74aa1",
-      "version": 8
+      "sha256": "e604b2a5579aa54f670588c5960f52f5fa527f25a5e5b317fd534c196a40c3ee",
+      "version": 9
     },
     "rejected-attempt-restart": {
       "sha256": "7620b5417d54c4934136956ef083dc78e68e19a03a6ad824a83a01d43e9413fc",
@@ -289,8 +285,8 @@
   },
   "templates/workflows/governed-sdd/tasks/TASK_BLUEPRINT.md": {
     "task-blueprint": {
-      "sha256": "80a974587a33d52e3148748b4df2f773c987bf0920977c55c153a09c6a1c7a8f",
-      "version": 13
+      "sha256": "3f1b2185c4c283fba5044da2f4ceb3b0060569c7d20034ff989141ec92a81312",
+      "version": 14
     }
   },
   "templates/workflows/lean-delivery/AGENTS.md": {

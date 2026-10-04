@@ -16,24 +16,6 @@ Resolve the canonical queue, task, and review-record locations from
 may report them when available. Do not substitute a template path for a
 project-declared location.
 
-## Choose the reasoning level before sending
-
-The chat's configured reasoning effort is the effective runtime setting. A task's
-`Reasoning` field is its exact permitted cap, not a minimum or a suggestion;
-it does not reconfigure an already-open chat. When the active agent supports
-reasoning selection, create each worker chat at that exact level. If the
-effective setting differs or cannot be confirmed, do not start substantive
-work: launch a fresh chat at the declared level. Never raise an agent's effort
-automatically. A `high` task must carry its written rationale; an `xhigh` task
-also requires the developer's explicit authorization.
-
-| Work | Default | Escalate only when |
-| --- | --- | --- |
-| Focused administrative or mechanical work | `low` | The task's bounded scope demonstrates that deeper reasoning is unnecessary. |
-| Routine implementation, review, and task decomposition | `medium` | The task has a written complexity rationale and is materially ambiguous. |
-| Design or architecture | `high` | The task records the cross-layer trade-off or unresolved authority interaction. |
-| Exceptional work | `xhigh` | The task records the exceptional need and the developer explicitly authorizes it. |
-
 ## 1. Report project status (read-only)
 
 Use this before deciding what to do next.
@@ -102,7 +84,7 @@ boundaries. If no next phase is justified, report that explicitly.
 Do not implement code, perform a code review, or choose an unassigned task.
 Record durable decisions in an ADR and a normative specification only when
 needed. Create or materially revise only atomic tasks that follow the
-canonical task blueprint: declare dependencies, reasoning and justification,
+canonical task blueprint: declare dependencies,
 review policy, authority, expected code surface, measurable acceptance
 criteria, validation, and out-of-scope boundaries. When an unresolved question
 must be answered before a task can be scoped or verified, create a `Class:
@@ -135,7 +117,7 @@ or implement a remedy. End with the next permitted governance state.
 
 ## 4. Implement exactly one task
 
-Use this in a dedicated implementation chat only after the task is dependency-ready. Configure the chat at the task's exact declared reasoning cap first when supported; if its effective level cannot be confirmed, do not proceed.
+Use this in a dedicated implementation chat only after the task is dependency-ready.
 
 ```text
 Proceed with <TASK-ID>.
@@ -264,5 +246,4 @@ Report the current SDD handoff state; do not modify files.
 - A task may start only when its dependencies are `ACCEPTED` and the developer explicitly assigns it.
 - A required-review task needs a separate reviewer-integrator chat unless the owner uses the explicit `Accept <TASK-ID>` path.
 - `Run lifecycle <TASK-ID>` may coordinate the required-review loop only through distinct implementer and reviewer sessions, as defined by `docs/LIFECYCLE_ORCHESTRATION.md`.
-- A prompt cannot change a chat's reasoning setting; configure it before sending the prompt when the active agent supports it.
 - A task, review, audit, or analysis does not authorize unrelated code, future milestones, destructive Git recovery, or external publication.

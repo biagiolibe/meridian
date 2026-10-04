@@ -1,6 +1,6 @@
 # Task [ID] — [Title]
 
-<!-- MERIDIAN:BEGIN capability=task-blueprint v13 -->
+<!-- MERIDIAN:BEGIN capability=task-blueprint v14 -->
 Priority: [P0 / P1 / P2]
 Status: QUEUED
 Review: REQUIRED
@@ -8,18 +8,10 @@ Class: [omit for a normal task / SPIKE]
 Manual verification: [none / required]
 Manual verification rationale: [mandatory when Manual verification: required, omitted otherwise; name the tier-3 (perceptual) property that no tier-1 (structural) or tier-2 (derived-value) check can express — see docs/CONTEXT_BUDGET_POLICY.md's evidence tiers]
 Dependencies: [none / TASK-ID, ...]
-Reasoning: [low / medium / high / xhigh]
-Reasoning justification: [required for high; for xhigh, include the developer's explicit authorization; omit for low/medium]
 Diagnostic attempts: [optional; overrides the profile's default cap]
 Evidence captures: [optional; overrides the profile's default cap]
 Context expansions: [optional; overrides the profile's default cap]
 Investigation scope: [optional; overrides the profile's default cap]
-
-`Reasoning` is this task's exact permitted runtime cap, not a minimum or a
-suggestion. Before implementation, remediation, or review, the worker's
-configured reasoning effort must equal this value. A mismatch requires a fresh
-session configured at the declared value; a worker must never raise its effort
-automatically. See `docs/CONTEXT_BUDGET_POLICY.md` for the preflight rule.
 
 `Manual verification rationale` is checked before the evidence-availability
 probe, not after: a missing rationale, or one naming a property assertable at
@@ -31,8 +23,7 @@ deterministic check instead.
 optional per-task caps; omit any of them to inherit
 `docs/EXECUTION_EVIDENCE_PROFILE.md`'s default. Each is a cap, not a target:
 exhausting it requires `BLOCKED`, not a silently raised cap. Setting one
-above the profile's default requires a one-line rationale in this task, the
-same way `Reasoning justification` documents `high`/`xhigh`.
+above the profile's default requires a one-line rationale in this task.
 
 ## Spike shape
 

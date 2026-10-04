@@ -68,6 +68,4 @@ The full suite of this repository takes about two minutes, measured on
 
 ## Runtime configuration
 
-Use the lowest reasoning level that can satisfy the task. A task-level cap,
-when present, overrides this default and must be checked before substantive
-work. Faster execution is allowed only when it preserves required evidence.
+Faster execution is allowed only when it preserves required evidence.
