@@ -48,3 +48,4 @@ are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 | `[ ]` | 137 | Tell Codex agents to wait once for long commands | 🟡 P2 | — | [137](137-codex-wait-guidance-for-long-commands.md) |
 | `[ ]` | 138 | Run the unit suite in parallel without changing what it covers | 🟡 P2 | — | [138](138-parallel-test-runner.md) |
 | `[ ]` | 139 | Make `check_repository.py` catch managed-copy digest drift | 🟡 P2 | — | [139](139-check-managed-copy-digest-drift.md) |
+| `[ ]` | 141 | Count cached input in the Claude Code usage report | 🟡 P2 | — | [141](141-usage-report-claude-input-total.md) |

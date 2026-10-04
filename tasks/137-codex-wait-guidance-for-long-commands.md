@@ -19,7 +19,8 @@ control after `yield_time_ms`, and an agent then polls with an empty
 30000 while the suite ran about two minutes), 16 to 24 percent of those
 sessions' calls. Each call re-sent a context averaging about 70,000 tokens, so
 the polling cost roughly 0.6 to 0.9 million input tokens per session. Give Codex
-agents an equivalent instruction that removes the polling.
+agents an equivalent instruction that removes the polling, and state when the
+full suite is run so it is not repeated without a code change.
 
 ## Acceptance Criteria
 
@@ -38,6 +39,13 @@ agents an equivalent instruction that removes the polling.
   expected duration, no empty `write_stdin` loop) and does not name a private
   tool signature that can change; the exact parameter names appear only with the
   verified version noted.
+- [ ] The profile also states the suite-run rule, host-neutral: during
+  implementation run only the tests of the modules the task touches; run the full
+  suite once, after the last code change, as the validation of record; rerun it
+  only when code changed since. It must not weaken the declared candidate
+  validation (`REUSE`, `BOUNDED`, `FULL`), which stays as defined by tasks 121,
+  122, and 125. In the seven sessions measured, `unittest` ran about five times
+  per session.
 - [ ] The existing Claude Code wording stays and remains correct: foreground with a
   timeout of up to 600 seconds, never detached and polled.
 - [ ] The expected duration of this project's full suite is stated in this
