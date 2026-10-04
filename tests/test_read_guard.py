@@ -123,6 +123,17 @@ class ReadGuardTest(unittest.TestCase):
         result = run_hook(self.payload(target))
         self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_router_file_uses_its_own_ceiling(self) -> None:
+        target = self.write_file("PROJECT_WORKFLOW.md", 500)
+        target.write_text("LEAN_DELIVERY\n" * 500, encoding="utf-8")
+        (self.project / ".meridian").mkdir()
+        (self.project / ".meridian/context-size.json").write_text(
+            '{"version": 1, "routerFileLinesCeiling": 100}\n', encoding="utf-8"
+        )
+        result = run_hook(self.payload(target))
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("Shrink the file", result.stderr)
+
     def test_inactive_outside_a_meridian_project(self) -> None:
         outside = Path(self.temporary.name) / "not-a-project"
         outside.mkdir()

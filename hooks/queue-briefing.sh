@@ -267,11 +267,24 @@ fi
 # to contain the same backticked status markers (e.g. "How to use this
 # queue"'s "[ ]" / "[/]" / "[x]" examples).
 
-# Extract active task ([/]). Anchored (`^`) so sed captures the ID/title
+# Resolve the active task from the registered worktree first.  Lean task
+# branches intentionally retain `[ ]` in the shared queue.  The queue remains
+# a title source and legacy fallback, never the authority for activity.
+ACTIVE_ID=""
+if [ -n "$MERIDIAN_BIN" ] && [ -x "$MERIDIAN_BIN" ]; then
+  ACTIVE_ID=$("$MERIDIAN_BIN" worktree active --format json 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin).get("task_id", ""))' 2>/dev/null)
+fi
+
+# Extract active task ([/]) only as a compatibility fallback for legacy
+# worktrees created before lifecycle registration. Anchored (`^`) so sed captures the ID/title
 # columns right after the status cell, not a later 3-digit "| NNN |"-shaped
 # match elsewhere in the row (e.g. a "Depends on" column) — sed's regex is
 # greedy and, unanchored, matches the rightmost candidate instead.
 ACTIVE=$(grep -m1 "^| \`\[/\]\` | [0-9]\{3\} |" "$QUEUE" | sed -E 's/^\| `\[.\]` \| [0-9]{3} \| ([^|]*)\|.*/\1/' | xargs)
+if [ -n "$ACTIVE_ID" ]; then
+  ACTIVE=$(grep -m1 "^| \`\[[ /x]\]\` | $ACTIVE_ID |" "$QUEUE" | sed -E 's/^\| `\[.\]` \| [0-9]{3} \| ([^|]*)\|.*/\1/' | xargs)
+  [ -n "$ACTIVE" ] || ACTIVE="$ACTIVE_ID"
+fi
 
 # Extract next pending tasks ([ ])
 PENDING=$(grep "^| \`\[ \]\` | [0-9]\{3\} |" "$QUEUE" | head -2 | sed -E 's/^\| `\[.\]` \| ([0-9]{3}) \| ([^|]*)\|.*/\1 - \2/' | xargs | sed 's/  */ /g')
