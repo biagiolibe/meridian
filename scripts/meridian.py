@@ -7064,6 +7064,33 @@ def plan_from_baseline(
                 if superseded:
                     parts.append(f"replace superseded block(s) in place ({', '.join(superseded)})")
                 detail += " and ".join(parts) + " without touching other local text"
+                pending_removals = removals_for_managed_file(framework_root, pending_migrations, item.target)
+                if pending_removals:
+                    retired_append = remove_retired_markers(
+                        marker_append,
+                        base_text,
+                        [(capability, version) for capability, version, _superseded_by in pending_removals],
+                    )
+                    if retired_append is None:
+                        plan.append(
+                            PlanItem(
+                                item,
+                                "conflict",
+                                "a retired capability block was edited locally; reconcile it by hand "
+                                "before this upgrade can remove it",
+                            )
+                        )
+                        continue
+                    if retired_append != marker_append:
+                        plan.append(
+                            PlanItem(
+                                item,
+                                "append-retire-markers",
+                                detail + "; then retire the declared capability block(s) "
+                                "that still match the installed baseline",
+                            )
+                        )
+                        continue
                 plan.append(
                     PlanItem(
                         item,

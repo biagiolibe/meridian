@@ -487,7 +487,7 @@ PROJECT_WORKFLOW.md             # Lifecycle, precedence, roles, and Git rules
 AGENTS.md / CLAUDE.md           # Agent-specific project instructions
 LANGUAGE_POLICY.md              # Persistent conversation language and English-only repository text
 docs/ARCHITECTURE_DECISIONS.md  # Accepted architecture decisions
-docs/CONTEXT_BUDGET_POLICY.md   # Task-first context and reasoning policy
+docs/CONTEXT_BUDGET_POLICY.md   # Task-first context policy
 tasks/QUEUE.md                  # Canonical dependency and status queue
 tasks/TASK-NNN.md               # One bounded unit of work
 tasks/reviews/TASK-NNN.md       # Reviewer evidence and requested-change handoff
@@ -528,7 +528,7 @@ A governed task declares:
 
 - the decision or specification that authorizes it;
 - its expected code surface and explicit non-goals;
-- dependencies and a reasoning profile;
+- dependencies;
 - `REQUIRED` or `NOT_REQUIRED` review policy;
 - measurable acceptance criteria and validation commands.
 

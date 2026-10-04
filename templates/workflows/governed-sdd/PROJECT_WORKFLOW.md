@@ -73,10 +73,10 @@ is derived from the task branch, its registered worktree, and its unarchived
 record.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=execution-assets v3 -->
+<!-- MERIDIAN:BEGIN capability=execution-assets v4 -->
 ## Execution assets
 
-- `docs/CONTEXT_BUDGET_POLICY.md` defines task-first context loading, reasoning profiles, and concise communication.
+- `docs/CONTEXT_BUDGET_POLICY.md` defines task-first context loading and concise communication.
 - `tasks/TASK_BLUEPRINT.md` defines the canonical atomic-task shape.
 - `docs/COMPLETION_REPORT_TEMPLATE.md` defines the implementation and review handoff.
 - Completion handoffs live at `tasks/handoffs/<TASK-ID>.md`.

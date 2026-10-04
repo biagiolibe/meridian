@@ -15,7 +15,7 @@ this local mode lock.
 
 In `GOVERNED_SDD`, use the task-identity procedure below to assign a stable
 ID, create the task from `tasks/TASK_BLUEPRINT.md`, require explicit `Review`, `Dependencies`,
-`Reasoning`, authority, expected code surface, non-goals, measurable acceptance
+authority, expected code surface, non-goals, measurable acceptance
 criteria, and validation. Add a `QUEUED` row to `tasks/QUEUE.md`. Do not use
 checkbox status, move task files to `done/`, or select a task autonomously.
 In `LEAN_DELIVERY`, follow its local task shape and `[ ]` → `[/]` → `[x]`
