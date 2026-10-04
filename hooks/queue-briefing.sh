@@ -133,6 +133,14 @@ ARCHIVE="$(dirname "$QUEUE")/QUEUE_ARCHIVE.md"
 # header.  Established projects may intentionally omit the optional `Review`
 # or task-file columns.  The parser below maps the required columns by name.
 if grep -Eq '^\| Order \| ID \|.*\| Status \|.*Dependencies \|' "$QUEUE"; then
+  # Queue rows remain QUEUED while task worktrees are active. Lifecycle
+  # registration plus the task record is the source of active/review state.
+  DERIVED_STATES="[]"
+  if [ -n "$MERIDIAN_BIN" ] && [ -x "$MERIDIAN_BIN" ]; then
+    DERIVED_STATES=$("$MERIDIAN_BIN" worktree states --project . --format json 2>/dev/null || printf '[]')
+  fi
+  DERIVED_ACTIVE=$(printf '%s' "$DERIVED_STATES" | python3 -c 'import json,sys; print(", ".join(item["task_id"] for item in json.load(sys.stdin) if item.get("status") != "READY_FOR_REVIEW"))' 2>/dev/null)
+  DERIVED_REVIEW=$(printf '%s' "$DERIVED_STATES" | python3 -c 'import json,sys; print(", ".join(item["task_id"] for item in json.load(sys.stdin) if item.get("status") == "READY_FOR_REVIEW"))' 2>/dev/null)
   ARCHIVE_ARG=""
   [ -f "$ARCHIVE" ] && ARCHIVE_ARG="$ARCHIVE"
   # Single awk pass: collect every row's ID/status/dependencies, then
@@ -175,6 +183,9 @@ if grep -Eq '^\| Order \| ID \|.*\| Status \|.*Dependencies \|' "$QUEUE"; then
       for (i = 1; i <= n; i++) {
         s = status[i]
         if (s == "ACCEPTED") accepted++
+        # Retain queue-derived states only for a legacy branch with no
+        # lifecycle registration. Derived states below take precedence, so a
+        # pre-migration queue edit is never double-counted.
         if (s == "IN_PROGRESS" && active == "") active = id[i]
         else if (s == "READY_FOR_REVIEW" && review == "") review = id[i]
         else if (s == "QUEUED") {
@@ -207,6 +218,9 @@ if grep -Eq '^\| Order \| ID \|.*\| Status \|.*Dependencies \|' "$QUEUE"; then
       printf "ACCEPTED=%d\n", accepted
     }
   ' "$QUEUE" $ARCHIVE_ARG)"
+
+  ACTIVE=${DERIVED_ACTIVE:-$ACTIVE}
+  REVIEW=${DERIVED_REVIEW:-$REVIEW}
 
   echo "[Meridian Governed Queue]"
   [ -n "$ACTIVE" ] && echo "  🔴 In progress: $ACTIVE" || echo "  ✅ No active task"
@@ -267,11 +281,24 @@ fi
 # to contain the same backticked status markers (e.g. "How to use this
 # queue"'s "[ ]" / "[/]" / "[x]" examples).
 
-# Extract active task ([/]). Anchored (`^`) so sed captures the ID/title
+# Resolve the active task from the registered worktree first.  Lean task
+# branches intentionally retain `[ ]` in the shared queue.  The queue remains
+# a title source and legacy fallback, never the authority for activity.
+ACTIVE_ID=""
+if [ -n "$MERIDIAN_BIN" ] && [ -x "$MERIDIAN_BIN" ]; then
+  ACTIVE_ID=$("$MERIDIAN_BIN" worktree active --format json 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin).get("task_id", ""))' 2>/dev/null)
+fi
+
+# Extract active task ([/]) only as a compatibility fallback for legacy
+# worktrees created before lifecycle registration. Anchored (`^`) so sed captures the ID/title
 # columns right after the status cell, not a later 3-digit "| NNN |"-shaped
 # match elsewhere in the row (e.g. a "Depends on" column) — sed's regex is
 # greedy and, unanchored, matches the rightmost candidate instead.
 ACTIVE=$(grep -m1 "^| \`\[/\]\` | [0-9]\{3\} |" "$QUEUE" | sed -E 's/^\| `\[.\]` \| [0-9]{3} \| ([^|]*)\|.*/\1/' | xargs)
+if [ -n "$ACTIVE_ID" ]; then
+  ACTIVE=$(grep -m1 "^| \`\[[ /x]\]\` | $ACTIVE_ID |" "$QUEUE" | sed -E 's/^\| `\[.\]` \| [0-9]{3} \| ([^|]*)\|.*/\1/' | xargs)
+  [ -n "$ACTIVE" ] || ACTIVE="$ACTIVE_ID"
+fi
 
 # Extract next pending tasks ([ ])
 PENDING=$(grep "^| \`\[ \]\` | [0-9]\{3\} |" "$QUEUE" | head -2 | sed -E 's/^\| `\[.\]` \| ([0-9]{3}) \| ([^|]*)\|.*/\1 - \2/' | xargs | sed 's/  */ /g')

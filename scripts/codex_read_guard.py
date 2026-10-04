@@ -15,6 +15,8 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
+import meridian
+
 
 DEFAULT_THRESHOLD = 400
 RANGE = re.compile(r"^(\d+)(?:,(\d+))?p$")
@@ -113,17 +115,40 @@ def is_exempt(path: Path, project: Path) -> bool:
     if relative == "LANGUAGE_POLICY.md":
         return True
     try:
-        router = (project / "docs/workflows/ENTRY_ROUTER.md").read_text(encoding="utf-8")
-        for line in router.splitlines():
-            if "always" in line.lower() and f"`{relative}`" in line:
-                return True
-        queue = (project / "tasks/QUEUE.md").read_text(encoding="utf-8")
-        active = re.search(r"^\| `\[/\]` \| (\d{3}) \|", queue, re.MULTILINE)
-        if active and path == project / "tasks" / f"{active.group(1)}.md":
+        active = meridian.active_worktree_task(project)
+        if active and str(path) in active["exempt_paths"]:
             return True
+        if active:
+            authority = meridian.context_authority(project, str(active["task_id"]), labels_only=True)
+            sources = re.findall(r"^### (.+?) —", authority, re.MULTILINE)
+            if relative in sources:
+                return True
+    except meridian.MeridianError:
+        pass
     except OSError:
         pass
+    try:
+        if Path(relative) in meridian.context_router_files(project):
+            return True
+    except meridian.MeridianError:
+        pass
     return False
+
+
+def router_ceiling_reason(path: Path, project: Path) -> str | None:
+    """Return a specific denial for a declared router file above its ceiling."""
+    try:
+        relative = path.relative_to(project)
+        if relative not in meridian.context_router_files(project):
+            return None
+        _bytes, ceiling = meridian._context_configuration(project)
+        with path.open(encoding="utf-8", errors="replace") as source:
+            lines = sum(1 for _ in source)
+        if lines > ceiling:
+            return f"Blocked: router file {relative.as_posix()} ({lines} lines) exceeds its declared ceiling ({ceiling} lines). Shrink the file; do not read it in ranges."
+    except (OSError, ValueError, meridian.MeridianError):
+        return None
+    return None
 
 
 def display_path(path: Path, project: Path) -> str:
@@ -151,7 +176,12 @@ def decision(payload: object) -> tuple[bool, str | None]:
     try:
         for target in extract_targets(tool_input["command"]):
             path = (project / target.path).resolve() if not Path(target.path).is_absolute() else Path(target.path).resolve()
-            if not path.is_file() or is_exempt(path, project):
+            if not path.is_file():
+                continue
+            ceiling_reason = router_ceiling_reason(path, project)
+            if ceiling_reason:
+                return False, ceiling_reason
+            if is_exempt(path, project):
                 continue
             with path.open(encoding="utf-8", errors="replace") as source:
                 lines = sum(1 for _ in source)
@@ -174,7 +204,7 @@ def decision(payload: object) -> tuple[bool, str | None]:
         f"Blocked: shell read of {joined} returns {total} effective lines, exceeding the read-guard threshold "
         f"({budget} lines). Use `rg -n` to locate lines, then a ranged `sed -n`; for the ADR log or a spec file use "
         "`meridian context authority <TASK-ID>` or `meridian adr show <ADR-ID>`. To override, declare the file "
-        "in the task's Authority or raise `Read-guard threshold`."
+        "in the task's Authority or raise `Read-guard threshold` in docs/EXECUTION_EVIDENCE_PROFILE.md."
     )
 
 
