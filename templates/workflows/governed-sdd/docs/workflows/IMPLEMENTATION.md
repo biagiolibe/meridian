@@ -2,7 +2,13 @@
 
 Use this procedure only for `Proceed with <TASK-ID>` after the entry-point router has applied its always-loaded invariants.
 
-<!-- MERIDIAN:BEGIN capability=task-worktree-boundary v6 -->
+<!-- MERIDIAN:BEGIN capability=task-worktree-boundary v7 -->
+Order of operations: before `prepare`, read only the router read set
+(`AGENTS.md` or `CLAUDE.md`, `PROJECT_WORKFLOW.md`, `LANGUAGE_POLICY.md`, and
+this procedure); read no task material and mutate nothing. Apart from the
+read-only lookup of the primary checkout, `prepare` is the only command
+permitted before `check`.
+
 Choose exactly one start mode before reading the task, its handoff,
 implementation files, or any diff. The task ID is taken only from the
 `Proceed with <TASK-ID>` trigger; never infer it from a branch, directory, or
@@ -35,8 +41,11 @@ verified worktree, never the primary checkout.
 `Proceed with <TASK-ID>` is standing authority for the complete gated lifecycle:
 validation, completion and archive records, staging and candidate validation,
 finalize or abort, one plain `git push origin main`, and cleanup. It also
-authorizes one plain `git push origin task-<TASK-ID>` only to obtain `T1_CI`
-for that task commit. It never authorizes tags or releases; force, deleting, or
+authorizes, for the first review attempt, one plain `git push origin
+<task-branch>` (the `branch` value returned by `prepare`) only to obtain `T1_CI`
+for that task commit; the project's CI is `meridian project show --field ci`,
+and without CI there is no push. `Address review <TASK-ID>` authorizes the next
+attempt's push, and a reviewer never pushes. It never authorizes tags or releases; force, deleting, or
 mirroring pushes; history rewrites; forced worktree removal; bypassing a
 required independent review; textual conflict resolution; or another task.
 Do not ask for confirmation within that boundary.
@@ -63,7 +72,7 @@ the handoff.
 
 <!-- MERIDIAN:BEGIN capability=validation-scoping v1 -->scoped to the diff's actual surface per `docs/CONTEXT_BUDGET_POLICY.md`'s validation-scope rule — skip a full build/test/lint suite for a documentation/policy-only change and state so explicitly.<!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=execution-command-gate v1 -->
+<!-- MERIDIAN:BEGIN capability=execution-command-gate v2 -->
 For a normal task, execute every named `Validation` entry only through
 `meridian execution validate <TASK-ID> <validation-id> --project .`; running
 the literal command directly is not completion evidence. Before a budgeted
@@ -71,7 +80,7 @@ diagnostic, capture, or context expansion, use `meridian execution evidence`.
 Before broad or uncertain-yield research outside the initial task authority,
 use `meridian execution investigate`. For `Review: REQUIRED`, write the
 completion handoff and run `meridian execution ready-check <TASK-ID> --project
-.` before setting the task or queue row to `READY_FOR_REVIEW`. If a nonterminal
+.` before setting the task record to `READY_FOR_REVIEW`. If a nonterminal
 legacy task lacks the current generated execution contract, run `meridian
 execution reconcile <TASK-ID> --apply --project .` before substantive work.
 <!-- MERIDIAN:END -->

@@ -8,6 +8,7 @@ import tempfile
 import unittest
 import json
 import os
+import re
 from pathlib import Path
 from unittest import mock
 
@@ -1326,6 +1327,34 @@ class GovernedCompletionRowsTest(unittest.TestCase):
                 else:
                     self.assertIn("| QUEUED | REQUIRED |", row)
                     self.assertEqual(result["status"], "REVIEW_PENDING")
+
+    def test_owner_accept_text_and_stage_agree_on_the_approve_attempt(self) -> None:
+        workflow = (ROOT / "templates/workflows/governed-sdd/docs/workflows/LIFECYCLE.md").read_text(encoding="utf-8")
+        record_template = (ROOT / "templates/workflows/governed-sdd/docs/REVIEW_RECORD_TEMPLATE.md").read_text(encoding="utf-8")
+        self.assertIn("Append an owner `APPROVE` attempt to the review record", workflow)
+        self.assertIn("`- Approved by: owner`", workflow)
+        self.assertIn("continue at C6 under the `Proceed with` authority", workflow)
+        self.assertIn("`- Approved by: owner`", record_template)
+        heading = re.search(r"^## Attempt <N> — <(.+?)>$", record_template, re.MULTILINE)
+        self.assertIsNotNone(heading)
+        self.assertIn("APPROVE", heading.group(1))
+        queue = self.primary / "tasks/QUEUE.md"
+        queue.write_text(
+            queue.read_text(encoding="utf-8").replace("NOT_REQUIRED", "REQUIRED")
+            + "| 2 | 057 | P1 | QUEUED | NOT_REQUIRED | — | [057](057.md) |\n",
+            encoding="utf-8",
+        )
+        identity = meridian.resolve_task_identity(self.primary, "056", "existing")
+        identity.review_path.parent.mkdir(exist_ok=True)
+        identity.review_path.write_text(
+            "# Review Record — 056\n\n## Attempt 1 — CHANGES_REQUESTED\n\n- [x] P1 — fixed\n\n"
+            "## Attempt 2 — APPROVE\n\n- Approved by: owner\n- Reviewed commit: `abc`\n- Base `main` commit: `def`\n",
+            encoding="utf-8",
+        )
+        result = meridian._apply_task_completion_rows(self.primary, identity)
+        row = next(line for line in queue.read_text(encoding="utf-8").splitlines() if "| 056 |" in line)
+        self.assertEqual(result["status"], "COMPLETED")
+        self.assertIn("| ACCEPTED | REQUIRED |", row)
 
     def test_required_review_relinks_an_archived_task_without_accepting(self) -> None:
         queue = self.primary / "tasks/QUEUE.md"
