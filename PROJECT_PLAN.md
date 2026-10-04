@@ -124,6 +124,8 @@
 - `[x]` 155 — Align capability-profile surfaces at upgrade and keep `upgrade --check` from blocking on them.
 - `[ ]` 156 — Stop `release.py` passing `--repo` to `gh api`.
 - `[x]` 157 — Stop `handoff-check` requiring one hard-coded Meridian test as the only valid skip.
+- `[ ]` 158 — Migrate legacy budget state only at upgrade, never from a read.
+- `[ ]` 159 — Retire the reasoning budget contract.
 - `[x]` 140 — Let `integrate stage` complete rows of project-shaped Governed queues.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.
