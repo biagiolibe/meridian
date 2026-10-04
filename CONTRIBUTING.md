@@ -72,6 +72,14 @@ tests` remains the canonical full test run.
 
 The check validates JSON metadata, Bash syntax, required public-repository files, and links between the repository's Markdown documents.
 
+After a deliberate edit to a managed copy, refresh its manifest digests explicitly:
+
+```bash
+python3 scripts/check_repository.py --write-managed-digests
+```
+
+Review the resulting manifest diff before committing it. A plain repository check never rewrites digests.
+
 CI runs the same validation suite on pull requests, pushes to `main`, and
 pushes to `task-*` branches. Runs are on Linux, so macOS-only tests are skipped.
 Push a task branch before expecting a CI run, then use

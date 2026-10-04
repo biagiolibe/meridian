@@ -106,7 +106,7 @@
 - `[x]` 136 — Load workflow context by phase and point agents to bounded readers.
 - `[ ]` 137 — Tell Codex agents to wait once for long commands.
 - `[ ]` 138 — Run the unit suite in parallel without changing what it covers.
-- `[ ]` 139 — Make `check_repository.py` catch managed-copy digest drift.
+- `[x]` 139 — Make `check_repository.py` catch managed-copy digest drift.
 - `[ ]` 141 — Count cached input in the Claude Code usage report.
 - `[x]` 142 — Recognize spike rows at stage and require `git diff --check` at finalize.
 - `[x]` 143 — Make the read-guard and queue-briefing hooks independent of queue status.

@@ -479,6 +479,101 @@ def check_capability_marker_baselines(root: Path = ROOT) -> None:
                 fail(f"{relative}: recorded capability={capability} baseline no longer present in the template")
 
 
+def managed_digest_diagnostics(root: Path = ROOT) -> list[str]:
+    """Return managed-copy and installation-evidence drift without host probes."""
+    try:
+        manifest = meridian.load_manifest(root, root)
+        catalog = meridian.load_capability_catalog(root)
+        profiles = meridian.parse_capability_profiles(manifest, catalog)
+    except meridian.MeridianError as error:
+        return [str(error)]
+    managed_files = manifest["managedFiles"]
+    assert isinstance(managed_files, dict)
+    diagnostics: list[str] = []
+    declared_paths: set[str] = set()
+    for profile in profiles:
+        for declaration in profile.capabilities:
+            declared_paths.update(
+                surface.path for surface in declaration.managed_surface if surface.form == "managed-copy"
+            )
+            _identities, failures = meridian.installation_surface_diagnostics(
+                root, declaration, managed_files
+            )
+            diagnostics.extend(
+                failure for failure in failures
+                if "managed-copy" in failure or failure.startswith("stale digest evidence")
+            )
+    for relative, expected in managed_files.items():
+        if relative in declared_paths:
+            continue
+        path = root / relative
+        if not path.is_file():
+            diagnostics.append(f"missing managed-copy surface {relative}")
+            continue
+        current = meridian.sha256(path)
+        if expected != current:
+            diagnostics.append(
+                f"drifted managed-copy surface {relative}: expected {expected}, got {current}"
+            )
+    return diagnostics
+
+
+def check_managed_digests(root: Path = ROOT) -> None:
+    diagnostics = managed_digest_diagnostics(root)
+    if not diagnostics:
+        return
+    refresh = (
+        "run `python3 scripts/check_repository.py --write-managed-digests` "
+        "after a deliberate managed-copy edit and review the resulting diff"
+    )
+    for diagnostic in diagnostics:
+        print(f"FAIL: {diagnostic}; {refresh}")
+    raise SystemExit(1)
+
+
+def write_managed_digests(root: Path = ROOT) -> list[str]:
+    """Refresh managed-file digests and matching profile evidence explicitly."""
+    manifest_path = root / ".meridian" / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    managed_files = manifest.get("managedFiles")
+    if not isinstance(managed_files, dict):
+        fail("manifest managedFiles must be an object")
+    refreshed: dict[str, tuple[str, str]] = {}
+    for relative, recorded in managed_files.items():
+        path = root / relative
+        if not path.is_file():
+            fail(f"refusing to write managed digests: listed file is missing: {relative}")
+        current = meridian.sha256(path)
+        if recorded != current:
+            refreshed[relative] = (str(recorded), current)
+    for relative, (_recorded, current) in refreshed.items():
+        managed_files[relative] = current
+    profiles = manifest.get("capabilityProfiles", {})
+    if isinstance(profiles, dict):
+        for profile in profiles.values():
+            if not isinstance(profile, dict) or not isinstance(profile.get("capabilities"), dict):
+                continue
+            for declaration in profile["capabilities"].values():
+                if not isinstance(declaration, dict):
+                    continue
+                surfaces = declaration.get("managedSurface")
+                installation = declaration.get("installation")
+                if not isinstance(surfaces, list) or not isinstance(installation, dict):
+                    continue
+                evidence = installation.get("evidence")
+                if not isinstance(evidence, list):
+                    continue
+                replacements = {
+                    f"sha256:{recorded}": f"sha256:{current}"
+                    for surface in surfaces if isinstance(surface, dict) and surface.get("form") == "managed-copy"
+                    for path, (recorded, current) in refreshed.items() if surface.get("path") == path
+                }
+                installation["evidence"] = [replacements.get(item, item) for item in evidence]
+    if refreshed:
+        manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    return [f"{relative}: {recorded} -> {current}" for relative, (recorded, current) in refreshed.items()]
+
+
 # Tracked records identify checkouts and worktrees by names or paths relative
 # to a root, so they resolve on every machine. Absolute home-directory paths
 # exist only at runtime. Files listed here are frozen exceptions; none today.
@@ -514,6 +609,13 @@ def check_no_machine_paths(
 
 
 def main() -> None:
+    if "--write-managed-digests" in sys.argv[1:]:
+        changes = write_managed_digests()
+        for change in changes:
+            print(f"Updated managed digest: {change}")
+        if not changes:
+            print("Managed digests are already current.")
+        return
     if "--write-marker-baselines" in sys.argv[1:]:
         write_marker_baselines()
         print(f"Wrote {MARKER_BASELINE_PATH.relative_to(ROOT)}.")
@@ -531,6 +633,7 @@ def main() -> None:
     check_bash()
     check_local_markdown_links()
     check_capability_marker_baselines()
+    check_managed_digests()
     check_no_machine_paths()
     print("Meridian repository checks passed.")
 
