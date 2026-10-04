@@ -22,24 +22,24 @@ Make a restructure remove retired marker blocks from the sections it carries.
 
 ## Acceptance Criteria
 
-- [ ] When a restructure carries a project section, every complete marker block
+- [x] When a restructure carries a project section, every complete marker block
   of a capability/version that the restructuring migration retires is removed from
   that section, together with the blank lines it leaves; all other project text in
   the section is kept byte for byte, in order.
-- [ ] A marker block that is not retired by the migration, or a project section
+- [x] A marker block that is not retired by the migration, or a project section
   without such blocks, is carried unchanged.
-- [ ] A retired marker block whose content differs from its released text is not
+- [x] A retired marker block whose content differs from its released text is not
   dropped silently: the plan row reports it, and the pre-restructure backup still
   holds the original file.
-- [ ] After `upgrade --apply`, `meridian audit` reports no retired-marker `FAIL`
+- [x] After `upgrade --apply`, `meridian audit` reports no retired-marker `FAIL`
   for the restructured file.
-- [ ] Tests cover: a carried section containing the three retired inline markers
+- [x] Tests cover: a carried section containing the three retired inline markers
   (the Palimpsest shape) becoming checklist-only; a section without markers
   unchanged; a non-retired marker kept; an edited retired marker reported; and an
   end-to-end upgrade from a 1.2.6 project followed by a clean audit.
-- [ ] One changelog fragment is added per `CONTRIBUTING.md`; this is a CLI-only
+- [x] One changelog fragment is added per `CONTRIBUTING.md`; this is a CLI-only
   change and needs no migration.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
+- [x] `python3 scripts/check_repository.py` and the unit tests pass.
 
 ## Relevant Files
 

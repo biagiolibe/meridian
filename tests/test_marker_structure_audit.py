@@ -221,6 +221,43 @@ class RetiredInlineMarkerUpgradeTest(FrameworkFixture):
         self.assertNotIn("manual-verification-review-check", requirements)
         self.assertEqual(requirements["code-review-prompt"][0], 1)
 
+    def test_restructure_removes_retired_blocks_from_a_carried_checklist(self) -> None:
+        current = self.locked_at_legacy_prompt(
+            LEGACY_REVIEW_PROMPT
+            + "\n## Project review checklist\n\n"
+            + "- Keep this checklist item.\n\n"
+            + "<!-- MERIDIAN:BEGIN capability=task-worktree-review v4 -->Retired review text.<!-- MERIDIAN:END -->\n\n"
+            + "<!-- MERIDIAN:BEGIN capability=manual-verification-review-check v1 -->Retired manual text.<!-- MERIDIAN:END -->\n\n"
+            + "<!-- MERIDIAN:BEGIN capability=ci-verified-validation v1 -->Retired CI text.<!-- MERIDIAN:END -->\n"
+        )
+
+        applied = self.run_cli("upgrade", "--apply")
+
+        self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+        upgraded = (self.project / REVIEW_PROMPT).read_text(encoding="utf-8")
+        self.assertTrue(upgraded.startswith(current.rstrip("\n")))
+        self.assertTrue(upgraded.endswith("## Project review checklist\n\n- Keep this checklist item.\n"))
+        self.assertEqual(meridian.marker_pairs(upgraded), [("code-review-prompt", 1)])
+        code, output = self.audit()
+        self.assertNotRegex(output, r"(?m)^FAIL\\s")
+
+    def test_restructure_reports_an_edited_retired_marker_and_keeps_the_backup(self) -> None:
+        local = (
+            LEGACY_REVIEW_PROMPT
+            + "\n## Project review checklist\n\n"
+            + "<!-- MERIDIAN:BEGIN capability=task-worktree-review v4 -->Edited retired text.<!-- MERIDIAN:END -->\n"
+        )
+        self.locked_at_legacy_prompt(local)
+
+        checked = self.run_cli("upgrade", "--check")
+        applied = self.run_cli("upgrade", "--apply")
+
+        self.assertIn("edited retired marker content (task-worktree-review v4)", checked.stdout)
+        self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+        backup = self.project / (REVIEW_PROMPT + ".meridian-pre-restructure.bak")
+        self.assertIn("Edited retired text.", backup.read_text(encoding="utf-8"))
+        self.assertNotIn("Edited retired text.", (self.project / REVIEW_PROMPT).read_text(encoding="utf-8"))
+
 
 class WrappedTextUpgradeTest(unittest.TestCase):
     """A block that newly wraps unmarked text never duplicates a customized copy."""
@@ -487,6 +524,18 @@ class RestructureHelpersTest(unittest.TestCase):
     def test_a_file_without_project_sections_becomes_the_template(self) -> None:
         template = "# T\n\nbody\n"
         self.assertEqual(meridian.restructured_text("# T\n\nedited\n", "# T\n\nold\n", template), template)
+
+    def test_carried_sections_without_retired_markers_or_with_other_markers_are_unchanged(self) -> None:
+        base = "# T\n\n## Known\n\nbody\n"
+        template = "# T\n\n## Known\n\nnew body\n"
+        local = (
+            "# T\n\n## Known\n\nedited\n\n## Mine\n\n"
+            "<!-- MERIDIAN:BEGIN capability=kept-marker v1 -->Keep this.<!-- MERIDIAN:END -->\n"
+        )
+        self.assertEqual(
+            meridian.project_sections(local, base, template, [("retired-marker", 1)]),
+            ["## Mine\n\n<!-- MERIDIAN:BEGIN capability=kept-marker v1 -->Keep this.<!-- MERIDIAN:END -->\n"],
+        )
 
 
 if __name__ == "__main__":

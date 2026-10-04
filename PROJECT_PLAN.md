@@ -114,7 +114,7 @@
 - `[x]` 145 — Align Governed lifecycle capability text with the closure design and the CLI.
 - `[x]` 146 — Restructure inline markers, audit managed copies, and add consumer profiles.
 - `[x]` 147 — Isolate setup CLI tests from the developer's real home directory.
-- `[ ]` 148 — Drop retired markers from project sections carried by a restructure.
+- `[x]` 148 — Drop retired markers from project sections carried by a restructure.
 - `[ ]` 149 — Warn at upgrade when a markerless managed copy keeps local edits.
 - `[ ]` 150 — Publish a `stable` branch so the Claude Code plugin follows releases.
 - `[x]` 140 — Let `integrate stage` complete rows of project-shaped Governed queues.
