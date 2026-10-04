@@ -58,6 +58,11 @@ The explicit option remains available for finishing a worktree in an old root.
   When the recorded `<id>.evidence.json` is accepted, passed, and names the
   branch's current commit, it reports step `C6` with the `integrate stage`
   command instead of `EVIDENCE_INCOMPLETE`.
+- `integrate stage` requires the primary checkout to be clean and on `main`, with
+  `main` equal to the already fetched `origin/main` or ahead of it with commits
+  not yet pushed; those commits are pushed with the integration. It stops with
+  `MAIN_BEHIND_ORIGIN`, naming the local and fetched commits, only when local
+  `main` is behind the fetched `origin/main`.
 - `meridian worktree integrate stage <TASK-ID> --project <primary>
   --evidence <handoff.json> --format json` atomically
   acquires the repository integration lease, verifies the task and accepted

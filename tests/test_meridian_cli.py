@@ -1144,7 +1144,7 @@ class MeridianCliTest(unittest.TestCase):
         self.assertIn("MIGRATION 047-codex-worktree-access", checked.stdout)
         applied = self.run_cli("upgrade", "--apply")
         self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
-        self.assertIn("capability=git-workflow v10", project_workflow.read_text(encoding="utf-8"))
+        self.assertIn("capability=git-workflow v11", project_workflow.read_text(encoding="utf-8"))
         self.assertIn("Consumer-owned note.", project_workflow.read_text(encoding="utf-8"))
         self.assertIn(
             "capability=task-worktree-boundary v8",
@@ -1216,7 +1216,7 @@ class MeridianCliTest(unittest.TestCase):
         self.assertIn("MIGRATION 047-codex-worktree-access", checked.stdout)
         applied = self.run_cli("upgrade", "--apply")
         self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
-        self.assertIn("capability=git-workflow v10", project_workflow.read_text(encoding="utf-8"))
+        self.assertIn("capability=git-workflow v11", project_workflow.read_text(encoding="utf-8"))
         self.assertIn("Consumer-owned note.", project_workflow.read_text(encoding="utf-8"))
         self.assertIn(
             "capability=task-worktree-handoff v5",
@@ -1506,7 +1506,7 @@ worktree before the branch only after validated integration succeeds.
 
         for relative in paths:
             upgraded = (self.project / relative).read_text(encoding="utf-8")
-            self.assertIn("MERIDIAN:BEGIN capability=git-workflow v9", upgraded)
+            self.assertIn("MERIDIAN:BEGIN capability=git-workflow v10", upgraded)
             self.assertIn("Task branches do not edit `tasks/QUEUE.md`", upgraded)
         self.assertIn("Consumer-owned closure note.", agents.read_text(encoding="utf-8"))
         manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
@@ -1569,7 +1569,7 @@ worktree before the branch only after validated integration succeeds.
         upgraded_workflow = (self.project / "PROJECT_WORKFLOW.md").read_text(encoding="utf-8")
         upgraded_implementation = implementation.read_text(encoding="utf-8")
         upgraded_review = (self.project / "docs/workflows/REVIEW.md").read_text(encoding="utf-8")
-        self.assertIn("capability=git-workflow v10", upgraded_workflow)
+        self.assertIn("capability=git-workflow v11", upgraded_workflow)
         self.assertIn("Review: REQUIRED` is a gate, not a request for authorization", upgraded_workflow)
         self.assertIn("capability=task-worktree-boundary v8", upgraded_implementation)
         self.assertIn("REVIEW_REQUIRED`; it is a gate", upgraded_implementation)
@@ -4668,7 +4668,7 @@ class CapabilityMarkerTest(unittest.TestCase):
         expected["document-precedence"] = "2"
         expected["execution-assets"] = "4"
         expected["roles"] = "3"
-        expected["git-workflow"] = "10"
+        expected["git-workflow"] = "11"
         expected["bounded-worktree-lifecycle"] = "4"
         expected["codex-worktree-access"] = "3"
         expected["task-identity-policy"] = "1"
@@ -7668,11 +7668,32 @@ class WorktreeLifecycleCliTest(unittest.TestCase):
         worktree = self.worktree_root / "removed"
         status("C10", None)
 
-    def test_integrate_stage_blocks_when_fetched_origin_main_is_ahead(self) -> None:
+    def _stage_ready_task_with_origin(self, local_ahead: bool = False) -> Path:
         remote = self.root / "origin.git"
         subprocess.run(["git", "init", "--bare", str(remote)], check=True, capture_output=True)
         subprocess.run(["git", "remote", "add", "origin", str(remote)], cwd=self.project, check=True)
         subprocess.run(["git", "push", "-u", "origin", "main"], cwd=self.project, check=True, capture_output=True)
+        if local_ahead:
+            (self.project / "unpushed.txt").write_text("unpushed\n", encoding="utf-8")
+            (self.project / ".meridian").mkdir(exist_ok=True)
+            (self.project / ".meridian/candidate-validation.json").write_text(
+                '{"version": 1, "state": "none"}\n', encoding="utf-8"
+            )
+            (self.project / "PROJECT_WORKFLOW.md").write_text("LEAN_DELIVERY\n", encoding="utf-8")
+            (self.project / "tasks").mkdir(exist_ok=True)
+            (self.project / "tasks/QUEUE.md").write_text(
+                "| Status | ID | Title | Priority | Depends | Task |\n"
+                "|---|---|---|---|---|---|\n"
+                "| `[ ]` | 056 | Fixture task | P2 | — | [056](056-fixture.md) |\n",
+                encoding="utf-8",
+            )
+            (self.project / "PROJECT_PLAN.md").write_text("- `[ ]` 056 — Fixture task.\n", encoding="utf-8")
+            subprocess.run(
+                ["git", "add", "unpushed.txt", ".meridian/candidate-validation.json", "PROJECT_WORKFLOW.md",
+                 "tasks/QUEUE.md", "PROJECT_PLAN.md"],
+                cwd=self.project, check=True,
+            )
+            subprocess.run(["git", "commit", "-m", "unpushed governance commit"], cwd=self.project, check=True, capture_output=True)
         prepared = self.run_cli(
             "worktree", "prepare", "056", "--project", str(self.project),
             "--worktree-root", str(self.worktree_root), "--format", "json",
@@ -7703,6 +7724,11 @@ class WorktreeLifecycleCliTest(unittest.TestCase):
             "main_advanced_dependencies": [],
             "main_advanced_behavioral_surfaces": [],
         }), encoding="utf-8")
+        return state.with_suffix(".evidence.json")
+
+    def test_integrate_stage_blocks_when_fetched_origin_main_is_ahead(self) -> None:
+        evidence_path = self._stage_ready_task_with_origin()
+        remote = self.root / "origin.git"
         clone = self.root / "origin-writer"
         subprocess.run(["git", "clone", "--branch", "main", str(remote), str(clone)], check=True, capture_output=True)
         subprocess.run(["git", "config", "user.name", "Meridian Test"], cwd=clone, check=True)
@@ -7715,11 +7741,31 @@ class WorktreeLifecycleCliTest(unittest.TestCase):
 
         result = self.run_cli(
             "worktree", "integrate", "stage", "056", "--project", str(self.project),
-            "--worktree-root", str(self.worktree_root), "--evidence", str(state.with_suffix(".evidence.json")),
+            "--worktree-root", str(self.worktree_root), "--evidence", str(evidence_path),
             "--format", "json",
         )
         self.assertEqual(result.returncode, 2)
         self.assertIn("BLOCKED: MAIN_BEHIND_ORIGIN", result.stderr)
+        self.assertIn("local main is behind the already fetched origin/main", result.stderr)
+        local = subprocess.run(
+            ["git", "rev-parse", "--short=12", "main"], cwd=self.project, check=True, capture_output=True, text=True
+        ).stdout.strip()
+        fetched = subprocess.run(
+            ["git", "rev-parse", "--short=12", "refs/remotes/origin/main"],
+            cwd=self.project, check=True, capture_output=True, text=True,
+        ).stdout.strip()
+        self.assertIn(f"local main {local}", result.stderr)
+        self.assertIn(f"origin/main {fetched}", result.stderr)
+
+    def test_integrate_stage_accepts_local_main_ahead_of_fetched_origin_main(self) -> None:
+        evidence_path = self._stage_ready_task_with_origin(local_ahead=True)
+        result = self.run_cli(
+            "worktree", "integrate", "stage", "056", "--project", str(self.project),
+            "--worktree-root", str(self.worktree_root), "--evidence", str(evidence_path),
+            "--format", "json",
+        )
+        self.assertNotIn("MAIN_BEHIND_ORIGIN", result.stderr + result.stdout)
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     def run_console(self, *arguments: str) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
