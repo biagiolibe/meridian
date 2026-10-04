@@ -47,6 +47,12 @@
 - [ ] `meridian audit` reports a FAIL row for every whole-file managed copy whose
   digest differs from `managedFiles`, reusing the comparison task 139 ships (or the
   profile doctor's, if 139 is not integrated) rather than a third implementation.
+- [ ] The digest check applies only to files without capability markers. A file
+  with managed blocks and project sections outside them (for example
+  `docs/CODE_ORGANIZATION.md` with a `## Project module map` section, or
+  `docs/CODE_REVIEW_PROMPT.md` with a `## Project review checklist`) is verified by
+  its marker rows only and never fails for project text outside the blocks. A test
+  covers that case.
 - [ ] The catalog gains `governed-sdd-consumer` v1 and `lean-delivery-consumer` v1
   profiles listing their capabilities; `meridian profile bootstrap <id> --check`
   then `--apply` turns the legacy `UNVERIFIED` declaration row into declared

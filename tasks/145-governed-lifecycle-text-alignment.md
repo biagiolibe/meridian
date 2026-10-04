@@ -5,7 +5,7 @@
 > **Priority**: 🔴 P1
 > **Estimate**: ~3h
 > **Assigned to**: unassigned
-> **Session**: Palimpsest defect report D1–D4, D6, D7, D9, D11, design approved 2026-10-04
+> **Session**: Palimpsest defect report D1–D4, D6, D7, D9, D11, D13, design approved 2026-10-04
 
 ## Objective
 
@@ -33,6 +33,12 @@ the approved decisions:
   recorded `handoff_worktree`.
 - **Spike** A spike integrates only its deliverable and never merges production
   code (behavior shipped by task 142).
+- **D13** `code-organization` v1 says the project module map belongs "not in this
+  file", while projects keep it in `docs/CODE_ORGANIZATION.md` and tasks cite it as
+  Authority. The intent is only to keep project architecture out of the managed
+  block: the map may live in the project's architecture documentation or in a
+  `## Project module map` section after the block. No project move or citation
+  migration is required.
 
 ## Acceptance Criteria
 
@@ -42,8 +48,14 @@ the approved decisions:
   `owner-acceptance-workflow` v2, `task-worktree-boundary` v7,
   `task-worktree-review-procedure` v9, `execution-command-gate` v2,
   `lifecycle-orchestration` v8, `review-policy` v3, `task-lifecycle` v3,
-  `execution-assets` v3, `reviewer-integrator-identity` v2. Lean `git-workflow` v9
-  carries D2 and D3 only.
+  `execution-assets` v3, `reviewer-integrator-identity` v2, `code-organization` v2.
+  Lean `git-workflow` v9 carries D2 and D3 only.
+- [ ] `code-organization` v2 replaces the "not in this file" sentence with: the
+  project records its layered module map and dependency direction either in its
+  architecture documentation or in a `## Project module map` section after this
+  managed block, never inside the block. A test proves `meridian context authority`
+  resolves `docs/CODE_ORGANIZATION.md#Project module map` from a section after the
+  block, and upgrade preserves that section unchanged.
 - [ ] `task-worktree-boundary` v7 states the order: before `prepare` only the
   router read set may be read; no task material and no mutation; `prepare` is the
   only command before `check`.
