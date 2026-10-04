@@ -29,6 +29,30 @@ Run a command expected to take longer than one minute in the foreground with a
 timeout of up to 600 seconds, or in a persistent terminal session; never
 detach it and poll for completion.
 
+<!-- MERIDIAN:BEGIN capability=long-command-waits v1 -->
+Long commands and suite runs:
+
+- Start a command expected to take longer than one minute with a wait long
+  enough to cover its expected duration in the same call. Poll an already
+  running command at most once, and only after that wait has expired; never
+  loop on empty polls, because each one re-sends the whole context.
+- Codex returns control from a command session when the requested wait ends,
+  not when the command ends, so ask for a wait that covers the expected
+  duration in the call that starts the command. If the host caps the wait below
+  that duration, use the cap once and then one further wait, not repeated short
+  polls. Verified on codex-cli 0.160.0: the wait is `yield_time_ms` and the
+  output bound is `max_output_tokens`, both non-negative integers; the
+  accepted maximum depends on the host version and is not stated here.
+- During implementation, run only the tests of the modules the task touches.
+  Run the full suite once, after the last code change, as the validation of
+  record, and rerun it only when code changed since. This does not change the
+  declared candidate validation (`REUSE`, `BOUNDED`, `FULL`) in
+  `docs/WORKTREE_LIFECYCLE.md`.
+<!-- MERIDIAN:END -->
+
+The full suite of this repository takes about two minutes, measured on
+2026-10-03; treat this as a measurement that can change.
+
 ## Diff and manual evidence
 
 - Before and after material edits, use `git status --short` and
