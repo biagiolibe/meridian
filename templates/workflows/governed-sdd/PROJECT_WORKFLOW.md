@@ -180,7 +180,7 @@ record that names the worktree uses the `handoff_worktree` value returned by
 absolute path.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=git-workflow v10 -->
+<!-- MERIDIAN:BEGIN capability=git-workflow v11 -->
 ## Git workflow
 
 ### Authority of `Proceed with`
@@ -231,7 +231,9 @@ Close a validated task in order: verify acceptance criteria; run task and
 baseline validation; commit completion and archive records; then stop at
 `REVIEW_REQUIRED` if its declared review is required. Otherwise, or after the
 reviewer-integrator approves, run `worktree check`; record machine evidence;
-stage from a clean primary checkout at `origin/main`; validate the candidate;
+stage from a clean primary checkout whose `main` equals `origin/main` or is
+ahead of it with commits not yet pushed (they are pushed with the integration;
+`main` behind the fetched `origin/main` is `MAIN_BEHIND_ORIGIN`); validate the candidate;
 finalize; push `origin main`; and clean up. Stop respectively with
 `ACCEPTANCE_UNMET`, `VALIDATION_FAILED`, `REVIEW_REQUIRED`,
 `WRONG_WORKTREE`, `EVIDENCE_INCOMPLETE`, `PRIMARY_DIRTY`,

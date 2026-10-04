@@ -4,7 +4,7 @@
 > **Category**: Bugfix
 > **Priority**: 🟡 P2
 > **Estimate**: ~1.5h
-> **Assigned to**: unassigned
+> **Assigned to**: Claude Code
 > **Session**: Task 160 integration stopped by an agent, 2026-10-04
 
 ## Objective
@@ -26,35 +26,35 @@ State the real rule in the managed text and make the real block self-explanatory
 
 ## Acceptance Criteria
 
-- [ ] The managed sentence "stage from a clean primary checkout at
+- [x] The managed sentence "stage from a clean primary checkout at
   `origin/main`" is replaced, in every template that carries it, by wording
   that says: local `main` equals `origin/main`, or is ahead of it with commits
   not yet pushed (they are pushed with the integration); `main` behind the
   fetched `origin/main` is `MAIN_BEHIND_ORIGIN`. The same change is made in this
   repository's own copies. The capability marker version of the affected block
   is bumped as the marker rules require.
-- [ ] `docs/TASK_CLOSURE_DESIGN.md` C6 and `docs/WORKTREE_LIFECYCLE.md` state the
+- [x] `docs/TASK_CLOSURE_DESIGN.md` C6 and `docs/WORKTREE_LIFECYCLE.md` state the
   same rule; the historical design text is changed only where it contradicts the
   behaviour, with a note that the rule was clarified.
-- [ ] A test proves that `integrate stage` succeeds when local `main` is ahead of
+- [x] A test proves that `integrate stage` succeeds when local `main` is ahead of
   a fetched `origin/main` (one unpushed commit) and still fails with
   `MAIN_BEHIND_ORIGIN` when `main` is behind, as the existing test
   (`test_integrate_stage_blocks_when_fetched_origin_main_is_ahead`) does.
-- [ ] The `MAIN_BEHIND_ORIGIN` message names the local and the fetched
+- [x] The `MAIN_BEHIND_ORIGIN` message names the local and the fetched
   `origin/main` commits and states "local main is behind"; it is not raised for
   an ahead or equal `main`.
-- [ ] `meridian worktree closure-status` continues to report `PUSH_PENDING` when
+- [x] `meridian worktree closure-status` continues to report `PUSH_PENDING` when
   `main` is ahead after finalization; a test or the existing one covers it.
-- [ ] A migration whose `to` is the next release delivers the changed managed
+- [x] A migration whose `to` is the next release delivers the changed managed
   block to adopted projects, using the existing mechanism for a capability
   version bump; `upgrade --check` on copies of the Palimpsest and Fusa manifests
   shows the update and no `BLOCKED`, recorded in the handoff.
-- [ ] `VERSION`, `.claude-plugin/plugin.json`, and the release ledger are bumped
+- [x] `VERSION`, `.claude-plugin/plugin.json`, and the release ledger are bumped
   by this task only if no earlier unreleased task has already done so for the
   same release; nothing is tagged or published.
-- [ ] One changelog fragment states the clarification under `Documentation` and
+- [x] One changelog fragment states the clarification under `Documentation` and
   the message change under `Changed`.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
+- [x] `python3 scripts/check_repository.py` and the unit tests pass.
 
 ## Relevant Files
 
