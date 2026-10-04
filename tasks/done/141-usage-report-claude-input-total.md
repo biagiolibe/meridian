@@ -21,24 +21,24 @@ report the total input of each call so both hosts mean the same thing.
 
 ## Acceptance Criteria
 
-- [ ] For Claude Code, the per-call input is `input_tokens +
+- [x] For Claude Code, the per-call input is `input_tokens +
   cache_read_input_tokens + cache_creation_input_tokens`; a missing field counts as
   zero, and a call with none of the three fields is reported as unavailable, not zero.
-- [ ] `cached` for Claude Code is `cache_read_input_tokens` only, and `cache_ratio`
+- [x] `cached` for Claude Code is `cache_read_input_tokens` only, and `cache_ratio`
   is `cached / input` and never exceeds 1. Codex output is unchanged.
-- [ ] Startup (first call), mean, peak, and the `--breakdown` call use the total
+- [x] Startup (first call), mean, peak, and the `--breakdown` call use the total
   input, for both text and JSON formats. The JSON field meanings are documented, and
   the report states in one line that input includes cached input for both hosts.
-- [ ] The privacy contract is unchanged: counters, timestamps, and session metadata
+- [x] The privacy contract is unchanged: counters, timestamps, and session metadata
   only; no message text, tool arguments, file contents, or paths.
-- [ ] Tests cover: a Claude fixture with the three fields (total, cached, ratio below
+- [x] Tests cover: a Claude fixture with the three fields (total, cached, ratio below
   1); a call with only `input_tokens`; a call with none of the fields; a Codex fixture
   unchanged; and a mixed project report.
-- [ ] A recorded run on the real Claude sessions of this project shows a startup near
+- [x] A recorded run on the real Claude sessions of this project shows a startup near
   the observed 38,000 tokens and a ratio below 1; the handoff records the numbers
   without any session content.
-- [ ] One changelog fragment is added per `CONTRIBUTING.md`; this is a CLI-only change.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
+- [x] One changelog fragment is added per `CONTRIBUTING.md`; this is a CLI-only change.
+- [x] `python3 scripts/check_repository.py` and the unit tests pass.
 
 ## Relevant Files
 
