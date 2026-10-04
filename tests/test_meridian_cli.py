@@ -1100,7 +1100,7 @@ class MeridianCliTest(unittest.TestCase):
         self.assertIn("MIGRATION 047-codex-worktree-access", checked.stdout)
         applied = self.run_cli("upgrade", "--apply")
         self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
-        self.assertIn("capability=git-workflow v9", project_workflow.read_text(encoding="utf-8"))
+        self.assertIn("capability=git-workflow v10", project_workflow.read_text(encoding="utf-8"))
         self.assertIn("Consumer-owned note.", project_workflow.read_text(encoding="utf-8"))
         self.assertIn(
             "capability=task-worktree-boundary v8",
@@ -1172,7 +1172,7 @@ class MeridianCliTest(unittest.TestCase):
         self.assertIn("MIGRATION 047-codex-worktree-access", checked.stdout)
         applied = self.run_cli("upgrade", "--apply")
         self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
-        self.assertIn("capability=git-workflow v9", project_workflow.read_text(encoding="utf-8"))
+        self.assertIn("capability=git-workflow v10", project_workflow.read_text(encoding="utf-8"))
         self.assertIn("Consumer-owned note.", project_workflow.read_text(encoding="utf-8"))
         self.assertIn(
             "capability=task-worktree-handoff v5",
@@ -1284,7 +1284,7 @@ worktree before the branch only after validated integration succeeds.
 
         upgraded = review.read_text(encoding="utf-8")
         self.assertIn("capability=implementer-reviewer-handoff v4", upgraded)
-        self.assertIn("capability=task-worktree-review-procedure v9", upgraded)
+        self.assertIn("capability=task-worktree-review-procedure v10", upgraded)
         self.assertIn("Consumer-owned review note.", upgraded)
         self.assertNotIn("uses that same primary checkout", upgraded)
         self.assertNotIn("git switch <task-branch>", upgraded)
@@ -1417,7 +1417,7 @@ worktree before the branch only after validated integration succeeds.
         self.assertIn("created after this report", upgraded_report)
         self.assertIn("Consumer-owned handoff note.", upgraded_report)
         upgraded_review = (self.project / "docs/workflows/REVIEW.md").read_text(encoding="utf-8")
-        self.assertIn("capability=task-worktree-review-procedure v9", upgraded_review)
+        self.assertIn("capability=task-worktree-review-procedure v10", upgraded_review)
         self.assertIn("resolve it to the registered task branch `HEAD`", upgraded_review)
         manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
         self.assertEqual(manifest["workflowBaselineVersion"], "1.1.55")
@@ -1525,11 +1525,11 @@ worktree before the branch only after validated integration succeeds.
         upgraded_workflow = (self.project / "PROJECT_WORKFLOW.md").read_text(encoding="utf-8")
         upgraded_implementation = implementation.read_text(encoding="utf-8")
         upgraded_review = (self.project / "docs/workflows/REVIEW.md").read_text(encoding="utf-8")
-        self.assertIn("capability=git-workflow v9", upgraded_workflow)
+        self.assertIn("capability=git-workflow v10", upgraded_workflow)
         self.assertIn("Review: REQUIRED` is a gate, not a request for authorization", upgraded_workflow)
         self.assertIn("capability=task-worktree-boundary v8", upgraded_implementation)
         self.assertIn("REVIEW_REQUIRED`; it is a gate", upgraded_implementation)
-        self.assertIn("capability=task-worktree-review-procedure v9", upgraded_review)
+        self.assertIn("capability=task-worktree-review-procedure v10", upgraded_review)
         self.assertIn("reviewer-integrator performs C6 through C10", upgraded_review)
         self.assertIn("Consumer-owned closure note.", upgraded_implementation)
         manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
@@ -4200,6 +4200,20 @@ Evidence plan:
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("0/3", result.stdout)
 
+    def test_git_budget_state_uses_common_metadata_and_migrates_legacy_file(self) -> None:
+        self.write_task("TASK-016", "IN_PROGRESS")
+        subprocess.run(("git", "init", str(self.project)), check=True, capture_output=True, text=True)
+        legacy = self.project / ".meridian/budget.json"
+        legacy.parent.mkdir(exist_ok=True)
+        legacy.write_text(json.dumps({"TASK-016:1": {"diagnostic": 1}}), encoding="utf-8")
+        subprocess.run(("git", "-C", str(self.project), "add", "."), check=True, capture_output=True, text=True)
+        subprocess.run(("git", "-C", str(self.project), "-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "-m", "legacy state"), check=True, capture_output=True, text=True)
+        result = self.run_cli("budget", "spend", "TASK-016", "diagnostic")
+        self.assertEqual(result.stdout.strip(), "TASK-016: diagnostic 2/3")
+        self.assertFalse(legacy.exists())
+        self.assertEqual(json.loads(meridian.budget_state_path(self.project).read_text(encoding="utf-8"))["TASK-016:1"]["diagnostic"], 2)
+        self.assertNotEqual(subprocess.run(("git", "-C", str(self.project), "ls-files", "--error-unmatch", ".meridian/budget.json"), capture_output=True, text=True, check=False).returncode, 0)
+
     def test_new_review_attempt_gets_a_fresh_allocation(self) -> None:
         self.write_task("TASK-006", "IN_PROGRESS")
         self.run_cli("budget", "spend", "TASK-006", "diagnostic")
@@ -4249,9 +4263,8 @@ class CapabilityMarkerTest(unittest.TestCase):
         for pair in (("execution-command-gate", "2"), ("validation-scoping", "2"), ("spike-routing", "1"), ("host-impact-routing", "1")):
             self.assertIn(pair, implementation)
 
-    def test_manual_proceed_migration_leaves_review_and_remediation_bytes_unchanged(self) -> None:
+    def test_manual_proceed_migration_leaves_remediation_bytes_unchanged(self) -> None:
         expected = {
-            "REVIEW.md": "9709be35ca0a36b8f483a726b121d3b17f6bdc0130f9032231422e0c69d6dc5e",
             "REMEDIATION.md": "919aac8c9942718b51a56ef30ef2c747abb6c28770ea1767f1658125f99b68a9",
         }
         for name, digest in expected.items():
@@ -4446,7 +4459,7 @@ class CapabilityMarkerTest(unittest.TestCase):
         expected["document-precedence"] = "2"
         expected["execution-assets"] = "3"
         expected["roles"] = "3"
-        expected["git-workflow"] = "9"
+        expected["git-workflow"] = "10"
         expected["bounded-worktree-lifecycle"] = "4"
         expected["codex-worktree-access"] = "3"
         expected["task-identity-policy"] = "1"
@@ -4486,7 +4499,7 @@ class CapabilityMarkerTest(unittest.TestCase):
         self.assertIn(("review-mode-boundary", "2"), review)
         self.assertIn(("implementer-reviewer-handoff", "4"), review)
         self.assertIn(("reviewer-integrator-identity", "2"), review)
-        self.assertIn(("task-worktree-review-procedure", "9"), review)
+        self.assertIn(("task-worktree-review-procedure", "10"), review)
 
     def test_review_preflight_fails_closed_before_substantive_inspection(self) -> None:
         review = (self.WORKFLOW / "docs/workflows/REVIEW.md").read_text(encoding="utf-8")
@@ -6172,6 +6185,25 @@ class ProjectDeclarationTest(unittest.TestCase):
             meridian.resolve_project_locations(self.project)
             meridian.resolve_project_locations(self.project)
         self.assertEqual(output.getvalue().count("DEPRECATED: resolve canonical locations"), 1)
+
+    def test_linked_worktree_reads_primary_declaration(self) -> None:
+        subprocess.run(("git", "init", str(self.project)), check=True, capture_output=True, text=True)
+        self.write({"version": 1, "project": {"name": "Before", "slug": "before"}})
+        subprocess.run(("git", "-C", str(self.project), "add", "."), check=True, capture_output=True, text=True)
+        subprocess.run(("git", "-C", str(self.project), "-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "-m", "initial"), check=True, capture_output=True, text=True)
+        linked = Path(self.temporary.name) / "linked"
+        subprocess.run(("git", "-C", str(self.project), "worktree", "add", "-b", "task-stale", str(linked)), check=True, capture_output=True, text=True)
+        self.write({"version": 1, "project": {"name": "After", "slug": "after"}, "locations": {"queue": "current/QUEUE.md"}})
+        author = subprocess.run([sys.executable, str(CLI), "project", "show", "--field", "reviewer-author", "--project", str(linked)], text=True, capture_output=True, check=False)
+        locations = subprocess.run([sys.executable, str(CLI), "locations", "--field", "queue", "--project", str(linked)], text=True, capture_output=True, check=False)
+        self.assertEqual((author.returncode, author.stdout.strip()), (0, "After Reviewer-Integrator <reviewer-integrator@after.local>"))
+        self.assertEqual((locations.returncode, locations.stdout.strip()), (0, "current/QUEUE.md"))
+
+    def test_setup_marks_missing_identity_incomplete_and_proposes_it(self) -> None:
+        self.write({"version": 1, "locations": {"queue": "docs/QUEUE.md"}})
+        plan = meridian.plan_setup(None, self.project / "config.toml", home=self.project, framework_root=ROOT, project_root=self.project)
+        self.assertEqual(plan.project_declaration_state, "advisory-incomplete")
+        self.assertEqual(plan.project_declaration_proposal["project"]["slug"], "project")
 
 
 class CapabilityVersionDetectionTest(unittest.TestCase):
