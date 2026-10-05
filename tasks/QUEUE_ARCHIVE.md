@@ -607,3 +607,24 @@ reasons, and creates the implementation follow-ups.
 | `[x]` | 138 | Run the unit suite in parallel without changing what it covers | 🟡 P2 | — | [138](done/138-parallel-test-runner.md) |
 | `[x]` | 139 | Make `check_repository.py` catch managed-copy digest drift | 🟡 P2 | — | [139](done/139-check-managed-copy-digest-drift.md) |
 | `[x]` | 141 | Count cached input in the Claude Code usage report | 🟡 P2 | — | [141](done/141-usage-report-claude-input-total.md) |
+
+### Phase 53 — Upgrade follow-ups
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 148 | Drop retired markers from project sections carried by a restructure | 🔴 P1 | — | [148](done/148-restructure-drops-retired-markers-from-carried-sections.md) |
+| `[x]` | 149 | Warn at upgrade when a markerless managed copy keeps local edits | 🟡 P2 | — | [149](done/149-upgrade-warns-on-edited-markerless-copies.md) |
+| `[x]` | 150 | Publish a `stable` branch so the Claude Code plugin follows releases | 🟡 P2 | — | [150](done/150-stable-release-branch-for-plugin-updates.md) |
+| `[x]` | 151 | Make hook task-state lookups linear and keep the briefing within its timeout | 🔴 P1 | — | [151](done/151-linear-task-state-lookups-for-hooks.md) |
+| `[x]` | 152 | Read project declarations from the primary checkout, keep budget state out of it, and state Review's closure authority | 🔴 P1 | — | [152](done/152-project-declaration-review-authority-and-budget-state.md) |
+| `[x]` | 153 | Install the completion template here and keep validation commands unchained | 🟡 P2 | — | [153](done/153-completion-template-and-unchained-validation.md) |
+| `[x]` | 154 | Retarget migration 062 to 1.2.8 and reject same-version migrations | 🔴 P1 | — | [154](done/154-retarget-migration-062-to-1-2-8.md) |
+| `[x]` | 155 | Align capability-profile surfaces at upgrade and keep `upgrade --check` from blocking on them | 🔴 P1 | 154 | [155](done/155-align-profile-surfaces-at-upgrade.md) |
+| `[x]` | 156 | Stop `release.py` passing `--repo` to `gh api` | 🟡 P2 | — | [156](done/156-release-verify-gh-api-repo-flag.md) |
+| `[x]` | 157 | Stop `handoff-check` requiring one hard-coded Meridian test as the only valid skip | 🟡 P2 | — | [157](done/157-handoff-check-validation-skips-not-project-specific.md) |
+| `[x]` | 158 | Migrate legacy budget state only at upgrade, never from a read | 🔴 P1 | — | [158](done/158-budget-state-migration-only-at-upgrade.md) |
+| `[x]` | 159 | Retire the reasoning budget contract | 🔴 P1 | — | [159](done/159-retire-reasoning-budget-contract.md) |
+| `[x]` | 160 | Give the Claude Code allowlist parity with the Codex execution-command rules | 🟡 P2 | — | [160](done/160-claude-allowlist-execution-commands.md) |
+| `[x]` | 161 | State that a local `main` ahead of `origin/main` does not block integration | 🟡 P2 | — | [161](done/161-state-main-ahead-of-origin-is-allowed.md) |
+| `[x]` | 170 | Require a declared validation ID for every command that proves a criterion | 🟡 P2 | — | [170](done/170-declare-validation-id-for-every-proving-command.md) |
+| `[x]` | 179 | Stabilize the parallel runner output comparison test | 🔴 P1 | — | [179](done/179-stabilize-parallel-runner-output-test.md) |
