@@ -125,7 +125,9 @@ on the machines that share that hash. `check` also accepts a legacy absolute
 `integrate finalize`, `integrate abort`, and `cleanup` each append one JSON line
 to `<git-common-dir>/meridian-journal.jsonl`. The file is local and untracked,
 and every worktree of the repository shares it, so the lines of concurrent tasks
-interleave as whole lines. It exists to measure how often the lifecycle stops
+interleave as whole lines. The read-only commands
+(`check`, `closure-status`, and `prepare --resume`) append to it too; the journal
+is not lifecycle state, so they still change no lifecycle state. It exists to measure how often the lifecycle stops
 and where, not to audit an agent.
 
 | Field | Meaning |
