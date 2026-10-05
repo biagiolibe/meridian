@@ -206,6 +206,100 @@ def stop_error(code: str, detail: str, **fields: object) -> MeridianStop:
     return MeridianStop(code, format_stop(code, detail, **fields))
 
 
+JOURNAL_NAME = "meridian-journal.jsonl"
+JOURNAL_ROTATED_NAME = "meridian-journal.1.jsonl"
+JOURNAL_MAX_BYTES = 5 * 1024 * 1024
+JOURNAL_VERSION = 1
+JOURNALED_WORKTREE_COMMANDS = frozenset({"prepare", "check", "closure-status", "evidence", "cleanup"})
+JOURNALED_INTEGRATE_COMMANDS = frozenset({"stage", "finalize", "abort"})
+
+
+class LifecycleJournalEntry:
+    """One journal line for a lifecycle command; holds only registered, non-sensitive fields."""
+
+    def __init__(self) -> None:
+        self.command: str | None = None
+        self.task: str | None = None
+        self.step: str | None = None
+        self.stop_code: str | None = None
+        self.blocked = False
+        self.project: Path | None = None
+
+    def begin(self, arguments: argparse.Namespace) -> None:
+        if getattr(arguments, "command", None) != "worktree":
+            return
+        name = arguments.worktree_command
+        if name == "integrate":
+            if arguments.integrate_command not in JOURNALED_INTEGRATE_COMMANDS:
+                return
+            name = f"integrate {arguments.integrate_command}"
+        elif name not in JOURNALED_WORKTREE_COMMANDS:
+            return
+        self.command = name
+        try:
+            self.task = canonical_task_id(arguments.task_id).removeprefix("task-")
+        except MeridianError:
+            self.task = None
+        self.project = getattr(arguments, "project", None)
+
+    def observe(self, result: Mapping[str, object]) -> None:
+        step = result.get("step") or result.get("next_action")
+        if isinstance(step, str):
+            self.step = step
+        task = result.get("task_id")
+        if isinstance(task, str):
+            self.task = task
+
+    def stopped(self, code: str | None) -> None:
+        self.blocked = True
+        if code is not None and code in load_stop_registry():
+            self.stop_code = code
+
+    def write(self, exit_code: int) -> None:
+        if self.command is None:
+            return
+        if exit_code == 0:
+            outcome = "ok"
+        elif self.blocked:
+            outcome = "blocked"
+        else:
+            outcome = "error"
+        line: dict[str, object] = {
+            "version": JOURNAL_VERSION,
+            "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "command": self.command,
+            "task": self.task,
+            "result": outcome,
+            "exit": exit_code,
+        }
+        if self.step is not None:
+            line["step"] = self.step
+        if self.stop_code is not None and outcome == "blocked":
+            line["stop_code"] = self.stop_code
+        try:
+            append_journal_line(_verified_lifecycle_project(self.project), line)
+        except (OSError, MeridianError, InternalStopError) as error:
+            print(f"warning: lifecycle journal not written: {type(error).__name__}", file=sys.stderr)
+
+
+def append_journal_line(project_root: Path, line: Mapping[str, object]) -> None:
+    """Append one whole JSON line to the shared journal, rotating it past the size cap."""
+    directory = canonical_git_common_dir(project_root)
+    journal = directory / JOURNAL_NAME
+    try:
+        if journal.stat().st_size > JOURNAL_MAX_BYTES:
+            os.replace(journal, directory / JOURNAL_ROTATED_NAME)
+    except FileNotFoundError:
+        pass
+    data = (json.dumps(line, sort_keys=True) + "\n").encode("utf-8")
+    descriptor = os.open(journal, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o644)
+    try:
+        if os.write(descriptor, data) != len(data):
+            raise OSError("short journal write")
+    finally:
+        os.close(descriptor)
+
+
 CODEX_PERMISSION_PROFILE = "meridian-worktrees"
 CODEX_MANAGED_BEGIN = "# MERIDIAN:BEGIN worktree-permissions v1"
 CODEX_MANAGED_END = "# MERIDIAN:END worktree-permissions"
@@ -9860,6 +9954,13 @@ class ShowVersionAction(argparse.Action):
 
 
 def main() -> int:
+    journal = LifecycleJournalEntry()
+    exit_code = _run_cli(journal)
+    journal.write(exit_code)
+    return exit_code
+
+
+def _run_cli(journal: LifecycleJournalEntry) -> int:
     parser = MeridianArgumentParser(prog="meridian")
     parser.add_argument(
         "--framework-root",
@@ -10244,6 +10345,7 @@ def main() -> int:
     read_guard.add_argument("--host", choices=("codex",), required=True)
 
     arguments = parser.parse_args()
+    journal.begin(arguments)
     framework_root = arguments.framework_root.resolve()
     project_root = (
         arguments.project.resolve()
@@ -10431,24 +10533,28 @@ def main() -> int:
                 else:
                     print(path)
             elif arguments.worktree_command == "prepare":
-                print(json.dumps(prepare_task_worktree(
+                prepared = prepare_task_worktree(
                     arguments.task_id,
                     arguments.worktree_root,
                     project_root,
                     arguments.base,
                     arguments.resume,
-                ), sort_keys=True))
+                )
+                journal.observe(prepared)
+                print(json.dumps(prepared, sort_keys=True))
             elif arguments.worktree_command == "check":
                 report, ready = inspect_task_worktree(
                     arguments.task_id,
                     arguments.worktree_root,
                     project_root,
                 )
+                journal.observe(report)
                 print(json.dumps(report, sort_keys=True))
                 if not ready:
+                    journal.stopped(None)
                     return 2
             elif arguments.worktree_command == "evidence":
-                print(json.dumps(record_task_evidence(
+                recorded = (record_task_evidence(
                     arguments.task_id,
                     arguments.worktree_root,
                     arguments.validation_command,
@@ -10460,13 +10566,18 @@ def main() -> int:
                     main_advanced_behavioral_surfaces=arguments.main_advanced_behavioral_surface,
                     full_validation_required=arguments.full_validation_required,
                     supplied_project=project_root,
-                ), sort_keys=True))
+                ))
+                journal.observe(recorded)
+                print(json.dumps(recorded, sort_keys=True))
             elif arguments.worktree_command == "closure-status":
                 report, ready = closure_status(
                     arguments.task_id,
                     arguments.worktree_root,
                     project_root,
                 )
+                journal.observe(report)
+                if not ready:
+                    journal.stopped(str(report["stop_reason"]) if report["stop_reason"] is not None else None)
                 if arguments.format == "json":
                     print(json.dumps(report, sort_keys=True))
                 elif report["stop_reason"] is not None:
@@ -10495,13 +10606,16 @@ def main() -> int:
                     )
                 else:
                     result = abort_task_integration(arguments.task_id, project_root)
+                journal.observe(result)
                 print(json.dumps(result, sort_keys=True))
             else:
-                print(json.dumps(cleanup_task_worktree(
+                cleaned = cleanup_task_worktree(
                     arguments.task_id,
                     arguments.worktree_root,
                     project_root,
-                ), sort_keys=True))
+                )
+                journal.observe(cleaned)
+                print(json.dumps(cleaned, sort_keys=True))
         elif arguments.command == "task":
             if arguments.identity_command == "check":
                 resolved = resolve_task_identity(project_root, arguments.task_id, "existing")
@@ -10624,6 +10738,7 @@ def main() -> int:
                 arguments.stop_before_retirement,
             )
     except MeridianStop as error:
+        journal.stopped(error.code)
         print(error, file=sys.stderr)
         return 2
     except MeridianError as error:

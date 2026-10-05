@@ -137,7 +137,7 @@
 - `[x]` 168 — Report queue sections that archival cannot read.
 - `[ ]` 169 — Code the remaining gates and require every stop to carry a code.
 - `[x]` 170 — Require a declared validation ID for every command that proves a criterion.
-- `[ ]` 171 — Record lifecycle command results in a local journal.
+- `[x]` 171 — Record lifecycle command results in a local journal.
 - `[ ]` 172 — Add `meridian report flow` over the lifecycle journal.
 - `[ ]` 173 — Detect `BLOCKED` reports that no command emitted.
 - `[ ]` 174 — Add `meridian worktree advance` to drive closure through its mechanical steps.
