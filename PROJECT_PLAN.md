@@ -138,7 +138,7 @@
 - `[ ]` 169 — Code the remaining gates and require every stop to carry a code.
 - `[x]` 170 — Require a declared validation ID for every command that proves a criterion.
 - `[x]` 171 — Record lifecycle command results in a local journal.
-- `[ ]` 172 — Add `meridian report flow` over the lifecycle journal.
+- `[x]` 172 — Add `meridian report flow` over the lifecycle journal.
 - `[ ]` 173 — Detect `BLOCKED` reports that no command emitted.
 - `[ ]` 174 — Add `meridian worktree advance` to drive closure through its mechanical steps.
 - `[ ]` 175 — Let `advance` finalize from supplied candidate validation results.

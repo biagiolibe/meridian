@@ -140,6 +140,7 @@ and where, not to audit an agent.
 | `result` | `ok` (exit `0`), `blocked` (a stopped lifecycle transition), or `error`. |
 | `stop_code` | The registered stop code, only when `result` is `blocked` and the stop carries one. |
 | `exit` | The command's exit status. |
+| `resume` | `true` only on a `prepare --resume` run. |
 
 Privacy boundary: a line holds only these fields. It never contains an absolute
 path, a command line or option value supplied by the agent, a message, or error
@@ -149,6 +150,39 @@ The journal is rotated to `meridian-journal.1.jsonl` when it exceeds 5 MB, and
 only that one previous file is kept. A journal write that fails never changes a
 command's result or exit status; the command prints one warning to standard
 error.
+
+### Flow report
+
+`meridian report flow [--project <primary>] [--since YYYY-MM-DD] [--format
+text|json]` reads the current and the rotated journal and changes nothing. It
+reports, per task, the lead time from the first successful `prepare` to the
+successful `integrate finalize` (falling back to the lifecycle `started_at` only
+when the journal holds no `prepare` for the task), the stops by code, the
+`integrate abort` runs, and the `prepare --resume` runs. It totals them with the
+median lead time and groups stops by code and by the class in
+`capabilities/stop-codes-v1.json`; a `blocked` line without `stop_code` is
+`uncoded`. `--since` filters records by time; a task's lead time still uses its
+whole history. Malformed lines are counted and skipped; an empty or missing
+journal gives an empty report and exit status `0`.
+
+A task may declare `> **Origin**: capability | friction | maintenance | release`
+in its record or archive; the report gives each origin's share and counts a task
+without it as `unknown`. `friction` means the task fixes a problem that
+Meridian's own rules or tools caused.
+
+`.meridian/flow-targets.json` (version 1) declares targets before any data
+exists, so the data cannot shape them: `unbacked_blocks` (`window`, `max`),
+`lead_time_regression` (`window`, `max_percent`; the median of the last `window`
+integrated tasks against the `window` before them), and `friction_share`
+(`window`, `max_percent`; over the last `window` integrated tasks that declare
+an origin). Windows count tasks, not days, so `--since` does not change them.
+Each target prints as `met`, `missed`, or `insufficient data`; a missed target
+never changes the exit status, and a missing file shows only the measurements.
+Change a declared value only through a separate, recorded decision.
+
+The report also lists the registered `tool`-class stop codes not emitted in the
+period, with the period length. They are candidates for removal, not a decision:
+some gates guard rare but real conditions.
 
 ## Evidence boundary
 
