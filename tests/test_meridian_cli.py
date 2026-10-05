@@ -3896,13 +3896,19 @@ class BudgetCliTest(unittest.TestCase):
         self.assertEqual(locations.stdout.strip(), "docs/TASK_QUEUE.md")
         preflight = self.run_cli("execution", "preflight", "TASK-007")
         self.assertNotEqual(preflight.returncode, 0)
-        self.assertIn("disagrees with queue status", preflight.stderr)
+        self.assertIn(
+            "BLOCKED QUEUE_STATUS_MISMATCH: rule: the task record and its queue row must agree; sources checked: "
+            "Status in docs/tasks/M19/TASK-007.md and the Status column of row TASK-007 in docs/TASK_QUEUE.md; "
+            "accepted: equal values; found: task IN_PROGRESS, queue QUEUED; resume: make the task record and its "
+            "queue row agree through the lifecycle, then rerun meridian execution preflight TASK-007 --project .",
+            preflight.stderr,
+        )
 
     def test_execution_preflight_requires_profile_and_task_contract(self) -> None:
         self.write_task("TASK-008", "QUEUED")
         missing = self.run_cli("execution", "preflight", "TASK-008")
         self.assertNotEqual(missing.returncode, 0)
-        self.assertIn("missing docs/EXECUTION_EVIDENCE_PROFILE.md", missing.stderr)
+        self.assertIn("BLOCKED EXECUTION_PROFILE_MISSING:", missing.stderr)
         (self.project / "docs").mkdir()
         (self.project / "docs/EXECUTION_EVIDENCE_PROFILE.md").write_text("profile\n", encoding="utf-8")
         (self.project / "tasks/TASK-008.md").write_text(
@@ -3936,7 +3942,8 @@ class BudgetCliTest(unittest.TestCase):
                 )
                 blocked = self.run_cli("execution", "preflight", "TASK-018")
                 self.assertNotEqual(blocked.returncode, 0)
-                self.assertIn(f"missing {field}", blocked.stderr)
+                self.assertIn("BLOCKED TASK_RECORD_INCOMPLETE:", blocked.stderr)
+                self.assertIn(f"missing: {field}", blocked.stderr)
                 task.write_text(text, encoding="utf-8")
 
     def test_execution_preflight_validates_host_impact_declarations(self) -> None:
@@ -4027,7 +4034,8 @@ Evidence plan:
         task.write_text(task.read_text(encoding="utf-8").replace("## Completion", legacy_contract + "\n\n## Completion"), encoding="utf-8")
         blocked = self.run_cli("execution", "preflight", "TASK-014")
         self.assertNotEqual(blocked.returncode, 0)
-        self.assertIn("execution-command gate", blocked.stderr)
+        self.assertIn("BLOCKED EXECUTION_CONTRACT_UNRESOLVED:", blocked.stderr)
+        self.assertIn("`required via meridian execution`", blocked.stderr)
         preview = self.run_cli("execution", "reconcile", "TASK-014")
         self.assertEqual(preview.returncode, 0, preview.stderr)
         self.assertIn("rerun with --apply", preview.stdout)
@@ -4067,10 +4075,10 @@ Evidence plan:
 
         reconcile = self.run_cli("execution", "reconcile", "TASK-017")
         self.assertNotEqual(reconcile.returncode, 0)
-        self.assertIn("every Validation entry must use", reconcile.stderr)
+        self.assertIn("BLOCKED VALIDATION_ENTRY_FORMAT:", reconcile.stderr)
         preflight = self.run_cli("execution", "preflight", "TASK-017")
         self.assertNotEqual(preflight.returncode, 0)
-        self.assertIn("every Validation entry must use", preflight.stderr)
+        self.assertIn("BLOCKED VALIDATION_ENTRY_FORMAT:", preflight.stderr)
 
     def test_reconcile_preserves_terminal_task_history(self) -> None:
         (self.project / "docs").mkdir()
@@ -4141,7 +4149,7 @@ Evidence plan:
         )
         fabricated = self.run_cli("execution", "handoff-check", "TASK-013", str(report))
         self.assertNotEqual(fabricated.returncode, 0)
-        self.assertIn("successful durable validation is missing", fabricated.stderr)
+        self.assertIn("BLOCKED HANDOFF_VALIDATION_EVIDENCE_MISSING:", fabricated.stderr)
 
         self.assertEqual(self.run_cli("execution", "validate", "TASK-013", "probe").returncode, 0)
         investigated = self.run_cli(
@@ -4153,7 +4161,8 @@ Evidence plan:
         self.assertIn("2/2 recorded", investigated.stdout)
         missing_question = self.run_cli("execution", "handoff-check", "TASK-013", str(report))
         self.assertNotEqual(missing_question.returncode, 0)
-        self.assertIn("says no isolated exploration", missing_question.stderr)
+        self.assertIn("BLOCKED HANDOFF_EXPLORATION_MISMATCH:", missing_question.stderr)
+        self.assertIn("found: `none` with 1 recorded", missing_question.stderr)
         report.write_text(
             report.read_text(encoding="utf-8").replace(
                 "- Isolated exploration: none",
@@ -4210,7 +4219,8 @@ Evidence plan:
         )
         rejected = self.run_cli("execution", "handoff-check", "TASK-009", str(report))
         self.assertNotEqual(rejected.returncode, 0)
-        self.assertIn("failing validation without a named skip", rejected.stderr)
+        self.assertIn("BLOCKED HANDOFF_VALIDATION_FAILING:", rejected.stderr)
+        self.assertIn("a failing validation needs a named skip", rejected.stderr)
 
         report.write_text(
             report.read_text(encoding="utf-8").replace(
@@ -4230,6 +4240,221 @@ Evidence plan:
         absent = self.run_cli("execution", "handoff-check", "TASK-009", str(report))
         self.assertNotEqual(absent.returncode, 0)
         self.assertIn("Validation skips", absent.stderr)
+
+    def blocked_line(self, result: subprocess.CompletedProcess[str]) -> str:
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        return next(line for line in result.stderr.splitlines() if line.startswith("BLOCKED "))
+
+    def test_execution_gates_report_coded_actionable_stops(self) -> None:
+        self.write_task("TASK-020", "QUEUED")
+        self.assertEqual(
+            self.blocked_line(self.run_cli("execution", "preflight", "TASK-020")),
+            "BLOCKED EXECUTION_PROFILE_MISSING: rule: the execution contract derives from the project profile; "
+            "source checked: docs/EXECUTION_EVIDENCE_PROFILE.md; expected: the file exists; found: no such file; "
+            "resume: add docs/EXECUTION_EVIDENCE_PROFILE.md to the project, then rerun the blocked meridian "
+            "execution command",
+        )
+        (self.project / "docs").mkdir()
+        profile = self.project / "docs/EXECUTION_EVIDENCE_PROFILE.md"
+        profile.write_text("profile\n", encoding="utf-8")
+        task = self.project / "tasks/TASK-020.md"
+        body = "Status: QUEUED\n\n## Authority\n\n## Expected code surface\n\n## Validation\n"
+        task.write_text(body, encoding="utf-8")
+        digest = meridian.profile_digest(self.project)
+        resume = "resume: meridian execution reconcile TASK-020 --apply --project ."
+        self.assertEqual(
+            self.blocked_line(self.run_cli("execution", "preflight", "TASK-020")),
+            "BLOCKED EXECUTION_CONTRACT_UNRESOLVED: rule: a task needs a resolved execution contract; field "
+            f"checked: `- Profile revision` in tasks/TASK-020.md; expected: sha256:{digest}; found: no such line; "
+            + resume,
+        )
+        self.append_contract("TASK-020")
+        profile.write_text("changed profile\n", encoding="utf-8")
+        changed = meridian.profile_digest(self.project)
+        self.assertEqual(
+            self.blocked_line(self.run_cli("execution", "preflight", "TASK-020")),
+            "BLOCKED EXECUTION_CONTRACT_UNRESOLVED: rule: the resolved contract must match the current profile; "
+            "field checked: `- Profile revision` in tasks/TASK-020.md against docs/EXECUTION_EVIDENCE_PROFILE.md; "
+            f"expected: sha256:{changed}; found: sha256:{digest}; " + resume,
+        )
+        task.write_text(body.replace("## Expected code surface\n\n", ""), encoding="utf-8")
+        self.append_contract("TASK-020")
+        self.assertEqual(
+            self.blocked_line(self.run_cli("execution", "preflight", "TASK-020")),
+            "BLOCKED TASK_RECORD_INCOMPLETE: rule: a normal task record must contain its required headings; source "
+            "checked: tasks/TASK-020.md; accepted: ## Authority, ## Validation, ## Expected code surface; missing: "
+            "## Expected code surface; resume: add the listed sections or fields to the task record, then rerun "
+            "meridian execution preflight TASK-020 --project .",
+        )
+        task.write_text(body.replace("QUEUED", "ACCEPTED"), encoding="utf-8")
+        self.append_contract("TASK-020")
+        accepted = (
+            "resume: bring the task to QUEUED or IN_PROGRESS through its lifecycle, then rerun the blocked "
+            "meridian execution command"
+        )
+        self.assertEqual(
+            self.blocked_line(self.run_cli("execution", "preflight", "TASK-020")),
+            "BLOCKED TASK_STATUS_REJECTED: rule: preflight runs only on an open task; field checked: Status in "
+            "tasks/TASK-020.md; accepted: QUEUED, IN_PROGRESS; found: ACCEPTED; " + accepted,
+        )
+        task.write_text(body.replace("QUEUED", "DRAFT"), encoding="utf-8")
+        self.assertEqual(
+            self.blocked_line(self.run_cli("execution", "reconcile", "TASK-020")),
+            "BLOCKED TASK_STATUS_REJECTED: rule: reconcile refreshes only an open task; field checked: Status in "
+            "tasks/TASK-020.md; accepted: QUEUED, IN_PROGRESS (terminal tasks are skipped); found: DRAFT; " + accepted,
+        )
+        task.write_text(body + "\n- `cargo fmt --check`\n", encoding="utf-8")
+        self.assertEqual(
+            self.blocked_line(self.run_cli("execution", "reconcile", "TASK-020")),
+            "BLOCKED VALIDATION_ENTRY_FORMAT: rule: every entry in the task's ## Validation section must be a named "
+            "literal command; accepted form: - `validation-id`: `literal command`; found: '- `cargo fmt --check`'; "
+            "resume: rewrite each listed Validation entry as - `validation-id`: `literal command`, then rerun the "
+            "blocked meridian execution command",
+        )
+        self.assertEqual(
+            self.blocked_line(self.run_cli("execution", "evidence", "TASK-020", "diagnostic", "--gap", " ")),
+            "BLOCKED EXECUTION_EVIDENCE_ARGUMENTS: rule: evidence is recorded with the gap that justifies it; option "
+            "checked: --gap; accepted: a non-empty string; found: ' '; resume: rerun the meridian execution evidence "
+            "command with the missing options",
+        )
+        self.assertIn(
+            "missing: --artifact",
+            self.blocked_line(self.run_cli(
+                "execution", "evidence", "TASK-020", "captures", "--gap", "g", "--criterion", "AC-1",
+            )),
+        )
+
+    def test_handoff_gates_report_coded_actionable_stops(self) -> None:
+        self.write_task("TASK-021", "IN_PROGRESS")
+        report = self.project / "report.md"
+        fields = {
+            "Files changed": "none", "Validation": "`x` exit 0", "Validation skips": "none",
+            "Manual verification": "none", "Acceptance criteria": "all met", "Budget usage": "0/3",
+            "Isolated exploration": "none", "Blockers/deviations": "none",
+        }
+
+        def write(heading: str = "TASK-021", **overrides: str | None) -> None:
+            lines = [f"## Completion Report — {heading}", ""]
+            for field, value in {**fields, **overrides}.items():
+                if value is not None:
+                    lines.append(f"- {field}: {value}")
+            report.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+        def check() -> subprocess.CompletedProcess[str]:
+            return self.run_cli("execution", "handoff-check", "TASK-021", str(report))
+
+        resume = "then rerun meridian execution handoff-check TASK-021 <report> --project ."
+        self.assertEqual(
+            self.blocked_line(check()),
+            f"BLOCKED HANDOFF_REPORT_MISSING: rule: the handoff check reads a completion report; source checked: "
+            f"{report}; expected: an existing file; found: no such file; resume: write the completion report, "
+            "then run meridian execution handoff-check TASK-021 <report> --project .",
+        )
+        required = ", ".join(fields)
+        write(Validation=None)
+        self.assertEqual(
+            self.blocked_line(check()),
+            "BLOCKED HANDOFF_FIELDS_MISSING: rule: every required field needs a non-empty value; source checked: "
+            "report.md; accepted form: `- <Field>: <value>`; required: " + required + "; missing: Validation; "
+            "resume: add each missing field as `- <Field>: <value>`, " + resume,
+        )
+        report.write_text(report.read_text(encoding="utf-8") + "- Validation (commands): `x` exit 0\n", encoding="utf-8")
+        self.assertEqual(
+            self.blocked_line(check()),
+            "BLOCKED HANDOFF_FIELD_FORMAT: rule: a required field's name must be followed directly by the colon; "
+            "source checked: report.md; accepted form: `- <Field>: <value>`; found: `- Validation (commands):` "
+            "(expected `- Validation: <value>`); resume: rewrite each listed field as `- <Field>: <value>`, " + resume,
+        )
+        write("TASK-099")
+        self.assertEqual(
+            self.blocked_line(check()),
+            "BLOCKED HANDOFF_TASK_MISMATCH: rule: the report must identify its task; source checked: report.md; "
+            "accepted: `Completion Report — TASK-021`; found: `Completion Report — TASK-099`; resume: correct "
+            "the report heading to name this task, " + resume,
+        )
+        write(Validation="`x` exit 1")
+        self.assertEqual(
+            self.blocked_line(check()),
+            "BLOCKED HANDOFF_VALIDATION_FAILING: rule: a failing validation needs a named skip; field checked: "
+            "Validation; accepted: no `exit <non-zero>`; found: `exit 1` with Validation skips: none; resume: fix "
+            "the failing validation and report its passing result, " + resume,
+        )
+        write(Validation="`x` exit 1", **{"Validation skips": "network down"})
+        self.assertIn(
+            "rule: a named skip does not make a failing validation pass; field checked: Validation; accepted: no "
+            "`exit <non-zero>`; found: `exit 1` with Validation skips: network down;",
+            self.blocked_line(check()),
+        )
+
+    def test_handoff_isolated_exploration_and_durable_evidence_gates(self) -> None:
+        (self.project / "docs").mkdir()
+        (self.project / "docs/EXECUTION_EVIDENCE_PROFILE.md").write_text("profile\n", encoding="utf-8")
+        (self.project / "tasks/TASK-022.md").write_text(
+            "Status: IN_PROGRESS\n\n## Authority\n\n## Expected code surface\n\n"
+            "## Validation\n\n- `probe`: `printf ok`\n",
+            encoding="utf-8",
+        )
+        self.append_contract("TASK-022")
+        report = self.project / "report.md"
+
+        def write(exploration: str) -> None:
+            report.write_text(
+                "## Completion Report — TASK-022\n\n- Files changed: none\n- Validation: `printf ok` exit 0\n"
+                "- Validation skips: none\n- Manual verification: none\n- Acceptance criteria: all met\n"
+                f"- Budget usage: 0/3\n- Isolated exploration: {exploration}\n- Blockers/deviations: none\n",
+                encoding="utf-8",
+            )
+
+        def check() -> subprocess.CompletedProcess[str]:
+            return self.run_cli("execution", "handoff-check", "TASK-022", str(report))
+
+        write("none")
+        self.assertEqual(
+            self.blocked_line(check()),
+            "BLOCKED HANDOFF_VALIDATION_EVIDENCE_MISSING: rule: every declared validation needs a successful durable "
+            "record; source checked: .meridian/execution-evidence.json for TASK-022; accepted: an entry with the "
+            "declared id and command and exitStatus 0; missing for: probe; resume: run meridian execution validate "
+            "TASK-022 <validation-id> --project . for each listed ID, then rerun the handoff check",
+        )
+        self.assertEqual(self.run_cli("execution", "validate", "TASK-022", "probe").returncode, 0)
+        for accepted in ("none", "None", "none needed", "No isolated exploration was needed", "no"):
+            with self.subTest(accepted=accepted):
+                write(accepted)
+                self.assertEqual(check().returncode, 0, accepted)
+        write("explored the API")
+        self.assertEqual(
+            self.blocked_line(check()),
+            "BLOCKED HANDOFF_EXPLORATION_MISMATCH: rule: with no recorded investigation the report must say there was "
+            "none; field checked: Isolated exploration against .meridian/execution-evidence.json; accepted: `none`, "
+            "or text starting with `none` or `no`; found: 'explored the API'; expected `none` (or record the "
+            "investigation); resume: correct the Isolated exploration field or record the investigation with meridian "
+            "execution investigate TASK-022, then rerun the handoff check",
+        )
+        write("nothing")
+        self.assertIn("found: 'nothing'", self.blocked_line(check()))
+        self.assertEqual(
+            self.run_cli(
+                "execution", "investigate", "TASK-022", "--question", "Which API?", "--scope", "2",
+                "--source", "a.rs", "--finding", "The window API.",
+            ).returncode,
+            0,
+        )
+        write("none")
+        self.assertEqual(
+            self.blocked_line(check()),
+            "BLOCKED HANDOFF_EXPLORATION_MISMATCH: rule: recorded investigations must be reported; field checked: "
+            "Isolated exploration against .meridian/execution-evidence.json; accepted: a summary of each recorded "
+            "investigation; found: `none` with 1 recorded; resume: correct the Isolated exploration field or record "
+            "the investigation with meridian execution investigate TASK-022, then rerun the handoff check",
+        )
+        write("Which API?")
+        self.assertEqual(
+            self.blocked_line(check()),
+            "BLOCKED HANDOFF_EXPLORATION_SUMMARY_MISSING: rule: the report must contain each recorded question and "
+            "finding; source checked: .meridian/execution-evidence.json; accepted: the exact question and finding "
+            "text; missing the question or finding of: Which API?; resume: add each listed question and finding to "
+            "the report, then rerun meridian execution handoff-check TASK-022 <report> --project .",
+        )
 
     def test_validation_runs_only_a_declared_literal_command_and_records_status(self) -> None:
         (self.project / "docs").mkdir()
@@ -4253,7 +4478,8 @@ Evidence plan:
         self.write_task("TASK-011", "IN_PROGRESS")
         missing = self.run_cli("execution", "evidence", "TASK-011", "captures", "--gap", "text is perceptual")
         self.assertNotEqual(missing.returncode, 0)
-        self.assertIn("require --criterion and --artifact", missing.stderr)
+        self.assertIn("BLOCKED EXECUTION_EVIDENCE_ARGUMENTS:", missing.stderr)
+        self.assertIn("missing: --criterion, --artifact", missing.stderr)
         recorded = self.run_cli(
             "execution", "evidence", "TASK-011", "captures", "--gap", "text is perceptual",
             "--criterion", "AC-4", "--artifact", "/tmp/capture.png",
@@ -7857,7 +8083,15 @@ class WorktreeLifecycleCliTest(unittest.TestCase):
             "CANDIDATE_VALIDATION_FAILED", "EVIDENCE_MISMATCH", "PUSH_PENDING", "PUSH_REJECTED", "CLEANUP_BLOCKED",
             "UNDECLARED_VALIDATION_COMMANDS",
         )
-        self.assertEqual(set(registry), set(closure))
+        gates = (
+            "EXECUTION_CONTRACT_UNRESOLVED", "EXECUTION_PROFILE_MISSING", "VALIDATION_ENTRY_FORMAT",
+            "TASK_RECORD_INCOMPLETE", "TASK_STATUS_REJECTED", "QUEUE_STATUS_MISMATCH",
+            "EXECUTION_EVIDENCE_ARGUMENTS", "HANDOFF_REPORT_MISSING", "HANDOFF_FIELDS_MISSING",
+            "HANDOFF_FIELD_FORMAT", "HANDOFF_TASK_MISMATCH", "HANDOFF_VALIDATION_FAILING",
+            "HANDOFF_VALIDATION_EVIDENCE_MISSING", "HANDOFF_EXPLORATION_MISMATCH",
+            "HANDOFF_EXPLORATION_SUMMARY_MISSING",
+        )
+        self.assertEqual(set(registry), set(closure) | set(gates))
         self.assertEqual(
             {code for code, entry in registry.items() if entry["class"] == "judgment"},
             {"ACCEPTANCE_UNMET", "REVIEW_REQUIRED"},

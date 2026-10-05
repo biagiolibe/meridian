@@ -7958,7 +7958,11 @@ def profile_cap(project_root: Path, kind: str) -> int:
 def profile_digest(project_root: Path) -> str:
     profile = project_root / "docs" / "EXECUTION_EVIDENCE_PROFILE.md"
     if not profile.is_file():
-        raise MeridianError("execution contract BLOCKED: missing docs/EXECUTION_EVIDENCE_PROFILE.md")
+        raise stop_error(
+            "EXECUTION_PROFILE_MISSING",
+            "rule: the execution contract derives from the project profile; source checked: "
+            "docs/EXECUTION_EVIDENCE_PROFILE.md; expected: the file exists; found: no such file",
+        )
     return hashlib.sha256(profile.read_bytes()).hexdigest()
 
 
@@ -9239,14 +9243,28 @@ def execution_preflight(project_root: Path, task_id: str) -> str:
     validate_host_impact_declaration(text)
     expected_digest = profile_digest(project_root)
     recorded_digest = contract_digest(text)
+    task_name = task_file.relative_to(project_root).as_posix()
     if recorded_digest is None:
-        raise MeridianError("execution preflight BLOCKED: task is missing a resolved execution contract")
+        raise stop_error(
+            "EXECUTION_CONTRACT_UNRESOLVED",
+            f"rule: a task needs a resolved execution contract; field checked: `- Profile revision` in {task_name}; "
+            f"expected: sha256:{expected_digest}; found: no such line",
+            task_id=task_id,
+        )
     if recorded_digest != expected_digest:
-        raise MeridianError("execution preflight BLOCKED: resolved execution contract is stale; re-resolve the task")
+        raise stop_error(
+            "EXECUTION_CONTRACT_UNRESOLVED",
+            f"rule: the resolved contract must match the current profile; field checked: `- Profile revision` in "
+            f"{task_name} against docs/EXECUTION_EVIDENCE_PROFILE.md; expected: sha256:{expected_digest}; "
+            f"found: sha256:{recorded_digest}",
+            task_id=task_id,
+        )
     if not contract_requires_execution_commands(text):
-        raise MeridianError(
-            "execution preflight BLOCKED: task execution contract predates the execution-command gate; "
-            "run meridian execution reconcile <TASK-ID> --apply --project ."
+        raise stop_error(
+            "EXECUTION_CONTRACT_UNRESOLVED",
+            f"rule: the contract must require execution commands; field checked: `- Execution commands` in "
+            f"{task_name}; expected: `required via meridian execution`; found: no such line",
+            task_id=task_id,
         )
     required_headings = PREFLIGHT_HEADINGS
     missing = [
@@ -9263,12 +9281,24 @@ def execution_preflight(project_root: Path, task_id: str) -> str:
             if not re.search(rf"^## {re.escape(heading)}\s*$", text, re.MULTILINE)
         )
     if missing:
-        raise MeridianError(
-            "execution preflight BLOCKED: task is missing " + ", ".join(missing)
+        is_spike = read_task_field(text, "Class") == "SPIKE"
+        required = [f"## {heading}" for heading in PREFLIGHT_HEADINGS] + (
+            list(SPIKE_PREFLIGHT_FIELDS) if is_spike else [f"## {heading}" for heading in NORMAL_PREFLIGHT_HEADINGS]
+        )
+        raise stop_error(
+            "TASK_RECORD_INCOMPLETE",
+            f"rule: a {'SPIKE' if is_spike else 'normal'} task record must contain its required headings"
+            f"{' and fields' if is_spike else ''}; source checked: {task_name}; accepted: "
+            + ", ".join(required) + "; missing: " + ", ".join(missing),
+            task_id=task_id,
         )
     status = read_task_field(text, "Status")
     if status not in ("QUEUED", "IN_PROGRESS"):
-        raise MeridianError(f"execution preflight BLOCKED: {task_id} status is {status or 'missing'}")
+        raise stop_error(
+            "TASK_STATUS_REJECTED",
+            f"rule: preflight runs only on an open task; field checked: Status in {task_name}; "
+            f"accepted: QUEUED, IN_PROGRESS; found: {status or 'missing'}",
+        )
     queue = project_root / resolve_project_locations(project_root).queue
     if queue.is_file():
         header = next((line for line in queue.read_text(encoding="utf-8").splitlines() if line.startswith("| Order |")), "")
@@ -9281,8 +9311,13 @@ def execution_preflight(project_root: Path, task_id: str) -> str:
                 if len(values) == len(columns) and values[columns.index("ID")] == identity.canonical_id:
                     queued_status = values[columns.index("Status")]
                     if queued_status != status:
-                        raise MeridianError(
-                            f"execution preflight BLOCKED: task status {status} disagrees with queue status {queued_status}"
+                        raise stop_error(
+                            "QUEUE_STATUS_MISMATCH",
+                            f"rule: the task record and its queue row must agree; sources checked: Status in "
+                            f"{task_name} and the Status column of row {identity.canonical_id} in "
+                            f"{queue.relative_to(project_root).as_posix()}; accepted: equal values; "
+                            f"found: task {status}, queue {queued_status}",
+                            task_id=task_id,
                         )
                     break
     caps = ", ".join(
@@ -9299,7 +9334,12 @@ def reconcile_execution_contract(project_root: Path, task_id: str, apply: bool) 
     if status in ("ACCEPTED", "ANSWERED", "INCONCLUSIVE"):
         return f"Execution reconciliation skipped for terminal task {task_id} ({status})"
     if status not in ("QUEUED", "IN_PROGRESS"):
-        raise MeridianError(f"execution reconcile BLOCKED: {task_id} status is {status}")
+        raise stop_error(
+            "TASK_STATUS_REJECTED",
+            f"rule: reconcile refreshes only an open task; field checked: Status in "
+            f"{task_file.relative_to(project_root).as_posix()}; accepted: QUEUED, IN_PROGRESS "
+            f"(terminal tasks are skipped); found: {status}",
+        )
     generated = execution_contract(project_root, task_id)
     section = re.compile(
         r"^## Execution contract — resolved\s*$\n.*?(?=^## |\Z)",
@@ -9337,7 +9377,7 @@ def execution_entries(project_root: Path, task_id: str) -> list[dict[str, object
     return entries
 
 
-def verify_validation_skips(report_text: str) -> None:
+def verify_validation_skips(report_text: str, task_id: str) -> None:
     """Reject validation failures that a handoff's skip declaration cannot excuse."""
     reported = re.search(r"^- Validation skips:\s*(.+)$", report_text, re.MULTILINE)
     assert reported is not None  # HANDOFF_FIELDS has already checked its presence.
@@ -9348,14 +9388,20 @@ def verify_validation_skips(report_text: str) -> None:
 
     if value.lower() == "none":
         if failed_validation:
-            raise MeridianError(
-                "handoff check BLOCKED: report declares a failing validation without a named skip"
+            raise stop_error(
+                "HANDOFF_VALIDATION_FAILING",
+                f"rule: a failing validation needs a named skip; field checked: Validation; accepted: no "
+                f"`exit <non-zero>`; found: `{failed_validation.group(0)}` with Validation skips: none",
+                task_id=task_id,
             )
         return
 
     if failed_validation:
-        raise MeridianError(
-            "handoff check BLOCKED: a named skip does not make a failing validation pass"
+        raise stop_error(
+            "HANDOFF_VALIDATION_FAILING",
+            f"rule: a named skip does not make a failing validation pass; field checked: Validation; "
+            f"accepted: no `exit <non-zero>`; found: `{failed_validation.group(0)}` with Validation skips: {value}",
+            task_id=task_id,
         )
 
 
@@ -9374,9 +9420,12 @@ def verify_execution_evidence(project_root: Path, task_id: str, report_text: str
         )
     ]
     if missing_validations:
-        raise MeridianError(
-            "handoff check BLOCKED: successful durable validation is missing for: "
-            + ", ".join(missing_validations)
+        raise stop_error(
+            "HANDOFF_VALIDATION_EVIDENCE_MISSING",
+            f"rule: every declared validation needs a successful durable record; source checked: "
+            f"{EXECUTION_EVIDENCE_PATH.as_posix()} for {task_id}; accepted: an entry with the declared id and "
+            f"command and exitStatus 0; missing for: " + ", ".join(missing_validations),
+            task_id=task_id,
         )
 
     investigations = [entry for entry in entries if entry.get("kind") == "investigation"]
@@ -9384,14 +9433,22 @@ def verify_execution_evidence(project_root: Path, task_id: str, report_text: str
     assert reported is not None  # HANDOFF_FIELDS has already checked its presence.
     value = reported.group(1).strip()
     if not investigations:
-        if value.lower() != "none":
-            raise MeridianError(
-                "handoff check BLOCKED: report declares isolated exploration without a durable record"
+        if not re.match(r"(?i)(?:none|no)(?![A-Za-z0-9])", value):
+            raise stop_error(
+                "HANDOFF_EXPLORATION_MISMATCH",
+                f"rule: with no recorded investigation the report must say there was none; field checked: "
+                f"Isolated exploration against {EXECUTION_EVIDENCE_PATH.as_posix()}; accepted: `none`, or text "
+                f"starting with `none` or `no`; found: {value!r}; expected `none` (or record the investigation)",
+                task_id=task_id,
             )
         return
     if value.lower() == "none":
-        raise MeridianError(
-            "handoff check BLOCKED: report says no isolated exploration but durable records exist"
+        raise stop_error(
+            "HANDOFF_EXPLORATION_MISMATCH",
+            f"rule: recorded investigations must be reported; field checked: Isolated exploration against "
+            f"{EXECUTION_EVIDENCE_PATH.as_posix()}; accepted: a summary of each recorded investigation; "
+            f"found: `none` with {len(investigations)} recorded",
+            task_id=task_id,
         )
     missing_summaries = [
         str(entry.get("question", ""))
@@ -9400,24 +9457,58 @@ def verify_execution_evidence(project_root: Path, task_id: str, report_text: str
         or str(entry.get("finding", "")) not in report_text
     ]
     if missing_summaries:
-        raise MeridianError(
-            "handoff check BLOCKED: report omits a recorded exploration question or finding: "
-            + "; ".join(missing_summaries)
+        raise stop_error(
+            "HANDOFF_EXPLORATION_SUMMARY_MISSING",
+            f"rule: the report must contain each recorded question and finding; source checked: "
+            f"{EXECUTION_EVIDENCE_PATH.as_posix()}; accepted: the exact question and finding text; "
+            f"missing the question or finding of: " + "; ".join(missing_summaries),
+            task_id=task_id,
         )
 
 
 def check_handoff(project_root: Path, task_id: str, report: Path) -> str:
     """Reject incomplete completion evidence before it can be used as a handoff."""
     if not report.is_file():
-        raise MeridianError(f"handoff check BLOCKED: report is missing: {report}")
+        raise stop_error(
+            "HANDOFF_REPORT_MISSING",
+            f"rule: the handoff check reads a completion report; source checked: {report}; "
+            "expected: an existing file; found: no such file",
+            task_id=task_id,
+        )
     text = report.read_text(encoding="utf-8")
     missing = [field for field in HANDOFF_FIELDS if not re.search(rf"^- {re.escape(field)}:\s*\S+", text, re.MULTILINE)]
     if missing:
-        raise MeridianError("handoff check BLOCKED: missing required fields: " + ", ".join(missing))
+        labels = re.findall(r"^- ([^:\n]+):", text, re.MULTILINE)
+        malformed = {
+            field: label for field in missing for label in labels
+            if label not in HANDOFF_FIELDS and re.match(rf"{re.escape(field)}(?![A-Za-z0-9])", label)
+        }
+        if malformed:
+            raise stop_error(
+                "HANDOFF_FIELD_FORMAT",
+                f"rule: a required field's name must be followed directly by the colon; source checked: {report.name}; "
+                "accepted form: `- <Field>: <value>`; found: "
+                + "; ".join(f"`- {label}:` (expected `- {field}: <value>`)" for field, label in malformed.items()),
+                task_id=task_id,
+            )
+        raise stop_error(
+            "HANDOFF_FIELDS_MISSING",
+            f"rule: every required field needs a non-empty value; source checked: {report.name}; "
+            "accepted form: `- <Field>: <value>`; required: " + ", ".join(HANDOFF_FIELDS)
+            + "; missing: " + ", ".join(missing),
+            task_id=task_id,
+        )
     canonical_id = resolve_task_identity(project_root, task_id, "existing").canonical_id
     if f"Completion Report — {canonical_id}" not in text:
-        raise MeridianError(f"handoff check BLOCKED: report does not identify {canonical_id}")
-    verify_validation_skips(text)
+        heading = re.search(r"Completion Report — (\S+)", text)
+        raise stop_error(
+            "HANDOFF_TASK_MISMATCH",
+            f"rule: the report must identify its task; source checked: {report.name}; "
+            f"accepted: `Completion Report — {canonical_id}`; found: "
+            + (f"`{heading.group(0)}`" if heading else "no Completion Report heading"),
+            task_id=task_id,
+        )
+    verify_validation_skips(text, task_id)
     verify_execution_evidence(project_root, task_id, text)
     return f"Handoff evidence complete for {task_id}: {report}"
 
@@ -9453,9 +9544,13 @@ def require_named_validation_commands(text: str) -> None:
         return
     entries = [line for line in section.group(1).splitlines() if line.startswith("- ")]
     if entries and len(validation_commands(text)) != len(entries):
-        raise MeridianError(
-            "execution contract BLOCKED: every Validation entry must use "
-            "`- `validation-id`: `literal command``"
+        named = re.compile(r"^- `[^`]+`: `[^`]+`\s*$")
+        unnamed = [line for line in entries if not named.match(line)]
+        raise stop_error(
+            "VALIDATION_ENTRY_FORMAT",
+            "rule: every entry in the task's ## Validation section must be a named literal command; "
+            "accepted form: - `validation-id`: `literal command`; found: "
+            + "; ".join(repr(line) for line in unnamed or entries),
         )
 
 
@@ -9502,9 +9597,18 @@ def record_execution_event(
 ) -> str:
     """Spend a semantic budget only alongside the evidence that justifies it."""
     if not gap.strip():
-        raise MeridianError("execution evidence BLOCKED: --gap is required")
+        raise stop_error(
+            "EXECUTION_EVIDENCE_ARGUMENTS",
+            f"rule: evidence is recorded with the gap that justifies it; option checked: --gap; "
+            f"accepted: a non-empty string; found: {gap!r}",
+        )
     if kind == "captures" and (not criterion or not artifact):
-        raise MeridianError("execution evidence BLOCKED: captures require --criterion and --artifact")
+        absent = [name for name, value in (("--criterion", criterion), ("--artifact", artifact)) if not value]
+        raise stop_error(
+            "EXECUTION_EVIDENCE_ARGUMENTS",
+            "rule: captures need provenance; options checked: --criterion and --artifact; "
+            "accepted: both non-empty; missing: " + ", ".join(absent),
+        )
     count, cap = budget_spend(project_root, task_id, kind, criterion if kind == "captures" else None)
     path = project_root / EXECUTION_EVIDENCE_PATH
     state: dict[str, object] = {}

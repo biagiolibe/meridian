@@ -4,7 +4,7 @@
 > **Category**: Bugfix
 > **Priority**: 🟡 P2
 > **Estimate**: ~2h
-> **Assigned to**: unassigned
+> **Assigned to**: Claude Code
 > **Session**: ADR stops and denials, 2026-10-05
 
 ## Objective
@@ -21,24 +21,24 @@ compare free text with exact strings. Make these gates meet the
 
 ## Acceptance Criteria
 
-- [ ] Every `BLOCKED` raised by `execution_preflight`, the execution contract,
+- [x] Every `BLOCKED` raised by `execution_preflight`, the execution contract,
   evidence and reconcile checks, `verify_execution_evidence`, and
   `check_handoff` is emitted through the registry helper with a registered code.
-- [ ] For each gate that compares values, the message names the rule, the field
+- [x] For each gate that compares values, the message names the rule, the field
   or source checked, the accepted values, and the value found.
-- [ ] Issue #5: when no investigation is recorded, `Isolated exploration`
+- [x] Issue #5: when no investigation is recorded, `Isolated exploration`
   accepts `none` and a value that starts with `none` or `no` followed by text.
   Otherwise the message says that `none` is expected and quotes the value found.
   A `none` value with recorded investigations still fails, with its existing
   meaning.
-- [ ] A required handoff field written with text between its name and the
+- [x] A required handoff field written with text between its name and the
   colon, such as `- Validation (commands):`, is reported as a format problem
   that names the expected form `- <Field>: <value>`, not as a missing field.
-- [ ] Existing passing handoffs still pass. The tests cover issue #5's wording,
+- [x] Existing passing handoffs still pass. The tests cover issue #5's wording,
   the mis-formatted field, and the message of every newly coded gate.
-- [ ] One changelog fragment is added per `CONTRIBUTING.md`; this is a CLI-only
+- [x] One changelog fragment is added per `CONTRIBUTING.md`; this is a CLI-only
   change.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
+- [x] `python3 scripts/check_repository.py` and the unit tests pass.
 
 ## Relevant Files
 
