@@ -86,7 +86,7 @@
             "evidence": [
               "sha256:392d13907e5772aca36df0ce9c52335dee31e6337087d6e78a1f08a868d485a0",
               "sha256:50386055561fd45a1809340403492dd8d0f8dbb1b0aa04e7c7838b3bf6987735",
-              "sha256:953355ac1a1afb49744f9f95e17c074bbf785b106615af90ed50c4b4b5f723fa"
+              "sha256:d8dc3de99bd73d9ce8685e845772245d43741a4234f00c3de336547159517d71"
             ],
             "notApplicableRationale": null,
             "state": "INSTALLED"
@@ -258,7 +258,7 @@
           "installation": {
             "evidence": [
               "sha256:50386055561fd45a1809340403492dd8d0f8dbb1b0aa04e7c7838b3bf6987735",
-              "sha256:674aaa7b139b95443283a6cbfaa075d7286a25a0388c8a1dbe0eebc74f649137"
+              "sha256:f4bfae484f8e41138f6c64f3b05d22bfb4cef42828d8baa38d8aca0847f59006"
             ],
             "notApplicableRationale": null,
             "state": "INSTALLED"
@@ -292,10 +292,10 @@
           },
           "installation": {
             "evidence": [
-              "sha256:41904eb13acbc69f8cd7e80418a8f40293f30fd966c4154845592e0aff9e1e15",
-              "sha256:e88a8df4e15f1c96e1dcbd288176a93cf4a24abf0c411dcfc8c4367651dddb20",
+              "sha256:32b38ef1af1b7caf716594e286642da311da9e7571df94bfcba2c7f53ce08e57",
+              "sha256:b7ec7168927fd4b8e5c69e588cd9822e9e06d30e576f363ee82f358209099b76",
               "sha256:5f91cd0840dcbeacfdcbaaefd125005e076490a223d71f1d3b82a11fbaf222a3",
-              "sha256:674aaa7b139b95443283a6cbfaa075d7286a25a0388c8a1dbe0eebc74f649137"
+              "sha256:f4bfae484f8e41138f6c64f3b05d22bfb4cef42828d8baa38d8aca0847f59006"
             ],
             "notApplicableRationale": null,
             "state": "INSTALLED"
@@ -335,11 +335,11 @@
   "managedFiles": {
     ".codex/hooks.json": "b427ae75d05f8d193e2e12367db24fae6687b3ca0aa192a06c23cb8f488cc7dd",
     ".codex/rules/meridian.rules": "5f91cd0840dcbeacfdcbaaefd125005e076490a223d71f1d3b82a11fbaf222a3",
-    "AGENTS.md": "e88a8df4e15f1c96e1dcbd288176a93cf4a24abf0c411dcfc8c4367651dddb20",
-    "CLAUDE.md": "41904eb13acbc69f8cd7e80418a8f40293f30fd966c4154845592e0aff9e1e15",
+    "AGENTS.md": "b7ec7168927fd4b8e5c69e588cd9822e9e06d30e576f363ee82f358209099b76",
+    "CLAUDE.md": "32b38ef1af1b7caf716594e286642da311da9e7571df94bfcba2c7f53ce08e57",
     "LANGUAGE_POLICY.md": "65fc7654c6d37865fae03290b4c21304efee616bbb8615fa298c3e55abfdf558",
-    "PROJECT_WORKFLOW.md": "674aaa7b139b95443283a6cbfaa075d7286a25a0388c8a1dbe0eebc74f649137",
-    "docs/COMPLETION_REPORT_TEMPLATE.md": "953355ac1a1afb49744f9f95e17c074bbf785b106615af90ed50c4b4b5f723fa",
+    "PROJECT_WORKFLOW.md": "f4bfae484f8e41138f6c64f3b05d22bfb4cef42828d8baa38d8aca0847f59006",
+    "docs/COMPLETION_REPORT_TEMPLATE.md": "d8dc3de99bd73d9ce8685e845772245d43741a4234f00c3de336547159517d71",
     "docs/CONTEXT_BUDGET_POLICY.md": "50386055561fd45a1809340403492dd8d0f8dbb1b0aa04e7c7838b3bf6987735",
     "docs/EXECUTION_EVIDENCE_PROFILE.md": "392d13907e5772aca36df0ce9c52335dee31e6337087d6e78a1f08a868d485a0"
   },
