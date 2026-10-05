@@ -123,7 +123,8 @@ on the machines that share that hash. `check` also accepts a legacy absolute
 
 `prepare`, `check`, `closure-status`, `evidence`, `integrate stage`,
 `integrate finalize`, `integrate abort`, and `cleanup` each append one JSON line
-to `<git-common-dir>/meridian-journal.jsonl`. The file is local and untracked,
+to `<git-common-dir>/meridian-journal.jsonl`; the Claude Code `Stop` hook
+(`hook stop-audit`) appends one line per unbacked or declared `BLOCKED` code. The file is local and untracked,
 and every worktree of the repository shares it, so the lines of concurrent tasks
 interleave as whole lines. The read-only commands
 (`check`, `closure-status`, and `prepare --resume`) append to it too; the journal
@@ -137,7 +138,7 @@ and where, not to audit an agent.
 | `command` | The command name, for example `integrate stage`. |
 | `task` | The canonical task ID, when the argument or the result names one. |
 | `step` | The closure step or `next_action` the command reported, when it reports one. |
-| `result` | `ok` (exit `0`), `blocked` (a stopped lifecycle transition), or `error`. |
+| `result` | `ok` (exit `0`), `blocked` (a stopped lifecycle transition), or `error`; the Stop hook adds `unbacked_block` and `declared_block` (see below). |
 | `stop_code` | The registered stop code, only when `result` is `blocked` and the stop carries one. |
 | `exit` | The command's exit status. |
 | `resume` | `true` only on a `prepare --resume` run. |
@@ -145,6 +146,25 @@ and where, not to audit an agent.
 Privacy boundary: a line holds only these fields. It never contains an absolute
 path, a command line or option value supplied by the agent, a message, or error
 text; a stop is recorded by its registered code, never by its message.
+
+### Unbacked stop reports
+
+The Claude Code `Stop` hook (`hooks/stop-audit.sh`, 5 second timeout) runs
+`meridian hook stop-audit`. It reads only the final assistant message, from the
+`last_assistant_message` field of the hook input (documented for `Stop`), and
+falls back to the last assistant entry of `transcript_path`. For each registered
+`BLOCKED <CODE>` at the start of a line it looks for a `blocked` journal line
+with the same code since the session's first transcript timestamp (24 hours
+when unavailable), restricted to the active task when the hook runs in a registered task worktree
+(resolved as `meridian worktree active` does; from the primary checkout the
+line is not task-scoped and records `task: null`). A `tool` code with no match is appended as `result:
+unbacked_block`; a `command-exit` or `judgment` code is appended as
+`declared_block`, because no command emits it. The line holds `stop_code` and
+`task` only. The hook ignores unregistered codes, does nothing outside a
+Meridian project or without an existing journal, never blocks the stop, and
+always exits `0`. Codex documents a `Stop` event that also carries
+`last_assistant_message`, but this hook is registered for Claude Code only and
+Codex configuration is deliberately unchanged.
 
 The journal is rotated to `meridian-journal.1.jsonl` when it exceeds 5 MB, and
 only that one previous file is kept. A journal write that fails never changes a

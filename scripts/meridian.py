@@ -9370,7 +9370,7 @@ def _flow_tasks(project_root: Path, records: list[dict[str, object]], cutoff: da
     by_task: dict[str, list[dict[str, object]]] = {}
     for record in records:
         task = record.get("task")
-        if isinstance(task, str):
+        if isinstance(task, str) and record["command"] != "stop-audit":
             by_task.setdefault(task, []).append(record)
     tasks: list[dict[str, object]] = []
     for task, task_records in sorted(by_task.items(), key=lambda item: (len(item[0]), item[0])):
@@ -10622,6 +10622,7 @@ def _run_cli(journal: LifecycleJournalEntry) -> int:
     hook_sub = hook.add_subparsers(dest="hook_command", required=True)
     read_guard = hook_sub.add_parser("read-guard", help="apply the advisory-safe read guard")
     read_guard.add_argument("--host", choices=("codex",), required=True)
+    hook_sub.add_parser("stop-audit", help="record BLOCKED reports that no command emitted (Claude Code Stop hook)")
 
     arguments = parser.parse_args()
     journal.begin(arguments)
@@ -10991,6 +10992,10 @@ def _run_cli(journal: LifecycleJournalEntry) -> int:
                 from codex_read_guard import main as codex_read_guard_main
 
                 return codex_read_guard_main()
+            if arguments.hook_command == "stop-audit":
+                from stop_audit import main as stop_audit_main
+
+                return stop_audit_main()
         elif arguments.check:
             if arguments.owner_reconciled:
                 raise MeridianError("--owner-reconciled only applies to --apply")
