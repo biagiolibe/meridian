@@ -285,7 +285,7 @@
   },
   "templates/workflows/governed-sdd/tasks/TASK_BLUEPRINT.md": {
     "task-blueprint": {
-      "sha256": "3f1b2185c4c283fba5044da2f4ceb3b0060569c7d20034ff989141ec92a81312",
+      "sha256": "1c86a5103c58b830387c582d6e55900800db030cd0f163dedd17571346efaee1",
       "version": 14
     }
   },
