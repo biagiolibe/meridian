@@ -16,7 +16,7 @@ of `docs/ADR_STOPS_AND_DENIALS.md` into the managed text of both workflows.
 
 ## Acceptance Criteria
 
-- [ ] The managed `git-workflow` block in the Lean Delivery and Governed SDD
+- [x] The managed `git-workflow` block in the Lean Delivery and Governed SDD
   templates, the Lean router copies, and this repository's own copies:
   - keeps the deny list as it is;
   - states that a stop is valid only when it is backed by a `BLOCKED <CODE>`
@@ -27,23 +27,23 @@ of `docs/ADR_STOPS_AND_DENIALS.md` into the managed text of both workflows.
   - states that when a Meridian command accepted a state that the text appears
     to forbid, the agent follows the command and records the difference under
     `Rule discrepancies:`, except for actions on the deny list.
-- [ ] The long list of closure stop codes in prose is replaced by a reference
+- [x] The long list of closure stop codes in prose is replaced by a reference
   to `capabilities/stop-codes-v1.json` and to `meridian worktree
   closure-status`. The step order of the closure stays stated.
-- [ ] `docs/COMPLETION_REPORT_TEMPLATE.md` and its template copies gain an
+- [x] `docs/COMPLETION_REPORT_TEMPLATE.md` and its template copies gain an
   optional `Rule discrepancies:` line (`none | rule, command result, and what
   was followed`). `handoff-check` accepts a report with or without it.
-- [ ] The capability marker version of the block is bumped once in the
+- [x] The capability marker version of the block is bumped once in the
   unreleased 1.2.9 release. If task 161 has already bumped the `git-workflow`
   marker in an unreleased 1.2.9 migration, this task extends that migration and
   marker version and does not add a second bump. Otherwise it adds a migration
   whose `to` is 1.2.9.
-- [ ] `meridian upgrade --check` on copies of the Palimpsest and Fusa manifests
+- [x] `meridian upgrade --check` on copies of the Palimpsest and Fusa manifests
   shows the block update and no `BLOCKED`; the results go in the handoff.
-- [ ] `VERSION` is not bumped again; it is already the unreleased 1.2.9.
-- [ ] One changelog fragment states the rule under `Changed` and the action
+- [x] `VERSION` is not bumped again; it is already the unreleased 1.2.9.
+- [x] One changelog fragment states the rule under `Changed` and the action
   under `Upgrade notes`.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
+- [x] `python3 scripts/check_repository.py` and the unit tests pass.
 
 ## Relevant Files
 
