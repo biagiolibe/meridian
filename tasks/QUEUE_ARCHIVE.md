@@ -595,3 +595,15 @@ reasons, and creates the implementation follow-ups.
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
 | `[x]` | 133 | Let a confirmed Resume reach a dirty task worktree | 🟡 P2 | — | [133](done/133-resume-dirty-task-worktree.md) |
+
+### Phase 51 — Context cost
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 134 | Add `meridian context size` to measure the startup read set | 🟡 P2 | — | [134](done/134-context-size-command.md) |
+| `[x]` | 135 | Report measured token usage of agent sessions | 🟡 P2 | — | [135](done/135-session-usage-report.md) |
+| `[x]` | 136 | Load workflow context by phase and point agents to bounded readers | 🟡 P2 | 134, 135 | [136](done/136-per-phase-context-loading.md) |
+| `[x]` | 137 | Tell Codex agents to wait once for long commands | 🟡 P2 | — | [137](done/137-codex-wait-guidance-for-long-commands.md) |
+| `[x]` | 138 | Run the unit suite in parallel without changing what it covers | 🟡 P2 | — | [138](done/138-parallel-test-runner.md) |
+| `[x]` | 139 | Make `check_repository.py` catch managed-copy digest drift | 🟡 P2 | — | [139](done/139-check-managed-copy-digest-drift.md) |
+| `[x]` | 141 | Count cached input in the Claude Code usage report | 🟡 P2 | — | [141](done/141-usage-report-claude-input-total.md) |
