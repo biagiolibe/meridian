@@ -145,6 +145,7 @@
 - `[ ]` 176 — Replace the closure procedure in managed text with `advance`.
 - `[ ]` 177 — Add an agent evaluation harness graded on the journal and Git state.
 - `[ ]` 178 — Add the safety and remediation scenarios and run them before template-changing releases.
+- `[ ]` 179 — Stabilize the parallel runner output comparison test.
 - `[x]` 140 — Let `integrate stage` complete rows of project-shaped Governed queues.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.
