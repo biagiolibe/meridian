@@ -8392,6 +8392,172 @@ class WorktreeLifecycleCliTest(unittest.TestCase):
         self.assertNotIn("MAIN_BEHIND_ORIGIN", result.stderr + result.stdout)
         self.assertEqual(result.returncode, 0, result.stderr)
 
+    def _advance_ready_task(self) -> Path:
+        """A completed task branch with origin and a handoff but no recorded evidence."""
+        (self.project / "tasks/handoffs").mkdir()
+        (self.project / "tasks/handoffs/056.md").write_text("# Completion Report — 056\n", encoding="utf-8")
+        subprocess.run(["git", "add", "."], cwd=self.project, check=True)
+        subprocess.run(["git", "commit", "-m", "handoff"], cwd=self.project, check=True, capture_output=True)
+        evidence_path = self._stage_ready_task_with_origin(local_ahead=True)
+        evidence_path.unlink()
+        (self.project / ".meridian/candidate-validation.json").write_text(
+            json.dumps({"version": 1, "state": "declared", "outcomes": {
+                "REUSE": ["scripts/check_repository.py"],
+                "BOUNDED": ["scripts/check_repository.py"],
+                "FULL": ["scripts/check_repository.py", "unittest discover"],
+            }}), encoding="utf-8",
+        )
+        subprocess.run(["git", "add", ".meridian/candidate-validation.json"], cwd=self.project, check=True)
+        subprocess.run(["git", "commit", "-m", "declare"], cwd=self.project, check=True, capture_output=True)
+        return evidence_path
+
+    def _advance(self, *extra: str) -> subprocess.CompletedProcess[str]:
+        return self.run_cli(
+            "worktree", "advance", "056", "--project", str(self.project),
+            "--worktree-root", str(self.worktree_root), *extra, "--format", "json",
+        )
+
+    def _passing(self) -> tuple[str, ...]:
+        return ("--accepted", "--validation-command", "check", "--validation-exit-code", "0")
+
+    def _journal(self) -> list[dict[str, object]]:
+        journal = self.project / ".git/meridian-journal.jsonl"
+        return [json.loads(line) for line in journal.read_text(encoding="utf-8").splitlines()]
+
+    def test_advance_runs_to_candidate_validation_and_reruns_without_repeating(self) -> None:
+        evidence_path = self._advance_ready_task()
+        waiting = self._advance()
+        self.assertEqual(waiting.returncode, 0, waiting.stderr)
+        report = json.loads(waiting.stdout)
+        self.assertEqual(
+            (report["step"], report["action_required"], report["stop_code"], report["performed"]),
+            ("C5", "run-validation", "EVIDENCE_INCOMPLETE", []),
+        )
+        self.assertFalse(evidence_path.exists())
+
+        result = self._advance(*self._passing())
+        self.assertEqual(result.returncode, 0, result.stderr)
+        report = json.loads(result.stdout)
+        self.assertEqual(set(report), {
+            "version", "task_id", "step", "action_required", "commands", "stop_code", "resume", "performed",
+        })
+        self.assertEqual((report["step"], report["action_required"]), ("C7", "run-candidate-validation"))
+        self.assertEqual(report["performed"], ["C5", "C6"])
+        self.assertIsNone(report["stop_code"])
+        self.assertEqual(report["commands"][0], "git diff --check")
+        self.assertIn("scripts/check_repository.py", report["commands"])
+        recorded = json.loads(evidence_path.read_text(encoding="utf-8"))
+        self.assertEqual(recorded["validation_commands"], ["check"])
+        commands = [(line["command"], line["result"]) for line in self._journal()]
+        self.assertEqual(
+            [item for item in commands if item[0] not in ("advance", "prepare")],
+            [("evidence", "ok"), ("integrate stage", "ok")],
+        )
+
+        before = evidence_path.read_text(encoding="utf-8")
+        rerun = json.loads(self._advance().stdout)
+        self.assertEqual((rerun["step"], rerun["action_required"], rerun["performed"]), ("C7", "run-candidate-validation", []))
+        self.assertEqual(rerun["commands"], report["commands"])
+        self.assertEqual(evidence_path.read_text(encoding="utf-8"), before)
+        self.assertEqual(
+            [line["command"] for line in self._journal()].count("integrate stage"), 1
+        )
+
+    def test_advance_resumes_after_each_mechanical_step_and_reaches_cleanup(self) -> None:
+        self._advance_ready_task()
+        worktree = json.loads(self.run_cli(
+            "worktree", "path", "056", "--project", str(self.project),
+            "--worktree-root", str(self.worktree_root), "--format", "json",
+        ).stdout)["path"]
+        recorded = self.run_cli(
+            "worktree", "evidence", "056", "--project", str(self.project),
+            "--worktree-root", str(self.worktree_root), "--accepted",
+            "--validation-command", "check", "--validation-exit-code", "0", "--format", "json",
+            cwd=Path(worktree),
+        )
+        self.assertEqual(recorded.returncode, 0, recorded.stderr)
+        staged = json.loads(self._advance().stdout)
+        self.assertEqual((staged["step"], staged["performed"]), ("C7", ["C6"]))
+        self.assertEqual([line["command"] for line in self._journal()].count("evidence"), 1)
+
+        identity = meridian.resolve_task_identity(self.project, "056", "existing")
+        _state, lease, integration = meridian._lifecycle_paths(self.project, identity)
+        subprocess.run(["git", "merge", "--abort"], cwd=self.project, check=True)
+        lease.unlink()
+        integration.unlink()
+        subprocess.run(["git", "merge", "--no-ff", "task-056", "-m", "integrate"], cwd=self.project, check=True, capture_output=True)
+        push = json.loads(self._advance().stdout)
+        self.assertEqual(
+            (push["step"], push["action_required"], push["commands"], push["stop_code"]),
+            ("C9", "push", ["git push origin main"], "PUSH_PENDING"),
+        )
+        self.assertEqual(push["performed"], [])
+        subprocess.run(["git", "push", "origin", "main"], cwd=self.project, check=True, capture_output=True)
+
+        done = self._advance()
+        self.assertEqual(done.returncode, 0, done.stderr)
+        report = json.loads(done.stdout)
+        self.assertEqual((report["step"], report["action_required"], report["performed"]), ("C10", "none", ["C10"]))
+        self.assertEqual(self._journal()[-2]["command"], "cleanup")
+        again = json.loads(self._advance().stdout)
+        self.assertEqual((again["action_required"], again["performed"]), ("none", []))
+        self.assertEqual([line["command"] for line in self._journal()].count("cleanup"), 1)
+
+    def test_advance_stops_on_failed_or_unaccepted_validation_without_recording(self) -> None:
+        evidence_path = self._advance_ready_task()
+        failed = self._advance("--accepted", "--validation-command", "check", "--validation-exit-code", "1")
+        self.assertEqual(failed.returncode, 2, failed.stderr)
+        report = json.loads(failed.stdout)
+        self.assertEqual((report["step"], report["action_required"], report["stop_code"]), ("C2", "run-validation", "VALIDATION_FAILED"))
+        self.assertEqual(report["resume"], "fix the failure on the task branch and rerun the failing command")
+        unaccepted = self._advance("--validation-command", "check", "--validation-exit-code", "0")
+        self.assertEqual(unaccepted.returncode, 2, unaccepted.stderr)
+        self.assertEqual(json.loads(unaccepted.stdout)["stop_code"], "ACCEPTANCE_UNMET")
+        self.assertFalse(evidence_path.exists())
+        blocked = [line for line in self._journal() if line["result"] == "blocked"]
+        self.assertEqual([line["stop_code"] for line in blocked], ["VALIDATION_FAILED", "ACCEPTANCE_UNMET"])
+        mismatch = self._advance("--validation-command", "check")
+        self.assertNotEqual(mismatch.returncode, 0)
+
+    def test_advance_without_task_commits_asks_for_work_and_never_runs_supplied_commands(self) -> None:
+        prepared = self.run_cli(
+            "worktree", "prepare", "056", "--project", str(self.project),
+            "--worktree-root", str(self.worktree_root), "--format", "json",
+        )
+        self.assertEqual(prepared.returncode, 0, prepared.stderr)
+        result = self._advance("--accepted", "--validation-command", "touch ran.txt", "--validation-exit-code", "0")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        report = json.loads(result.stdout)
+        self.assertEqual((report["step"], report["action_required"], report["stop_code"]), ("C1", "run-validation", "ACCEPTANCE_UNMET"))
+        self.assertFalse((self.project / "ran.txt").exists())
+
+    def test_advance_reports_a_blocked_stage_as_a_stop(self) -> None:
+        evidence_path = self._advance_ready_task()
+        (self.project / "implementation.txt").write_text("main side\n", encoding="utf-8")
+        subprocess.run(["git", "add", "implementation.txt"], cwd=self.project, check=True)
+        subprocess.run(["git", "commit", "-m", "conflicting main change"], cwd=self.project, check=True, capture_output=True)
+        result = self._advance(*self._passing())
+        self.assertEqual(result.returncode, 2, result.stderr)
+        report = json.loads(result.stdout)
+        self.assertEqual(
+            (report["step"], report["action_required"], report["stop_code"], report["performed"]),
+            ("C6", "human", "INTEGRATION_CONFLICT", ["C5"]),
+        )
+        self.assertIn(str(evidence_path), report["resume"])
+        last = self._journal()[-1]
+        self.assertEqual((last["command"], last["result"], last["stop_code"]), ("advance", "blocked", "INTEGRATION_CONFLICT"))
+
+    def test_advance_names_the_resume_for_a_stop_the_agent_resolves(self) -> None:
+        self._advance_ready_task()
+        (self.project / "stray.txt").write_text("stray\n", encoding="utf-8")
+        result = self._advance(*self._passing())
+        self.assertEqual(result.returncode, 2, result.stderr)
+        report = json.loads(result.stdout)
+        self.assertEqual(
+            (report["step"], report["action_required"], report["stop_code"], report["performed"]),
+            ("C6", "resolve", "PRIMARY_DIRTY", []),
+        )
+
     def run_console(self, *arguments: str) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
             [
