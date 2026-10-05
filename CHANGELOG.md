@@ -15,6 +15,61 @@ records which release moved it.
 
 ## [Unreleased]
 
+## [1.2.9]
+
+Template-changing release: migration `063-retire-reasoning-budget-contract` advances `workflowBaselineVersion` to `1.2.9`. It retires the reasoning budget contract, clarifies that a local `main` ahead of `origin/main` does not block integration, and states the stop and denial rules of `docs/ADR_STOPS_AND_DENIALS.md` in the managed `git-workflow` block. The CLI adds the stop-code registry and coded closure, execution, and handoff stops. The manifest shape and `protocolVersion` 2 are unchanged.
+
+### Added
+
+- `scripts/run_tests.py --parallel [N]` runs the unit suite as N concurrent shard processes (default: the CPU count, at most 8) and prints one combined result with the full-suite coverage proof. Each shard gets a private temporary directory, output is printed in shard order, and a failing, erroring, or killed shard fails the run. `python3 -m unittest discover -s tests` remains the canonical command.
+- `release.py publish` now also fast-forwards the remote `stable` branch to the release commit after the `main` and tag pushes, so a Claude Code marketplace declared with `"ref": "stable"` follows each release. It never forces the push, requires `.claude-plugin/plugin.json` to match the tag, and stops without moving `stable` when it is not an ancestor of the release commit. `release.py verify` checks, read-only, that `stable` points to the tag commit.
+- `meridian self-check --check-latest` prints a `Plugin ref:` line for the marketplace ref in user settings: `stable`, the latest tag, an older tag with its remedy, or unknown. It never writes settings.
+- `capabilities/stop-codes-v1.json` is the registry of closure stop codes for both workflows, with its schema in `schemas/stop-codes-v1.schema.json`. Each entry records its class (`tool`, `command-exit`, or `judgment`), workflows, step, emitter, whether a human decides, and a resume template. Every `tool` code names the test that proves its output line.
+- `python3 scripts/check_repository.py` now checks the stop-code registry against the managed templates, this repository's managed copies, and the console's stop-code list. It fails, naming the file, line, and token, when a stop code that follows `BLOCKED` or appears in a stop-code list is not registered; when a `tool`-class code has no `test` or names a test that does not exist; and when a registered code appears in no managed text or CLI output.
+- `meridian setup --apply` also adds `permissions.deny` prefix rules to the project `.claude/settings.local.json` for force, mirror, and delete pushes, `git tag`, `git rebase`, `git reset --hard`, `git cherry-pick`, `git branch -D`, and `git worktree remove --force`. Existing entries are kept, and the setup plan lists the rules it would add.
+
+### Changed
+
+- The Claude Code project allowlist now matches Codex for safe Meridian execution commands.
+- `meridian worktree integrate stage` reports `MAIN_BEHIND_ORIGIN: local main is behind the already fetched origin/main` and names the local and the fetched `origin/main` commits. It is still raised only when local `main` is behind; an equal or ahead `main` is accepted.
+- Closure stops detected by the CLI now print one line, `BLOCKED <CODE>: <detail>; resume: <command>`, through a single helper that accepts only registered codes: `INTEGRATION_CONFLICT`, `EVIDENCE_MISMATCH`, `CLEANUP_BLOCKED`, `PRIMARY_DIRTY`, `LEASE_HELD`, `MAIN_BEHIND_ORIGIN`, and `UNDECLARED_VALIDATION_COMMANDS`. The exit status stays `2` and the earlier detail text follows the code. `meridian worktree closure-status` takes its codes and resume commands from the registry; its JSON output is unchanged and its text output now adds a detail after the code.
+- The managed `git-workflow` text in both workflows now states that a stop is valid only when a `BLOCKED <CODE>` line from a Meridian command, a non-zero exit of a required command, or a nameable unmet acceptance criterion backs it. An agent never satisfies a gate by writing false state and, when a gate contradicts another rule, stops and reports both rules. When a Meridian command accepted a state the text appears to forbid, the agent follows the command and records the difference under `Rule discrepancies:`, except for actions on the deny list.
+- The prose list of closure stop codes is replaced by a reference to `capabilities/stop-codes-v1.json` and `meridian worktree closure-status`; the closure step order is unchanged.
+- `docs/COMPLETION_REPORT_TEMPLATE.md` gains an optional `Rule discrepancies:` line. `meridian execution handoff-check` accepts a report with or without it.
+- The Governed SDD execution and handoff gates (`execution preflight`, `contract`, `reconcile`, `evidence`, `handoff-check`, and `ready-check`) now stop with `BLOCKED <CODE>: <detail>; resume: <command>` through the stop-code registry. Each message names the rule, the field or source checked, the accepted values, and the value found.
+- The Governed SDD task blueprint's `## Validation` guidance now states that every command proving an acceptance criterion or an `Evidence needed` item has its own declared validation ID, that one ID holds exactly one command, that output paths are fixed and task-scoped, and that commands use no `mktemp`, `$(...)`, or time-based paths. The wording changes no validation parsing, and existing tasks that declare fewer IDs are not an error.
+
+### Removed
+
+- The reasoning budget contract is retired from the Governed SDD templates: the `Reasoning` and `Reasoning justification` task fields, the exact-cap preflight, and the operator reasoning-level guidance. Agents cannot read their effective reasoning level, so the directive blocked every execution that carried it, and Meridian never enforced it.
+
+### Fixed
+
+- Let release publication verification call `gh api` without its unsupported `--repo` flag.
+- Let `handoff-check` accept consumer-defined validation-skip descriptions instead of requiring a Meridian-specific test name.
+- Budget reads no longer migrate or stage deletion of legacy `.meridian/budget.json` state.
+- `PUSH_PENDING` in `capabilities/stop-codes-v1.json` now names the test that proves its output, as every `tool` code must.
+- `handoff-check` accepts `Isolated exploration: none`, or a value that starts with `none` or `no` followed by text, when no investigation is recorded. Otherwise it states that `none` is expected and quotes the value found.
+- `handoff-check` reports a required field written with text before the colon, such as `- Validation (commands):`, as a format problem that names the expected form `- <Field>: <value>`, instead of as a missing field.
+- `execution preflight`, `ready-check`, `validate`, and `investigate` no longer block a Governed SDD remediation on a task branch. On the task's own branch they accept a queue row of `QUEUED` against a task record of `QUEUED`, `IN_PROGRESS`, `CHANGES_REQUESTED`, or `READY_FOR_REVIEW`, because a task branch never edits `tasks/QUEUE.md`. Other combinations still stop, and the message names the document the current actor may change.
+
+### Documentation
+
+- The README update procedure recommends `"ref": "stable"`, explains how to read the installed plugin version, and keeps exact tags for pinning and rollback.
+- The managed `git-workflow` text, `docs/WORKTREE_LIFECYCLE.md`, and `docs/TASK_CLOSURE_DESIGN.md` now state that closure stages from a primary checkout whose `main` equals `origin/main` or is ahead of it with unpushed commits, which are pushed with the integration. Only a `main` behind the fetched `origin/main` stops with `MAIN_BEHIND_ORIGIN`.
+- `docs/WORKTREE_LIFECYCLE.md` states the new text format of blocked `closure-status` results and names the stop-code registry.
+- The README and the setup output state that these rules are defense in depth, that a reworded command can evade them, and that the managed denial text remains in force.
+
+### Upgrade notes
+
+- Affected capabilities: `git-workflow` v12 (Governed SDD) or v11 (Lean Delivery), `task-blueprint` v14, `execution-evidence-profile` v4, `lifecycle-orchestration` v9, and `execution-assets` v4; `reasoning-budget-contract` v1 is removed. Managed paths: `PROJECT_WORKFLOW.md`, `AGENTS.md`, `CLAUDE.md`, `tasks/TASK_BLUEPRINT.md`, `docs/CONTEXT_BUDGET_POLICY.md`, `docs/LIFECYCLE_ORCHESTRATION.md`, `docs/OPERATOR_PROMPTS.md`, `docs/PULL_REQUEST_POLICY.md`, `docs/EXECUTION_EVIDENCE_PROFILE.md`, and `docs/COMPLETION_REPORT_TEMPLATE.md`.
+- Required action: run `meridian upgrade --check`, then `meridian upgrade --apply`. Run `meridian setup --apply` to add the new Claude Code execution allow entries and the `permissions.deny` rules to an existing project.
+- `meridian upgrade --check` announces a tracked legacy `.meridian/budget.json`; `upgrade --apply` moves it to shared Git metadata, stages its deletion, and tells you to commit that deletion.
+- Existing tasks that still carry `Reasoning` fields are not an error; a project that wants a reasoning policy writes its own outside the managed blocks.
+- Task authors: declare a separate validation ID for each hash comparison, repeated capture, or other command that proves a criterion, so that `meridian execution validate` can run it without a permission prompt.
+- Likely conflict areas for adapted projects: the `git-workflow` block of `PROJECT_WORKFLOW.md`, `AGENTS.md`, and `CLAUDE.md`, and the reasoning sections of `docs/CONTEXT_BUDGET_POLICY.md` and `tasks/TASK_BLUEPRINT.md`; resolve in place and keep protected markers intact.
+- No minimum framework or `protocolVersion` change.
+
 ## [1.2.8]
 
 Template-changing release: migration `062-primary-project-declaration-and-review-authority` advances `workflowBaselineVersion` to `1.2.8`. It updates `PROJECT_WORKFLOW.md` (`git-workflow` v10) and `docs/workflows/REVIEW.md` (`task-worktree-review-procedure` v10), and lists `docs/COMPLETION_REPORT_TEMPLATE.md` as a managed path. The manifest shape and `protocolVersion` 2 are unchanged.
