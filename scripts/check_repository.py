@@ -33,6 +33,7 @@ REQUIRED_FILES = (
     ".claude-plugin/marketplace.json",
     "hooks/hooks.json",
     "hooks/queue-briefing.sh",
+    "hooks/stop-audit.sh",
     "bin/meridian",
     "scripts/meridian.py",
     "capabilities/catalog-v1.json",

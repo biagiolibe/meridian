@@ -146,6 +146,22 @@ Privacy boundary: a line holds only these fields. It never contains an absolute
 path, a command line or option value supplied by the agent, a message, or error
 text; a stop is recorded by its registered code, never by its message.
 
+### Unbacked stop reports
+
+The Claude Code `Stop` hook (`hooks/stop-audit.sh`, 5 second timeout) runs
+`meridian hook stop-audit`. It reads only the final assistant message, from the
+`last_assistant_message` field of the hook input (documented for `Stop`), and
+falls back to the last assistant entry of `transcript_path`. For each registered
+`BLOCKED <CODE>` at the start of a line it looks for a `blocked` journal line
+with the same code since the session's first transcript timestamp (24 hours
+when unavailable), restricted to the active task when the checkout is a
+`task-<n>` branch. A `tool` code with no match is appended as `result:
+unbacked_block`; a `command-exit` or `judgment` code is appended as
+`declared_block`, because no command emits it. The line holds `stop_code` and
+`task` only. The hook ignores unregistered codes, does nothing outside a
+Meridian project or without an existing journal, never blocks the stop, and
+always exits `0`. Codex has no equivalent configured here.
+
 The journal is rotated to `meridian-journal.1.jsonl` when it exceeds 5 MB, and
 only that one previous file is kept. A journal write that fails never changes a
 command's result or exit status; the command prints one warning to standard
