@@ -59,7 +59,7 @@ Authority: [docs/ADR_STOPS_AND_DENIALS.md](../docs/ADR_STOPS_AND_DENIALS.md). 16
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
 | `[x]` | 162 | Add the stop-code registry and emit closure stops through it | 🟡 P2 | — | [162](done/162-stop-code-registry-and-closure-codes.md) |
-| `[ ]` | 163 | Check that managed text and tests agree with the stop-code registry | 🟡 P2 | 162 | [163](163-check-stop-codes-against-registry.md) |
+| `[x]` | 163 | Check that managed text and tests agree with the stop-code registry | 🟡 P2 | 162 | [163](done/163-check-stop-codes-against-registry.md) |
 | `[ ]` | 164 | State the stop and denial rules in the managed workflow text | 🟡 P2 | 161, 163 | [164](164-state-stop-and-denial-rules-in-managed-text.md) |
 | `[x]` | 165 | Install the deny list as host permission rules | 🟡 P2 | — | [165](done/165-host-deny-rules-for-denied-actions.md) |
 | `[x]` | 166 | Give codes and actionable messages to the execution and handoff gates | 🟡 P2 | 162 | [166](done/166-coded-actionable-execution-and-handoff-gates.md) |
