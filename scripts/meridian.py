@@ -211,7 +211,7 @@ JOURNAL_NAME = "meridian-journal.jsonl"
 JOURNAL_ROTATED_NAME = "meridian-journal.1.jsonl"
 JOURNAL_MAX_BYTES = 5 * 1024 * 1024
 JOURNAL_VERSION = 1
-JOURNALED_WORKTREE_COMMANDS = frozenset({"prepare", "check", "closure-status", "evidence", "cleanup"})
+JOURNALED_WORKTREE_COMMANDS = frozenset({"prepare", "check", "closure-status", "advance", "evidence", "cleanup"})
 JOURNALED_INTEGRATE_COMMANDS = frozenset({"stage", "finalize", "abort"})
 
 
@@ -1469,6 +1469,7 @@ def record_task_evidence(
     main_advanced_behavioral_surfaces: list[str],
     full_validation_required: bool,
     supplied_project: Path | None = None,
+    require_effective_worktree: bool = True,
 ) -> dict[str, object]:
     """Record Git-derived task-validation facts without running validation."""
     if len(validation_commands) != len(validation_exit_codes):
@@ -1478,7 +1479,10 @@ def record_task_evidence(
     project_root = _verified_lifecycle_project(supplied_project)
     identity = resolve_task_identity(project_root, task_id, "existing")
     inspection, ready = inspect_task_worktree(
-        identity.canonical_id, worktree_root, project_root
+        identity.canonical_id,
+        worktree_root,
+        project_root,
+        require_effective_worktree=require_effective_worktree,
     )
     if not ready:
         raise MeridianError(f"task worktree is not ready: {', '.join(inspection['errors'])}")
@@ -2307,6 +2311,138 @@ def cleanup_task_worktree(
     return {"version": 1, "task_id": identity.canonical_id, "status": "cleaned"}
 
 
+def _journal_advance_step(project_root: Path, command: str, task_id: str, step: str) -> None:
+    """Journal one step that `advance` performed, under the single-step command's own name."""
+    line = {
+        "version": JOURNAL_VERSION,
+        "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "command": command,
+        "task": task_id.removeprefix("task-"),
+        "result": "ok",
+        "exit": 0,
+        "step": step,
+    }
+    try:
+        append_journal_line(project_root, line)
+    except (OSError, MeridianError, InternalStopError) as error:
+        print(f"warning: lifecycle journal not written: {type(error).__name__}", file=sys.stderr)
+
+
+def advance_task_closure(
+    task_id: str,
+    worktree_root: Path | None,
+    validation_commands: list[str],
+    validation_exit_codes: list[int],
+    *,
+    accepted: bool,
+    supplied_project: Path | None = None,
+) -> tuple[dict[str, object], bool]:
+    """Run the mechanical closure steps and return where the agent must act next.
+
+    It performs C5 (evidence), C6 (stage) and C10 (cleanup) when closure_status
+    says their preconditions hold. It never runs a command the agent supplied.
+    The boolean is True when the result is a stop that the CLI reports with exit 2.
+    """
+    if len(validation_commands) != len(validation_exit_codes):
+        raise MeridianError("each --validation-command requires one --validation-exit-code")
+    project_root = _verified_lifecycle_project(supplied_project)
+    if Path.cwd().resolve() != project_root:
+        raise MeridianError("worktree advance must run from the canonical primary checkout")
+    identity = resolve_task_identity(project_root, task_id, "existing")
+    state_path, _lease_path, integration_path = _lifecycle_paths(project_root, identity)
+    evidence_path = state_path.with_suffix(".evidence.json")
+    task = identity.canonical_id
+    performed: list[str] = []
+
+    def result(
+        step: str,
+        action: str,
+        *,
+        commands: list[str] | None = None,
+        stop_code: str | None = None,
+        resume: str | None = None,
+        blocked: bool = False,
+    ) -> tuple[dict[str, object], bool]:
+        if stop_code is not None and resume is None:
+            resume = stop_resume(stop_code, task_id=task, project=str(project_root), evidence=str(evidence_path))
+        return ({
+            "version": 1,
+            "task_id": task,
+            "step": step,
+            "action_required": action,
+            "commands": commands or [],
+            "stop_code": stop_code,
+            "resume": resume,
+            "performed": performed,
+        }, blocked)
+
+    def stopped(step: str, code: str) -> tuple[dict[str, object], bool]:
+        entry = load_stop_registry()[code]
+        if entry.get("human_decision") is True:
+            action = "human"
+        elif step in ("C1", "C2"):
+            action = "run-validation"
+        else:
+            action = "resolve"
+        return result(step, action, stop_code=code, blocked=entry.get("kind") != "status")
+
+    while True:
+        status, _ready = closure_status(task, worktree_root, project_root)
+        step = str(status["step"])
+        code = status["stop_reason"] if isinstance(status["stop_reason"], str) else None
+        if step in performed:
+            raise MeridianError(f"closure state did not advance after {step}; run closure-status")
+        if step == "C1":
+            return result("C1", "run-validation", stop_code="ACCEPTANCE_UNMET")
+        if step == "C5":
+            if not validation_commands:
+                return result("C5", "run-validation", stop_code="EVIDENCE_INCOMPLETE")
+            if any(exit_code != 0 for exit_code in validation_exit_codes):
+                return stopped("C2", "VALIDATION_FAILED")
+            if not accepted:
+                return stopped("C1", "ACCEPTANCE_UNMET")
+            record_task_evidence(
+                task,
+                worktree_root,
+                validation_commands,
+                validation_exit_codes,
+                accepted=True,
+                task_dependencies=[],
+                task_behavioral_surfaces=[],
+                main_advanced_dependencies=[],
+                main_advanced_behavioral_surfaces=[],
+                full_validation_required=False,
+                supplied_project=project_root,
+                require_effective_worktree=False,
+            )
+            performed.append("C5")
+            _journal_advance_step(project_root, "evidence", task, "C5")
+        elif step == "C6" and code is None:
+            try:
+                staged = stage_task_integration(task, worktree_root, evidence_path, project_root)
+            except MeridianStop as error:
+                return stopped("C6", error.code)
+            performed.append("C6")
+            _journal_advance_step(project_root, "integrate stage", task, str(staged.get("next_action", "C6")))
+        elif code is not None and not (step == "C9" and code == "PUSH_PENDING"):
+            return stopped(step, code)
+        elif step == "C7":
+            staged = _read_json_object(integration_path, "staged integration state")
+            _state, fragments = candidate_validation_declaration(project_root)
+            commands = ["git diff --check", *fragments.get(str(staged.get("decision")), ())]
+            return result("C7", "run-candidate-validation", commands=commands, resume=str(status["resume"]))
+        elif step == "C9":
+            return result("C9", "push", commands=["git push origin main"], stop_code=code, resume="git push origin main")
+        elif step == "C10":
+            cleaned = cleanup_task_worktree(task, worktree_root, project_root)
+            if not cleaned.get("already_cleaned"):
+                performed.append("C10")
+                _journal_advance_step(project_root, "cleanup", task, "C10")
+            return result("C10", "none")
+        else:
+            raise MeridianError(f"unexpected closure state at {step}; run closure-status")
+
+
 def _toml_quote(value: str) -> str:
     return json.dumps(value, ensure_ascii=False)
 
@@ -2792,6 +2928,7 @@ CLAUDE_PROJECT_ALLOWLIST = (
     "Bash(meridian worktree check:*)",
     "Bash(meridian worktree evidence:*)",
     "Bash(meridian worktree closure-status:*)",
+    "Bash(meridian worktree advance:*)",
     "Bash(meridian worktree cleanup:*)",
     "Bash(meridian worktree integrate stage:*)",
     "Bash(meridian worktree integrate finalize:*)",
@@ -2808,6 +2945,7 @@ CLAUDE_PROJECT_ALLOWLIST = (
     "Bash(python3 scripts/meridian.py worktree check:*)",
     "Bash(python3 scripts/meridian.py worktree evidence:*)",
     "Bash(python3 scripts/meridian.py worktree closure-status:*)",
+    "Bash(python3 scripts/meridian.py worktree advance:*)",
     "Bash(python3 scripts/meridian.py worktree cleanup:*)",
     "Bash(python3 scripts/meridian.py worktree integrate stage:*)",
     "Bash(python3 scripts/meridian.py worktree integrate finalize:*)",
@@ -10456,6 +10594,16 @@ def _run_cli(journal: LifecycleJournalEntry) -> int:
     worktree_closure_status.add_argument("--project", type=Path)
     worktree_closure_status.add_argument("--worktree-root", type=Path)
     worktree_closure_status.add_argument("--format", choices=("json",))
+    worktree_advance = worktree_sub.add_parser(
+        "advance", help="run the mechanical closure steps and report the next action the agent owns"
+    )
+    worktree_advance.add_argument("task_id")
+    worktree_advance.add_argument("--project", type=Path)
+    worktree_advance.add_argument("--worktree-root", type=Path)
+    worktree_advance.add_argument("--accepted", action="store_true")
+    worktree_advance.add_argument("--validation-command", action="append", default=[])
+    worktree_advance.add_argument("--validation-exit-code", action="append", type=int, default=[])
+    worktree_advance.add_argument("--format", choices=("json",), required=True)
     worktree_integrate = worktree_sub.add_parser("integrate", help="stage, finalize, or abort one owned integration")
     integrate_sub = worktree_integrate.add_subparsers(dest="integrate_command", required=True)
     integrate_stage = integrate_sub.add_parser("stage", help="lease and stage the prescribed no-commit merge")
@@ -10869,6 +11017,20 @@ def _run_cli(journal: LifecycleJournalEntry) -> int:
                 else:
                     print(f"{report['step']}; resume: {report['resume'] or 'none'}")
                 if not ready:
+                    return 2
+            elif arguments.worktree_command == "advance":
+                advanced, blocked = advance_task_closure(
+                    arguments.task_id,
+                    arguments.worktree_root,
+                    arguments.validation_command,
+                    arguments.validation_exit_code,
+                    accepted=arguments.accepted,
+                    supplied_project=project_root,
+                )
+                journal.observe(advanced)
+                print(json.dumps(advanced, sort_keys=True))
+                if blocked:
+                    journal.stopped(str(advanced["stop_code"]))
                     return 2
             elif arguments.worktree_command == "integrate":
                 if arguments.integrate_command == "stage":
