@@ -6,8 +6,8 @@ Fully closed phases or sections (all `[x]`) belong in [`QUEUE_ARCHIVE.md`](QUEUE
 
 ## How to use this queue
 
-- **Execution**: Take the first available `[ ]` task.
-- **Update**: Change `[ ]` to `[/]` when starting and to `[x]` when finishing.
+- **Execution**: The developer assigns a specific `[ ]` task; agents do not select work autonomously.
+- **Update**: Change `[ ]` to `[/]` when starting and to `[x]` only after acceptance criteria and stated validation pass.
 - **Delegation**: Follow the delegation instructions in the task file.
 - **Task-file archive**: When a task is complete, move its file to `tasks/done/`.
 - **Queue archive**: When an entire Active Queue phase or section becomes `[x]`, move its rows to `tasks/QUEUE_ARCHIVE.md` (create it if absent, reusing this file's structure) instead of accumulating them here. Archive a phase as soon as it closes.

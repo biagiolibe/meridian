@@ -24,12 +24,10 @@ need to re-derive the rationale.
 
 ## Tier 1 — low effort, closes a real gap now
 
-- [ ] **Run the CLI test suite in CI.** `.github/workflows/validate.yml` only
-  runs `scripts/check_repository.py`; `tests/test_meridian_cli.py` — the
-  suite covering `bin/meridian` itself — never runs in CI, despite
-  [CONTRIBUTING.md](CONTRIBUTING.md) requiring it for changes under `bin/`,
-  `migrations/`, or `scripts/meridian.py`. Add
-  `python3 -m unittest discover -s tests -v` as a CI step.
+- [x] **Run the CLI test suite in CI.** Done by task 047:
+  `.github/workflows/validate.yml` runs
+  `python3 -m unittest discover -s tests -v` alongside
+  `scripts/check_repository.py`.
 - [x] **`CHANGELOG.md`.** Done — see [CHANGELOG.md](CHANGELOG.md). Keep it
   updated alongside `migrations/*.json` and any framework-CLI change.
 - [ ] **`meridian status` / `meridian doctor` command.** A read-only,
