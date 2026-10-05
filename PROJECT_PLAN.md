@@ -130,7 +130,7 @@
 - `[x]` 161 — State that a local `main` ahead of `origin/main` does not block integration.
 - `[x]` 162 — Add the stop-code registry and emit closure stops through it.
 - `[x]` 163 — Check that managed text and tests agree with the stop-code registry.
-- `[ ]` 164 — State the stop and denial rules in the managed workflow text.
+- `[x]` 164 — State the stop and denial rules in the managed workflow text.
 - `[x]` 165 — Install the deny list as host permission rules.
 - `[x]` 166 — Give codes and actionable messages to the execution and handoff gates.
 - `[x]` 167 — Make the execution preflight satisfiable during remediation.
