@@ -59,7 +59,7 @@ Authority: follow-up designs in [docs/ADR_STOPS_AND_DENIALS.md](../docs/ADR_STOP
 Release plan:
 
 - **Release A (CLI-only, no migration)**: 168, 171, 172, 173, 174, 175. These change only the CLI and plugin hooks. Shipping 171–173 first lets the journal record a baseline before 176 changes managed text, so 172's targets can compare before and after.
-- **Release B (template-changing)**: 169, then 176, in one migration, plus 180, which changes only seed templates and needs no migration of its own. 177 and 178 are integrated first, and the 178 evaluation run on Claude Code gates the release, because 176 shortens the text agents follow. 177 may start once 171 is integrated.
+- **Release B (template-changing)**: 169, then 176, in one migration, plus 180, which changes only seed templates and needs no migration of its own. 181 adds a managed `.codex/hooks.json` entry and shares that migration. 177 and 178 are integrated first, and the 178 evaluation run on Claude Code gates the release, because 176 shortens the text agents follow. 177 may start once 171 is integrated.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
@@ -72,3 +72,4 @@ Release plan:
 | `[ ]` | 177 | Add an agent evaluation harness graded on the journal and Git state | 🟡 P2 | 171 | [177](177-agent-eval-harness.md) |
 | `[ ]` | 178 | Add the safety and remediation scenarios and run them before template-changing releases | 🟡 P2 | 177, 167 | [178](178-agent-eval-scenarios-and-release-gate.md) |
 | `[ ]` | 180 | Align the queue seed templates with closure ownership | 🟢 P3 | — | [180](180-align-queue-seed-templates-with-closure-ownership.md) |
+| `[ ]` | 181 | Run the stop audit on Codex and record the host on audit lines | 🟡 P2 | 173 | [181](181-codex-stop-audit-and-journal-host.md) |
