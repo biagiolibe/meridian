@@ -51,6 +51,7 @@ are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 | `[x]` | 160 | Give the Claude Code allowlist parity with the Codex execution-command rules | 🟡 P2 | — | [160](done/160-claude-allowlist-execution-commands.md) |
 | `[x]` | 161 | State that a local `main` ahead of `origin/main` does not block integration | 🟡 P2 | — | [161](done/161-state-main-ahead-of-origin-is-allowed.md) |
 | `[ ]` | 170 | Require a declared validation ID for every command that proves a criterion | 🟡 P2 | — | [170](170-declare-validation-id-for-every-proving-command.md) |
+| `[ ]` | 179 | Stabilize the parallel runner output comparison test | 🔴 P1 | — | [179](179-stabilize-parallel-runner-output-test.md) |
 
 ### Phase 54 — Stops and denials
 
