@@ -19,13 +19,13 @@ failures on `5a4d943` and `0571006`.
 
 ## Acceptance Criteria
 
-- [ ] `stable()` also normalizes unittest's `Ran N test(s) in X.XXXs`
+- [x] `stable()` also normalizes unittest's `Ran N test(s) in X.XXXs`
   timing, so that two otherwise identical runs compare equal.
-- [ ] The runner (`scripts/run_tests.py`) is unchanged, and no assertion is
+- [x] The runner (`scripts/run_tests.py`) is unchanged, and no assertion is
   weakened apart from the timing normalization.
-- [ ] A test proves that `stable()` maps two outputs that differ only in the
+- [x] A test proves that `stable()` maps two outputs that differ only in the
   inner timing to the same text.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
+- [x] `python3 scripts/check_repository.py` and the unit tests pass.
 
 ## Relevant Files
 
