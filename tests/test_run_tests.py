@@ -129,7 +129,14 @@ class ParallelTestRunnerTest(unittest.TestCase):
 
     @staticmethod
     def stable(output: str) -> str:
-        return re.sub(r"time=[0-9.]+s", "time=T", output)
+        output = re.sub(r"time=[0-9.]+s", "time=T", output)
+        return re.sub(r"Ran (\d+) tests? in [0-9.]+s", r"Ran \1 tests in Ts", output)
+
+    def test_stable_ignores_inner_unittest_timing(self) -> None:
+        first = "Ran 1 test in 0.000s\nFAILED workers=4 time=0.1s\n"
+        second = "Ran 1 test in 0.001s\nFAILED workers=4 time=0.2s\n"
+        self.assertEqual(self.stable(first), self.stable(second))
+        self.assertNotEqual(self.stable(first), self.stable(second.replace("Ran 1", "Ran 2")))
 
     def test_worker_counts_one_above_shards_and_above_ceiling(self) -> None:
         small = self.make_suite(["pass"] * 3)
