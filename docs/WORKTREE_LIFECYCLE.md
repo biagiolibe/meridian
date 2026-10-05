@@ -52,7 +52,9 @@ The explicit option remains available for finishing a worktree in an old root.
 - `meridian worktree closure-status <TASK-ID> --project <primary> [--format json]`
   is read-only. It reports the next closure `step`, any `stop_reason`, and a
   `resume` command from the registered worktree, lifecycle files, and Git
-  history. Text-mode blocked results print `BLOCKED <REASON>; resume: <command>`.
+  history. Text-mode blocked results print `BLOCKED <CODE>: <detail>; resume: <command>`.
+  Every CLI stop is emitted through one helper that accepts only codes listed in
+  `capabilities/stop-codes-v1.json`.
   After finalization, it reports `PUSH_PENDING` at C9 when local `main` is
   ahead of the already fetched `origin/main`.
   When the recorded `<id>.evidence.json` is accepted, passed, and names the

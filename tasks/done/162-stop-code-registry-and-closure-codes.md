@@ -4,7 +4,7 @@
 > **Category**: Feature
 > **Priority**: 🟡 P2
 > **Estimate**: ~2h
-> **Assigned to**: unassigned
+> **Assigned to**: Claude Code
 > **Session**: ADR stops and denials, 2026-10-05
 
 ## Objective
@@ -21,30 +21,30 @@ print its registered code.
 
 ## Acceptance Criteria
 
-- [ ] `capabilities/stop-codes-v1.json` lists every closure stop code named
+- [x] `capabilities/stop-codes-v1.json` lists every closure stop code named
   in the managed `git-workflow` block (`ACCEPTANCE_UNMET` through
   `CLEANUP_BLOCKED`), plus `PUSH_PENDING` and `UNDECLARED_VALIDATION_COMMANDS`.
   Each entry has `code`, `class` (`tool`, `command-exit`, or `judgment`),
   `workflows`, `step` when applicable, `emitter`, `human_decision`, and
   `resume`. A schema in `schemas/` validates the file.
-- [ ] One CLI helper formats every stop as `BLOCKED <CODE>: <detail>; resume:
+- [x] One CLI helper formats every stop as `BLOCKED <CODE>: <detail>; resume:
   <command>`. It accepts only registered codes and raises an internal error for
   any other code.
-- [ ] `integrate stage` reports `INTEGRATION_CONFLICT`, `integrate finalize`
+- [x] `integrate stage` reports `INTEGRATION_CONFLICT`, `integrate finalize`
   reports `EVIDENCE_MISMATCH`, and `cleanup` reports `CLEANUP_BLOCKED` through
   the helper, at the existing failure paths. The exit status stays `2` and the
   current detail text is kept after the code.
-- [ ] `closure_status` takes its codes and resume templates from the registry.
+- [x] `closure_status` takes its codes and resume templates from the registry.
   Its JSON output is unchanged.
-- [ ] `UNDECLARED_VALIDATION_COMMANDS` is emitted through the helper.
-- [ ] Tests trigger each `tool`-class closure code that the CLI emits and
+- [x] `UNDECLARED_VALIDATION_COMMANDS` is emitted through the helper.
+- [x] Tests trigger each `tool`-class closure code that the CLI emits and
   assert the exact output line. Each entry records the test name that proves it
   in a `test` field.
-- [ ] No existing code name changes. The execution, handoff, validation,
+- [x] No existing code name changes. The execution, handoff, validation,
   investigation, and budget messages are left for task 166.
-- [ ] One changelog fragment is added per `CONTRIBUTING.md`; this is a CLI-only
+- [x] One changelog fragment is added per `CONTRIBUTING.md`; this is a CLI-only
   change with no migration.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
+- [x] `python3 scripts/check_repository.py` and the unit tests pass.
 
 ## Relevant Files
 

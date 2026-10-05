@@ -128,7 +128,7 @@
 - `[x]` 159 — Retire the reasoning budget contract.
 - `[x]` 160 — Give the Claude Code allowlist parity with the Codex execution-command rules.
 - `[x]` 161 — State that a local `main` ahead of `origin/main` does not block integration.
-- `[ ]` 162 — Add the stop-code registry and emit closure stops through it.
+- `[x]` 162 — Add the stop-code registry and emit closure stops through it.
 - `[ ]` 163 — Check that managed text and tests agree with the stop-code registry.
 - `[ ]` 164 — State the stop and denial rules in the managed workflow text.
 - `[x]` 165 — Install the deny list as host permission rules.
