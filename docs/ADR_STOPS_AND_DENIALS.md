@@ -180,6 +180,11 @@ not been verified and is part of the follow-up work.
    version bump. It ships with task 161:
    - task 162: the registry and the emission helper, with codes for the
      closure stops and for `UNDECLARED_VALIDATION_COMMANDS`;
+   - task 166: codes and actionable messages for the execution and handoff
+     gates, which fixes issue #5;
+   - task 167: a satisfiable execution preflight during remediation, which
+     fixes issue #6. It is P1 and blocks Governed SDD projects in use, so it
+     moves into this release; 166 and 167 change only the CLI;
    - task 163: the registry checks in `check_repository.py`;
    - task 164: the Decision 1 and Decision 4 text in the managed
      `git-workflow` block of both workflows. It lands after 161. If 161 has
@@ -188,9 +193,10 @@ not been verified and is part of the follow-up work.
      adding a second bump;
    - task 165: host deny rules for Claude Code, and a recorded finding on
      Codex support.
-3. Second release: give codes to the execution, handoff, validation,
-   investigation, and budget gates, and audit them against the gate contract.
-   Fix issues #5, #6, and #2 under Decision 2 (tasks 166–169).
+3. Second release: task 168 makes skipped queue sections visible (issue #2),
+   and task 169 gives codes to the validation, investigation, and budget
+   gates, audits them against the gate contract, and makes an uncoded stop a
+   repository-check failure.
 4. Follow-up designs listed under Consequences, each through its own task.
 
 ## Out of Scope
