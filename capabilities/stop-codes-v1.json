@@ -294,7 +294,7 @@
       ],
       "emitter": "`meridian execution preflight`; `meridian execution ready-check`; `meridian execution validate`; `meridian execution investigate`",
       "human_decision": false,
-      "resume": "make the task record and its queue row agree through the lifecycle, then rerun meridian execution preflight {task_id} --project .",
+      "resume": "change only the document the message says this actor may change so the statuses are accepted, then rerun meridian execution preflight {task_id} --project .",
       "kind": "stop",
       "summary": "the task record status disagrees with its queue row",
       "test": "tests.test_meridian_cli.BudgetCliTest.test_locations_and_preflight_use_the_declared_queue"
