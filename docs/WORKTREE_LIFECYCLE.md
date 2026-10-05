@@ -49,6 +49,24 @@ The explicit option remains available for finishing a worktree in an old root.
   in an untracked lifecycle-state JSON file. Repeat each validation option for
   every completed command. It records results supplied by the agent and never
   executes a validation command.
+- `meridian worktree advance <TASK-ID> --project <primary> --format json
+  [--validation-command <command> --validation-exit-code <code>]... [--accepted]`
+  runs from the primary checkout. It evaluates `closure-status` and performs
+  each mechanical step whose preconditions hold: C5 records evidence from the
+  supplied results with the logic of `evidence` (`--accepted` and exit code `0`
+  for every command are required, otherwise it stops with `ACCEPTANCE_UNMET` or
+  `VALIDATION_FAILED`), C6 runs `integrate stage`, and C10 runs `cleanup`. It
+  returns one JSON object with `step`, `action_required`, `commands`,
+  `stop_code`, `resume`, and the `performed` steps. `action_required` is
+  `run-validation` (C1-C2 and missing results), `run-candidate-validation`
+  (C7; `commands` lists `git diff --check` and the declared fragments for the
+  staged outcome), `push` (C9; the agent runs `git push origin main`), `human`
+  (a registered stop with `human_decision: true`), `resolve` (any other
+  registered stop; follow `resume`), or `none` (closure is done). It exits `2`
+  on a stop and `0` when the agent only has to act. It never runs a command
+  that the agent supplied, never changes into the worktree, and a rerun
+  continues from the derived state without repeating a completed step.
+  Candidate validation and finalization (C7-C8) stay single-step commands.
 - `meridian worktree closure-status <TASK-ID> --project <primary> [--format json]`
   is read-only. It reports the next closure `step`, any `stop_reason`, and a
   `resume` command from the registered worktree, lifecycle files, and Git
@@ -121,7 +139,7 @@ on the machines that share that hash. `check` also accepts a legacy absolute
 
 ## Lifecycle journal
 
-`prepare`, `check`, `closure-status`, `evidence`, `integrate stage`,
+`prepare`, `check`, `closure-status`, `advance`, `evidence`, `integrate stage`,
 `integrate finalize`, `integrate abort`, and `cleanup` each append one JSON line
 to `<git-common-dir>/meridian-journal.jsonl`; the Claude Code `Stop` hook
 (`hook stop-audit`) appends one line per unbacked or declared `BLOCKED` code. The file is local and untracked,

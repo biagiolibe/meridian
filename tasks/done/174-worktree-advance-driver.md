@@ -21,7 +21,7 @@ never runs a test or any other project command.
 
 ## Acceptance Criteria
 
-- [ ] `meridian worktree advance <TASK-ID> --project <primary> --format json
+- [x] `meridian worktree advance <TASK-ID> --project <primary> --format json
   [--validation-command CMD --validation-exit-code N]... [--accepted]` runs
   from the primary checkout. It repeatedly evaluates `closure_status` and
   performs each step that is mechanical and whose preconditions hold:
@@ -29,32 +29,38 @@ never runs a test or any other project command.
     validation as `worktree evidence`;
   - C6: `integrate stage`;
   - C10: `cleanup`, once the push is proven.
-- [ ] It stops and returns one JSON object with `step`, `action_required`,
+- [x] It stops and returns one JSON object with `step`, `action_required`,
   `commands`, `stop_code`, and `resume`:
   - `action_required` is `run-validation` (C1–C2), `run-candidate-validation`
     (C7), `push` (C9), `human` (a registered stop with `human_decision: true`),
     or `none` (done);
   - for C7, `commands` lists the commands required by the stage outcome
     (`REUSE`, `BOUNDED`, or `FULL`), from the project's candidate-validation
-    declaration.
-- [ ] C9 stays a plain `git push origin main` run by the agent, so the push
+    declaration;
+  - `resolve` (any other registered stop, with `human_decision: false`, such as
+    `PRIMARY_DIRTY`, `WRONG_WORKTREE`, or `CLEANUP_BLOCKED`) means the agent
+    follows the stop's `resume` command and reruns `advance`.
+- [x] C9 stays a plain `git push origin main` run by the agent, so the push
   remains under the host's per-command permission. The developer may change
   this decision before the task starts.
-- [ ] Every stop goes through the registry helper from task 162. Every
+- [x] Every stop goes through the registry helper from task 162. Every
   performed step and every stop is written to the journal from task 171.
-- [ ] `advance` is idempotent: rerunning it after an interruption at any step
+- [x] `advance` is idempotent: rerunning it after an interruption at any step
   continues from the derived state and never repeats a completed mutation. It
   never runs a command that the agent supplied.
-- [ ] `meridian setup` adds `meridian worktree advance` to the Claude Code
-  allowlist and to the Codex execution rules that already list the lifecycle
-  commands.
-- [ ] The existing single-step commands keep working unchanged.
-- [ ] Tests cover a full run to C7, a rerun after an interruption at each
+- [x] `meridian setup` adds `meridian worktree advance` to the Claude Code
+  allowlist. This repository's own `.codex/rules/local.rules` allows it. The
+  shipped Codex rule templates (`templates/workflows/*/.codex/rules/meridian.rules`)
+  and the `codex doctor` probe move to Release B, in the migration shared with
+  task 176, because Release A is CLI-only with no migration. Amended by the
+  developer before closure.
+- [x] The existing single-step commands keep working unchanged.
+- [x] Tests cover a full run to C7, a rerun after an interruption at each
   mechanical step, missing validation results, a blocked stage, and an
   already-integrated task that reaches cleanup.
-- [ ] One changelog fragment is added per `CONTRIBUTING.md`; this is a CLI-only
+- [x] One changelog fragment is added per `CONTRIBUTING.md`; this is a CLI-only
   change.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
+- [x] `python3 scripts/check_repository.py` and the unit tests pass.
 
 ## Relevant Files
 
@@ -83,7 +89,7 @@ never runs a test or any other project command.
 
 ## Out of scope
 
-C7–C8 (task 175), template text (task 176), pushing from Meridian, and running
+C7–C8 (task 175), template text (task 176), shipped Codex rule templates (Release B), pushing from Meridian, and running
 any project command.
 
 ## Dependencies
