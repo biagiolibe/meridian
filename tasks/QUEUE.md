@@ -39,7 +39,7 @@ are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 
 ### Phase 54 — Stops and denials
 
-Authority: [docs/ADR_STOPS_AND_DENIALS.md](../docs/ADR_STOPS_AND_DENIALS.md). 162–167 ship in the unreleased 1.2.9 with 161; 168 and 169 follow in the next release.
+Authority: [docs/ADR_STOPS_AND_DENIALS.md](../docs/ADR_STOPS_AND_DENIALS.md). 162–167 shipped in 1.2.9 with 161. The ADR's second release is split by release kind: 168 changes only the CLI and ships in Release A with 171–175; 169 changes managed text and ships in Release B, before 176, so both share one migration and one `git-workflow` marker bump.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
@@ -54,7 +54,12 @@ Authority: [docs/ADR_STOPS_AND_DENIALS.md](../docs/ADR_STOPS_AND_DENIALS.md). 16
 
 ### Phase 55 — Closure flow and measurement
 
-Authority: follow-up designs in [docs/ADR_STOPS_AND_DENIALS.md](../docs/ADR_STOPS_AND_DENIALS.md) and Decision 5 of [docs/TASK_CLOSURE_DESIGN.md](../docs/TASK_CLOSURE_DESIGN.md). 171–175 change only the CLI and hooks; 176 changes managed text after 164.
+Authority: follow-up designs in [docs/ADR_STOPS_AND_DENIALS.md](../docs/ADR_STOPS_AND_DENIALS.md) and Decision 5 of [docs/TASK_CLOSURE_DESIGN.md](../docs/TASK_CLOSURE_DESIGN.md).
+
+Release plan:
+
+- **Release A (CLI-only, no migration)**: 168, 171, 172, 173, 174, 175. These change only the CLI and plugin hooks. Shipping 171–173 first lets the journal record a baseline before 176 changes managed text, so 172's targets can compare before and after.
+- **Release B (template-changing)**: 169, then 176, plus the managed queue-template wording fix, in one migration. 177 and 178 are integrated first, and the 178 evaluation run on Claude Code gates the release, because 176 shortens the text agents follow. 177 may start once 171 is integrated.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
