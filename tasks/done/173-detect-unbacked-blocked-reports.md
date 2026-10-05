@@ -4,7 +4,7 @@
 > **Category**: Feature
 > **Priority**: 🟡 P2
 > **Estimate**: ~2h
-> **Assigned to**: unassigned
+> **Assigned to**: Claude Code
 > **Session**: Rigidity measurement follow-up to ADR stops and denials, 2026-10-05
 
 ## Objective
@@ -16,27 +16,27 @@ so that `report flow` can count false stops.
 
 ## Acceptance Criteria
 
-- [ ] A Claude Code `Stop` hook entry in `hooks/hooks.json` runs `meridian hook
+- [x] A Claude Code `Stop` hook entry in `hooks/hooks.json` runs `meridian hook
   stop-audit` with a timeout of 5 seconds or less.
-- [ ] The hook finds `BLOCKED <CODE>` lines in the final assistant message of
+- [x] The hook finds `BLOCKED <CODE>` lines in the final assistant message of
   the turn. It reads only that message, from the hook input or the transcript
   path the host provides.
-- [ ] For each code found, it looks for a matching `blocked` journal line for
+- [x] For each code found, it looks for a matching `blocked` journal line for
   the same code within the session's time window, and for the active task when
   one can be resolved. A code with no match is appended to the journal as
   `result: unbacked_block` with the code only.
-- [ ] A code that is registered as `command-exit` or `judgment` is recorded as
+- [x] A code that is registered as `command-exit` or `judgment` is recorded as
   `declared_block` instead, because no Meridian command is expected to emit it.
-- [ ] The hook stores no message text. It always exits 0, never blocks the
+- [x] The hook stores no message text. It always exits 0, never blocks the
   stop, and does nothing outside a Meridian project or when no journal exists.
-- [ ] The hook input fields are verified against the installed Claude Code
+- [x] The hook input fields are verified against the installed Claude Code
   version. The handoff records which field supplied the final message.
-- [ ] Codex hook support is investigated. The handoff records whether an
+- [x] Codex hook support is investigated. The handoff records whether an
   equivalent exists, and Codex configuration is not changed.
-- [ ] Tests cover a backed code, an unbacked `tool` code, a `judgment` code, no
+- [x] Tests cover a backed code, an unbacked `tool` code, a `judgment` code, no
   code, a non-Meridian directory, and a malformed hook input.
-- [ ] One changelog fragment is added per `CONTRIBUTING.md`.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
+- [x] One changelog fragment is added per `CONTRIBUTING.md`.
+- [x] `python3 scripts/check_repository.py` and the unit tests pass.
 
 ## Relevant Files
 
