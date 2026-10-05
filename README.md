@@ -145,6 +145,10 @@ Choose `lean-delivery` for lightweight delivery or `governed-sdd` for controlled
 Update the framework before the project: a project manifest can only be read by
 a CLI at least as new as its `protocolVersion`.
 
+To upgrade a project in one guided run, see
+[How to upgrade a project](docs/HOW_TO_UPGRADE.md); the steps below are the
+manual procedure it wraps.
+
 1. Read the release notes on the Releases page or in `CHANGELOG.md`. The first
    line of each section says whether the release is CLI-only or
    template-changing.
