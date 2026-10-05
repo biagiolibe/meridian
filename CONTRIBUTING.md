@@ -70,6 +70,24 @@ complete only when every shard for the chosen count ran against the same tree
 and reported the same `total` and `digest`. `python3 -m unittest discover -s
 tests` remains the canonical full test run.
 
+To run the shards concurrently and get one combined result, use the optional
+faster equivalent:
+
+```bash
+python3 scripts/run_tests.py --parallel      # CPU count, at most 8 workers
+python3 scripts/run_tests.py --parallel 4    # explicit count; 1 is a sequential run
+```
+
+`--parallel N` runs N shards as separate processes, each with a private
+`TMPDIR` and a `MERIDIAN_TEST_SHARD` variable, captures their output, and prints
+it in shard order. A passing run prints two lines: the totals with wall time and
+the same `total`/`digest` proof as `--list`, plus the number of tests the shards
+selected. A failing, erroring, killed, or mismatched shard exits non-zero, and
+the failing shards print first, limited to their last 60 lines. On the
+reference machine (10 cores, 752 tests) the sequential run took about 277
+seconds and `--parallel` (8 workers) about 52 seconds. CI and the project's own
+candidate validation keep the canonical command.
+
 The check validates JSON metadata, Bash syntax, required public-repository files, and links between the repository's Markdown documents.
 
 After a deliberate edit to a managed copy, refresh its manifest digests explicitly:
