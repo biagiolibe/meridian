@@ -4,7 +4,7 @@
 > **Category**: Bugfix
 > **Priority**: 🔴 P1
 > **Estimate**: ~1.5h
-> **Assigned to**: unassigned
+> **Assigned to**: Claude Code
 > **Session**: ADR stops and denials, 2026-10-05
 
 ## Objective
@@ -19,20 +19,20 @@ accept the states that the workflow itself produces.
 
 ## Acceptance Criteria
 
-- [ ] On a task branch, the preflight accepts a queue row of `QUEUED` against
+- [x] On a task branch, the preflight accepts a queue row of `QUEUED` against
   a task record of `QUEUED`, `IN_PROGRESS`, `CHANGES_REQUESTED`, or
   `READY_FOR_REVIEW`. This is the second option proposed in issue #6. If the
   developer has chosen a different option in the issue before work starts,
   implement that one and record the choice in the handoff.
-- [ ] Combinations that the workflow cannot produce still fail, with the coded,
+- [x] Combinations that the workflow cannot produce still fail, with the coded,
   actionable message from task 166. The message names which document the
   current actor is permitted to change.
-- [ ] Tests reproduce issue #6 for `ready-check` and `validate` and pass after
+- [x] Tests reproduce issue #6 for `ready-check` and `validate` and pass after
   the fix. A test also proves that `investigate` takes the same path.
-- [ ] No gate in this change requires the actor on the task branch to edit
+- [x] No gate in this change requires the actor on the task branch to edit
   `tasks/QUEUE.md`, `tasks/QUEUE_ARCHIVE.md`, or `PROJECT_PLAN.md`.
-- [ ] One changelog fragment is added under `Fixed`; this is a CLI-only change.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
+- [x] One changelog fragment is added under `Fixed`; this is a CLI-only change.
+- [x] `python3 scripts/check_repository.py` and the unit tests pass.
 
 ## Relevant Files
 
