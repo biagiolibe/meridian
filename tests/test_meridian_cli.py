@@ -3899,10 +3899,88 @@ class BudgetCliTest(unittest.TestCase):
         self.assertIn(
             "BLOCKED QUEUE_STATUS_MISMATCH: rule: the task record and its queue row must agree; sources checked: "
             "Status in docs/tasks/M19/TASK-007.md and the Status column of row TASK-007 in docs/TASK_QUEUE.md; "
-            "accepted: equal values; found: task IN_PROGRESS, queue QUEUED; resume: make the task record and its "
-            "queue row agree through the lifecycle, then rerun meridian execution preflight TASK-007 --project .",
+            "accepted: equal values; found: task IN_PROGRESS, queue QUEUED; the actor may change "
+            "docs/tasks/M19/TASK-007.md and docs/TASK_QUEUE.md together through the lifecycle; resume: change only "
+            "the document the message says this actor may change so the statuses are accepted, then rerun meridian "
+            "execution preflight TASK-007 --project .",
             preflight.stderr,
         )
+
+    def remediation_project(self, branch: str, record_status: str, queue_status: str = "QUEUED") -> Path:
+        """A Git project on `branch` whose queue row is `queue_status` and whose record is `record_status`."""
+        subprocess.run(["git", "init", "-q", "-b", branch, str(self.project)], check=True)
+        (self.project / "docs").mkdir(exist_ok=True)
+        (self.project / "docs/EXECUTION_EVIDENCE_PROFILE.md").write_text("profile\n", encoding="utf-8")
+        task = self.project / "tasks/TASK-007.md"
+        task.write_text(
+            f"Status: {record_status}\n\n## Authority\n\n## Expected code surface\n\n## Validation\n\n"
+            "- `check`: `python3 -c pass`\n",
+            encoding="utf-8",
+        )
+        self.append_contract("TASK-007")
+        (self.project / "tasks/QUEUE.md").write_text(
+            "| Order | ID | Priority | Status | Dependencies |\n|---:|---|---|---|---|\n"
+            f"| 1 | TASK-007 | P0 | {queue_status} | — |\n",
+            encoding="utf-8",
+        )
+        return task
+
+    def test_task_branch_preflight_accepts_every_state_the_workflow_produces(self) -> None:
+        # Issue #6: a task branch cannot edit the queue, and a review returns the record to IN_PROGRESS.
+        task = self.remediation_project("task-007", "IN_PROGRESS")
+        for status in ("QUEUED", "IN_PROGRESS", "CHANGES_REQUESTED", "READY_FOR_REVIEW"):
+            with self.subTest(status=status):
+                text = task.read_text(encoding="utf-8")
+                task.write_text(f"Status: {status}\n" + text.split("\n", 1)[1], encoding="utf-8")
+                result = self.run_cli("execution", "preflight", "TASK-007")
+                self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_remediation_commands_share_the_preflight_on_a_task_branch(self) -> None:
+        self.remediation_project("task-007", "IN_PROGRESS")
+        validated = self.run_cli("execution", "validate", "TASK-007", "check")
+        self.assertEqual(validated.returncode, 0, validated.stderr)
+        investigated = self.run_cli(
+            "execution", "investigate", "TASK-007", "--question", "q", "--source", "tasks/TASK-007.md",
+            "--finding", "f",
+        )
+        self.assertNotIn("QUEUE_STATUS_MISMATCH", investigated.stderr)
+        self.assertNotIn("TASK_STATUS_REJECTED", investigated.stderr)
+        report = self.project / "ready.md"
+        report.write_text("## Completion Report — TASK-007\n", encoding="utf-8")
+        ready = self.run_cli("execution", "ready-check", "TASK-007", str(report))
+        self.assertNotIn("QUEUE_STATUS_MISMATCH", ready.stderr)
+        self.assertNotIn("TASK_STATUS_REJECTED", ready.stderr)
+
+    def test_task_branch_preflight_still_rejects_states_the_workflow_cannot_produce(self) -> None:
+        self.remediation_project("task-007", "IN_PROGRESS", queue_status="DONE")
+        mismatch = self.run_cli("execution", "preflight", "TASK-007")
+        self.assertNotEqual(mismatch.returncode, 0)
+        self.assertIn(
+            "BLOCKED QUEUE_STATUS_MISMATCH: rule: the task record and its queue row must agree; sources checked: "
+            "Status in tasks/TASK-007.md and the Status column of row TASK-007 in tasks/QUEUE.md; accepted: equal "
+            "values, or queue QUEUED with task QUEUED, IN_PROGRESS, CHANGES_REQUESTED, READY_FOR_REVIEW; "
+            "found: task IN_PROGRESS, queue DONE; on task branch task-007 the actor may change only "
+            "tasks/TASK-007.md, and the queue row stays QUEUED; resume: ",
+            mismatch.stderr,
+        )
+        task = self.project / "tasks/TASK-007.md"
+        task.write_text(task.read_text(encoding="utf-8").replace("Status: IN_PROGRESS", "Status: ACCEPTED"), encoding="utf-8")
+        rejected = self.run_cli("execution", "preflight", "TASK-007")
+        self.assertIn(
+            "BLOCKED TASK_STATUS_REJECTED: rule: preflight runs only on an open task; field checked: Status in "
+            "tasks/TASK-007.md; accepted: QUEUED, IN_PROGRESS, CHANGES_REQUESTED, READY_FOR_REVIEW; found: ACCEPTED",
+            rejected.stderr,
+        )
+
+    def test_outside_the_task_branch_the_record_and_queue_must_still_agree(self) -> None:
+        self.remediation_project("main", "IN_PROGRESS")
+        result = self.run_cli("execution", "preflight", "TASK-007")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("accepted: equal values; found: task IN_PROGRESS, queue QUEUED", result.stderr)
+        self.assertIn("together through the lifecycle", result.stderr)
+        task = self.project / "tasks/TASK-007.md"
+        task.write_text(task.read_text(encoding="utf-8").replace("Status: IN_PROGRESS", "Status: CHANGES_REQUESTED"), encoding="utf-8")
+        self.assertIn("accepted: QUEUED, IN_PROGRESS; found: CHANGES_REQUESTED", self.run_cli("execution", "preflight", "TASK-007").stderr)
 
     def test_execution_preflight_requires_profile_and_task_contract(self) -> None:
         self.write_task("TASK-008", "QUEUED")

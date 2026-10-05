@@ -9230,6 +9230,17 @@ def verify_host_impact_completion_evidence(text: str) -> None:
         )
 
 
+TASK_BRANCH_OPEN_STATUSES = ("QUEUED", "IN_PROGRESS", "CHANGES_REQUESTED", "READY_FOR_REVIEW")
+
+
+def current_branch(project_root: Path) -> str | None:
+    """Return the checked-out branch name, or None outside Git or on a detached HEAD."""
+    try:
+        return git_output(project_root, "symbolic-ref", "--short", "-q", "HEAD") or None
+    except MeridianError:
+        return None
+
+
 def execution_preflight(project_root: Path, task_id: str) -> str:
     """Validate the minimum durable execution contract before implementation.
 
@@ -9293,11 +9304,13 @@ def execution_preflight(project_root: Path, task_id: str) -> str:
             task_id=task_id,
         )
     status = read_task_field(text, "Status")
-    if status not in ("QUEUED", "IN_PROGRESS"):
+    on_task_branch = current_branch(project_root) == identity.branch_name
+    open_statuses = TASK_BRANCH_OPEN_STATUSES if on_task_branch else ("QUEUED", "IN_PROGRESS")
+    if status not in open_statuses:
         raise stop_error(
             "TASK_STATUS_REJECTED",
             f"rule: preflight runs only on an open task; field checked: Status in {task_name}; "
-            f"accepted: QUEUED, IN_PROGRESS; found: {status or 'missing'}",
+            f"accepted: {', '.join(open_statuses)}; found: {status or 'missing'}",
         )
     queue = project_root / resolve_project_locations(project_root).queue
     if queue.is_file():
@@ -9310,13 +9323,26 @@ def execution_preflight(project_root: Path, task_id: str) -> str:
                 values = [value.strip() for value in line.strip("|").split("|")]
                 if len(values) == len(columns) and values[columns.index("ID")] == identity.canonical_id:
                     queued_status = values[columns.index("Status")]
-                    if queued_status != status:
+                    # A task branch never edits the queue, so its row stays QUEUED while the record moves.
+                    if queued_status != status and not (on_task_branch and queued_status == "QUEUED"):
+                        queue_name = queue.relative_to(project_root).as_posix()
+                        permitted = (
+                            f"on task branch {identity.branch_name} the actor may change only {task_name}, "
+                            f"and the queue row stays QUEUED"
+                            if on_task_branch
+                            else f"the actor may change {task_name} and {queue_name} together through the lifecycle"
+                        )
+                        accepted = (
+                            f"equal values, or queue QUEUED with task {', '.join(TASK_BRANCH_OPEN_STATUSES)}"
+                            if on_task_branch
+                            else "equal values"
+                        )
                         raise stop_error(
                             "QUEUE_STATUS_MISMATCH",
                             f"rule: the task record and its queue row must agree; sources checked: Status in "
                             f"{task_name} and the Status column of row {identity.canonical_id} in "
-                            f"{queue.relative_to(project_root).as_posix()}; accepted: equal values; "
-                            f"found: task {status}, queue {queued_status}",
+                            f"{queue_name}; accepted: {accepted}; "
+                            f"found: task {status}, queue {queued_status}; {permitted}",
                             task_id=task_id,
                         )
                     break
