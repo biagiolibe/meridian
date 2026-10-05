@@ -78,3 +78,16 @@ Authority: [docs/ADR_STOPS_AND_DENIALS.md](../docs/ADR_STOPS_AND_DENIALS.md). 16
 | `[ ]` | 167 | Make the execution preflight satisfiable during remediation | 🔴 P1 | 166 | [167](167-satisfiable-execution-preflight-during-remediation.md) |
 | `[ ]` | 168 | Report queue sections that archival cannot read | 🟡 P2 | 162 | [168](168-report-unarchivable-queue-sections.md) |
 | `[ ]` | 169 | Code the remaining gates and require every stop to carry a code | 🟡 P2 | 163, 166 | [169](169-code-remaining-gates-and-require-coded-stops.md) |
+
+### Phase 55 — Closure flow and measurement
+
+Authority: follow-up designs in [docs/ADR_STOPS_AND_DENIALS.md](../docs/ADR_STOPS_AND_DENIALS.md) and Decision 5 of [docs/TASK_CLOSURE_DESIGN.md](../docs/TASK_CLOSURE_DESIGN.md). 171–175 change only the CLI and hooks; 176 changes managed text after 164.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 171 | Record lifecycle command results in a local journal | 🟡 P2 | — | [171](171-lifecycle-journal.md) |
+| `[ ]` | 172 | Add `meridian report flow` over the lifecycle journal | 🟡 P2 | 171 | [172](172-report-flow-command.md) |
+| `[ ]` | 173 | Detect `BLOCKED` reports that no command emitted | 🟡 P2 | 171 | [173](173-detect-unbacked-blocked-reports.md) |
+| `[ ]` | 174 | Add `meridian worktree advance` to drive closure through its mechanical steps | 🟡 P2 | 171 | [174](174-worktree-advance-driver.md) |
+| `[ ]` | 175 | Let `advance` finalize from supplied candidate validation results | 🟡 P2 | 174 | [175](175-advance-through-candidate-validation.md) |
+| `[ ]` | 176 | Replace the closure procedure in managed text with `advance` | 🟡 P2 | 164, 175 | [176](176-closure-text-uses-advance.md) |

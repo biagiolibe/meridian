@@ -137,6 +137,12 @@
 - `[ ]` 168 — Report queue sections that archival cannot read.
 - `[ ]` 169 — Code the remaining gates and require every stop to carry a code.
 - `[ ]` 170 — Require a declared validation ID for every command that proves a criterion.
+- `[ ]` 171 — Record lifecycle command results in a local journal.
+- `[ ]` 172 — Add `meridian report flow` over the lifecycle journal.
+- `[ ]` 173 — Detect `BLOCKED` reports that no command emitted.
+- `[ ]` 174 — Add `meridian worktree advance` to drive closure through its mechanical steps.
+- `[ ]` 175 — Let `advance` finalize from supplied candidate validation results.
+- `[ ]` 176 — Replace the closure procedure in managed text with `advance`.
 - `[x]` 140 — Let `integrate stage` complete rows of project-shaped Governed queues.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.
