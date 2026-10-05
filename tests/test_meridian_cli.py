@@ -8012,7 +8012,7 @@ class WorktreeLifecycleCliTest(unittest.TestCase):
                 f"{root.name}/{path.relative_to(root)}": hashlib.sha256(path.read_bytes()).hexdigest()
                 for root in roots
                 for path in root.rglob("*")
-                if path.is_file()
+                if path.is_file() and not path.name.startswith("meridian-journal")
             }
 
         def status(
@@ -8448,6 +8448,160 @@ class WorktreeLifecycleCliTest(unittest.TestCase):
         launched.assert_called_once_with(
             ["--project", str(self.project.resolve()), "--interval", "5.0"]
         )
+
+
+class LifecycleJournalTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory()
+        self.root = Path(self.temporary.name)
+        self.project = self.root / "project"
+        self.project.mkdir()
+        subprocess.run(["git", "init", "-b", "main"], cwd=self.project, check=True, capture_output=True)
+        subprocess.run(["git", "config", "user.name", "Meridian Test"], cwd=self.project, check=True)
+        subprocess.run(["git", "config", "user.email", "meridian@example.invalid"], cwd=self.project, check=True)
+        (self.project / "tasks").mkdir()
+        (self.project / "tasks/056-lifecycle.md").write_text("# Task 056\n\n> **ID**: `056`\n", encoding="utf-8")
+        (self.project / "tasks/QUEUE.md").write_text(
+            "| Status | ID | Title |\n|---|---|---|\n| `[ ]` | 056 | Lifecycle |\n", encoding="utf-8"
+        )
+        subprocess.run(["git", "add", "."], cwd=self.project, check=True)
+        subprocess.run(["git", "commit", "-m", "initial"], cwd=self.project, check=True, capture_output=True)
+        self.worktree_root = self.root / "worktrees"
+        self.worktree_root.mkdir()
+        self.journal = self.project / ".git" / "meridian-journal.jsonl"
+
+    def tearDown(self) -> None:
+        self.temporary.cleanup()
+
+    def lifecycle(
+        self, command: str, *extra: str, cwd: Path | None = None
+    ) -> subprocess.CompletedProcess[str]:
+        root = () if command in ("integrate finalize", "integrate abort") else ("--worktree-root", str(self.worktree_root))
+        return subprocess.run(
+            [
+                sys.executable, str(CLI), "--framework-root", str(ROOT), "worktree", *command.split(), "056",
+                "--project", str(self.project), *root, *extra,
+            ],
+            cwd=cwd or self.project, text=True, capture_output=True, check=False,
+        )
+
+    def prepare_with_commit(self) -> Path:
+        worktree = Path(json.loads(self.lifecycle("prepare", "--format", "json").stdout)["worktree"])
+        (worktree / "implementation.txt").write_text("done\n", encoding="utf-8")
+        subprocess.run(["git", "add", "implementation.txt"], cwd=worktree, check=True)
+        subprocess.run(["git", "commit", "-m", "complete task"], cwd=worktree, check=True, capture_output=True)
+        return worktree
+
+    def lines(self) -> list[dict[str, object]]:
+        if not self.journal.exists():
+            return []
+        return [json.loads(line) for line in self.journal.read_text(encoding="utf-8").splitlines()]
+
+    def test_each_lifecycle_command_appends_one_line(self) -> None:
+        evidence = self.root / "evidence.json"
+        evidence.write_text("{}", encoding="utf-8")
+        commands = (
+            ("prepare", "--format", "json"),
+            ("check", "--format", "json"),
+            ("closure-status", "--format", "json"),
+            ("evidence", "--validation-command", "true", "--validation-exit-code", "0", "--format", "json"),
+            ("integrate stage", "--evidence", str(evidence), "--format", "json"),
+            ("integrate finalize", "--evidence", str(evidence), "--format", "json"),
+            ("integrate abort", "--format", "json"),
+            ("cleanup", "--format", "json"),
+        )
+        for index, (command, *extra) in enumerate(commands, start=1):
+            self.lifecycle(command, *extra)
+            recorded = self.lines()
+            self.assertEqual(len(recorded), index, command)
+            line = recorded[-1]
+            self.assertEqual(line["command"], command)
+            self.assertEqual(line["task"], "056")
+            self.assertEqual(line["version"], 1)
+            self.assertRegex(str(line["ts"]), r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$")
+            self.assertIn(line["result"], {"ok", "blocked", "error"})
+        first = self.lines()[0]
+        self.assertEqual((first["result"], first["exit"], first["step"]), ("ok", 0, "check"))
+        self.assertIn("step", self.lines()[2])
+
+    def test_blocked_result_records_its_registered_code(self) -> None:
+        self.prepare_with_commit()
+        result = self.lifecycle("cleanup", "--format", "json")
+        self.assertEqual(result.returncode, 2)
+        line = self.lines()[-1]
+        self.assertEqual(
+            (line["command"], line["result"], line["exit"], line["stop_code"]),
+            ("cleanup", "blocked", 2, "CLEANUP_BLOCKED"),
+        )
+        self.assertNotIn(str(self.root), self.journal.read_text(encoding="utf-8"))
+
+    def test_lines_hold_no_absolute_path_or_agent_supplied_text(self) -> None:
+        self.lifecycle("prepare", "--format", "json")
+        self.lifecycle(
+            "evidence", "--validation-command", "SECRET-COMMAND-TEXT", "--validation-exit-code", "0",
+            "--format", "json",
+        )
+        text = self.journal.read_text(encoding="utf-8")
+        self.assertNotIn("SECRET-COMMAND-TEXT", text)
+        self.assertNotIn(str(self.root), text)
+        self.assertNotIn(str(Path.home()), text)
+        for line in self.lines():
+            self.assertLessEqual(
+                set(line), {"version", "ts", "command", "task", "step", "result", "stop_code", "exit"}
+            )
+
+    def test_journal_is_untracked_and_shared_by_every_worktree(self) -> None:
+        prepared = json.loads(self.lifecycle("prepare", "--format", "json").stdout)
+        worktree = Path(prepared["worktree"])
+        self.lifecycle("check", "--format", "json", cwd=worktree)
+        self.assertEqual([line["command"] for line in self.lines()], ["prepare", "check"])
+        status = subprocess.run(
+            ["git", "status", "--short"], cwd=self.project, text=True, capture_output=True, check=True
+        )
+        self.assertEqual(status.stdout.strip(), "")
+        self.assertFalse((worktree / "meridian-journal.jsonl").exists())
+
+    def test_rotation_keeps_one_previous_file(self) -> None:
+        directory = self.project / ".git"
+        self.journal.write_text("x" * (meridian.JOURNAL_MAX_BYTES + 1), encoding="utf-8")
+        (directory / "meridian-journal.1.jsonl").write_text("older\n", encoding="utf-8")
+        meridian.append_journal_line(self.project, {"version": 1, "command": "check"})
+        rotated = directory / "meridian-journal.1.jsonl"
+        self.assertEqual(rotated.stat().st_size, meridian.JOURNAL_MAX_BYTES + 1)
+        self.assertEqual(self.lines(), [{"command": "check", "version": 1}])
+        self.assertEqual(
+            sorted(path.name for path in directory.glob("meridian-journal*")),
+            ["meridian-journal.1.jsonl", "meridian-journal.jsonl"],
+        )
+
+    def test_write_failure_warns_once_and_keeps_the_result(self) -> None:
+        worktree = self.prepare_with_commit()
+        self.journal.unlink()
+        self.journal.mkdir()
+        checked = self.lifecycle("check", "--format", "json", cwd=worktree)
+        self.assertEqual(checked.returncode, 0, checked.stderr)
+        self.assertEqual(json.loads(checked.stdout)["status"], "ready")
+        self.assertEqual(checked.stderr.count("warning: lifecycle journal not written"), 1)
+
+    def test_concurrent_appends_from_two_worktrees_produce_whole_lines(self) -> None:
+        other = self.root / "other"
+        subprocess.run(
+            ["git", "worktree", "add", "-b", "other", str(other)], cwd=self.project, check=True, capture_output=True
+        )
+        script = (
+            "import sys; from pathlib import Path; sys.path.insert(0, sys.argv[1]); import meridian; "
+            "[meridian.append_journal_line(Path(sys.argv[2]), "
+            "{'version': 1, 'command': 'check', 'pad': 'p' * 3000, 'n': i}) for i in range(150)]"
+        )
+        processes = [
+            subprocess.Popen([sys.executable, "-c", script, str(ROOT / "scripts"), str(location)])
+            for location in (self.project, other, self.project, other)
+        ]
+        for process in processes:
+            self.assertEqual(process.wait(), 0)
+        recorded = self.lines()
+        self.assertEqual(len(recorded), 600)
+        self.assertTrue(all(len(str(line["pad"])) == 3000 for line in recorded))
 
 
 class LauncherTest(unittest.TestCase):

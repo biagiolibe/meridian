@@ -119,6 +119,35 @@ uses a local name plus a Git-common-directory hash, so its value is stable only
 on the machines that share that hash. `check` also accepts a legacy absolute
 `Worktree:` value in an existing handoff.
 
+## Lifecycle journal
+
+`prepare`, `check`, `closure-status`, `evidence`, `integrate stage`,
+`integrate finalize`, `integrate abort`, and `cleanup` each append one JSON line
+to `<git-common-dir>/meridian-journal.jsonl`. The file is local and untracked,
+and every worktree of the repository shares it, so the lines of concurrent tasks
+interleave as whole lines. It exists to measure how often the lifecycle stops
+and where, not to audit an agent.
+
+| Field | Meaning |
+|-------|---------|
+| `version` | Always `1`. |
+| `ts` | UTC time of the result, `YYYY-MM-DDTHH:MM:SSZ`. |
+| `command` | The command name, for example `integrate stage`. |
+| `task` | The canonical task ID, when the argument or the result names one. |
+| `step` | The closure step or `next_action` the command reported, when it reports one. |
+| `result` | `ok` (exit `0`), `blocked` (a stopped lifecycle transition), or `error`. |
+| `stop_code` | The registered stop code, only when `result` is `blocked` and the stop carries one. |
+| `exit` | The command's exit status. |
+
+Privacy boundary: a line holds only these fields. It never contains an absolute
+path, a command line or option value supplied by the agent, a message, or error
+text; a stop is recorded by its registered code, never by its message.
+
+The journal is rotated to `meridian-journal.1.jsonl` when it exceeds 5 MB, and
+only that one previous file is kept. A journal write that fails never changes a
+command's result or exit status; the command prints one warning to standard
+error.
+
 ## Evidence boundary
 
 ### External validation evidence
