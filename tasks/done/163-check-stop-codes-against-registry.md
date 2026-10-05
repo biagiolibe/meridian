@@ -4,7 +4,7 @@
 > **Category**: Feature
 > **Priority**: 🟡 P2
 > **Estimate**: ~1.5h
-> **Assigned to**: unassigned
+> **Assigned to**: Claude Code
 > **Session**: ADR stops and denials, 2026-10-05
 
 ## Objective
@@ -16,21 +16,21 @@ its output.
 
 ## Acceptance Criteria
 
-- [ ] `check_repository.py` collects every stop-code token used as a stop in
+- [x] `check_repository.py` collects every stop-code token used as a stop in
   managed templates and in this repository's own managed copies. A token counts
   when it follows `BLOCKED` or appears in a stop-code list. The check fails, naming
   the file, line, and token, when a token is not in
   `capabilities/stop-codes-v1.json`.
-- [ ] It fails when a registry entry of class `tool` has no `test` field, or
+- [x] It fails when a registry entry of class `tool` has no `test` field, or
   when that test name does not exist in `tests/`.
-- [ ] It fails when a registered code is not mentioned in any managed text or
+- [x] It fails when a registered code is not mentioned in any managed text or
   emitted by the CLI, so that dead entries are removed.
-- [ ] The check does not yet require every `BLOCKED` line to carry a code;
+- [x] The check does not yet require every `BLOCKED` line to carry a code;
   that requirement belongs to task 169.
-- [ ] Tests cover an unregistered token, a missing test, a dead entry, and the
+- [x] Tests cover an unregistered token, a missing test, a dead entry, and the
   passing repository.
-- [ ] One changelog fragment is added per `CONTRIBUTING.md`.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
+- [x] One changelog fragment is added per `CONTRIBUTING.md`.
+- [x] `python3 scripts/check_repository.py` and the unit tests pass.
 
 ## Relevant Files
 
