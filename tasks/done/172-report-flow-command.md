@@ -4,7 +4,7 @@
 > **Category**: Feature
 > **Priority**: 🟡 P2
 > **Estimate**: ~2h
-> **Assigned to**: unassigned
+> **Assigned to**: Claude Code
 > **Session**: Rigidity measurement follow-up to ADR stops and denials, 2026-10-05
 
 ## Objective
@@ -17,25 +17,25 @@ Meridian is getting lighter or heavier:
 
 ## Acceptance Criteria
 
-- [ ] `meridian report flow [--project <primary>] [--since YYYY-MM-DD]
+- [x] `meridian report flow [--project <primary>] [--since YYYY-MM-DD]
   [--format text|json]` is read-only and reads the current and rotated journal
   files.
-- [ ] Per task, it reports:
+- [x] Per task, it reports:
   - lead time from the first successful `prepare` to the successful `integrate
     finalize`;
   - stops by code;
   - number of aborts;
   - number of `prepare --resume` runs.
-- [ ] Across the period, it reports totals and the median lead time, and stops
+- [x] Across the period, it reports totals and the median lead time, and stops
   grouped by code and by class, with the class taken from the stop registry.
-- [ ] It reads an optional task header `> **Origin**: capability | friction |
+- [x] It reads an optional task header `> **Origin**: capability | friction |
   maintenance | release` from the task record or its archive. It reports the
   share of each origin, and `unknown` for tasks without the header. `friction`
   means the task fixes a problem caused by Meridian's own rules or tools.
-- [ ] This repository's `tasks/TASK_BLUEPRINT.md` gains the optional `Origin`
+- [x] This repository's `tasks/TASK_BLUEPRINT.md` gains the optional `Origin`
   line, if that file is not a managed copy. Template blueprints are not changed
   in this task.
-- [ ] Targets are declared before any data is collected, in
+- [x] Targets are declared before any data is collected, in
   `.meridian/flow-targets.json` (version 1). This repository declares:
   - zero `unbacked_block` records over the last 20 integrated tasks;
   - a median lead time over the last 20 integrated tasks no more than 10%
@@ -46,17 +46,17 @@ Meridian is getting lighter or heavier:
   or `insufficient data` when fewer tasks exist than the window needs. A missed
   target never changes the exit status. A missing targets file shows only the
   measurements.
-- [ ] The report lists, as removal candidates, the registered stop codes of
+- [x] The report lists, as removal candidates, the registered stop codes of
   class `tool` that were not emitted in the period, together with the period
   length.
-- [ ] Malformed journal lines are counted and reported, never fatal. An empty
+- [x] Malformed journal lines are counted and reported, never fatal. An empty
   or missing journal gives an empty report and exit status 0.
-- [ ] Tests cover lead time, stop grouping, the period filter, origin shares,
+- [x] Tests cover lead time, stop grouping, the period filter, origin shares,
   each target state (`met`, `missed`, `insufficient data`), the removal
   candidates, malformed lines, and an empty journal.
-- [ ] One changelog fragment is added per `CONTRIBUTING.md`; this is a CLI-only
+- [x] One changelog fragment is added per `CONTRIBUTING.md`; this is a CLI-only
   change.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
+- [x] `python3 scripts/check_repository.py` and the unit tests pass.
 
 ## Relevant Files
 

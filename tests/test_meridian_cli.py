@@ -17,6 +17,7 @@ import tempfile
 import tomllib
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
+from datetime import datetime, timedelta, timezone
 from http.client import BadStatusLine, IncompleteRead
 from pathlib import Path
 from unittest import mock
@@ -8497,6 +8498,13 @@ class LifecycleJournalTest(unittest.TestCase):
             return []
         return [json.loads(line) for line in self.journal.read_text(encoding="utf-8").splitlines()]
 
+    def test_prepare_resume_is_marked_in_the_journal(self) -> None:
+        self.assertEqual(self.lifecycle("prepare", "--format", "json").returncode, 0)
+        self.assertEqual(self.lifecycle("prepare", "--resume", "--format", "json").returncode, 0)
+        first, second = self.lines()
+        self.assertNotIn("resume", first)
+        self.assertIs(second["resume"], True)
+
     def test_each_lifecycle_command_appends_one_line(self) -> None:
         evidence = self.root / "evidence.json"
         evidence.write_text("{}", encoding="utf-8")
@@ -8602,6 +8610,227 @@ class LifecycleJournalTest(unittest.TestCase):
         recorded = self.lines()
         self.assertEqual(len(recorded), 600)
         self.assertTrue(all(len(str(line["pad"])) == 3000 for line in recorded))
+
+
+class FlowReportTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory()
+        self.project = Path(self.temporary.name) / "project"
+        self.project.mkdir()
+        subprocess.run(["git", "init", "-b", "main"], cwd=self.project, check=True, capture_output=True)
+        (self.project / "tasks" / "done").mkdir(parents=True)
+        (self.project / ".meridian").mkdir()
+        self.journal = self.project / ".git" / "meridian-journal.jsonl"
+        self.records: list[str] = []
+        self.now = datetime(2026, 10, 5, tzinfo=timezone.utc)
+
+    def tearDown(self) -> None:
+        self.temporary.cleanup()
+
+    def stamp(self, day: int, hour: int = 0) -> str:
+        moment = datetime(2026, 1, 1, tzinfo=timezone.utc) + timedelta(days=day, hours=hour)
+        return moment.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    def add(self, day: int, command: str, task: str, result: str = "ok", hour: int = 0, **extra: object) -> None:
+        line = {"version": 1, "ts": self.stamp(day, hour), "command": command, "task": task, "result": result,
+                "exit": 0 if result == "ok" else 2, **extra}
+        self.records.append(json.dumps(line))
+
+    def flush(self) -> None:
+        self.journal.write_text("\n".join(self.records) + ("\n" if self.records else ""), encoding="utf-8")
+
+    def task_record(self, task: str, origin: str | None, archived: bool = False) -> None:
+        header = f"> **Origin**: {origin}\n" if origin else ""
+        folder = self.project / "tasks" / ("done" if archived else "")
+        (folder / f"{task}-work.md").write_text(f"# Task {task}\n\n> **ID**: `{task}`\n{header}", encoding="utf-8")
+
+    def targets(self) -> None:
+        (self.project / ".meridian" / "flow-targets.json").write_text(json.dumps({
+            "version": 1,
+            "unbacked_blocks": {"window": 20, "max": 0},
+            "lead_time_regression": {"window": 20, "max_percent": 10},
+            "friction_share": {"window": 20, "max_percent": 30},
+        }), encoding="utf-8")
+
+    def integrated(self, count: int, lead_hours: int = 10, origins: list[str | None] | None = None) -> None:
+        for index in range(count):
+            task = f"{100 + index}"
+            self.add(index, "prepare", task)
+            self.add(index, "integrate finalize", task, hour=lead_hours)
+            self.task_record(task, origins[index] if origins else None)
+
+    def report(self, since: str | None = None) -> dict[str, object]:
+        self.flush()
+        return meridian.flow_report(self.project, since, self.now)
+
+    def target_states(self, report: dict[str, object]) -> dict[str, str]:
+        return {target["target"]: target["state"] for target in report["targets"]}  # type: ignore[index]
+
+    def test_lead_time_runs_from_first_prepare_to_finalize(self) -> None:
+        self.add(0, "prepare", "056")
+        self.add(1, "prepare", "056", resume=True)
+        self.add(1, "integrate finalize", "056", hour=2)
+        self.add(2, "prepare", "057")
+        self.task_record("056", None)
+        report = self.report()
+        by_task = {task["task"]: task for task in report["tasks"]}  # type: ignore[index]
+        self.assertEqual(by_task["056"]["lead_time_seconds"], 26 * 3600)
+        self.assertIsNone(by_task["057"]["lead_time_seconds"])
+        self.assertEqual(report["totals"]["median_lead_time_seconds"], 26 * 3600)  # type: ignore[index]
+        self.assertEqual(report["totals"]["integrated"], 1)  # type: ignore[index]
+
+    def test_median_lead_time_across_tasks(self) -> None:
+        for task, hours in (("101", 2), ("102", 4), ("103", 100)):
+            self.add(0, "prepare", task)
+            self.add(0, "integrate finalize", task, hour=hours)
+        self.assertEqual(self.report()["totals"]["median_lead_time_seconds"], 4 * 3600)  # type: ignore[index]
+
+    def test_stops_group_by_code_and_registered_class(self) -> None:
+        self.add(0, "integrate stage", "056", "blocked", stop_code="PRIMARY_DIRTY")
+        self.add(0, "integrate stage", "056", "blocked", stop_code="PRIMARY_DIRTY")
+        self.add(1, "check", "056", "blocked")
+        self.add(1, "cleanup", "057", "blocked", stop_code="NOT_A_REGISTERED_CODE")
+        self.add(1, "check", "057", "error")
+        report = self.report()
+        self.assertEqual(report["stops_by_code"], {"NOT_A_REGISTERED_CODE": 1, "PRIMARY_DIRTY": 2, "uncoded": 1})
+        self.assertEqual(report["stops_by_class"], {"tool": 2, "uncoded": 1, "unknown": 1})
+        by_task = {task["task"]: task for task in report["tasks"]}  # type: ignore[index]
+        self.assertEqual(by_task["056"]["stops"], {"PRIMARY_DIRTY": 2, "uncoded": 1})
+        self.assertEqual(report["totals"]["stops"], 4)  # type: ignore[index]
+
+    def test_aborts_and_resumes_are_counted_per_task(self) -> None:
+        self.add(0, "prepare", "056")
+        self.add(0, "prepare", "056", resume=True)
+        self.add(1, "prepare", "056", resume=True)
+        self.add(1, "prepare", "056", "error", resume=True)
+        self.add(1, "integrate abort", "056")
+        self.add(1, "integrate abort", "056", "blocked")
+        task = self.report()["tasks"][0]  # type: ignore[index]
+        self.assertEqual((task["resumes"], task["aborts"]), (2, 1))
+
+    def test_since_filters_records_but_keeps_lead_time_history(self) -> None:
+        self.add(0, "prepare", "056")
+        self.add(5, "integrate stage", "056", "blocked", stop_code="PRIMARY_DIRTY")
+        self.add(10, "integrate finalize", "056")
+        self.add(1, "integrate stage", "057", "blocked", stop_code="LEASE_HELD")
+        report = self.report(since="2026-01-05")
+        self.assertEqual([task["task"] for task in report["tasks"]], ["056"])  # type: ignore[index]
+        self.assertEqual(report["tasks"][0]["lead_time_seconds"], 10 * 86400)  # type: ignore[index]
+        self.assertEqual(report["stops_by_code"], {"PRIMARY_DIRTY": 1})
+        with self.assertRaises(meridian.MeridianError):
+            meridian.flow_report(self.project, "yesterday", self.now)
+
+    def test_origin_shares_with_archive_and_unknown(self) -> None:
+        for task, origin, archived in (("101", "friction", False), ("102", "capability", True), ("103", None, False),
+                                       ("104", "bogus", False), ("105", "Friction", True)):
+            self.add(0, "check", task)
+            self.task_record(task, origin, archived)
+        self.add(0, "check", "106")
+        report = self.report()
+        self.assertEqual(report["origin_counts"], {"capability": 1, "friction": 2, "maintenance": 0, "release": 0, "unknown": 3})
+        self.assertEqual(report["origin_share_percent"]["friction"], 33.3)  # type: ignore[index]
+        self.assertEqual(report["origin_share_percent"]["unknown"], 50.0)  # type: ignore[index]
+
+    def test_targets_report_insufficient_data(self) -> None:
+        self.targets()
+        self.integrated(5)
+        self.assertEqual(self.target_states(self.report()), {
+            "unbacked_blocks": "insufficient data", "lead_time_regression": "insufficient data",
+            "friction_share": "insufficient data",
+        })
+
+    def test_targets_met(self) -> None:
+        self.targets()
+        self.integrated(40, origins=["capability"] * 30 + ["friction"] * 5 + ["maintenance"] * 5)
+        report = self.report()
+        self.assertEqual(self.target_states(report), {
+            "unbacked_blocks": "met", "lead_time_regression": "met", "friction_share": "met",
+        })
+        measured = {target["target"]: target["measured"] for target in report["targets"]}  # type: ignore[index]
+        self.assertEqual(measured, {"unbacked_blocks": 0, "lead_time_regression": 0.0, "friction_share": 25.0})
+
+    def test_targets_missed(self) -> None:
+        self.targets()
+        self.integrated(40, origins=["capability"] * 30 + ["friction"] * 7 + ["maintenance"] * 3)
+        for index in range(20, 40):  # the last 20 take 12h against 10h before them: +20%
+            self.records[index * 2 + 1] = self.records[index * 2 + 1].replace('T10:00:00Z', 'T12:00:00Z')
+        self.add(39, "unbacked", "139", "unbacked_block", hour=13, stop_code="PRIMARY_DIRTY")
+        report = self.report()
+        self.assertEqual(self.target_states(report), {
+            "unbacked_blocks": "missed", "lead_time_regression": "missed", "friction_share": "missed",
+        })
+        self.assertEqual(report["unbacked_blocks"], 1)
+
+    def test_target_window_ignores_older_unbacked_blocks_and_since(self) -> None:
+        self.targets()
+        self.add(-5, "unbacked", "099", "unbacked_block", stop_code="PRIMARY_DIRTY")
+        self.integrated(20, origins=["capability"] * 20)
+        report = self.report(since="2026-01-15")
+        self.assertEqual(self.target_states(report)["unbacked_blocks"], "met")
+        self.assertEqual(self.target_states(report)["friction_share"], "met")
+
+    def test_missing_targets_file_shows_measurements_only(self) -> None:
+        self.integrated(3)
+        self.assertEqual(self.report()["targets"], [])
+
+    def test_unreadable_targets_file_is_an_error(self) -> None:
+        (self.project / ".meridian" / "flow-targets.json").write_text('{"version": 2}', encoding="utf-8")
+        self.integrated(1)
+        with self.assertRaises(meridian.MeridianError):
+            self.report()
+
+    def test_removal_candidates_are_unemitted_tool_codes(self) -> None:
+        tool_codes = {code for code, entry in meridian.load_stop_registry().items() if entry["class"] == "tool"}
+        self.add(0, "integrate stage", "056", "blocked", stop_code="PRIMARY_DIRTY")
+        self.add(0, "integrate stage", "056", "blocked", stop_code="VALIDATION_FAILED")
+        self.add(30, "check", "056")
+        report = self.report()
+        self.assertEqual(set(report["removal_candidates"]), tool_codes - {"PRIMARY_DIRTY"})  # type: ignore[arg-type]
+        self.assertEqual(report["period_days"], (self.now - datetime(2026, 1, 1, tzinfo=timezone.utc)).days)
+        self.assertEqual(self.report(since="2026-01-20")["period_days"], (self.now - datetime(2026, 1, 20, tzinfo=timezone.utc)).days)
+
+    def test_malformed_lines_are_counted_and_never_fatal(self) -> None:
+        self.add(0, "prepare", "056")
+        self.records += ["not json", "[1, 2]", '{"version": 2, "ts": "2026-01-01T00:00:00Z", "command": "x", "result": "ok"}',
+                         '{"version": 1, "ts": "yesterday", "command": "x", "result": "ok"}', "", '{"version": 1}']
+        self.add(0, "integrate finalize", "056", hour=3)
+        report = self.report()
+        self.assertEqual(report["malformed_lines"], 5)
+        self.assertEqual(report["tasks"][0]["lead_time_seconds"], 3 * 3600)  # type: ignore[index]
+
+    def test_rotated_journal_is_read_before_the_current_one(self) -> None:
+        self.add(0, "prepare", "056")
+        (self.project / ".git" / "meridian-journal.1.jsonl").write_text(self.records.pop() + "\n", encoding="utf-8")
+        self.add(1, "integrate finalize", "056")
+        self.assertEqual(self.report()["tasks"][0]["lead_time_seconds"], 86400)  # type: ignore[index]
+
+    def run_cli(self, *arguments: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [sys.executable, str(CLI), "--framework-root", str(ROOT), "report", "flow", "--project", str(self.project), *arguments],
+            cwd=self.project, text=True, capture_output=True, check=False,
+        )
+
+    def test_empty_or_missing_journal_gives_an_empty_report_with_exit_zero(self) -> None:
+        for prepare in (lambda: None, self.flush):
+            prepare()
+            result = self.run_cli("--format", "json")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            report = json.loads(result.stdout)
+            self.assertEqual((report["tasks"], report["stops_by_code"], report["removal_candidates"], report["malformed_lines"]), ([], {}, [], 0))
+            self.assertEqual(self.run_cli().returncode, 0)
+
+    def test_cli_is_read_only_and_a_missed_target_keeps_exit_zero(self) -> None:
+        self.targets()
+        self.integrated(2)
+        self.add(1, "unbacked", "101", "unbacked_block", hour=11)
+        self.flush()
+        before = self.journal.read_bytes()
+        text = self.run_cli()
+        self.assertEqual(text.returncode, 0, text.stderr)
+        self.assertIn("Target unbacked_blocks: insufficient data", text.stdout)
+        self.assertEqual(json.loads(self.run_cli("--format", "json", "--since", "2026-01-01").stdout)["since"], "2026-01-01")
+        self.assertEqual(self.run_cli("--since", "nope").returncode, 2)
+        self.assertEqual(self.journal.read_bytes(), before)
 
 
 class LauncherTest(unittest.TestCase):

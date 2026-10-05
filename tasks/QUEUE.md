@@ -64,7 +64,7 @@ Release plan:
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
 | `[x]` | 171 | Record lifecycle command results in a local journal | 🟡 P2 | — | [171](done/171-lifecycle-journal.md) |
-| `[ ]` | 172 | Add `meridian report flow` over the lifecycle journal | 🟡 P2 | 171 | [172](172-report-flow-command.md) |
+| `[x]` | 172 | Add `meridian report flow` over the lifecycle journal | 🟡 P2 | 171 | [172](done/172-report-flow-command.md) |
 | `[ ]` | 173 | Detect `BLOCKED` reports that no command emitted | 🟡 P2 | 171 | [173](173-detect-unbacked-blocked-reports.md) |
 | `[ ]` | 174 | Add `meridian worktree advance` to drive closure through its mechanical steps | 🟡 P2 | 171 | [174](174-worktree-advance-driver.md) |
 | `[ ]` | 175 | Let `advance` finalize from supplied candidate validation results | 🟡 P2 | 174 | [175](175-advance-through-candidate-validation.md) |
