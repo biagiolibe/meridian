@@ -66,7 +66,7 @@ are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 
 ### Phase 54 — Stops and denials
 
-Authority: [docs/ADR_STOPS_AND_DENIALS.md](../docs/ADR_STOPS_AND_DENIALS.md). 162–165 ship in the unreleased 1.2.9 with 161; 166–169 follow in the next release.
+Authority: [docs/ADR_STOPS_AND_DENIALS.md](../docs/ADR_STOPS_AND_DENIALS.md). 162–167 ship in the unreleased 1.2.9 with 161; 168 and 169 follow in the next release.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
