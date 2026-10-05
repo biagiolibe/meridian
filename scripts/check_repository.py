@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import ast
 import hashlib
 import json
 import re
@@ -298,6 +299,77 @@ def check_governed_lifecycle_text(root: Path = ROOT) -> None:
     repository_workflow = root / "PROJECT_WORKFLOW.md"
     if repository_workflow.is_file() and "Project integration smoke command" in repository_workflow.read_text(encoding="utf-8"):
         fail("PROJECT_WORKFLOW.md contains retired text: Project integration smoke command")
+
+
+STOP_TOKEN = r"[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+"
+STOP_AFTER_BLOCKED = re.compile(rf"\bBLOCKED\s+`?({STOP_TOKEN})\b")
+# A stop-code list: two or more quoted tokens joined by commas, "or", "and", or
+# "through". It counts only when it holds a registered code, so lists of other
+# uppercase words (for example the integration decisions) are not stop codes.
+_QUOTED_TOKEN = rf"([`\"])({STOP_TOKEN})\1"
+STOP_CODE_LIST = re.compile(
+    rf"{_QUOTED_TOKEN}(?:(?:,\s*|\s+)(?:(?:or|and|through)\s+)?{_QUOTED_TOKEN})+"
+)
+STOP_LIST_TEST_FILES = ("tests/test_project_console.py",)
+
+
+def managed_stop_text_files(root: Path) -> list[Path]:
+    """Return the managed templates and this repository's own managed copies."""
+    paths = set((root / "templates").rglob("*.md"))
+    manifest = root / ".meridian" / "manifest.json"
+    if manifest.is_file():
+        managed = json.loads(manifest.read_text(encoding="utf-8")).get("managedFiles", {})
+        paths.update(root / name for name in managed if name.endswith(".md") and (root / name).is_file())
+    return sorted(paths)
+
+
+def stop_tokens_in(text: str, known: set[str]) -> list[tuple[int, str]]:
+    """Return (offset, token) for each stop token used as a stop in `text`."""
+    found = [(match.start(1), match.group(1)) for match in STOP_AFTER_BLOCKED.finditer(text)]
+    for run in STOP_CODE_LIST.finditer(text):
+        tokens = [(run.start() + token.start(2), token.group(2)) for token in re.finditer(_QUOTED_TOKEN, run.group(0))]
+        if any(token in known for _offset, token in tokens):
+            found.extend(tokens)
+    return found
+
+
+def check_stop_code_registry(root: Path = ROOT) -> None:
+    """Keep managed text, the CLI, and tests in agreement with the stop-code registry."""
+    registry = json.loads((root / "capabilities" / "stop-codes-v1.json").read_text(encoding="utf-8"))
+    entries = {entry["code"]: entry for entry in registry["stops"]}
+    texts = {path: path.read_text(encoding="utf-8") for path in managed_stop_text_files(root)}
+    scanned = dict(texts)
+    for name in STOP_LIST_TEST_FILES:
+        if (root / name).is_file():
+            scanned[root / name] = (root / name).read_text(encoding="utf-8")
+    for path, text in scanned.items():
+        for offset, token in stop_tokens_in(text, set(entries)):
+            if token not in entries:
+                line = text.count("\n", 0, offset) + 1
+                fail(f"{path.relative_to(root)}:{line}: unregistered stop code {token}")
+    test_names = set()
+    for source in (root / "tests").glob("test_*.py"):
+        tree = ast.parse(source.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ClassDef):
+                test_names.update(
+                    f"tests.{source.stem}.{node.name}.{item.name}"
+                    for item in node.body
+                    if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef))
+                )
+    for code, entry in entries.items():
+        if entry["class"] != "tool":
+            continue
+        if not entry.get("test"):
+            fail(f"stop code {code} is class tool but has no test field")
+        if entry["test"] not in test_names:
+            fail(f"stop code {code} names a test that does not exist: {entry['test']}")
+    cli = root / "scripts" / "meridian.py"
+    emitted = cli.read_text(encoding="utf-8") if cli.is_file() else ""
+    for code in entries:
+        mention = re.compile(rf"\b{code}\b")
+        if not any(mention.search(text) for text in texts.values()) and not mention.search(emitted):
+            fail(f"stop code {code} is registered but no managed text or CLI output mentions it")
 
 
 def check_json() -> None:
@@ -786,6 +858,7 @@ def main() -> None:
     check_governed_review_worktree_contract()
     check_governed_lifecycle_text()
     check_json()
+    check_stop_code_registry()
     check_plugin_version()
     check_capability_catalog()
     check_migrations()
