@@ -3618,10 +3618,56 @@ def fetch_latest_release(
     return latest_version, release_kind_from_body(body)
 
 
-def run_self_check(framework_root: Path, *, urlopen_fn=None) -> int:
+def claude_user_settings_path() -> Path:
+    configured = os.environ.get("CLAUDE_CONFIG_DIR")
+    return (Path(configured) if configured else Path.home() / ".claude") / "settings.json"
+
+
+def plugin_marketplace_ref(settings_path: Path) -> tuple[str | None, str]:
+    """Read extraKnownMarketplaces.meridian.source.ref; return (ref, reason when unknown)."""
+    try:
+        document = json.loads(settings_path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return None, f"no user settings at {settings_path}"
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return None, f"user settings at {settings_path} are unreadable"
+    marketplaces = document.get("extraKnownMarketplaces") if isinstance(document, dict) else None
+    entry = marketplaces.get("meridian") if isinstance(marketplaces, dict) else None
+    source = entry.get("source") if isinstance(entry, dict) else None
+    ref = source.get("ref") if isinstance(source, dict) else None
+    if not isinstance(ref, str) or not ref:
+        return None, "no extraKnownMarketplaces.meridian.source.ref declared"
+    return ref, ""
+
+
+def plugin_ref_report(settings_path: Path, latest_version: str | None) -> str:
+    """Describe the Claude Code marketplace ref without writing settings."""
+    ref, reason = plugin_marketplace_ref(settings_path)
+    if ref is None:
+        return f"Plugin ref: unknown ({reason})"
+    if ref == "stable":
+        return "Plugin ref: stable"
+    try:
+        pinned = parse_semver(ref[1:]) if ref.startswith("v") else None
+    except MeridianError:
+        pinned = None
+    if pinned is None:
+        return f"Plugin ref: {ref} (neither stable nor a release tag)"
+    if latest_version is None:
+        return f"Plugin ref: {ref} (latest release unknown)"
+    if semver_precedence_key(pinned) >= semver_precedence_key(parse_semver(latest_version)):
+        return f"Plugin ref: {ref} (latest release)"
+    return (
+        f"Plugin ref: {ref} (older than latest release {latest_version}; "
+        f'set "ref" to "stable" or "v{latest_version}" in extraKnownMarketplaces.meridian.source)'
+    )
+
+
+def run_self_check(framework_root: Path, *, urlopen_fn=None, settings_path: Path | None = None) -> int:
     """Print the installed/latest comparison without mutating local state."""
     installed_version = read_raw_version(framework_root)
     installed = parse_semver(installed_version)
+    settings = claude_user_settings_path() if settings_path is None else settings_path
     print(f"Installed: {installed_version}")
     try:
         latest_version, release_kind = fetch_latest_release(
@@ -3632,19 +3678,23 @@ def run_self_check(framework_root: Path, *, urlopen_fn=None) -> int:
     except HTTPError as error:
         print("Status: UNKNOWN")
         print(f"Reason: GitHub returned HTTP {error.code}")
+        print(plugin_ref_report(settings, None))
         return SELF_CHECK_UNKNOWN
     except (HTTPException, URLError, TimeoutError, OSError) as error:
         reason = getattr(error, "reason", error)
         print("Status: UNKNOWN")
         print(f"Reason: network error: {reason}")
+        print(plugin_ref_report(settings, None))
         return SELF_CHECK_UNKNOWN
     except (MeridianError, ValueError) as error:
         print("Status: UNKNOWN")
         print(f"Reason: malformed response: {error}")
+        print(plugin_ref_report(settings, None))
         return SELF_CHECK_UNKNOWN
 
     print(f"Latest: {latest_version}")
     print(f"Kind: {release_kind}")
+    print(plugin_ref_report(settings, latest_version))
     if semver_precedence_key(latest) > semver_precedence_key(installed):
         print("Status: UPDATE_AVAILABLE")
         return SELF_CHECK_UPDATE_AVAILABLE

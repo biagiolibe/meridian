@@ -439,8 +439,46 @@ class ReleasePublishTest(unittest.TestCase):
         with mock.patch.object(release, "validate", return_value=(0, [])), mock.patch.object(release, "run_command", side_effect=record_command), mock.patch.object(release, "run_git", side_effect=record_git):
             self.assertEqual(self.invoke("--confirm", "v1.0.1", "--no-wait"), 0)
         pushes = [command for command in commands if command[:2] == ["git", "push"]]
-        self.assertEqual(pushes, [["git", "push", "origin", "main"], ["git", "push", "origin", "v1.0.1"]])
+        release_commit = self.git("rev-parse", "HEAD").stdout.strip()
+        self.assertEqual(pushes, [
+            ["git", "push", "origin", "main"],
+            ["git", "push", "origin", "v1.0.1"],
+            ["git", "push", "origin", f"{release_commit}:refs/heads/stable"],
+        ])
+        self.assertEqual(self.git("ls-remote", "--heads", "origin", "stable").stdout.split()[0], release_commit)
         self.assertFalse(any(flag in command for command in commands for flag in ("--force", "--force-with-lease", "--delete")))
+
+    def test_stable_advances_by_fast_forward_from_previous_release(self) -> None:
+        previous = self.git("rev-parse", "HEAD~1").stdout.strip()
+        self.git("push", "-q", "origin", f"{previous}:refs/heads/stable")
+        with mock.patch.object(release, "validate", return_value=(0, [])):
+            self.assertEqual(self.invoke("--confirm", "v1.0.1", "--no-wait"), 0)
+        self.assertEqual(self.git("ls-remote", "--heads", "origin", "stable").stdout.split()[0], self.git("rev-parse", "HEAD").stdout.strip())
+
+    def test_non_fast_forward_stable_is_blocked_before_push(self) -> None:
+        self.git("checkout", "-qb", "diverged", "HEAD~1")
+        self.git("commit", "--allow-empty", "-qm", "diverged")
+        diverged = self.git("rev-parse", "HEAD").stdout.strip()
+        self.git("push", "-q", "origin", f"{diverged}:refs/heads/stable")
+        self.git("checkout", "-q", "main")
+        errors = io.StringIO()
+        with mock.patch.object(release, "validate", return_value=(0, [])), redirect_stderr(errors):
+            self.assertEqual(self.invoke("--confirm", "v1.0.1", "--no-wait"), 1)
+        release_commit = self.git("rev-parse", "HEAD").stdout.strip()
+        self.assertIn(diverged, errors.getvalue())
+        self.assertIn(release_commit, errors.getvalue())
+        self.assertEqual(self.git("ls-remote", "--heads", "origin", "stable").stdout.split()[0], diverged)
+        self.assertEqual(self.git("ls-remote", "--tags", "origin", "v1.0.1").stdout.split()[0], release_commit)
+        self.assertEqual(self.git("ls-remote", "--heads", "origin", "main").stdout.split()[0], release_commit)
+
+    def test_stable_requires_plugin_version_equal_to_the_tag(self) -> None:
+        release.ensure_plugin_version_matches(self.root, "HEAD", "1.0.1")
+        with self.assertRaisesRegex(release.ReleaseError, "declares version 1.0.0, not 1.0.1"):
+            release.ensure_plugin_version_matches(self.root, "HEAD~1", "1.0.1")
+        self.git("tag", "v1.0.1", "HEAD~1")
+        with self.assertRaisesRegex(release.ReleaseError, "declares version 1.0.0"):
+            release.advance_stable(self.root, "v1.0.1", "1.0.1")
+        self.assertEqual(self.git("ls-remote", "--heads", "origin", "stable").stdout, "")
 
     def test_rejected_main_push_stops_before_tag(self) -> None:
         original = release.run_command
@@ -588,7 +626,7 @@ class ReleasePublishTest(unittest.TestCase):
 
     def test_verify_succeeds_without_git_writes(self) -> None:
         self.git("tag", "v1.0.1")
-        self.git("push", "-q", "origin", "v1.0.1")
+        self.git("push", "-q", "origin", "v1.0.1", "HEAD:refs/heads/stable")
         commands: list[list[str]] = []
         original_git = release.run_git
 
@@ -599,6 +637,20 @@ class ReleasePublishTest(unittest.TestCase):
         with mock.patch.object(release.shutil, "which", return_value="gh"), mock.patch.object(release, "run_git", side_effect=record_git), mock.patch.object(release, "run_command", side_effect=self.successful_workflow()), mock.patch.object(release, "github_repository", return_value="owner/repository"), mock.patch.object(release.time, "monotonic", side_effect=range(1000)), mock.patch.object(release.time, "sleep"):
             self.assertEqual(self.verify("--version", "1.0.1"), 0)
         self.assertFalse(any(command[1] in {"push", "tag", "commit", "reset", "checkout"} for command in commands))
+
+    def test_verify_reports_stable_mismatch_without_changing_anything(self) -> None:
+        self.git("tag", "v1.0.1")
+        self.git("push", "-q", "origin", "v1.0.1")
+        before = self.git("ls-remote", "origin", "refs/heads/main", "refs/tags/*").stdout
+        for setup in (lambda: None, lambda: self.git("push", "-q", "origin", "HEAD~1:refs/heads/stable")):
+            setup()
+            errors = io.StringIO()
+            with mock.patch.object(release.shutil, "which", return_value="gh"), mock.patch.object(release, "run_command", side_effect=self.successful_workflow()), mock.patch.object(release, "github_repository", return_value="owner/repository"), mock.patch.object(release.time, "monotonic", side_effect=range(1000)), mock.patch.object(release.time, "sleep"), redirect_stderr(errors):
+                self.assertEqual(self.verify("--version", "1.0.1"), 1)
+            self.assertIn("origin stable is", errors.getvalue())
+            self.assertIn("nothing was changed", errors.getvalue())
+        self.assertEqual(self.git("ls-remote", "origin", "refs/heads/main", "refs/tags/*").stdout, before)
+        self.assertEqual(self.git("ls-remote", "--heads", "origin", "stable").stdout.split()[0], self.git("rev-parse", "HEAD~1").stdout.strip())
 
     def test_verify_requires_remote_tag(self) -> None:
         with mock.patch("sys.stderr") as stderr:
