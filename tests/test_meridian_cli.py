@@ -46,6 +46,59 @@ class FakeLatestReleaseResponse:
         return self.payload[:limit]
 
 
+class SelfCheckPluginRefTest(unittest.TestCase):
+    def report(self, settings: object | None, latest: str | None = "1.2.7", *, raw: str | None = None) -> str:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "settings.json"
+            if raw is not None:
+                path.write_text(raw, encoding="utf-8")
+            elif settings is not None:
+                path.write_text(json.dumps(settings), encoding="utf-8")
+            report = meridian.plugin_ref_report(path, latest)
+            expected_files = [path.name] if raw is not None or settings is not None else []
+            self.assertEqual([item.name for item in Path(directory).iterdir()], expected_files)
+        return report
+
+    @staticmethod
+    def declared(ref: str) -> dict[str, object]:
+        return {"extraKnownMarketplaces": {"meridian": {"source": {"source": "github", "repo": "biagiolibe/meridian", "ref": ref}}}}
+
+    def test_stable_ref(self) -> None:
+        self.assertEqual(self.report(self.declared("stable")), "Plugin ref: stable")
+
+    def test_current_tag(self) -> None:
+        self.assertIn("(latest release)", self.report(self.declared("v1.2.7")))
+
+    def test_old_tag_names_the_remedy(self) -> None:
+        report = self.report(self.declared("v1.2.6"))
+        self.assertIn("older than latest release 1.2.7", report)
+        self.assertIn('"stable" or "v1.2.7"', report)
+
+    def test_tag_with_unknown_latest(self) -> None:
+        self.assertIn("latest release unknown", self.report(self.declared("v1.2.6"), None))
+
+    def test_missing_unreadable_or_undeclared_settings_are_unknown(self) -> None:
+        for report in (self.report(None), self.report(None, raw="{not json"), self.report({}), self.report({"extraKnownMarketplaces": []})):
+            self.assertTrue(report.startswith("Plugin ref: unknown ("), report)
+
+    def test_self_check_prints_ref_and_keeps_exit_codes(self) -> None:
+        installed = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
+        payload = json.dumps({"tag_name": f"v{installed}", "body": "CLI-only release: x\n"}).encode("utf-8")
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "settings.json"
+            path.write_text(json.dumps(self.declared("stable")), encoding="utf-8")
+            output = io.StringIO()
+            with redirect_stdout(output):
+                result = meridian.run_self_check(ROOT, urlopen_fn=mock.Mock(return_value=FakeLatestReleaseResponse(payload)), settings_path=path)
+            self.assertEqual(result, 0)
+            self.assertIn("Plugin ref: stable", output.getvalue())
+            output = io.StringIO()
+            with redirect_stdout(output):
+                result = meridian.run_self_check(ROOT, urlopen_fn=mock.Mock(side_effect=URLError("offline")), settings_path=path)
+            self.assertEqual(result, meridian.SELF_CHECK_UNKNOWN)
+            self.assertIn("Plugin ref: stable", output.getvalue())
+
+
 class SelfCheckLatestTest(unittest.TestCase):
     def run_check(
         self, payload: dict[str, object] | bytes

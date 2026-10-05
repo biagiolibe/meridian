@@ -175,6 +175,21 @@ a CLI at least as new as its `protocolVersion`.
 
    A marketplace added without a pin can instead be refreshed with
    `/plugin marketplace update meridian`.
+
+   To stop moving the pin by hand, set the entry's `ref` to `"stable"` once. The
+   `stable` branch is advanced by each release's `publish` to the commit of its
+   `v<version>` tag, so later releases need only `/plugin marketplace update
+   meridian`. This documentation does not claim that Claude Code refreshes a
+   third-party marketplace on its own. Exact tags remain the way to pin a
+   version or roll back: set `ref` back to `v<version>`.
+
+   To read the installed plugin version, use `/plugin`, read the `version` and
+   `gitCommitSha` recorded for `meridian@meridian` in
+   `~/.claude/plugins/installed_plugins.json`, or run `meridian self-check
+   --check-latest`, which also prints a `Plugin ref:` line for the `ref` it can
+   read from `extraKnownMarketplaces.meridian.source.ref` in user settings
+   (`stable`, a current tag, an older tag with its remedy, or `unknown`). It
+   never writes settings.
 3. From the project, run `meridian upgrade --check`.
 4. On a clean plan, apply it in a dedicated branch, validate the project, and
    commit the diff (see [Framework upgrades](#framework-upgrades)). Never

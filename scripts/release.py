@@ -26,6 +26,7 @@ CHANGELOG_HEADINGS = (
 WORKFLOW_POLL_INTERVAL_SECONDS = 5
 WORKFLOW_LOOKUP_TIMEOUT_SECONDS = 120
 WORKFLOW_RUN_LIST_LIMIT = 50
+STABLE_BRANCH = "stable"
 
 
 class ReleaseError(Exception):
@@ -412,6 +413,60 @@ def remote_tag_head(root: Path, tag: str) -> str:
     return peeled or entries[0][0]
 
 
+def remote_branch_head(root: Path, branch: str) -> str | None:
+    result = run_git(root, "ls-remote", "--heads", "origin", f"refs/heads/{branch}")
+    if result.returncode:
+        raise ReleaseError(f"could not check origin for branch {branch}: {result.stderr.strip()}")
+    for line in result.stdout.splitlines():
+        sha, _, ref = line.partition("\t")
+        if ref == f"refs/heads/{branch}":
+            return sha
+    return None
+
+
+def ensure_plugin_version_matches(root: Path, revision: str, version: str) -> None:
+    result = run_git(root, "show", f"{revision}:.claude-plugin/plugin.json")
+    if result.returncode:
+        raise ReleaseError(f"could not read .claude-plugin/plugin.json at {revision}: {result.stderr.strip()}")
+    try:
+        declared = json.loads(result.stdout).get("version")
+    except (json.JSONDecodeError, AttributeError) as error:
+        raise ReleaseError(f".claude-plugin/plugin.json at {revision} is not a JSON object") from error
+    if declared != version:
+        raise ReleaseError(f".claude-plugin/plugin.json at {revision} declares version {declared}, not {version}")
+
+
+def advance_stable(root: Path, tag: str, version: str) -> str:
+    """Fast-forward origin's `stable` branch to the commit carrying `tag`; never forces."""
+    release_commit = git_output(root, "rev-parse", f"{tag}^{{commit}}")
+    ensure_plugin_version_matches(root, release_commit, version)
+    current = remote_branch_head(root, STABLE_BRANCH)
+    if current is not None:
+        if run_git(root, "cat-file", "-e", f"{current}^{{commit}}").returncode:
+            run_git(root, "fetch", "origin", f"refs/heads/{STABLE_BRANCH}")
+        ancestor = run_git(root, "merge-base", "--is-ancestor", current, release_commit)
+        if ancestor.returncode:
+            raise ReleaseError(
+                f"origin {STABLE_BRANCH} ({current}) is not an ancestor of release commit {release_commit}; "
+                f"{STABLE_BRANCH} was not moved. main and tag {tag} stay published as pushed"
+            )
+    result = run_command(root, ["git", "push", "origin", f"{release_commit}:refs/heads/{STABLE_BRANCH}"])
+    if result.returncode:
+        detail = result.stderr.strip() or result.stdout.strip()
+        raise ReleaseError(f"{STABLE_BRANCH} push failed after main and tag {tag} were published: {detail}")
+    return release_commit
+
+
+def verify_stable(root: Path, tag: str, tag_head: str) -> None:
+    current = remote_branch_head(root, STABLE_BRANCH)
+    if current != tag_head:
+        shown = current or "missing"
+        raise ReleaseError(
+            f"origin {STABLE_BRANCH} is {shown} but {tag} is {tag_head}; nothing was changed "
+            f"(expected after a newer release moved {STABLE_BRANCH} past {tag})"
+        )
+
+
 def release_kind(root: Path, version: str) -> tuple[str, list[str]]:
     record_path = root / "releases" / f"{version}.json"
     try:
@@ -621,6 +676,7 @@ def adopter_steps() -> str:
     return "\n".join((
         "Adopter update steps (not run):",
         "  Claude Code: /plugin marketplace add biagiolibe/meridian#v<version>",
+        "  Claude Code, ref \"stable\": /plugin marketplace update meridian",
         "  Codex: git -C \"$MERIDIAN_ROOT\" fetch --tags && git -C \"$MERIDIAN_ROOT\" checkout v<version>",
     ))
 
@@ -641,11 +697,12 @@ def publish_main(argv: list[str]) -> int:
         print_publish_summary(version, kind, migrations, commits, remote)
         expected = f"v{version}"
         if args.confirm != expected:
-            print(f"Refusing to publish: type --confirm {expected} to push main and tag.", file=sys.stderr)
+            print(f"Refusing to publish: type --confirm {expected} to push main, tag, and stable.", file=sys.stderr)
             return 1
         status, command = validate(root, version)
         if status:
             raise ReleaseError(f"release validation failed: {command_text(command)} exited {status}")
+        ensure_plugin_version_matches(root, "HEAD", version)
         completed: list[str] = []
         for command, step in ((["git", "push", "origin", "main"], "main push"), (["git", "tag", expected], "local tag"), (["git", "push", "origin", expected], "tag push")):
             result = run_command(root, command)
@@ -653,6 +710,8 @@ def publish_main(argv: list[str]) -> int:
                 detail = result.stderr.strip() or result.stdout.strip()
                 raise ReleaseError(f"{step} failed after completed steps: {', '.join(completed) or 'none'}: {detail}")
             completed.append(step)
+        advance_stable(root, expected, version)
+        completed.append(f"{STABLE_BRANCH} push")
         print("Completed: " + ", ".join(completed))
         if args.no_wait:
             print_manual_urls(version, repository)
@@ -680,6 +739,7 @@ def verify_main(argv: list[str]) -> int:
         tag_head = remote_tag_head(root, tag)
         remote = git_output(root, "remote", "get-url", "origin")
         wait_for_publication(root, args.version, github_repository(remote), tag_head)
+        verify_stable(root, tag, tag_head)
         return 0
     except (ReleaseError, OSError, ValueError, json.JSONDecodeError) as error:
         print(f"release verify failed: {error}", file=sys.stderr)
@@ -691,11 +751,11 @@ def main(argv: list[str] | None = None) -> int:
     if values == ["--help"]:
         parser = argparse.ArgumentParser(
             description="Prepare, publish, or verify a Meridian release.",
-            epilog="prepare makes a local release commit; publish pushes main and the release tag; verify is read-only.",
+            epilog="prepare makes a local release commit; publish pushes main, the release tag, and stable; verify is read-only.",
         )
         subcommands = parser.add_subparsers(title="commands")
         subcommands.add_parser("prepare", help="prepare a local release without publishing")
-        subcommands.add_parser("publish", help="publish a prepared release by pushing main and the tag")
+        subcommands.add_parser("publish", help="publish a prepared release by pushing main, the tag, and stable")
         subcommands.add_parser("verify", help="read-only verification of an existing release tag")
         subcommands.add_parser("changelog", help="render changelog fragments")
         parser.print_help()
