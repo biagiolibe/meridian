@@ -116,7 +116,7 @@
 - `[x]` 147 — Isolate setup CLI tests from the developer's real home directory.
 - `[x]` 148 — Drop retired markers from project sections carried by a restructure.
 - `[x]` 149 — Warn at upgrade when a markerless managed copy keeps local edits.
-- `[ ]` 150 — Publish a `stable` branch so the Claude Code plugin follows releases.
+- `[x]` 150 — Publish a `stable` branch so the Claude Code plugin follows releases.
 - `[x]` 151 — Make hook task-state lookups linear and keep the briefing within its timeout.
 - `[x]` 152 — Read project declarations from the primary checkout, keep budget state out of it, and state Review's closure authority.
 - `[x]` 153 — Install the completion template here and keep validation commands unchained.
