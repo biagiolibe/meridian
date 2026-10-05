@@ -19,41 +19,41 @@ gates require.
 
 ## Acceptance Criteria
 
-- [ ] `scripts/run_tests.py --parallel N` runs N shards concurrently as separate
+- [x] `scripts/run_tests.py --parallel N` runs N shards concurrently as separate
   processes and prints one combined result: total tests, failures, errors,
   skips, wall time, and the full-suite coverage proof computed over all shards.
   The exit status is non-zero if any shard fails, errors, or is killed, and the
   failing shard's tests and diagnostics are shown first, bounded.
-- [ ] The coverage proof of a parallel run equals the proof of a sequential full
+- [x] The coverage proof of a parallel run equals the proof of a sequential full
   run and of the union of `--shard` runs; a test or script check proves that no
   test is dropped or duplicated for several values of N.
-- [ ] Output is bounded and ordered deterministically: per-shard output is
+- [x] Output is bounded and ordered deterministically: per-shard output is
   captured and printed in shard order, not interleaved, and a passing run prints
   a short summary only.
-- [ ] Before the mode is documented as safe, tests prove shard isolation: no two
+- [x] Before the mode is documented as safe, tests prove shard isolation: no two
   shards share a mutable path, port, Git configuration, or environment variable.
   Where a test shares global state, it is fixed or serialized, and each such case
   is listed in the handoff. A run repeated several times produces the same result.
-- [ ] The default number of workers adapts to the machine (bounded by the CPU count
+- [x] The default number of workers adapts to the machine (bounded by the CPU count
   and a documented ceiling) and can be set explicitly. `--parallel 1` behaves like
   a sequential run.
-- [ ] The documented validation command for the full suite is unchanged
+- [x] The documented validation command for the full suite is unchanged
   (`python3 -m unittest discover -s tests -q ...`). The parallel runner is offered
   as an optional faster equivalent. If this repository adopts it for its own
   validation, the project-owned candidate-validation declaration is updated in the
   same change so `integrate finalize` still finds the required fragment, and the
   handoff records that decision; a consumer's declaration is never touched.
-- [ ] The measured wall time of the sequential and parallel runs is recorded in the
+- [x] The measured wall time of the sequential and parallel runs is recorded in the
   handoff on the same machine, with the worker count used. If the speedup is below
   about a third of the sequential time, the task reports it and the mode is
   documented as marginal rather than recommended.
-- [ ] CI continues to run the suite as it does today unless the handoff shows the
+- [x] CI continues to run the suite as it does today unless the handoff shows the
   parallel mode is faster and equivalent; no required check is weakened.
-- [ ] Tests cover: worker counts of 1, N greater than the shard count, and a count
+- [x] Tests cover: worker counts of 1, N greater than the shard count, and a count
   above the ceiling; a failing shard; a killed shard; deterministic output order;
   and the coverage proof across modes.
-- [ ] One changelog fragment is added per `CONTRIBUTING.md`.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
+- [x] One changelog fragment is added per `CONTRIBUTING.md`.
+- [x] `python3 scripts/check_repository.py` and the unit tests pass.
 
 ## Relevant Files
 
