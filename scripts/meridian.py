@@ -133,6 +133,79 @@ class MeridianError(RuntimeError):
     """Raised when an upgrade cannot be safely planned or applied."""
 
 
+STOP_REGISTRY_PATH = Path("capabilities/stop-codes-v1.json")
+STOP_REGISTRY_VERSION = 1
+STOP_REGISTRY_FIELDS = frozenset(
+    {"code", "class", "kind", "workflows", "step", "emitter", "human_decision", "resume", "summary",
+     "tool_hint", "test"}
+)
+_stop_registry_cache: dict[str, dict[str, object]] | None = None
+
+
+class InternalStopError(Exception):
+    """Raised when the CLI asks for a stop that the registry cannot format."""
+
+
+class MeridianStop(MeridianError):
+    """A registered stop; its message is the complete `BLOCKED <CODE>: ...` line."""
+
+    def __init__(self, code: str, line: str) -> None:
+        super().__init__(line)
+        self.code = code
+
+
+def load_stop_registry() -> dict[str, dict[str, object]]:
+    """Load the stop-code registry that every CLI stop is emitted through."""
+    global _stop_registry_cache
+    if _stop_registry_cache is None:
+        path = SCRIPTS_ROOT.parent / STOP_REGISTRY_PATH
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as error:
+            raise InternalStopError(f"stop-code registry is unreadable: {path}") from error
+        stops = data.get("stops") if isinstance(data, dict) else None
+        if not isinstance(data, dict) or data.get("version") != STOP_REGISTRY_VERSION or not isinstance(stops, list):
+            raise InternalStopError(f"stop-code registry must be version {STOP_REGISTRY_VERSION} with a stops array: {path}")
+        registry: dict[str, dict[str, object]] = {}
+        for entry in stops:
+            code = entry.get("code") if isinstance(entry, dict) else None
+            if (
+                not isinstance(code, str)
+                or code in registry
+                or not isinstance(entry.get("resume"), str)
+                or not isinstance(entry.get("summary"), str)
+                or not set(entry) <= STOP_REGISTRY_FIELDS
+            ):
+                raise InternalStopError(f"stop-code registry has an invalid or duplicate entry: {code!r}")
+            registry[code] = entry
+        _stop_registry_cache = registry
+    return _stop_registry_cache
+
+
+def stop_resume(code: str, **fields: object) -> str:
+    """Return the registered resume template for `code` with its fields filled in."""
+    entry = load_stop_registry().get(code)
+    if entry is None:
+        raise InternalStopError(f"unregistered stop code: {code}")
+    try:
+        return str(entry["resume"]).format(**fields)
+    except KeyError as error:
+        raise InternalStopError(f"stop {code} resume template needs field {error}") from error
+
+
+def format_stop(code: str, detail: str, *, resume: str | None = None, **fields: object) -> str:
+    """Format the single `BLOCKED <CODE>: <detail>; resume: <command>` line."""
+    resume_text = resume if resume is not None else stop_resume(code, **fields)
+    if code not in load_stop_registry():
+        raise InternalStopError(f"unregistered stop code: {code}")
+    return f"BLOCKED {code}: {detail}; resume: {resume_text}"
+
+
+def stop_error(code: str, detail: str, **fields: object) -> MeridianStop:
+    """Build the error for a registered stop; the CLI prints it unchanged and exits 2."""
+    return MeridianStop(code, format_stop(code, detail, **fields))
+
+
 CODEX_PERMISSION_PROFILE = "meridian-worktrees"
 CODEX_MANAGED_BEGIN = "# MERIDIAN:BEGIN worktree-permissions v1"
 CODEX_MANAGED_END = "# MERIDIAN:END worktree-permissions"
@@ -1088,6 +1161,8 @@ def closure_status(
     project = str(project_root)
 
     def report(step: str, stop_reason: str | None, resume: str | None) -> tuple[dict[str, object], bool]:
+        if stop_reason is not None:
+            stop_resume(stop_reason, task_id=identity.canonical_id, project=project, evidence="")
         return ({
             "version": 1,
             "task_id": identity.canonical_id,
@@ -1102,21 +1177,21 @@ def closure_status(
         return report(
             "C4",
             "WRONG_WORKTREE",
-            f"meridian worktree prepare {identity.canonical_id} --project {project} --format json",
+            stop_resume("WRONG_WORKTREE", task_id=identity.canonical_id, project=project),
         )
 
     if lease_path.exists() and not integration_path.exists():
         return report(
             "C6",
             "LEASE_HELD",
-            f"meridian worktree integrate abort {identity.canonical_id} --project {project} --format json",
+            stop_resume("LEASE_HELD", task_id=identity.canonical_id, project=project),
         )
     if integration_path.exists():
         return report("C7", None, "run the selected candidate validation")
 
     state = _read_json_object(state_path, "worktree lifecycle state")
     if state.get("base_commit") == branch_commit:
-        return report("C1", "ACCEPTANCE_UNMET", "complete the task and rerun task validation")
+        return report("C1", "ACCEPTANCE_UNMET", stop_resume("ACCEPTANCE_UNMET"))
 
     if _run_git(project_root, "merge-base", "--is-ancestor", branch_commit, "main").returncode == 0:
         origin = _run_git(project_root, "remote", "get-url", "origin")
@@ -1135,7 +1210,7 @@ def closure_status(
             "PUSH_PENDING" if remote_main.returncode == 0 and _run_git(
                 project_root, "merge-base", "--is-ancestor", "refs/remotes/origin/main", "main"
             ).returncode == 0 else None,
-            "git push origin main",
+            stop_resume("PUSH_PENDING"),
         )
 
     dirty_primary = git_output(project_root, "status", "--porcelain").splitlines()
@@ -1150,7 +1225,7 @@ def closure_status(
         return report(
             "C6",
             "PRIMARY_DIRTY",
-            f"{detail}; clean the primary checkout and run integration stage",
+            f"{detail}; {stop_resume('PRIMARY_DIRTY')}",
         )
     evidence_path = state_path.with_suffix(".evidence.json")
     if evidence_path.is_file():
@@ -1170,7 +1245,7 @@ def closure_status(
                 f"meridian worktree integrate stage {identity.canonical_id} --project {project} "
                 f"--evidence {evidence_path} --format json",
             )
-    return report("C5", "EVIDENCE_INCOMPLETE", "record machine evidence")
+    return report("C5", "EVIDENCE_INCOMPLETE", stop_resume("EVIDENCE_INCOMPLETE"))
 
 
 def _string_tuple(value: object, label: str) -> tuple[str, ...]:
@@ -1241,11 +1316,10 @@ def undeclared_validation_commands_error(project_root: Path, evidence: dict[str,
     commands = evidence.get("validation_commands")
     recorded = ", ".join(commands) if isinstance(commands, list) and commands else "none recorded"
     proposal = json.dumps(proposed_candidate_validation_declaration(project_root), sort_keys=True)
-    return MeridianError(
-        "BLOCKED UNDECLARED_VALIDATION_COMMANDS: no project choice is recorded at "
-        f"{CANDIDATE_VALIDATION_PATH}. Task validation commands: {recorded}. "
-        f"Proposed declaration: {proposal}. Resume by explicitly writing declared fragments or state none, "
-        "then rerun `meridian worktree integrate stage`."
+    return stop_error(
+        "UNDECLARED_VALIDATION_COMMANDS",
+        f"no project choice is recorded at {CANDIDATE_VALIDATION_PATH}. "
+        f"Task validation commands: {recorded}. Proposed declaration: {proposal}",
     )
 
 
@@ -1765,8 +1839,10 @@ def stage_task_integration(
             return prior
         raise MeridianError(f"staged integration state is mismatched or stale at {integration_path}")
     if lease_path.exists():
-        raise MeridianError(
-            f"an interrupted integration lease is retained at {lease_path}; use `meridian worktree integrate abort`"
+        raise stop_error(
+            "LEASE_HELD",
+            f"an interrupted integration lease is retained at {lease_path}; use `meridian worktree integrate abort`",
+            task_id=identity.canonical_id, project=project_root,
         )
     inspection, ready = inspect_task_worktree(
         identity.canonical_id,
@@ -1779,7 +1855,7 @@ def stage_task_integration(
     if git_output(project_root, "branch", "--show-current") != "main":
         raise MeridianError("primary checkout must be on main")
     if git_output(project_root, "status", "--porcelain"):
-        raise MeridianError("primary checkout must be clean")
+        raise stop_error("PRIMARY_DIRTY", "primary checkout must be clean")
     origin = _run_git(project_root, "remote", "get-url", "origin")
     remote_main = _run_git(project_root, "rev-parse", "--verify", "refs/remotes/origin/main")
     if (
@@ -1792,10 +1868,12 @@ def stage_task_integration(
             project_root, "rev-parse", "refs/remotes/origin/main"
         )
     ):
-        raise MeridianError(
-            "MAIN_BEHIND_ORIGIN: local main is behind the already fetched origin/main "
+        raise stop_error(
+            "MAIN_BEHIND_ORIGIN",
+            "local main is behind the already fetched origin/main "
             f"(local main {git_output(project_root, 'rev-parse', '--short=12', 'main')}, "
-            f"origin/main {git_output(project_root, 'rev-parse', '--short=12', 'refs/remotes/origin/main')})"
+            f"origin/main {git_output(project_root, 'rev-parse', '--short=12', 'refs/remotes/origin/main')})",
+            task_id=identity.canonical_id, project=project_root, evidence=evidence_path,
         )
     evidence = _integration_evidence(evidence_path)
     declaration_state, _fragments = candidate_validation_declaration(project_root)
@@ -1867,13 +1945,20 @@ def stage_task_integration(
     try:
         _write_json_atomic(lease_path, lease, exclusive=True)
     except FileExistsError as error:
-        raise MeridianError(f"integration lease already exists: {lease_path}") from error
+        raise stop_error(
+            "LEASE_HELD", f"integration lease already exists: {lease_path}",
+            task_id=identity.canonical_id, project=project_root,
+        ) from error
     merged = _run_git(project_root, "merge", "--no-ff", "--no-commit", identity.branch_name)
     if merged.returncode != 0:
         aborted = _run_git(project_root, "merge", "--abort")
         if aborted.returncode == 0:
             _remove_owned_file(lease_path)
-        raise MeridianError("integration conflict was aborted; task branch and worktree were retained")
+        raise stop_error(
+            "INTEGRATION_CONFLICT",
+            "integration conflict was aborted; task branch and worktree were retained",
+            task_id=identity.canonical_id, project=project_root, evidence=evidence_path,
+        )
     try:
         completion = _apply_task_completion_rows(project_root, identity)
         lifecycle_paths = [str(identity.queue_path.relative_to(project_root))]
@@ -1932,28 +2017,35 @@ def finalize_task_integration(
     ) != staged.get("main_commit"):
         raise MeridianError("the owned staged merge state is missing or its main commit changed")
     if git_output(project_root, "write-tree") != staged.get("candidate_tree"):
-        raise MeridianError("staged candidate tree changed after integration stage")
+        raise stop_error("EVIDENCE_MISMATCH", "staged candidate tree changed after integration stage", task_id=identity.canonical_id, project=project_root)
     validation = _read_json_object(validation_path.expanduser().resolve(), "candidate validation evidence")
     if validation.get("candidate_tree") != staged.get("candidate_tree") or validation.get("passed") is not True:
-        raise MeridianError("candidate validation evidence is stale, mismatched, or failed")
+        raise stop_error(
+            "EVIDENCE_MISMATCH", "candidate validation evidence is stale, mismatched, or failed", task_id=identity.canonical_id, project=project_root
+        )
     required_scope = "full" if staged.get("decision") == "FULL" else "bounded"
     if validation.get("scope") != required_scope:
-        raise MeridianError(f"candidate validation scope must be {required_scope!r}")
+        raise stop_error(
+            "EVIDENCE_MISMATCH", f"candidate validation scope must be {required_scope!r}", task_id=identity.canonical_id, project=project_root
+        )
     commands = validation.get("commands")
     if not isinstance(commands, list) or not commands or not all(isinstance(item, str) and item for item in commands):
-        raise MeridianError("candidate validation evidence must name successful commands")
+        raise stop_error(
+            "EVIDENCE_MISMATCH", "candidate validation evidence must name successful commands", task_id=identity.canonical_id, project=project_root
+        )
     declaration_state, declaration_fragments = candidate_validation_declaration(project_root)
     if declaration_state == "undeclared":
-        raise MeridianError(
-            "BLOCKED UNDECLARED_VALIDATION_COMMANDS: declare candidate validation commands before finalize"
+        raise stop_error(
+            "UNDECLARED_VALIDATION_COMMANDS", "declare candidate validation commands before finalize"
         )
     missing_commands = missing_candidate_validation_commands(
         staged["decision"], commands, declaration_fragments
     )
     if missing_commands:
-        raise MeridianError(
-            "candidate validation evidence is missing mandatory command(s): "
-            + ", ".join(missing_commands)
+        raise stop_error(
+            "EVIDENCE_MISMATCH",
+            "candidate validation evidence is missing mandatory command(s): " + ", ".join(missing_commands),
+            task_id=identity.canonical_id, project=project_root,
         )
     committed = _run_git(project_root, "commit", "-m", f"Integrate {identity.canonical_id}")
     if committed.returncode != 0:
@@ -2036,27 +2128,31 @@ def cleanup_task_worktree(
         require_effective_worktree=False,
     )
     if lease_path.exists() or integration_path.exists():
-        raise MeridianError("cleanup is blocked while an integration lease or staged merge is active")
+        raise stop_error("CLEANUP_BLOCKED", "cleanup is blocked while an integration lease or staged merge is active", task_id=identity.canonical_id, project=project_root)
     if not ready:
-        raise MeridianError(f"cleanup preflight failed: {', '.join(inspection['errors'])}")
+        raise stop_error("CLEANUP_BLOCKED", f"cleanup preflight failed: {', '.join(inspection['errors'])}", task_id=identity.canonical_id, project=project_root)
     if git_output(project_root, "status", "--porcelain"):
-        raise MeridianError("primary checkout must be clean")
+        raise stop_error("CLEANUP_BLOCKED", "primary checkout must be clean", task_id=identity.canonical_id, project=project_root)
     task_commit = str(inspection["task_commit"])
     if _run_git(project_root, "merge-base", "--is-ancestor", task_commit, "main").returncode != 0:
-        raise MeridianError("task commit is not integrated into main")
+        raise stop_error("CLEANUP_BLOCKED", "task commit is not integrated into main", task_id=identity.canonical_id, project=project_root)
     origin = _run_git(project_root, "remote", "get-url", "origin")
     if origin.returncode == 0:
         remote_main = _run_git(project_root, "rev-parse", "--verify", "refs/remotes/origin/main")
         if remote_main.returncode != 0 or _run_git(
             project_root, "merge-base", "--is-ancestor", "main", "refs/remotes/origin/main"
         ).returncode != 0:
-            raise MeridianError("local main is not proven pushed to origin/main")
+            raise stop_error("CLEANUP_BLOCKED", "local main is not proven pushed to origin/main", task_id=identity.canonical_id, project=project_root)
     removed = _run_git(project_root, "worktree", "remove", str(inspection["worktree"]))
     if removed.returncode != 0:
-        raise MeridianError(removed.stderr.strip() or "worktree removal failed; branch was retained")
+        raise stop_error(
+            "CLEANUP_BLOCKED", removed.stderr.strip() or "worktree removal failed; branch was retained", task_id=identity.canonical_id, project=project_root
+        )
     deleted = _run_git(project_root, "branch", "-d", identity.branch_name)
     if deleted.returncode != 0:
-        raise MeridianError(deleted.stderr.strip() or "non-force branch deletion failed")
+        raise stop_error(
+            "CLEANUP_BLOCKED", deleted.stderr.strip() or "non-force branch deletion failed", task_id=identity.canonical_id, project=project_root
+        )
     _remove_owned_file(state_path)
     return {"version": 1, "task_id": identity.canonical_id, "status": "cleaned"}
 
@@ -10143,7 +10239,11 @@ def main() -> int:
                 if arguments.format == "json":
                     print(json.dumps(report, sort_keys=True))
                 elif report["stop_reason"] is not None:
-                    print(f"BLOCKED {report['stop_reason']}; resume: {report['resume']}")
+                    print(format_stop(
+                        str(report["stop_reason"]),
+                        str(load_stop_registry()[str(report["stop_reason"])]["summary"]),
+                        resume=str(report["resume"]),
+                    ))
                 else:
                     print(f"{report['step']}; resume: {report['resume'] or 'none'}")
                 if not ready:
@@ -10292,6 +10392,9 @@ def main() -> int:
                 arguments.owner_reconciled,
                 arguments.stop_before_retirement,
             )
+    except MeridianStop as error:
+        print(error, file=sys.stderr)
+        return 2
     except MeridianError as error:
         print(f"BLOCKED: {error}", file=sys.stderr)
         return 2

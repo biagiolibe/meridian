@@ -1,0 +1,225 @@
+{
+  "version": 1,
+  "stops": [
+    {
+      "code": "ACCEPTANCE_UNMET",
+      "class": "judgment",
+      "workflows": [
+        "lean-delivery",
+        "governed-sdd"
+      ],
+      "step": "C1",
+      "emitter": "agent judgment; `meridian worktree closure-status` also reports it when the task branch has no commits",
+      "human_decision": false,
+      "resume": "complete the task and rerun task validation",
+      "tool_hint": "meridian worktree closure-status",
+      "kind": "stop",
+      "summary": "the task has no completed work or an acceptance criterion is unmet"
+    },
+    {
+      "code": "VALIDATION_FAILED",
+      "class": "command-exit",
+      "workflows": [
+        "lean-delivery",
+        "governed-sdd"
+      ],
+      "step": "C2",
+      "emitter": "a task-declared validation command that exits non-zero",
+      "human_decision": false,
+      "resume": "fix the failure on the task branch and rerun the failing command",
+      "kind": "stop",
+      "summary": "a task validation command failed"
+    },
+    {
+      "code": "REVIEW_REQUIRED",
+      "class": "judgment",
+      "workflows": [
+        "lean-delivery",
+        "governed-sdd"
+      ],
+      "step": "C3",
+      "emitter": "a review the task or the developer declared as required",
+      "human_decision": true,
+      "resume": "obtain the independent review, then continue at C4",
+      "kind": "stop",
+      "summary": "a required independent review is outstanding"
+    },
+    {
+      "code": "WRONG_WORKTREE",
+      "class": "tool",
+      "workflows": [
+        "lean-delivery",
+        "governed-sdd"
+      ],
+      "step": "C4",
+      "emitter": "`meridian worktree closure-status`",
+      "human_decision": false,
+      "resume": "meridian worktree prepare {task_id} --project {project} --format json",
+      "kind": "stop",
+      "summary": "the task worktree, branch, or lifecycle state is missing or does not match",
+      "test": "tests.test_meridian_cli.WorktreeLifecycleCliTest.test_closure_status_covers_lifecycle_states_without_mutation"
+    },
+    {
+      "code": "EVIDENCE_INCOMPLETE",
+      "class": "tool",
+      "workflows": [
+        "lean-delivery",
+        "governed-sdd"
+      ],
+      "step": "C5",
+      "emitter": "`meridian worktree closure-status`",
+      "human_decision": false,
+      "resume": "record machine evidence",
+      "kind": "stop",
+      "summary": "machine evidence for the validated task commit is missing or incomplete",
+      "test": "tests.test_meridian_cli.WorktreeLifecycleCliTest.test_closure_status_text_reports_incomplete_evidence_through_the_registry"
+    },
+    {
+      "code": "PRIMARY_DIRTY",
+      "class": "tool",
+      "workflows": [
+        "lean-delivery",
+        "governed-sdd"
+      ],
+      "step": "C6",
+      "emitter": "`meridian worktree closure-status`; `meridian worktree integrate stage`",
+      "human_decision": false,
+      "resume": "clean the primary checkout and run integration stage",
+      "kind": "stop",
+      "summary": "the primary checkout has uncommitted changes",
+      "test": "tests.test_meridian_cli.WorktreeLifecycleCliTest.test_integrate_stage_reports_primary_dirty_through_the_registry"
+    },
+    {
+      "code": "MAIN_BEHIND_ORIGIN",
+      "class": "tool",
+      "workflows": [
+        "lean-delivery",
+        "governed-sdd"
+      ],
+      "step": "C6",
+      "emitter": "`meridian worktree integrate stage`",
+      "human_decision": false,
+      "resume": "bring local main up to the fetched origin/main without rewriting history, then rerun meridian worktree integrate stage {task_id} --project {project} --evidence {evidence} --format json",
+      "kind": "stop",
+      "summary": "local main is behind the fetched origin/main",
+      "test": "tests.test_meridian_cli.WorktreeLifecycleCliTest.test_integrate_stage_blocks_when_fetched_origin_main_is_ahead"
+    },
+    {
+      "code": "LEASE_HELD",
+      "class": "tool",
+      "workflows": [
+        "lean-delivery",
+        "governed-sdd"
+      ],
+      "step": "C6",
+      "emitter": "`meridian worktree closure-status`; `meridian worktree integrate stage`",
+      "human_decision": false,
+      "resume": "meridian worktree integrate abort {task_id} --project {project} --format json",
+      "kind": "stop",
+      "summary": "an integration lease is already held",
+      "test": "tests.test_meridian_cli.WorktreeLifecycleCliTest.test_integrate_stage_reports_a_held_lease_through_the_registry"
+    },
+    {
+      "code": "INTEGRATION_CONFLICT",
+      "class": "tool",
+      "workflows": [
+        "lean-delivery",
+        "governed-sdd"
+      ],
+      "step": "C6",
+      "emitter": "`meridian worktree integrate stage`",
+      "human_decision": true,
+      "resume": "the developer resolves the conflict on the task branch, then rerun meridian worktree integrate stage {task_id} --project {project} --evidence {evidence} --format json",
+      "kind": "stop",
+      "summary": "the merge of the task branch into main conflicts",
+      "test": "tests.test_meridian_cli.WorktreeLifecycleCliTest.test_integrate_stage_reports_an_integration_conflict_through_the_registry"
+    },
+    {
+      "code": "CANDIDATE_VALIDATION_FAILED",
+      "class": "command-exit",
+      "workflows": [
+        "lean-delivery",
+        "governed-sdd"
+      ],
+      "step": "C7",
+      "emitter": "a declared candidate validation command that exits non-zero",
+      "human_decision": false,
+      "resume": "meridian worktree integrate abort {task_id} --project {project} --format json",
+      "kind": "stop",
+      "summary": "a candidate validation command failed"
+    },
+    {
+      "code": "EVIDENCE_MISMATCH",
+      "class": "tool",
+      "workflows": [
+        "lean-delivery",
+        "governed-sdd"
+      ],
+      "step": "C8",
+      "emitter": "`meridian worktree integrate finalize`",
+      "human_decision": false,
+      "resume": "meridian worktree integrate abort {task_id} --project {project} --format json",
+      "kind": "stop",
+      "summary": "candidate validation evidence does not match the staged candidate",
+      "test": "tests.test_meridian_cli.WorktreeLifecycleCliTest.test_integrate_finalize_reports_an_evidence_mismatch_through_the_registry"
+    },
+    {
+      "code": "PUSH_PENDING",
+      "class": "tool",
+      "workflows": [
+        "lean-delivery",
+        "governed-sdd"
+      ],
+      "step": "C9",
+      "emitter": "`meridian worktree closure-status`",
+      "human_decision": false,
+      "resume": "git push origin main",
+      "kind": "status",
+      "summary": "local main is ahead of origin/main and must be pushed"
+    },
+    {
+      "code": "PUSH_REJECTED",
+      "class": "command-exit",
+      "workflows": [
+        "lean-delivery",
+        "governed-sdd"
+      ],
+      "step": "C9",
+      "emitter": "`git push origin main` exiting non-zero",
+      "human_decision": true,
+      "resume": "the developer decides; never force the push and never rebase",
+      "kind": "stop",
+      "summary": "origin rejected the push of main"
+    },
+    {
+      "code": "CLEANUP_BLOCKED",
+      "class": "tool",
+      "workflows": [
+        "lean-delivery",
+        "governed-sdd"
+      ],
+      "step": "C10",
+      "emitter": "`meridian worktree cleanup`",
+      "human_decision": false,
+      "resume": "rerun meridian worktree cleanup {task_id} --project {project} --format json after the named condition clears",
+      "kind": "stop",
+      "summary": "cleanup preconditions are not met",
+      "test": "tests.test_meridian_cli.WorktreeLifecycleCliTest.test_cleanup_reports_blocked_cleanup_through_the_registry"
+    },
+    {
+      "code": "UNDECLARED_VALIDATION_COMMANDS",
+      "class": "tool",
+      "workflows": [
+        "lean-delivery",
+        "governed-sdd"
+      ],
+      "step": "C6",
+      "emitter": "`meridian worktree integrate stage`; `meridian worktree integrate finalize`",
+      "human_decision": true,
+      "resume": "write declared candidate validation fragments or state none in .meridian/candidate-validation.json, then rerun the interrupted meridian worktree integrate step",
+      "kind": "stop",
+      "summary": "the project has not declared its candidate validation commands",
+      "test": "tests.test_meridian_cli.WorktreeLifecycleCliTest.test_integrate_stage_reports_undeclared_validation_commands_through_the_registry"
+    }
+  ]
+}
