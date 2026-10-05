@@ -25,30 +25,30 @@ follows. This is part 1 of issue #4. The non-blocking preflight hint
 
 ## Acceptance Criteria
 
-- [ ] The `## Validation` guidance in
+- [x] The `## Validation` guidance in
   `templates/workflows/governed-sdd/tasks/TASK_BLUEPRINT.md` states that:
   - every command that proves an acceptance criterion or an `Evidence needed`
     item has its own declared validation ID;
   - one ID holds exactly one command;
   - output paths are fixed and task-scoped, for example `target/<TASK-ID>/`;
   - commands use no `mktemp`, `$(...)`, or time-based paths.
-- [ ] The guidance is wording only. `require_named_validation_commands` and
+- [x] The guidance is wording only. `require_named_validation_commands` and
   `validation_commands` do not change what they accept, and existing tasks that
   declare fewer IDs are not an error.
-- [ ] The change ships through the `task-blueprint` capability marker.
+- [x] The change ships through the `task-blueprint` capability marker.
   Migration 063 already bumps `task-blueprint` to v14 for the unreleased 1.2.9.
   If 1.2.9 is still unreleased when this task starts, extend migration 063's
   `task-blueprint` delta and keep v14. Otherwise, add a migration to the next
   release that bumps the marker version. The marker baselines and
   `migrations/CAPABILITY_MARKERS.md` stay consistent, and `meridian audit`
   reports no drift.
-- [ ] The Governed SDD Codex and Claude Code skill assets that describe task
+- [x] The Governed SDD Codex and Claude Code skill assets that describe task
   validation stay in parity, as `CONTRIBUTING.md` requires.
-- [ ] `meridian upgrade --check` on copies of the Palimpsest and Fusa manifests
+- [x] `meridian upgrade --check` on copies of the Palimpsest and Fusa manifests
   shows the blueprint update and no `BLOCKED`; the results go in the handoff.
-- [ ] One changelog fragment states the change under `Changed` and the author
+- [x] One changelog fragment states the change under `Changed` and the author
   guidance under `Upgrade notes`.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
+- [x] `python3 scripts/check_repository.py` and the unit tests pass.
 
 ## Relevant Files
 
