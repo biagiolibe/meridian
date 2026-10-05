@@ -180,7 +180,7 @@ record that names the worktree uses the `handoff_worktree` value returned by
 absolute path.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=git-workflow v11 -->
+<!-- MERIDIAN:BEGIN capability=git-workflow v12 -->
 ## Git workflow
 
 ### Authority of `Proceed with`
@@ -227,6 +227,24 @@ conflict; or work on another task.
 - `Accept <TASK-ID>` appends an owner `APPROVE` attempt to the review record, sets the task record to `ACCEPTED`, and continues at C6 under the `Proceed with` authority. A manual merge is never permitted.
 - A forge approval cannot be supplied by the same identity that authored the PR. If an external approval is required but unavailable, leave the PR open and report `BLOCKED`.
 
+### Stops and denials
+
+The deny list above stays in force without a supporting command. A stop is
+valid only when it is backed by a `BLOCKED <CODE>` line from a Meridian
+command, a non-zero exit of a required command, or an acceptance criterion you
+can name as unmet. Guidance that no command backs is advice: follow it when you
+can, and never return `BLOCKED` on its strength alone.
+
+Never satisfy a gate by writing false state, such as setting a status only to
+pass a check. When a gate contradicts another rule, stop and report both rules.
+
+When a Meridian command accepted a state that this text appears to forbid,
+follow the command and record the difference under `Rule discrepancies:` in the
+handoff. This never covers an action on the deny list and never overrides a
+stop that a command printed.
+
+### Closure
+
 Close a validated task in order: verify acceptance criteria; run task and
 baseline validation; commit completion and archive records; then stop at
 `REVIEW_REQUIRED` if its declared review is required. Otherwise, or after the
@@ -234,12 +252,9 @@ reviewer-integrator approves, run `worktree check`; record machine evidence;
 stage from a clean primary checkout whose `main` equals `origin/main` or is
 ahead of it with commits not yet pushed (they are pushed with the integration;
 `main` behind the fetched `origin/main` is `MAIN_BEHIND_ORIGIN`); validate the candidate;
-finalize; push `origin main`; and clean up. Stop respectively with
-`ACCEPTANCE_UNMET`, `VALIDATION_FAILED`, `REVIEW_REQUIRED`,
-`WRONG_WORKTREE`, `EVIDENCE_INCOMPLETE`, `PRIMARY_DIRTY`,
-`MAIN_BEHIND_ORIGIN`, `LEASE_HELD`, `INTEGRATION_CONFLICT`,
-`CANDIDATE_VALIDATION_FAILED`, `EVIDENCE_MISMATCH`, `PUSH_REJECTED`, or
-`CLEANUP_BLOCKED`; resume with the named command. A named sandbox skip is not
+finalize; push `origin main`; and clean up. The stop codes of these steps are registered in
+`capabilities/stop-codes-v1.json`; `meridian worktree closure-status` reports
+the current step and its code, and each stop names its resume command. A named sandbox skip is not
 a validation failure only when the test itself reports it and no acceptance
 criterion depends solely on that test. Record its test name, reason, and
 reporting command as `Validation skips:` in the handoff.

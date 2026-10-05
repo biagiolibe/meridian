@@ -15,6 +15,7 @@ Save it at `tasks/handoffs/<TASK-ID>.md`.
 - Acceptance criteria: `<all met | list criterion IDs/status>`
 - Budget usage: `<diagnostics; captures; context expansions; investigation scope>`
 - Isolated exploration: `<none | recorded question(s) and finding(s)>`
+- Rule discrepancies: `<none | rule, command result, and what was followed>` (optional)
 - Blockers/deviations: `<none | concrete issue and reason>`
 ```
 

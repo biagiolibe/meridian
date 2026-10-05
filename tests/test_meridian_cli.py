@@ -1198,7 +1198,7 @@ class MeridianCliTest(unittest.TestCase):
         self.assertIn("MIGRATION 047-codex-worktree-access", checked.stdout)
         applied = self.run_cli("upgrade", "--apply")
         self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
-        self.assertIn("capability=git-workflow v11", project_workflow.read_text(encoding="utf-8"))
+        self.assertIn("capability=git-workflow v12", project_workflow.read_text(encoding="utf-8"))
         self.assertIn("Consumer-owned note.", project_workflow.read_text(encoding="utf-8"))
         self.assertIn(
             "capability=task-worktree-boundary v8",
@@ -1270,7 +1270,7 @@ class MeridianCliTest(unittest.TestCase):
         self.assertIn("MIGRATION 047-codex-worktree-access", checked.stdout)
         applied = self.run_cli("upgrade", "--apply")
         self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
-        self.assertIn("capability=git-workflow v11", project_workflow.read_text(encoding="utf-8"))
+        self.assertIn("capability=git-workflow v12", project_workflow.read_text(encoding="utf-8"))
         self.assertIn("Consumer-owned note.", project_workflow.read_text(encoding="utf-8"))
         self.assertIn(
             "capability=task-worktree-handoff v5",
@@ -1560,7 +1560,7 @@ worktree before the branch only after validated integration succeeds.
 
         for relative in paths:
             upgraded = (self.project / relative).read_text(encoding="utf-8")
-            self.assertIn("MERIDIAN:BEGIN capability=git-workflow v10", upgraded)
+            self.assertIn("MERIDIAN:BEGIN capability=git-workflow v11", upgraded)
             self.assertIn("Task branches do not edit `tasks/QUEUE.md`", upgraded)
         self.assertIn("Consumer-owned closure note.", agents.read_text(encoding="utf-8"))
         manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
@@ -1623,7 +1623,7 @@ worktree before the branch only after validated integration succeeds.
         upgraded_workflow = (self.project / "PROJECT_WORKFLOW.md").read_text(encoding="utf-8")
         upgraded_implementation = implementation.read_text(encoding="utf-8")
         upgraded_review = (self.project / "docs/workflows/REVIEW.md").read_text(encoding="utf-8")
-        self.assertIn("capability=git-workflow v11", upgraded_workflow)
+        self.assertIn("capability=git-workflow v12", upgraded_workflow)
         self.assertIn("Review: REQUIRED` is a gate, not a request for authorization", upgraded_workflow)
         self.assertIn("capability=task-worktree-boundary v8", upgraded_implementation)
         self.assertIn("REVIEW_REQUIRED`; it is a gate", upgraded_implementation)
@@ -4303,6 +4303,26 @@ Evidence plan:
         )
         self.assertEqual(self.run_cli("execution", "handoff-check", "TASK-013", str(report)).returncode, 0)
 
+    def test_handoff_accepts_report_with_or_without_rule_discrepancies(self) -> None:
+        self.write_task("TASK-009", "IN_PROGRESS")
+        report = self.project / "rule-discrepancies.md"
+        body = (
+            "## Completion Report — TASK-009\n\n- Files changed: none\n"
+            "- Validation: `python3 -m unittest discover -s tests -v` exit 0\n"
+            "- Validation skips: none\n"
+            "- Manual verification: none\n- Acceptance criteria: all met\n"
+            "- Budget usage: 0/3\n- Isolated exploration: none\n"
+            "%s- Blockers/deviations: none\n"
+        )
+        for extra in (
+            "",
+            "- Rule discrepancies: none\n",
+            "- Rule discrepancies: `main` ahead of origin; integrate stage accepted it; followed the command\n",
+        ):
+            report.write_text(body % extra, encoding="utf-8")
+            result = self.run_cli("execution", "handoff-check", "TASK-009", str(report))
+            self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_handoff_accepts_non_project_specific_skips_and_rejects_failures(self) -> None:
         self.write_task("TASK-009", "IN_PROGRESS")
         report = self.project / "validation-skips.md"
@@ -5026,7 +5046,7 @@ class CapabilityMarkerTest(unittest.TestCase):
         expected["document-precedence"] = "2"
         expected["execution-assets"] = "4"
         expected["roles"] = "3"
-        expected["git-workflow"] = "11"
+        expected["git-workflow"] = "12"
         expected["bounded-worktree-lifecycle"] = "4"
         expected["codex-worktree-access"] = "3"
         expected["task-identity-policy"] = "1"

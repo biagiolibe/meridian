@@ -39,8 +39,8 @@
       "version": 1
     },
     "git-workflow": {
-      "sha256": "c8f12c1f7542392888fea48c5f267bbf5159b7aa859e6c2b65cd15a66e8d516a",
-      "version": 11
+      "sha256": "5c47db32d26b2d75418e0bb31b0e3dcc2ba00caa13477a09d57607e4a5f20d66",
+      "version": 12
     },
     "review-policy": {
       "sha256": "197e387dbaa735f705a3d014034c13dbd31181b77deb83710f50c4f105749d17",
@@ -291,14 +291,14 @@
   },
   "templates/workflows/lean-delivery/AGENTS.md": {
     "git-workflow": {
-      "sha256": "4e870b3b322a355f24f191493cfe4899d398eb32f385fb3b382b378db2ffb175",
-      "version": 10
+      "sha256": "5a48d7bd32b14df252ec4eb701a29a49910112429be7d9ae7ab1b0621491dcb8",
+      "version": 11
     }
   },
   "templates/workflows/lean-delivery/CLAUDE.md": {
     "git-workflow": {
-      "sha256": "4e870b3b322a355f24f191493cfe4899d398eb32f385fb3b382b378db2ffb175",
-      "version": 10
+      "sha256": "5a48d7bd32b14df252ec4eb701a29a49910112429be7d9ae7ab1b0621491dcb8",
+      "version": 11
     }
   },
   "templates/workflows/lean-delivery/LANGUAGE_POLICY.md": {
@@ -317,8 +317,8 @@
       "version": 3
     },
     "git-workflow": {
-      "sha256": "4e870b3b322a355f24f191493cfe4899d398eb32f385fb3b382b378db2ffb175",
-      "version": 10
+      "sha256": "5a48d7bd32b14df252ec4eb701a29a49910112429be7d9ae7ab1b0621491dcb8",
+      "version": 11
     },
     "task-identity-policy": {
       "sha256": "78df2cd565b113a06771de7572bd260667aa8a687aa3b6066d12b4578d510221",
