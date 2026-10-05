@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import json
 import re
-import subprocess
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -18,7 +17,6 @@ import meridian
 
 BLOCKED_LINE = re.compile(r"^[\s>*_`-]*BLOCKED ([A-Z][A-Z0-9_]*)\b", re.MULTILINE)
 FALLBACK_WINDOW = timedelta(hours=24)
-TASK_BRANCH = re.compile(r"task-(\d+)")
 
 
 def final_message(payload: dict) -> str:
@@ -65,11 +63,10 @@ def session_start(payload: dict, now: datetime) -> datetime:
 
 
 def active_task(cwd: Path) -> str | None:
-    completed = subprocess.run(
-        ["git", "-C", str(cwd), "rev-parse", "--abbrev-ref", "HEAD"], text=True, capture_output=True, check=False, timeout=3
-    )
-    match = TASK_BRANCH.fullmatch(completed.stdout.strip()) if completed.returncode == 0 else None
-    return match.group(1) if match else None
+    """The task of the registered task worktree the hook runs in; `None` from the primary checkout."""
+    active = meridian.active_worktree_task(cwd)
+    task = active.get("task_id") if isinstance(active, dict) else None
+    return task if isinstance(task, str) else None
 
 
 def audit(payload: dict, now: datetime | None = None) -> list[dict]:

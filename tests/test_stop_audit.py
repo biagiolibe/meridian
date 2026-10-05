@@ -58,6 +58,15 @@ class StopAuditTest(unittest.TestCase):
         self.seed(self.blocked("WRONG_WORKTREE", ts="2026-10-01T00:00:00Z"))
         self.assertEqual(self.run_audit("BLOCKED WRONG_WORKTREE")[0]["result"], "unbacked_block")
 
+    def test_active_task_scopes_the_backing_line(self) -> None:
+        self.seed(self.blocked("WRONG_WORKTREE", task="172"))
+        with mock.patch.object(stop_audit, "active_task", return_value="173"):
+            written = self.run_audit("BLOCKED WRONG_WORKTREE")
+        self.assertEqual([(line["result"], line["task"]) for line in written], [("unbacked_block", "173")])
+        self.seed(self.blocked("WRONG_WORKTREE", task="173"))
+        with mock.patch.object(stop_audit, "active_task", return_value="173"):
+            self.assertEqual(self.run_audit("BLOCKED WRONG_WORKTREE"), [])
+
     def test_judgment_code_is_declared(self) -> None:
         self.seed(self.blocked("PRIMARY_DIRTY"))
         written = self.run_audit("BLOCKED ACCEPTANCE_UNMET: criterion 3")
