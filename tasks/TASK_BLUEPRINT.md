@@ -6,6 +6,7 @@
 > **Estimate**: [~1h / ~2h / etc.]
 > **Assigned to**: [Claude CLI / unassigned]
 > **Session**: [conversation ID or temporal reference]
+> **Origin**: [optional: capability / friction / maintenance / release — `friction` fixes a problem caused by Meridian's own rules or tools]
 
 ## 🎯 Objective
 
