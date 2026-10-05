@@ -147,6 +147,7 @@
 - `[ ]` 178 — Add the safety and remediation scenarios and run them before template-changing releases.
 - `[x]` 179 — Stabilize the parallel runner output comparison test.
 - `[ ]` 180 — Align the queue seed templates with closure ownership.
+- `[ ]` 181 — Run the stop audit on Codex and record the host on audit lines.
 - `[x]` 140 — Let `integrate stage` complete rows of project-shaped Governed queues.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.
