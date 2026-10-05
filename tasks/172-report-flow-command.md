@@ -35,10 +35,25 @@ Meridian is getting lighter or heavier:
 - [ ] This repository's `tasks/TASK_BLUEPRINT.md` gains the optional `Origin`
   line, if that file is not a managed copy. Template blueprints are not changed
   in this task.
+- [ ] Targets are declared before any data is collected, in
+  `.meridian/flow-targets.json` (version 1). This repository declares:
+  - zero `unbacked_block` records over the last 20 integrated tasks;
+  - a median lead time over the last 20 integrated tasks no more than 10%
+    above the median of the 20 before them;
+  - a `friction` origin share of at most 30% over the last 20 tasks that
+    declare an origin.
+  The report prints each target with its measured value and `met`, `missed`,
+  or `insufficient data` when fewer tasks exist than the window needs. A missed
+  target never changes the exit status. A missing targets file shows only the
+  measurements.
+- [ ] The report lists, as removal candidates, the registered stop codes of
+  class `tool` that were not emitted in the period, together with the period
+  length.
 - [ ] Malformed journal lines are counted and reported, never fatal. An empty
   or missing journal gives an empty report and exit status 0.
 - [ ] Tests cover lead time, stop grouping, the period filter, origin shares,
-  malformed lines, and an empty journal.
+  each target state (`met`, `missed`, `insufficient data`), the removal
+  candidates, malformed lines, and an empty journal.
 - [ ] One changelog fragment is added per `CONTRIBUTING.md`; this is a CLI-only
   change.
 - [ ] `python3 scripts/check_repository.py` and the unit tests pass.
@@ -50,6 +65,7 @@ Meridian is getting lighter or heavier:
 | `scripts/meridian.py` | New `report flow` command. |
 | `capabilities/stop-codes-v1.json` | Stop classes. |
 | `tasks/TASK_BLUEPRINT.md` | Optional `Origin` line. |
+| `.meridian/flow-targets.json` | This repository's declared targets. |
 | `tests/` | Report tests. |
 
 ## Technical Context
@@ -59,6 +75,11 @@ Meridian is getting lighter or heavier:
   journal existed.
 - Unbacked `BLOCKED` records from task 173 are reported when present, as
   their own line.
+- The target values were set on 2026-10-05, before any journal data existed,
+  so that the data cannot shape them. Change a value only through a separate,
+  recorded decision.
+- A stop code that never fires is only a candidate for removal. Removing it is
+  a separate decision, because some gates guard rare but real conditions.
 
 ## Validation
 
