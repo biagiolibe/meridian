@@ -4,7 +4,7 @@
 > **Category**: Feature
 > **Priority**: 🟡 P2
 > **Estimate**: ~2h
-> **Assigned to**: unassigned
+> **Assigned to**: Claude Code
 > **Session**: Rigidity measurement follow-up to ADR stops and denials, 2026-10-05
 
 ## Objective
@@ -19,27 +19,27 @@ Add an append-only local journal that every lifecycle command writes to.
 
 ## Acceptance Criteria
 
-- [ ] `prepare`, `check`, `closure-status`, `evidence`, `integrate stage`,
+- [x] `prepare`, `check`, `closure-status`, `evidence`, `integrate stage`,
   `integrate finalize`, `integrate abort`, and `cleanup` each append one JSON
   line to `<git-common-dir>/meridian-journal.jsonl`.
-- [ ] Each line has `version` (1), `ts` (ISO-8601 UTC), `command`, `task`
+- [x] Each line has `version` (1), `ts` (ISO-8601 UTC), `command`, `task`
   (canonical ID), `step` when known, `result` (`ok`, `blocked`, or `error`),
   `stop_code` when blocked, and `exit`. It contains no absolute path, no
   command-line text supplied by the agent, and no message content.
-- [ ] The journal is untracked and shared by all worktrees of the repository.
+- [x] The journal is untracked and shared by all worktrees of the repository.
   The file is rotated to `meridian-journal.1.jsonl` when it exceeds 5 MB, and
   only one previous file is kept.
-- [ ] A journal write that fails never changes a command's result or exit
+- [x] A journal write that fails never changes a command's result or exit
   status. It prints one warning to standard error.
-- [ ] Concurrent appends from two worktrees produce whole lines; a test proves
+- [x] Concurrent appends from two worktrees produce whole lines; a test proves
   it.
-- [ ] `docs/WORKTREE_LIFECYCLE.md` documents the journal, its fields, and its
+- [x] `docs/WORKTREE_LIFECYCLE.md` documents the journal, its fields, and its
   privacy boundary.
-- [ ] Tests cover one line per command, a blocked result with its registered
+- [x] Tests cover one line per command, a blocked result with its registered
   code, rotation, a write failure, and the absence of absolute paths.
-- [ ] One changelog fragment is added per `CONTRIBUTING.md`; this is a CLI-only
+- [x] One changelog fragment is added per `CONTRIBUTING.md`; this is a CLI-only
   change.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
+- [x] `python3 scripts/check_repository.py` and the unit tests pass.
 
 ## Relevant Files
 
