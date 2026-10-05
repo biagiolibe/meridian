@@ -1699,6 +1699,53 @@ def _archive_completed_queue_sections(
     return updated_queue, archive_contents.rstrip("\n") + "\n\n" + archived
 
 
+def _queue_archival_warnings(queue_contents: str, mode: str = "lean-delivery") -> list[str]:
+    """Name queue sections the archiver skips without error; never changes the queue."""
+    marks = [
+        (match.start(), len(match.group("marks")), match.group(0).strip())
+        for match in re.finditer(r"^(?P<marks>#{1,6}) .+$", queue_contents, re.MULTILINE)
+    ]
+    expected = "| Order | ID | Priority | Status | Review |" if mode == "governed-sdd" else "| Status |"
+    warnings: list[str] = []
+    owner_open = False
+    for index, (start, level, heading) in enumerate(marks):
+        if level == 3:
+            owner_open = True
+        elif owner_open:
+            continue  # the archiver reads everything after a `###` heading up to the next one as one section
+        end = marks[index + 1][0] if index + 1 < len(marks) else len(queue_contents)
+        if level == 3:
+            end = next((m[0] for m in marks[index + 1:] if m[1] == 3), len(queue_contents))
+        lines = queue_contents[start:end].splitlines()
+        header = next((
+            line for position, line in enumerate(lines[:-1])
+            if line.startswith("|") and _QUEUE_TABLE_DIVIDER.fullmatch(lines[position + 1])
+            and "status" in {cell.strip().strip("`").casefold() for cell in line.strip().strip("|").split("|")}
+        ), None)
+        if header is None:
+            continue
+        if level != 3:
+            warnings.append(
+                f"queue section {heading!r} is not archived: heading level {level} is not `###`, "
+                "the only level archival reads"
+            )
+        elif not any(line.startswith(expected + " ") or line.rstrip() == expected for line in lines):
+            warnings.append(
+                f"queue section {heading!r} is not archived: table header {header.strip()!r} "
+                f"does not start with the expected columns {expected!r}"
+            )
+        elif mode == "governed-sdd":
+            rows = [m for line in lines if (m := _GOVERNED_QUEUE_TASK_ROW.fullmatch(line)) is not None]
+            inconclusive = [row.group("id").strip() for row in rows if row.group("status") == "INCONCLUSIVE"]
+            done = {"ACCEPTED", "ANSWERED", "INCONCLUSIVE"}
+            if inconclusive and all(row.group("status") in done for row in rows):
+                warnings.append(
+                    f"queue section {heading!r} stays open only because of INCONCLUSIVE row(s): "
+                    + ", ".join(inconclusive)
+                )
+    return warnings
+
+
 def _relink_archived_task_row(contents: str, queue_path: Path, identity: ResolvedTaskIdentity) -> str:
     """Point the task's queue row at its record when the merge archived it under done/."""
     active_record = identity.task_path
@@ -1961,6 +2008,9 @@ def stage_task_integration(
         )
     try:
         completion = _apply_task_completion_rows(project_root, identity)
+        queue_warnings = _queue_archival_warnings(
+            identity.queue_path.read_text(encoding="utf-8"), detect_mode(project_root)
+        )
         lifecycle_paths = [str(identity.queue_path.relative_to(project_root))]
         if detect_mode(project_root) == "lean-delivery":
             lifecycle_paths.append(str(resolve_project_locations(project_root).plan))
@@ -1993,6 +2043,7 @@ def stage_task_integration(
         "candidate_tree": candidate_tree,
         "next_action": "validate-candidate",
         "completion": completion,
+        "warnings": queue_warnings,
     }
     _write_json_atomic(integration_path, staged, exclusive=True)
     return staged

@@ -17,19 +17,19 @@ visible. The archival rules themselves do not change.
 
 ## Acceptance Criteria
 
-- [ ] When a queue section contains a table with a `Status` column that the
+- [x] When a queue section contains a table with a `Status` column that the
   archiver does not recognize, `integrate stage` reports a warning naming the
   section heading and the reason, such as heading level or column order. The
   same warning appears in the `meridian worktree closure-status` or stage JSON
   output under `warnings`.
-- [ ] A warning never blocks the stage and never changes the merged tree.
+- [x] A warning never blocks the stage and never changes the merged tree.
   Recognized sections are archived exactly as before.
-- [ ] A section that stays open only because of an `INCONCLUSIVE` row is
+- [x] A section that stays open only because of an `INCONCLUSIVE` row is
   reported as such, without changing whether it is archived.
-- [ ] Tests reproduce issue #2's example (`## ` heading with `Dependencies |
+- [x] Tests reproduce issue #2's example (`## ` heading with `Dependencies |
   Estimate` columns), a recognized section, and an `INCONCLUSIVE` section.
-- [ ] One changelog fragment is added under `Changed`; this is a CLI-only change.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
+- [x] One changelog fragment is added under `Changed`; this is a CLI-only change.
+- [x] `python3 scripts/check_repository.py` and the unit tests pass.
 
 ## Relevant Files
 

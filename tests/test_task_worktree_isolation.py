@@ -784,6 +784,90 @@ class BoundedWorktreeLifecycleTest(unittest.TestCase):
         self.assertIn("- `[x]` 056 — Lifecycle", plan.read_text(encoding="utf-8"))
         meridian.abort_task_integration("056", self.primary)
 
+    def test_stage_reports_an_unreadable_queue_section_without_changing_the_tree(self) -> None:
+        prepared = self.prepare()
+        task_worktree = Path(str(prepared["worktree"]))
+        (task_worktree / "feature.txt").write_text("implemented\n", encoding="utf-8")
+        self.git("add", "feature.txt", cwd=task_worktree)
+        self.git("commit", "-m", "implement task", cwd=task_worktree)
+        task_commit = self.git("rev-parse", "HEAD", cwd=task_worktree).stdout.strip()
+        queue = self.primary / "tasks/QUEUE.md"
+        unreadable = (
+            "\n## Phase 2 — Unreadable\n\n"
+            "| Status | ID | Title | Dependencies | Estimate |\n|---|---|---|---|---|\n"
+            "| `[x]` | 090 | Done | — | 1h |\n"
+        )
+        queue.write_text(queue.read_text(encoding="utf-8") + unreadable, encoding="utf-8")
+        self.git("add", "tasks/QUEUE.md")
+        self.git("commit", "-m", "register unreadable section")
+        evidence_path = self.root / "integration-evidence.json"
+        evidence_path.write_text(json.dumps({
+            "accepted": True, "validation_passed": True,
+            "validated_task_commit": task_commit, "validated_base_commit": self.base,
+            "full_validation_required": False, "interaction_assessment_complete": True,
+            "task_paths": ["feature.txt"], "task_dependencies": [],
+            "task_behavioral_surfaces": [], "main_advanced_dependencies": [],
+            "main_advanced_behavioral_surfaces": [],
+        }), encoding="utf-8")
+
+        staged = meridian.stage_task_integration("056", self.worktree_root, evidence_path, self.primary)
+        self.assertEqual(len(staged["warnings"]), 1)
+        self.assertIn("## Phase 2 — Unreadable", staged["warnings"][0])
+        self.assertIn(unreadable, queue.read_text(encoding="utf-8"))
+        meridian.abort_task_integration("056", self.primary)
+
+    def test_queue_archival_warnings_name_the_unrecognized_section_and_reason(self) -> None:
+        issue_example = (
+            "## Phase 2 — Wrong level\n\n"
+            "| Status | ID | Title | Dependencies | Estimate |\n|---|---|---|---|---|\n"
+            "| `[x]` | 090 | Done | — | 1h |\n"
+        )
+        warnings = meridian._queue_archival_warnings(issue_example)
+        self.assertEqual(len(warnings), 1)
+        self.assertIn("## Phase 2 — Wrong level", warnings[0])
+        self.assertIn("heading level 2", warnings[0])
+        column_order = (
+            "### Phase 3 — Column order\n\n"
+            "| ID | Status | Title |\n|---|---|---|\n| 090 | `[x]` | Done |\n"
+        )
+        warnings = meridian._queue_archival_warnings(column_order)
+        self.assertEqual(len(warnings), 1)
+        self.assertIn("### Phase 3 — Column order", warnings[0])
+        self.assertIn("expected columns", warnings[0])
+
+    def test_queue_archival_warnings_ignore_recognized_sections_and_tables_without_status(self) -> None:
+        contents = (
+            "### Phase 1 — Open\n\n"
+            "| Status | ID | Title |\n|---|---|---|\n| `[x]` | 056 | Lifecycle |\n\n"
+            "#### Nested\n\n| Status | ID |\n|---|---|\n| `[ ]` | 057 |\n"
+        )
+        self.assertEqual(meridian._queue_archival_warnings(contents), [])
+        notes = "## Notes\n\n| Term | Meaning |\n|---|---|\n| a | b |\n"
+        self.assertEqual(meridian._queue_archival_warnings(notes), [])
+
+    def test_queue_archival_warnings_report_a_section_held_open_by_inconclusive(self) -> None:
+        header = (
+            "### Phase 1 — Governed\n\n"
+            "| Order | ID | Priority | Status | Review | Dependencies | Task file |\n"
+            "|---:|---|---|---|---|---|---|\n"
+        )
+        held = header + (
+            "| 1 | 056 | P0 | INCONCLUSIVE | SPIKE | — | [056](056.md) |\n"
+            "| 2 | 057 | P0 | ACCEPTED | NOT_REQUIRED | — | [057](057.md) |\n"
+        )
+        warnings = meridian._queue_archival_warnings(held, "governed-sdd")
+        self.assertEqual(len(warnings), 1)
+        self.assertIn("INCONCLUSIVE", warnings[0])
+        self.assertIn("056", warnings[0])
+        self.assertNotIn("057", warnings[0])
+        queued = held.replace("ACCEPTED", "QUEUED")
+        self.assertEqual(meridian._queue_archival_warnings(queued, "governed-sdd"), [])
+        retained, archive = meridian._archive_completed_queue_sections(
+            held, self.primary / "tasks/QUEUE.md", self.primary / "tasks/QUEUE_ARCHIVE.md", "governed-sdd"
+        )
+        self.assertEqual(retained, held)
+        self.assertIsNone(archive)
+
     def test_stage_uses_the_declared_project_plan(self) -> None:
         plan = self.primary / "docs/PLAN.md"
         plan.parent.mkdir()

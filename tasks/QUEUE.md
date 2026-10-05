@@ -49,7 +49,7 @@ Authority: [docs/ADR_STOPS_AND_DENIALS.md](../docs/ADR_STOPS_AND_DENIALS.md). 16
 | `[x]` | 165 | Install the deny list as host permission rules | 🟡 P2 | — | [165](done/165-host-deny-rules-for-denied-actions.md) |
 | `[x]` | 166 | Give codes and actionable messages to the execution and handoff gates | 🟡 P2 | 162 | [166](done/166-coded-actionable-execution-and-handoff-gates.md) |
 | `[x]` | 167 | Make the execution preflight satisfiable during remediation | 🔴 P1 | 166 | [167](done/167-satisfiable-execution-preflight-during-remediation.md) |
-| `[ ]` | 168 | Report queue sections that archival cannot read | 🟡 P2 | 162 | [168](168-report-unarchivable-queue-sections.md) |
+| `[x]` | 168 | Report queue sections that archival cannot read | 🟡 P2 | 162 | [168](done/168-report-unarchivable-queue-sections.md) |
 | `[ ]` | 169 | Code the remaining gates and require every stop to carry a code | 🟡 P2 | 163, 166 | [169](169-code-remaining-gates-and-require-coded-stops.md) |
 
 ### Phase 55 — Closure flow and measurement
