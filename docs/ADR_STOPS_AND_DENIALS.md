@@ -197,6 +197,12 @@ not been verified and is part of the follow-up work.
    and task 169 gives codes to the validation, investigation, and budget
    gates, audits them against the gate contract, and makes an uncoded stop a
    repository-check failure.
+   Revised after 1.2.9 was published: these two tasks ship in different
+   releases by release kind. Task 168 changes only the CLI and ships in the
+   CLI-only Release A with tasks 171–175. Task 169 changes managed text and
+   ships in the template-changing Release B with task 176, so both share one
+   migration and one `git-workflow` marker bump. `tasks/QUEUE.md` (Phase 55)
+   records the plan.
 4. Follow-up designs listed under Consequences, each through its own task.
 
 ## Out of Scope
