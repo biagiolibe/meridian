@@ -110,6 +110,13 @@ invocation mode, and configuration layer that supplies the adapter.
 
 - `<validation-id>`: `<complete literal command, including its output bound and exit-status handling>`
 
+Declare every command that proves an acceptance criterion or an `Evidence
+needed` item here, each under its own validation ID. One ID holds exactly one
+command. Write output paths as fixed, task-scoped paths such as
+`target/<TASK-ID>/`, and use no `mktemp`, `$(...)`, or time-based paths. An
+agent cannot compose a command that is not declared here without a permission
+prompt, because a host allowlist cannot match a composed string.
+
 Run source/build validation only through `meridian execution validate <TASK-ID>
 <validation-id> --project .`. The command is deliberately stored in this task:
 the runner executes no agent-supplied shell text and records its exit status in
