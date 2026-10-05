@@ -175,7 +175,8 @@
       "human_decision": false,
       "resume": "git push origin main",
       "kind": "status",
-      "summary": "local main is ahead of origin/main and must be pushed"
+      "summary": "local main is ahead of origin/main and must be pushed",
+      "test": "tests.test_meridian_cli.WorktreeLifecycleCliTest.test_closure_status_covers_lifecycle_states_without_mutation"
     },
     {
       "code": "PUSH_REJECTED",

@@ -743,5 +743,86 @@ class CatalogSurfaceMigrationTest(unittest.TestCase):
         cr.check_catalog_surface_migrations(self.root, unchanged, "1.2.7")
 
 
+class StopCodeRegistryCheckTest(unittest.TestCase):
+    TEST_NAME = "tests.test_emit.EmitTest.test_tool_line"
+
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory()
+        self.root = Path(self.temporary.name)
+        for directory in ("capabilities", "templates", "scripts", "tests"):
+            (self.root / directory).mkdir()
+        (self.root / "scripts/meridian.py").write_text("", encoding="utf-8")
+        (self.root / "tests/test_emit.py").write_text(
+            "class EmitTest:\n    def test_tool_line(self):\n        pass\n", encoding="utf-8"
+        )
+        self.registry = [
+            {"code": "ALPHA_STOP", "class": "tool", "test": self.TEST_NAME},
+            {"code": "BETA_STOP", "class": "judgment"},
+        ]
+        self.text = "Stop with `ALPHA_STOP` or `BETA_STOP`; returns `REUSE`, `FULL`.\n"
+        self.write()
+
+    def tearDown(self) -> None:
+        self.temporary.cleanup()
+
+    def write(self) -> None:
+        (self.root / "capabilities/stop-codes-v1.json").write_text(
+            json.dumps({"version": 1, "stops": self.registry}), encoding="utf-8"
+        )
+        (self.root / "templates/workflow.md").write_text(self.text, encoding="utf-8")
+
+    def failure(self) -> str:
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output), self.assertRaises(SystemExit):
+            cr.check_stop_code_registry(self.root)
+        return output.getvalue()
+
+    def test_registered_text_passes_and_unrelated_uppercase_lists_are_ignored(self) -> None:
+        cr.check_stop_code_registry(self.root)
+
+    def test_unregistered_token_after_blocked_names_file_line_and_token(self) -> None:
+        self.text += "\nThen BLOCKED GAMMA_STOP: detail.\n"
+        self.write()
+        self.assertIn("templates/workflow.md:3: unregistered stop code GAMMA_STOP", self.failure())
+
+    def test_unregistered_token_in_a_stop_code_list_fails(self) -> None:
+        self.text = "Stop with `ALPHA_STOP`, `GAMMA_STOP`, or `BETA_STOP`.\n"
+        self.write()
+        self.assertIn("templates/workflow.md:1: unregistered stop code GAMMA_STOP", self.failure())
+
+    def test_console_style_quoted_list_in_tests_is_checked(self) -> None:
+        (self.root / "tests/test_project_console.py").write_text(
+            'REASONS = (\n    "ALPHA_STOP", "BETA_STOP",\n    "GAMMA_STOP",\n)\n', encoding="utf-8"
+        )
+        self.assertIn("tests/test_project_console.py:3: unregistered stop code GAMMA_STOP", self.failure())
+
+    def test_tool_code_without_a_test_or_with_a_missing_test_fails(self) -> None:
+        del self.registry[0]["test"]
+        self.write()
+        self.assertIn("ALPHA_STOP is class tool but has no test field", self.failure())
+        self.registry[0]["test"] = "tests.test_emit.EmitTest.test_absent"
+        self.write()
+        self.assertIn("ALPHA_STOP names a test that does not exist", self.failure())
+
+    def test_registered_code_mentioned_nowhere_fails(self) -> None:
+        self.registry.append({"code": "DEAD_STOP", "class": "judgment"})
+        self.write()
+        self.assertIn("DEAD_STOP is registered but no managed text or CLI output mentions it", self.failure())
+
+    def test_code_emitted_only_by_the_cli_is_not_dead(self) -> None:
+        self.registry.append({"code": "CLI_STOP", "class": "judgment"})
+        self.write()
+        (self.root / "scripts/meridian.py").write_text('report("C1", "CLI_STOP")\n', encoding="utf-8")
+        cr.check_stop_code_registry(self.root)
+
+    def test_blocked_line_without_a_code_is_not_yet_required_to_carry_one(self) -> None:
+        self.text += "BLOCKED: some free-form reason.\n"
+        self.write()
+        cr.check_stop_code_registry(self.root)
+
+    def test_repository_passes(self) -> None:
+        cr.check_stop_code_registry(ROOT)
+
+
 if __name__ == "__main__":
     unittest.main()
