@@ -181,7 +181,11 @@ already-prepared state and directs you to publish. For either path, on `main`,
 publish with `python3 scripts/release.py publish --confirm v<VERSION>`. The
 confirmation must exactly match the current `VERSION`; the command prints every
 commit to push, the ledger kind, and any migration ids before it pushes `main`,
-creates and pushes the tag. When `gh` is available, it polls every five seconds
+creates and pushes the tag, then fast-forwards the remote branch `stable` to the release
+commit with `git push origin <release-commit>:refs/heads/stable` (creating it on
+the first release). It first checks that the commit's `.claude-plugin/plugin.json`
+version equals the tag, and it stops, leaving `main` and the tag as published,
+if `stable` is not an ancestor of the release commit. When `gh` is available, it polls every five seconds
 for up to two minutes for the `Publish release` push run whose SHA matches the
 tag, then watches and verifies it. Release verification uses `gh release view`
 only with fields supported by current GitHub CLI versions and checks the latest
@@ -190,7 +194,8 @@ printed workflow and release URLs manually. If the run is not observed before
 the timeout, the successful pushes remain unchanged and the command prints the
 exact `gh run list`, `gh release view`, and read-only
 `python3 scripts/release.py verify --version X.Y.Z` commands to resume.
-`verify` requires the tag on `origin` and performs the same polling, workflow,
+`verify` requires the tag on `origin`, checks that remote `stable` points to
+the tag commit, and performs the same polling, workflow,
 release, and self-check verification without creating, moving, deleting, or
 pushing anything. The release command never force pushes, deletes, or moves a
 tag. If the workflow fails, the tag remains in place and no GitHub Release was
