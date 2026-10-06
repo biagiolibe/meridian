@@ -33,6 +33,13 @@ code and not in prose.
   the next release. `upgrade --check` on copies of the Palimpsest and Fusa
   manifests shows the update and no `BLOCKED`; the results go in the handoff.
 - [ ] The Codex and Claude Code skill assets for both modes stay in parity.
+- [ ] The shipped Codex rule templates
+  (`templates/workflows/*/.codex/rules/meridian.rules`) allow
+  `meridian worktree advance` in both modes, and `meridian codex doctor`
+  probes it with the other lifecycle commands. Both changes ship in this
+  task's migration. They were deferred from task 174, whose Release A was
+  CLI-only with no migration. This repository's `.codex/rules/meridian.rules`
+  is updated through `meridian upgrade`, not by hand.
 - [ ] `VERSION`, `.claude-plugin/plugin.json`, and the release ledger are bumped
   only if no earlier unreleased task has done so for the same release.
 - [ ] One changelog fragment states the change under `Changed` and the action
@@ -49,6 +56,9 @@ code and not in prose.
 | `docs/WORKTREE_LIFECYCLE.md` | Manual path. |
 | `migrations/`, `migrations/CAPABILITY_MARKERS.md`, `migrations/marker-baselines/` | Marker delivery. |
 | `skills/` | Skill parity. |
+| `templates/workflows/*/.codex/rules/meridian.rules` | Codex rule templates; gain `advance`. |
+| `.codex/rules/meridian.rules` | This repository's copy; updated by `meridian upgrade`. |
+| `scripts/meridian.py` | `codex doctor` lifecycle command probes. |
 
 ## Technical Context
 
