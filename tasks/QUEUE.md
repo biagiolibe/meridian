@@ -58,3 +58,12 @@ Release plan:
 | `[ ]` | 178 | Add the safety and remediation scenarios and run them before template-changing releases | 🟡 P2 | 177, 167 | [178](178-agent-eval-scenarios-and-release-gate.md) |
 | `[ ]` | 180 | Align the queue seed templates with closure ownership | 🟢 P3 | — | [180](180-align-queue-seed-templates-with-closure-ownership.md) |
 | `[ ]` | 181 | Run the stop audit on Codex and record the host on audit lines | 🟡 P2 | 173 | [181](181-codex-stop-audit-and-journal-host.md) |
+
+### Phase 56 — Test suite cost
+
+Authority: the test suite cost review of 2026-10-06 (848 tests, 343 s sequential, 61 s parallel).
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 182 | Make the parallel test runner this repository's standard validation | 🟡 P2 | — | [182](182-parallel-suite-as-standard-validation.md) |
+| `[ ]` | 183 | Build lifecycle test repositories once per class and copy them per test | 🟡 P2 | — | [183](183-shared-test-fixtures-for-lifecycle-tests.md) |
