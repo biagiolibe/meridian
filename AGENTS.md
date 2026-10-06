@@ -1,6 +1,10 @@
 # Meridian — Agent Rules
 
-Read `PROJECT_WORKFLOW.md` before acting. It locks this repository to `LEAN_DELIVERY`; use its local lifecycle rather than global, home-directory, remembered, or generic Meridian instructions. If local workflow documents cannot be read or conflict, return `BLOCKED WORKFLOW_UNREADABLE` before mutating files or Git state.
+Read `PROJECT_WORKFLOW.md` before acting. It locks this repository to
+`LEAN_DELIVERY`; use its local lifecycle rather than global, home-directory,
+remembered, or generic Meridian/Claude/Codex instructions. If local workflow
+documents cannot be read or conflict, return `BLOCKED WORKFLOW_UNREADABLE` before mutating files or
+Git state.
 
 Read `LANGUAGE_POLICY.md` before responding or writing. Use its persisted conversation language and write every repository artifact in English.
 

@@ -4,7 +4,11 @@
 
 This file selects `LEAN_DELIVERY` exclusively. Before any file edit, Git mutation, task selection, or completion claim, an agent must read this file and `AGENTS.md` or `CLAUDE.md`, then confirm the active mode. Local workflow documents override global, home-directory, remembered, and generic agent instructions for lifecycle, queue, task, review, and Git decisions.
 
-Do not fall back to Governed SDD. In particular, do not invent ADR gates, reviewer-integrator roles, required task branches, `READY_FOR_REVIEW`, `ACCEPTED`, or governed status-only commits unless this project explicitly adds them. If the local workflow documents are missing, contradictory, or cannot be read before a mutation, return `BLOCKED WORKFLOW_UNREADABLE` without changing files or Git state.
+Do not fall back to Governed SDD. In particular, do not invent ADR gates,
+reviewer-integrator roles, required task branches, `READY_FOR_REVIEW`,
+`ACCEPTED`, or governed status-only commits unless this project explicitly adds
+them. If the local workflow documents are missing, contradictory, or cannot be
+read before a mutation, return `BLOCKED WORKFLOW_UNREADABLE` without changing files or Git state.
 
 ## Purpose
 
@@ -32,13 +36,13 @@ an explicit version-1 declaration may select `opaque` or `milestone` mode.
 
 ## Task worktree boundary
 
+<!-- MERIDIAN:BEGIN capability=codex-worktree-access v4 -->
 Every task uses exactly one branch and one linked worktree, with one writer at
-a time. Normalize the canonical task ID to lowercase `task-<number>` (for
-example, `TASK-051` becomes `task-051`) and use it as the branch name. Meridian
-resolves one machine-level root from `--worktree-root`,
-`MERIDIAN_WORKTREE_ROOT`, user configuration, or the built-in default, in that
-order. Derive the worktree path with `meridian worktree path <task-id>
---project <primary-checkout>`. The layout is
+a time. Normalize the canonical task ID to lowercase `task-<number>` and use
+it as the branch name. Meridian resolves one machine-level worktree root from
+an explicit option, the environment, user configuration, or the built-in
+default. Derive the path with `meridian worktree path <task-id> --project
+<primary-checkout>`. The layout is
 `<root>/<remote-host>/<owner>/<repository>/<canonical-task-id>`; a repository
 without a usable remote uses a deterministic local name plus a canonical
 Git-common-directory hash. Unsafe, ambiguous, colliding, or mismatched paths
@@ -46,17 +50,32 @@ stop with the `BLOCKED <CODE>` line the command prints. Existing legacy worktree
 moved or deleted automatically. The first `git worktree list --porcelain`
 entry identifies the primary checkout.
 
-`Proceed with <TASK-ID>` first runs `meridian worktree prepare <task-id>
---project <primary-checkout> --format json`.
-The coordinator passes the returned branch and absolute path to the worker and
-does not ask the host to create another checkout. Before any task read or
-write, the worker starts in that exact directory and runs `meridian worktree
-check <task-id> --project <primary-checkout> --format json`. Any mismatch is
-`BLOCKED WRONG_WORKTREE`; the primary checkout and every host-
-created substitute remain coordination surfaces only. Absolute paths are
-runtime launch inputs only: a handoff or other tracked record that names the
-worktree uses the `handoff_worktree` value returned by `meridian worktree
-prepare`, the path relative to the worktree root, never an absolute path.
+Once per machine, run `meridian setup --check`, review its bounded changes,
+then explicitly consent with `meridian setup --apply` and restart Codex.
+Claude Code needs no host configuration. Static configuration is not proof of
+effective host access; treat a `blocked` status as no access.
+
+If `meridian codex configure --check` reports `repair-required`, the effective
+profile is identical and only Meridian's ownership markers were damaged, for
+example by a Codex app rewrite. Review the printed diff and run `--apply` only
+after explicit confirmation. A `blocked` status names the diverging fields and
+requires manual reconciliation. Repair never proves that a running session
+loaded the profile; start a fresh session and probe it.
+<!-- MERIDIAN:END -->
+
+<!-- MERIDIAN:BEGIN capability=bounded-worktree-lifecycle v5 -->
+`Proceed with <TASK-ID>` runs `meridian worktree prepare <task-id> --project
+<primary-checkout> --format json` before
+starting a worker. The coordinator passes the returned branch and absolute
+path as durable launch inputs and does not use a host facility that creates a
+second checkout. The worker starts in that exact directory and, before any task
+read or write, runs `meridian worktree check <task-id> --project
+<primary-checkout> --format json`. Any path,
+branch, HEAD, root, state, or cleanliness mismatch is `BLOCKED WRONG_WORKTREE`.
+Absolute paths are runtime launch inputs only. A handoff or other tracked
+record that names the worktree uses the `handoff_worktree` value returned by
+`meridian worktree prepare`, the path relative to the worktree root, never an
+absolute path.
 
 A `Proceed with <TASK-ID>` directive that says to Resume starts with `meridian
 worktree prepare <task-id> --resume --project <primary-checkout> --format json`
@@ -65,6 +84,7 @@ existing worktree even when it has uncommitted changes, never creates or
 changes anything, and refuses when no worktree exists. When it returns `dirty:
 true`, `dirty-worktree` is the only error `worktree check` may report; any other
 error is `BLOCKED WRONG_WORKTREE`. Read `git status` and the diff before continuing.
+<!-- MERIDIAN:END -->
 
 Reservation, completion, review, and archive edits are committed on the task
 branch. Concurrent tasks edit only their own task rows and records; they do
@@ -145,18 +165,23 @@ or CI changes run every task-required check plus the applicable project
 baseline. Validation scope never weakens an explicit acceptance criterion.
 <!-- MERIDIAN:END -->
 
-Before marking a task `[x]`, verify its acceptance criteria and run its stated validation plus the project's applicable baseline checks. The handoff records the validated task commit, validated base `main` commit, exact commands and successful results, whether full combined-tree validation is required, and the task's declared files, dependencies, and behavioral surfaces. If evidence is incomplete or a check fails, keep the task `[/]` and report the blocker. Update the queue and project plan together when they both record the task. Archive a completed task file and fully closed queue section only after successful verification.
+Before marking a task `[x]`, verify its acceptance criteria and run its stated
+validation plus the project's applicable baseline checks. The handoff records
+the validated task commit, validated base `main` commit, exact commands and
+successful results, whether full combined-tree validation is required, and the
+task's declared files, dependencies, and behavioral surfaces. If evidence is
+incomplete or a check fails, keep the task `[/]` and report the blocker. Update
+the queue and project plan together when they both record the task. Archive a
+completed task file and fully closed queue section only after successful
+verification.
 
-Final integration is serialized in the primary checkout. Write the accepted
-handoff facts to a JSON evidence file using the schema documented in
-`docs/WORKTREE_LIFECYCLE.md`, then run `meridian worktree integrate stage`.
-The command owns the lease and prescribed no-commit merge and returns the
-`REUSE`, `BOUNDED`, or `FULL` decision plus candidate tree. Run the candidate
-validation defined in `docs/WORKTREE_LIFECYCLE.md` separately in the ordinary
-sandbox, record candidate-bound JSON evidence, and invoke `meridian worktree
-integrate finalize`. On a failed gate, invoke `meridian worktree integrate
-abort`. Never run task-controlled commands inside a lifecycle command or
-manipulate the lease or merge directly.
+Final integration uses `meridian worktree integrate stage` with accepted JSON
+handoff evidence. The command owns the lease and prescribed no-commit merge and
+returns the deterministic validation decision and candidate tree. Run the
+candidate validation defined in `docs/WORKTREE_LIFECYCLE.md` separately in the
+ordinary sandbox, bind its JSON evidence to that tree, then use `integrate
+finalize`; use `integrate abort` after a failed gate. Lifecycle commands never
+execute validation or project code.
 
 After any required `main` push, run `meridian worktree cleanup`; it removes the
 canonical worktree and non-force-deletes the merged branch only after proving
