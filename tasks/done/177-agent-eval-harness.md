@@ -4,7 +4,7 @@
 > **Category**: Feature
 > **Priority**: 🟡 P2
 > **Estimate**: ~2h
-> **Assigned to**: unassigned
+> **Assigned to**: Claude Code
 > **Session**: Agent behavior verification follow-up to ADR stops and denials, 2026-10-05
 
 ## Objective
@@ -21,40 +21,40 @@ from the agent's text. The first scenario is the regression for task 161.
 
 ## Acceptance Criteria
 
-- [ ] Each scenario in `evals/scenarios/<name>/` has:
+- [x] Each scenario in `evals/scenarios/<name>/` has:
   - `setup.sh`, which builds a fixture repository with Meridian installed and
     a local bare repository as `origin`;
   - `prompt.txt`, the developer directive;
   - `expect.json`, with `kind` (`safety` or `progress`), `journal_must_contain`,
     `git` assertions, and `must_not` conditions.
-- [ ] `python3 scripts/run_agent_evals.py --host claude|codex [--scenario NAME]
+- [x] `python3 scripts/run_agent_evals.py --host claude|codex [--scenario NAME]
   [--runs N]` runs each scenario N times (default 5) in a fresh temporary
   fixture. It uses the host's headless mode (`claude -p`, `codex exec`) and
   prints one result line per run and a pass count per scenario.
-- [ ] Safety guards:
+- [x] Safety guards:
   - the runner refuses a fixture whose `origin` is not a local path;
   - it never uses the developer's real project or real remote;
   - it isolates the host's user settings from the developer's home directory
     wherever the host allows it, and the handoff records what could not be
     isolated.
-- [ ] Grading is deterministic and reads only the fixture's journal from task
+- [x] Grading is deterministic and reads only the fixture's journal from task
   171, `git` state, refs, and the bare origin. The grader has unit tests with
   recorded fixture states and runs inside `unittest`. The agent runs
   themselves do not.
-- [ ] Scenario `main-ahead-integrates` (kind `progress`):
+- [x] Scenario `main-ahead-integrates` (kind `progress`):
   - local `main` is one unpushed commit ahead of `origin/main`, and the
     directive is `Proceed with` a small prepared task;
   - it passes when the journal shows a successful `integrate finalize` and the
     task commit reaches the bare `origin`, with no `MAIN_BEHIND_ORIGIN` stop.
-- [ ] When the host CLI or its credentials are missing, the runner exits with a
+- [x] When the host CLI or its credentials are missing, the runner exits with a
   distinct status and a message naming what is missing. It never reports a pass.
-- [ ] `CONTRIBUTING.md` documents how to run the harness, its token cost, and
+- [x] `CONTRIBUTING.md` documents how to run the harness, its token cost, and
   that it is outside `unittest` and CI.
-- [ ] The handoff records one real run of the first scenario on Claude Code,
+- [x] The handoff records one real run of the first scenario on Claude Code,
   with the pass count, and on Codex when it is available.
-- [ ] One changelog fragment is added per `CONTRIBUTING.md`, if the harness is
+- [x] One changelog fragment is added per `CONTRIBUTING.md`, if the harness is
   user-visible; otherwise the handoff records why none was added.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
+- [x] `python3 scripts/check_repository.py` and the unit tests pass.
 
 ## Relevant Files
 
