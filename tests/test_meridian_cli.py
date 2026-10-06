@@ -1199,7 +1199,7 @@ class MeridianCliTest(unittest.TestCase):
         self.assertIn("MIGRATION 047-codex-worktree-access", checked.stdout)
         applied = self.run_cli("upgrade", "--apply")
         self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
-        self.assertIn("capability=git-workflow v12", project_workflow.read_text(encoding="utf-8"))
+        self.assertIn("capability=git-workflow v13", project_workflow.read_text(encoding="utf-8"))
         self.assertIn("Consumer-owned note.", project_workflow.read_text(encoding="utf-8"))
         self.assertIn(
             "capability=task-worktree-boundary v8",
@@ -1271,7 +1271,7 @@ class MeridianCliTest(unittest.TestCase):
         self.assertIn("MIGRATION 047-codex-worktree-access", checked.stdout)
         applied = self.run_cli("upgrade", "--apply")
         self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
-        self.assertIn("capability=git-workflow v12", project_workflow.read_text(encoding="utf-8"))
+        self.assertIn("capability=git-workflow v13", project_workflow.read_text(encoding="utf-8"))
         self.assertIn("Consumer-owned note.", project_workflow.read_text(encoding="utf-8"))
         self.assertIn(
             "capability=task-worktree-handoff v5",
@@ -1561,7 +1561,7 @@ worktree before the branch only after validated integration succeeds.
 
         for relative in paths:
             upgraded = (self.project / relative).read_text(encoding="utf-8")
-            self.assertIn("MERIDIAN:BEGIN capability=git-workflow v11", upgraded)
+            self.assertIn("MERIDIAN:BEGIN capability=git-workflow v12", upgraded)
             self.assertIn("Task branches do not edit `tasks/QUEUE.md`", upgraded)
         self.assertIn("Consumer-owned closure note.", agents.read_text(encoding="utf-8"))
         manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
@@ -1624,7 +1624,7 @@ worktree before the branch only after validated integration succeeds.
         upgraded_workflow = (self.project / "PROJECT_WORKFLOW.md").read_text(encoding="utf-8")
         upgraded_implementation = implementation.read_text(encoding="utf-8")
         upgraded_review = (self.project / "docs/workflows/REVIEW.md").read_text(encoding="utf-8")
-        self.assertIn("capability=git-workflow v12", upgraded_workflow)
+        self.assertIn("capability=git-workflow v13", upgraded_workflow)
         self.assertIn("Review: REQUIRED` is a gate, not a request for authorization", upgraded_workflow)
         self.assertIn("capability=task-worktree-boundary v8", upgraded_implementation)
         self.assertIn("REVIEW_REQUIRED`; it is a gate", upgraded_implementation)
@@ -1742,7 +1742,7 @@ worktree before the branch only after validated integration succeeds.
         self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
 
         upgraded = rules.read_text(encoding="utf-8")
-        self.assertIn('["meridian", "worktree", ["evidence", "closure-status"]]', upgraded)
+        self.assertIn('["meridian", "worktree", ["evidence", "closure-status", "advance"]]', upgraded)
         self.assertIn('prefix_rule(pattern=["git", "mv"], decision="allow")', upgraded)
         self.assertIn(local, upgraded)
         manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
@@ -5047,13 +5047,28 @@ class CapabilityMarkerTest(unittest.TestCase):
         expected["document-precedence"] = "2"
         expected["execution-assets"] = "4"
         expected["roles"] = "3"
-        expected["git-workflow"] = "12"
+        expected["git-workflow"] = "13"
         expected["bounded-worktree-lifecycle"] = "4"
         expected["codex-worktree-access"] = "3"
         expected["task-identity-policy"] = "1"
         expected["task-lifecycle"] = "3"
         expected["review-policy"] = "3"
         self.assertEqual(sorted(pairs), sorted(expected.items()))
+
+    def test_git_workflow_block_drives_closure_through_advance(self) -> None:
+        for path in (
+            self.WORKFLOW / "PROJECT_WORKFLOW.md",
+            ROOT / "templates" / "workflows" / "lean-delivery" / "PROJECT_WORKFLOW.md",
+        ):
+            text = path.read_text(encoding="utf-8")
+            start = text.index("capability=git-workflow")
+            block = " ".join(text[start : text.index("<!-- MERIDIAN:END -->", start)].split())
+            self.assertIn("meridian worktree advance", block, path)
+            self.assertIn("`action_required`", block, path)
+            self.assertIn("`BLOCKED` line", block, path)
+            self.assertNotIn("Close a validated task in order", block, path)
+            self.assertNotIn("closure-status", block, path)
+            self.assertIn("`Validation skips:`", block, path)
 
     def test_whole_file_baseline_capabilities_each_carry_one_marker(self) -> None:
         expectations = {

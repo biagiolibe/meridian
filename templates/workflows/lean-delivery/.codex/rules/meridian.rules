@@ -19,7 +19,7 @@ prefix_rule(pattern=["meridian", "worktree", "integrate", ["stage", "finalize", 
 
 # Unattended-closure additions. These rules never run or write outside what the
 # task worktree already permits; the commands they name stay inside the sandbox.
-prefix_rule(pattern=["meridian", "worktree", ["evidence", "closure-status"]], decision="allow")
+prefix_rule(pattern=["meridian", "worktree", ["evidence", "closure-status", "advance"]], decision="allow")
 # Prefixes match leading tokens only, so `git mv` cannot be limited to the
 # `tasks/done/` destination: any move inside the worktree is allowed. Forced
 # moves, which overwrite an existing path, keep prompting.

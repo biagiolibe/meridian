@@ -3611,6 +3611,7 @@ def codex_doctor(
             ("check", "TASK-1", "--worktree-root", str(worktree_root), "--format", "json"),
             ("evidence", "TASK-1", "--format", "json"),
             ("closure-status", "TASK-1", "--format", "json"),
+            ("advance", "TASK-1", "--format", "json"),
             ("integrate", "stage", "TASK-1", "--worktree-root", str(worktree_root), "--evidence", "handoff.json", "--format", "json"),
             ("integrate", "finalize", "TASK-1", "--evidence", "candidate.json", "--format", "json"),
             ("integrate", "abort", "TASK-1", "--format", "json"),
