@@ -10334,11 +10334,12 @@ def record_investigation(
     finding: str,
 ) -> str:
     """Record a bounded exploration without making a host or worker normative."""
-    if not question.strip() or not finding.strip() or not sources:
+    empty = [option for option, present in (("--question", question.strip()), ("--source", sources), ("--finding", finding.strip())) if not present]
+    if empty:
         raise stop_error(
             "EXECUTION_EVIDENCE_ARGUMENTS",
             "rule: an investigation records its question, sources, and finding; options checked: --question, --source, "
-            "--finding; accepted: a non-empty value for each; found: a missing or empty value",
+            "--finding; accepted: a non-empty value for each; found: missing or empty " + ", ".join(empty),
             resume="rerun meridian execution investigate with --question, --source, and --finding",
         )
     execution_preflight(project_root, task_id)
