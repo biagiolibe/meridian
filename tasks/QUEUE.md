@@ -45,11 +45,3 @@ Authority: the test suite cost review of 2026-10-06 (848 tests, 343 s sequential
 |--------|----|-------|----------|------------|------|
 | `[x]` | 182 | Make the parallel test runner this repository's standard validation | 🟡 P2 | — | [182](done/182-parallel-suite-as-standard-validation.md) |
 | `[ ]` | 183 | Build lifecycle test repositories once per class and copy them per test | 🟡 P2 | — | [183](183-shared-test-fixtures-for-lifecycle-tests.md) |
-
-### Phase 57 — Self-hosting installation
-
-Authority: the task 181 unblock of 2026-10-06; `upgrade --check` on this repository stops on a 1.1.49 baseline.
-
-| Status | ID | Title | Priority | Depends on | File |
-|--------|----|-------|----------|------------|------|
-| `[ ]` | 184 | Bring this repository's Meridian installation to the current release and keep it upgradable | 🟡 P2 | 181 | [184](184-bring-self-hosting-installation-current.md) |

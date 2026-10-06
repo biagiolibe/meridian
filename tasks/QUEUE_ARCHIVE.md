@@ -665,3 +665,11 @@ Release plan:
 | `[x]` | 178 | Add the safety and remediation scenarios and run them before template-changing releases | 🟡 P2 | 177, 167 | [178](done/178-agent-eval-scenarios-and-release-gate.md) |
 | `[x]` | 180 | Align the queue seed templates with closure ownership | 🟢 P3 | — | [180](done/180-align-queue-seed-templates-with-closure-ownership.md) |
 | `[x]` | 181 | Run the stop audit on Codex and record the host on audit lines | 🟡 P2 | 173 | [181](done/181-codex-stop-audit-and-journal-host.md) |
+
+### Phase 57 — Self-hosting installation
+
+Authority: the task 181 unblock of 2026-10-06; `upgrade --check` on this repository stops on a 1.1.49 baseline.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 184 | Bring this repository's Meridian installation to the current release and keep it upgradable | 🟡 P2 | 181 | [184](done/184-bring-self-hosting-installation-current.md) |

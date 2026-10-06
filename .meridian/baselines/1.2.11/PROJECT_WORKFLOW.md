@@ -1,8 +1,12 @@
-# Lean Delivery Workflow — Meridian
+# Lean Delivery Workflow — [Project Name]
 
 ## Workflow-mode lock
 
-This file selects `LEAN_DELIVERY` exclusively. Before any file edit, Git mutation, task selection, or completion claim, an agent must read this file and `AGENTS.md` or `CLAUDE.md`, then confirm the active mode. Local workflow documents override global, home-directory, remembered, and generic agent instructions for lifecycle, queue, task, review, and Git decisions.
+This file selects `LEAN_DELIVERY` exclusively. Before any file edit, Git
+mutation, task selection, or completion claim, an agent must read this file and
+`AGENTS.md` or `CLAUDE.md`, then confirm the active mode. Local workflow
+documents override global, home-directory, remembered, and generic agent
+instructions for lifecycle, queue, task, review, and Git decisions.
 
 Do not fall back to Governed SDD. In particular, do not invent ADR gates,
 reviewer-integrator roles, required task branches, `READY_FOR_REVIEW`,
@@ -12,9 +16,11 @@ read before a mutation, return `BLOCKED WORKFLOW_UNREADABLE` without changing fi
 
 ## Purpose
 
-Lean Delivery is the workflow for this repository's bounded framework maintenance. Use Governed SDD if a future change introduces public API, dependency, security, persistence, state, deterministic-behavior, or unresolved architectural risk.
-
-Use `docs/COMPLETION_REPORT_TEMPLATE.md` as the required handoff format.
+Lean Delivery is a complete workflow for small projects, proof-of-concepts,
+demos, experiments, and reversible low-risk changes. It optimizes for delivery
+speed while keeping scope, verification, and progress visible. Use Governed SDD
+when the change has public API, dependency, security, persistence, state,
+deterministic-behavior, or unresolved architectural risk.
 
 ## Lifecycle
 
@@ -22,17 +28,27 @@ Use `docs/COMPLETION_REPORT_TEMPLATE.md` as the required handoff format.
 [ ] TODO -> [/] IN_PROGRESS -> [x] DONE
 ```
 
-`tasks/QUEUE.md` is the operational queue; `PROJECT_PLAN.md` is the delivery record. An agent works only on the task explicitly assigned by the developer. It must not autonomously select the next queue item.
+`tasks/QUEUE.md` is the operational queue; `PROJECT_PLAN.md` is the product
+backlog and delivery record. An agent works only on the task explicitly
+assigned by the developer. It must not autonomously select the next queue item.
 
 ## Minimum task contract
 
-Every task that is not a quick task records an objective, acceptance criteria, relevant files or technical context, and validation. A quick task may omit a task file only when it is small, reversible, and can be verified immediately. Neither form may bypass validation or hide scope changes.
+Every task that is not a quick task records an objective, acceptance criteria,
+relevant files or technical context, and validation. A quick task may omit a
+task file only when it is small, reversible, and can be verified immediately.
+Neither form may bypass validation or hide scope changes.
 
+<!-- MERIDIAN:BEGIN capability=task-identity-policy v1 -->
 ## Task identity
 
 `.meridian/task-identity.json` is the sole optional project declaration for
 task-identity policy. Its absence selects backwards-compatible `opaque` mode;
 an explicit version-1 declaration may select `opaque` or `milestone` mode.
+Meridian resolves task IDs through this declaration and the canonical task and
+queue authorities. Workflow mode, host configuration, and identifier spelling
+do not provide a second identity policy or imply task semantics.
+<!-- MERIDIAN:END -->
 
 ## Task worktree boundary
 
@@ -183,10 +199,11 @@ ordinary sandbox, bind its JSON evidence to that tree, then use `integrate
 finalize`; use `integrate abort` after a failed gate. Lifecycle commands never
 execute validation or project code.
 
-After any required `main` push, run `meridian worktree cleanup`; it removes the
-canonical worktree and non-force-deletes the merged branch only after proving
-integration, push state, clean checkouts, and inactive integration state.
+After any required `main` push, use `meridian worktree cleanup`; exceptional,
+forced, abandoned-state, or stale-lease cleanup remains outside this surface.
 
 ## Review
 
-Review is risk-proportionate and may be requested by the developer or task. When reviewing, do not silently repair implementation work: return findings to the implementer or receive explicit authorization to make a separate fix.
+Review is risk-proportionate and may be requested by the developer or task.
+When reviewing, do not silently repair implementation work: return findings to
+the implementer or receive explicit authorization to make a separate fix.
