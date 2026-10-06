@@ -32,39 +32,39 @@ the self-hosting procedure keep the manifest current from now on.
 
 ## Acceptance Criteria
 
-- [ ] `meridian upgrade --project . --check` reports no `CONFLICT`, no
+- [x] `meridian upgrade --project . --check` reports no `CONFLICT`, no
   `BLOCKED`, and no `ADOPT-REPLACE` that would discard this repository's
   content. Each of the four conflicts is resolved in this task, keeping this
   repository's intended text; the handoff lists, per file, which side was
   kept and why.
-- [ ] `docs/WORKTREE_LIFECYCLE.md` keeps every section it has today (the
+- [x] `docs/WORKTREE_LIFECYCLE.md` keeps every section it has today (the
   lifecycle journal, `report flow`, the stop audit, `advance`). Either it is
   no longer treated as a managed copy of the template document, or the
   template and this file are reconciled; the handoff states which and why.
-- [ ] After `meridian upgrade --project . --apply`, `.meridian/manifest.json`
+- [x] After `meridian upgrade --project . --apply`, `.meridian/manifest.json`
   records `frameworkVersion` equal to `VERSION`, `workflowBaselineVersion`
   equal to the newest migration's `to` that is not ahead of `VERSION`, the
   applied migrations through it, and baseline snapshots for that version.
   The manifest and snapshots are written only by `meridian upgrade`, never by
   hand.
-- [ ] A second `meridian upgrade --project . --check` reports no pending
+- [x] A second `meridian upgrade --project . --check` reports no pending
   change.
-- [ ] `CONTRIBUTING.md` replaces the hand-edit-and-refresh-digests procedure
+- [x] `CONTRIBUTING.md` replaces the hand-edit-and-refresh-digests procedure
   for managed copies with one that keeps the manifest current: a task that
   changes a managed template updates this repository's copy through
   `meridian upgrade --apply` in the same task, or the procedure states the
   exact alternative and when it applies. `--write-managed-digests` remains
   only for the cases the procedure names.
-- [ ] `python3 scripts/check_repository.py` fails, with a message naming the
+- [x] `python3 scripts/check_repository.py` fails, with a message naming the
   fix, when this repository's manifest `workflowBaselineVersion` is older than
   the newest migration's `to` that is not ahead of `VERSION`. A test covers
   the failing and the passing case.
-- [ ] No template under `templates/`, no migration, and no capability marker
+- [x] No template under `templates/`, no migration, and no capability marker
   version changes. This task changes only this repository's installation,
   its check, and its documentation, so it ships no migration.
-- [ ] One changelog fragment is added per `CONTRIBUTING.md`, only if a shipped
+- [x] One changelog fragment is added per `CONTRIBUTING.md`, only if a shipped
   file changes; otherwise the handoff states that none is needed.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass, and
+- [x] `python3 scripts/check_repository.py` and the unit tests pass, and
   `meridian audit --project . --mode lean-delivery --ci-profile
   meridian-self-hosting` passes as it does in CI.
 

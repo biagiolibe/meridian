@@ -829,6 +829,23 @@ def check_managed_digests(root: Path = ROOT) -> None:
     raise SystemExit(1)
 
 
+def check_self_hosting_baseline(root: Path = ROOT) -> None:
+    """Fail when this repository's installed baseline lags the newest released migration."""
+    manifest_path = root / ".meridian" / "manifest.json"
+    if not manifest_path.is_file():
+        return
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    recorded = meridian.manifest_baseline_version(manifest)
+    expected = meridian.latest_migration_to(root, meridian.read_version(root))
+    if meridian.version_key(recorded) < meridian.version_key(expected):
+        fail(
+            f".meridian/manifest.json workflowBaselineVersion {recorded} is older than the newest "
+            f"migration baseline {expected} that VERSION includes; run "
+            "`bin/meridian upgrade --project . --check`, then `--apply` (see CONTRIBUTING.md, "
+            "\"Managed copies of this repository\")"
+        )
+
+
 def write_managed_digests(root: Path = ROOT) -> list[str]:
     """Refresh managed-file digests and matching profile evidence explicitly."""
     manifest_path = root / ".meridian" / "manifest.json"
@@ -844,32 +861,61 @@ def write_managed_digests(root: Path = ROOT) -> list[str]:
         current = meridian.sha256(path)
         if recorded != current:
             refreshed[relative] = (str(recorded), current)
+    profiles = manifest.get("capabilityProfiles", {})
+    # `upgrade --apply` rebuilds managedFiles from the template's managed list, so
+    # a managed-copy surface a profile declares beyond that list loses its digest.
+    for profile in profiles.values() if isinstance(profiles, dict) else ():
+        capabilities = profile.get("capabilities") if isinstance(profile, dict) else None
+        for declaration in capabilities.values() if isinstance(capabilities, dict) else ():
+            for surface in declaration.get("managedSurface", []) if isinstance(declaration, dict) else ():
+                relative = surface.get("path") if isinstance(surface, dict) else None
+                if (
+                    isinstance(relative, str)
+                    and surface.get("form") == "managed-copy"
+                    and relative not in managed_files
+                    and relative not in refreshed
+                ):
+                    path = root / relative
+                    if not path.is_file():
+                        fail(f"refusing to write managed digests: declared file is missing: {relative}")
+                    refreshed[relative] = ("absent", meridian.sha256(path))
     for relative, (_recorded, current) in refreshed.items():
         managed_files[relative] = current
-    profiles = manifest.get("capabilityProfiles", {})
+    ordered = dict(sorted(managed_files.items()))
+    managed_files.clear()
+    managed_files.update(ordered)
+    evidence_refreshed: list[str] = []
     if isinstance(profiles, dict):
-        for profile in profiles.values():
+        for profile_id, profile in profiles.items():
             if not isinstance(profile, dict) or not isinstance(profile.get("capabilities"), dict):
                 continue
-            for declaration in profile["capabilities"].values():
+            for capability_id, declaration in profile["capabilities"].items():
                 if not isinstance(declaration, dict):
                     continue
                 surfaces = declaration.get("managedSurface")
                 installation = declaration.get("installation")
                 if not isinstance(surfaces, list) or not isinstance(installation, dict):
                     continue
-                evidence = installation.get("evidence")
-                if not isinstance(evidence, list):
+                if not any(isinstance(item, dict) and item.get("form") == "managed-copy" for item in surfaces):
                     continue
-                replacements = {
-                    f"sha256:{recorded}": f"sha256:{current}"
-                    for surface in surfaces if isinstance(surface, dict) and surface.get("form") == "managed-copy"
-                    for path, (recorded, current) in refreshed.items() if surface.get("path") == path
+                # `upgrade --apply` rewrites managedFiles but not this evidence, so it is
+                # recomputed from the files, as the install builds it, not mapped from old digests.
+                digests = {
+                    f"sha256:{meridian.sha256(root / item['path'])}"
+                    for item in surfaces
+                    if isinstance(item, dict)
+                    and item.get("form") != "declaration-only"
+                    and (root / str(item.get("path"))).is_file()
                 }
-                installation["evidence"] = [replacements.get(item, item) for item in evidence]
-    if refreshed:
+                if digests and installation.get("evidence") != sorted(digests):
+                    installation["evidence"] = sorted(digests)
+                    evidence_refreshed.append(f"{profile_id}/{capability_id}: installation evidence")
+    if refreshed or evidence_refreshed:
         manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
-    return [f"{relative}: {recorded} -> {current}" for relative, (recorded, current) in refreshed.items()]
+    return [
+        *(f"{relative}: {recorded} -> {current}" for relative, (recorded, current) in refreshed.items()),
+        *evidence_refreshed,
+    ]
 
 
 # Tracked records identify checkouts and worktrees by names or paths relative
@@ -934,6 +980,7 @@ def main() -> None:
     check_bash()
     check_local_markdown_links()
     check_capability_marker_baselines()
+    check_self_hosting_baseline()
     check_managed_digests()
     check_no_machine_paths()
     print("Meridian repository checks passed.")

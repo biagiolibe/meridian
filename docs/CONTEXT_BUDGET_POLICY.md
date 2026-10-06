@@ -91,9 +91,3 @@ Template read-set ceilings are checked by `scripts/check_repository.py`:
 | --- | --- | ---: |
 | Lean Delivery | implementation | 100000 |
 | Lean Delivery | review | 100000 |
-| Governed SDD | status | 100000 |
-| Governed SDD | design | 100000 |
-| Governed SDD | implementation | 100000 |
-| Governed SDD | review | 100000 |
-| Governed SDD | remediation | 100000 |
-| Governed SDD | lifecycle | 100000 |

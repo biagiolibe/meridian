@@ -16,10 +16,12 @@ whole queue. Open the queue only when the briefing is absent, omits a required
 field, or conflicts with another project record.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=read-guard v1 -->
+<!-- MERIDIAN:BEGIN capability=read-guard v2 -->
 Large-file reads are bounded mechanically where the host supports an adapter.
-Locate the relevant range first; adapter installation is not proof that the
-host loaded or enforced it.
+The active task comes from the verified task worktree, and the router read set
+is exempt from the read threshold up to the router file ceiling. Locate the
+relevant range first; adapter installation is not proof that the host loaded or
+enforced it.
 <!-- MERIDIAN:END -->
 
 ## Bounded exploration
@@ -38,7 +40,7 @@ Do not load completed history or perform a conformance audit unless a concrete
 discrepancy or explicit request requires it.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=validation-scoping v1 -->
+<!-- MERIDIAN:BEGIN capability=validation-scoping v2 -->
 ## Validation scope
 
 Classify the diff as documentation/policy or source/build/runtime. Skip checks
@@ -70,3 +72,22 @@ exit codes, and material results in the task handoff.
 
 Keep plans and updates short. Report state changes, material findings,
 validation outcomes, and blockers rather than replaying command transcripts.
+
+## Context-size policy v1
+
+`meridian context size --role <role> --format text` reports the startup read
+set using byte-derived token estimates (bytes / 4 to bytes / 3.3), not a claim
+of tokenizer accuracy. Set a per-file enforcement threshold in
+`.meridian/context-size.json` as `{ "version": 1, "fileBytesThreshold": 12000 }`,
+or pass `--threshold-bytes`; without either, the report is advisory.
+The same version-1 file may set `routerFileLinesCeiling` (default: 1000).
+Router startup files are exempt from the runtime read-guard threshold only up
+to that ceiling; shrink an oversized router file rather than reading it in
+ranges.
+
+Template read-set ceilings are checked by `scripts/check_repository.py`:
+
+| Workflow | Role | Ceiling (bytes) |
+| --- | --- | ---: |
+| Lean Delivery | implementation | 100000 |
+| Lean Delivery | review | 100000 |

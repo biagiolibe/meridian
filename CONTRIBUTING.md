@@ -92,13 +92,9 @@ sequential one.
 
 The check validates JSON metadata, Bash syntax, required public-repository files, and links between the repository's Markdown documents.
 
-After a deliberate edit to a managed copy, refresh its manifest digests explicitly:
-
-```bash
-python3 scripts/check_repository.py --write-managed-digests
-```
-
-Review the resulting manifest diff before committing it. A plain repository check never rewrites digests.
+A plain repository check never rewrites digests. See
+[Managed copies of this repository](#managed-copies-of-this-repository) for how
+to refresh them.
 
 CI runs the same validation suite on pull requests, pushes to `main`, and
 pushes to `task-*` branches. Runs are on Linux, so macOS-only tests are skipped.
@@ -198,6 +194,53 @@ empty commit on top (`git commit --allow-empty`). `release.py prepare` prints a
 reminder of this step when the release ships a migration, including when it
 directs you to `publish`, and it never runs the harness itself. A CLI-only
 release does not need a run.
+
+## Managed copies of this repository
+
+This repository installs Meridian on itself. Its root `PROJECT_WORKFLOW.md`,
+`AGENTS.md`, `CLAUDE.md`, `LANGUAGE_POLICY.md`, `.codex/` files, and the managed
+documents under `docs/` are copies of the Lean Delivery templates, and
+`.meridian/manifest.json` records the release and baseline they were installed
+from. Never edit the manifest or `.meridian/baselines/` by hand; `meridian
+upgrade` writes them.
+
+A task that changes a managed template ships a migration and bumps `VERSION`
+(see the release procedure below). In that same task, bring this repository's
+copies to the new release with the checkout's own CLI:
+
+```bash
+bin/meridian upgrade --project . --check
+bin/meridian upgrade --project . --apply
+python3 scripts/check_repository.py --write-managed-digests
+```
+
+Do not retype the template change into a copy by hand. Run the last command
+after `--apply` and review the manifest diff: `--apply` records the digest of
+each template, but this repository's copies keep repository-specific text (the
+project title, purpose, and local Codex rules), so the refresh records the
+digest of each copy, recomputes the profiles' installation evidence from the
+files, and restores a declared managed-copy surface that the upgrade's managed
+list omits. Run it before `--apply` too when you have already edited a copy, so
+that the recorded digests match the files the upgrade starts from.
+
+`--apply` changes nothing while the plan has a `CONFLICT`. Resolve each one in
+the copy, keeping this repository's intended text: where the copy only
+paraphrases the template, take the template's text for that region; where it
+carries repository-specific text, leave at least one unchanged baseline line
+between it and the lines the template changed, because adjacent edits conflict.
+Rerun `--check` until it reports no conflict. A managed document that has no
+baseline yet and differs from the template is planned as `ADOPT-REPLACE`, which
+would discard the copy: reduce the file to the template text, apply, then
+restore the repository's own sections after the managed block.
+
+Use `--write-managed-digests` on its own only for a deliberate edit to a managed
+copy that follows no template change, such as repository-specific text outside
+a capability block. Such an edit ships no migration and does not move the
+manifest's release.
+
+The repository check fails when the manifest's `workflowBaselineVersion` is
+older than the newest migration's `to` that is not ahead of `VERSION`; run the
+commands above to fix it.
 
 ## Release procedure
 
