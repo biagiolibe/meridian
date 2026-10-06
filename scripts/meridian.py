@@ -9638,6 +9638,12 @@ def flow_report(project_root: Path, since: str | None, now: datetime | None = No
     # Targets use count windows over all integrated tasks, never the --since period.
     targets = _flow_targets(project_root, tasks if cutoff is None else _flow_tasks(project_root, records, None), unbacked_times)
     public_tasks = [{key: value for key, value in task.items() if not key.startswith("_")} for task in tasks]
+    blocks_by_host = {host: {"unbacked": 0, "declared": 0} for host in ("claude", "codex")}
+    for record in period_records:
+        kind = {"unbacked_block": "unbacked", "declared_block": "declared"}.get(str(record["result"]))
+        if kind is not None:
+            host = record.get("host", "claude")
+            blocks_by_host.setdefault(host if isinstance(host, str) else "unknown", {"unbacked": 0, "declared": 0})[kind] += 1
     report: dict[str, object] = {
         "since": since,
         "malformed_lines": malformed,
@@ -9654,6 +9660,7 @@ def flow_report(project_root: Path, since: str | None, now: datetime | None = No
         "stops_by_code": dict(sorted(stops_by_code.items())),
         "stops_by_class": dict(sorted(stops_by_class.items())),
         "unbacked_blocks": sum(1 for record in period_records if record["result"] == "unbacked_block"),
+        "blocks_by_host": blocks_by_host,
         "origin_counts": origins,
         "origin_share_percent": origin_share,
         "targets": targets,
@@ -9680,8 +9687,10 @@ def format_flow_report(report: dict[str, object]) -> str:
         )
     lines.append("Stops by code: " + (", ".join(f"{k}={v}" for k, v in report["stops_by_code"].items()) or "none"))  # type: ignore[attr-defined]
     lines.append("Stops by class: " + (", ".join(f"{k}={v}" for k, v in report["stops_by_class"].items()) or "none"))  # type: ignore[attr-defined]
-    if report["unbacked_blocks"]:
-        lines.append(f"Unbacked stop reports: {report['unbacked_blocks']}")
+    by_host = report["blocks_by_host"]  # type: ignore[assignment]
+    for kind, label in (("unbacked", "Unbacked stop reports"), ("declared", "Declared stop reports")):
+        if any(counts[kind] for counts in by_host.values()):
+            lines.append(f"{label}: " + ", ".join(f"{host}={counts[kind]}" for host, counts in by_host.items()))
     lines.append("Origin share: " + ", ".join(f"{k}={v}%" for k, v in report["origin_share_percent"].items()))  # type: ignore[attr-defined]
     for target in report["targets"]:  # type: ignore[index]
         lines.append(f"Target {target['target']}: {target['state']} (measured {target['measured']}, limit {target['limit']}, window {target['window']})")
@@ -10842,7 +10851,8 @@ def _run_cli(journal: LifecycleJournalEntry) -> int:
     hook_sub = hook.add_subparsers(dest="hook_command", required=True)
     read_guard = hook_sub.add_parser("read-guard", help="apply the advisory-safe read guard")
     read_guard.add_argument("--host", choices=("codex",), required=True)
-    hook_sub.add_parser("stop-audit", help="record `BLOCKED <CODE>` reports that no command emitted (Claude Code Stop hook)")
+    stop_audit = hook_sub.add_parser("stop-audit", help="record `BLOCKED <CODE>` reports that no command emitted (Stop hook)")
+    stop_audit.add_argument("--host", choices=("claude", "codex"), default="claude")
 
     arguments = parser.parse_args()
     journal.begin(arguments)
@@ -11238,7 +11248,7 @@ def _run_cli(journal: LifecycleJournalEntry) -> int:
             if arguments.hook_command == "stop-audit":
                 from stop_audit import main as stop_audit_main
 
-                return stop_audit_main()
+                return stop_audit_main(arguments.host)
         elif arguments.check:
             if arguments.owner_reconciled:
                 raise MeridianError("--owner-reconciled only applies to --apply")

@@ -643,3 +643,25 @@ Authority: [docs/ADR_STOPS_AND_DENIALS.md](../docs/ADR_STOPS_AND_DENIALS.md). 16
 | `[x]` | 167 | Make the execution preflight satisfiable during remediation | 🔴 P1 | 166 | [167](done/167-satisfiable-execution-preflight-during-remediation.md) |
 | `[x]` | 168 | Report queue sections that archival cannot read | 🟡 P2 | 162 | [168](done/168-report-unarchivable-queue-sections.md) |
 | `[x]` | 169 | Code the remaining gates and require every stop to carry a code | 🟡 P2 | 163, 166 | [169](done/169-code-remaining-gates-and-require-coded-stops.md) |
+
+### Phase 55 — Closure flow and measurement
+
+Authority: follow-up designs in [docs/ADR_STOPS_AND_DENIALS.md](../docs/ADR_STOPS_AND_DENIALS.md) and Decision 5 of [docs/TASK_CLOSURE_DESIGN.md](../docs/TASK_CLOSURE_DESIGN.md).
+
+Release plan:
+
+- **Release A (CLI-only, no migration)**: 168, 171, 172, 173, 174, 175. These change only the CLI and plugin hooks. Shipping 171–173 first lets the journal record a baseline before 176 changes managed text, so 172's targets can compare before and after.
+- **Release B (template-changing)**: 169, then 176, in one migration, plus 180, which changes only seed templates and needs no migration of its own. 181 adds a managed `.codex/hooks.json` entry and shares that migration. 177 and 178 are integrated first, and the 178 evaluation run on Claude Code gates the release, because 176 shortens the text agents follow. 177 may start once 171 is integrated.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 171 | Record lifecycle command results in a local journal | 🟡 P2 | — | [171](done/171-lifecycle-journal.md) |
+| `[x]` | 172 | Add `meridian report flow` over the lifecycle journal | 🟡 P2 | 171 | [172](done/172-report-flow-command.md) |
+| `[x]` | 173 | Detect `BLOCKED` reports that no command emitted | 🟡 P2 | 171 | [173](done/173-detect-unbacked-blocked-reports.md) |
+| `[x]` | 174 | Add `meridian worktree advance` to drive closure through its mechanical steps | 🟡 P2 | 171 | [174](done/174-worktree-advance-driver.md) |
+| `[x]` | 175 | Let `advance` finalize from supplied candidate validation results | 🟡 P2 | 174 | [175](done/175-advance-through-candidate-validation.md) |
+| `[x]` | 176 | Replace the closure procedure in managed text with `advance` | 🟡 P2 | 164, 175 | [176](done/176-closure-text-uses-advance.md) |
+| `[x]` | 177 | Add an agent evaluation harness graded on the journal and Git state | 🟡 P2 | 171 | [177](done/177-agent-eval-harness.md) |
+| `[x]` | 178 | Add the safety and remediation scenarios and run them before template-changing releases | 🟡 P2 | 177, 167 | [178](done/178-agent-eval-scenarios-and-release-gate.md) |
+| `[x]` | 180 | Align the queue seed templates with closure ownership | 🟢 P3 | — | [180](done/180-align-queue-seed-templates-with-closure-ownership.md) |
+| `[x]` | 181 | Run the stop audit on Codex and record the host on audit lines | 🟡 P2 | 173 | [181](done/181-codex-stop-audit-and-journal-host.md) |

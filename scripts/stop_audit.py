@@ -2,7 +2,7 @@
 
 Advisory only: every failure is a silent no-op and the exit status is always 0.
 The hook reads only the final assistant message and never stores its text; a
-journal line carries the registered code alone.
+journal line carries the registered code and the host that ran the hook.
 """
 
 from __future__ import annotations
@@ -17,6 +17,7 @@ import meridian
 
 BLOCKED_LINE = re.compile(r"^[\s>*_`-]*BLOCKED ([A-Z][A-Z0-9_]*)\b", re.MULTILINE)
 FALLBACK_WINDOW = timedelta(hours=24)
+HOSTS = ("claude", "codex")
 
 
 def final_message(payload: dict) -> str:
@@ -69,7 +70,7 @@ def active_task(cwd: Path) -> str | None:
     return task if isinstance(task, str) else None
 
 
-def audit(payload: dict, now: datetime | None = None) -> list[dict]:
+def audit(payload: dict, now: datetime | None = None, host: str = "claude") -> list[dict]:
     """Append one line per unbacked or declared code; return the appended lines."""
     now = now or datetime.now(timezone.utc)
     cwd = Path(payload["cwd"])
@@ -109,6 +110,7 @@ def audit(payload: dict, now: datetime | None = None) -> list[dict]:
             "task": task,
             "result": result,
             "stop_code": code,
+            "host": host,
             "exit": 0,
         }
         meridian.append_journal_line(project, line)
@@ -116,11 +118,11 @@ def audit(payload: dict, now: datetime | None = None) -> list[dict]:
     return written
 
 
-def main() -> int:
+def main(host: str = "claude") -> int:
     try:
         payload = json.load(sys.stdin)
-        if isinstance(payload, dict) and isinstance(payload.get("cwd"), str):
-            audit(payload)
+        if host in HOSTS and isinstance(payload, dict) and isinstance(payload.get("cwd"), str):
+            audit(payload, host=host)
     except Exception:
         pass
     return 0
