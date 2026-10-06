@@ -147,7 +147,7 @@
 - `[x]` 178 — Add the safety and remediation scenarios and run them before template-changing releases.
 - `[x]` 179 — Stabilize the parallel runner output comparison test.
 - `[x]` 180 — Align the queue seed templates with closure ownership.
-- `[ ]` 181 — Run the stop audit on Codex and record the host on audit lines.
+- `[x]` 181 — Run the stop audit on Codex and record the host on audit lines.
 - `[x]` 182 — Make the parallel test runner this repository's standard validation.
 - `[ ]` 183 — Build lifecycle test repositories once per class and copy them per test.
 - `[ ]` 184 — Bring this repository's Meridian installation to the current release and keep it upgradable.

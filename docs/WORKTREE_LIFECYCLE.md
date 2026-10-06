@@ -184,7 +184,9 @@ text; a stop is recorded by its registered code, never by its message.
 ### Unbacked stop reports
 
 The Claude Code `Stop` hook (`hooks/stop-audit.sh`, 5 second timeout) runs
-`meridian hook stop-audit`. It reads only the final assistant message, from the
+`meridian hook stop-audit`; the managed `.codex/hooks.json` registers the same
+audit for Codex as `meridian hook stop-audit --host codex` (5 second timeout).
+`--host claude|codex` defaults to `claude`. It reads only the final assistant message, from the
 `last_assistant_message` field of the hook input (documented for `Stop`), and
 falls back to the last assistant entry of `transcript_path`. For each registered
 `BLOCKED <CODE>` at the start of a line it looks for a `blocked` journal line
@@ -193,12 +195,14 @@ when unavailable), restricted to the active task when the hook runs in a registe
 (resolved as `meridian worktree active` does; from the primary checkout the
 line is not task-scoped and records `task: null`). A `tool` code with no match is appended as `result:
 unbacked_block`; a `command-exit` or `judgment` code is appended as
-`declared_block`, because no command emits it. The line holds `stop_code` and
-`task` only. The hook ignores unregistered codes, does nothing outside a
+`declared_block`, because no command emits it. The line holds `stop_code`,
+`task`, and `host` (`claude` or `codex`) only; a line written before the host
+was recorded has no `host` and is read as `claude`. The hook ignores unregistered codes, does nothing outside a
 Meridian project or without an existing journal, never blocks the stop, and
-always exits `0`. Codex documents a `Stop` event that also carries
-`last_assistant_message`, but this hook is registered for Claude Code only and
-Codex configuration is deliberately unchanged.
+always exits `0`. The Codex `Stop` input carries `last_assistant_message`
+(nullable) and `transcript_path` (nullable); the hook reads the former and
+falls back to the transcript as for Claude Code. Codex user and global
+configuration are not touched.
 
 The journal is rotated to `meridian-journal.1.jsonl` when it exceeds 5 MB, and
 only that one previous file is kept. A journal write that fails never changes a
@@ -213,7 +217,8 @@ reports, per task, the lead time from the first successful `prepare` to the
 successful `integrate finalize` (falling back to the lifecycle `started_at` only
 when the journal holds no `prepare` for the task), the stops by code, the
 `integrate abort` runs, and the `prepare --resume` runs. It totals them with the
-median lead time and groups stops by code and by the class in
+median lead time, counts `unbacked_block` and `declared_block` lines per host
+(`blocks_by_host`), and groups stops by code and by the class in
 `capabilities/stop-codes-v1.json`; a `blocked` line without `stop_code` is
 `uncoded`. `--since` filters records by time; a task's lead time still uses its
 whole history. Malformed lines are counted and skipped; an empty or missing

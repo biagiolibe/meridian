@@ -108,6 +108,80 @@ class StopAuditTest(unittest.TestCase):
         self.assertEqual(report["totals"]["stops"], 1)
         self.assertEqual(report["totals"]["tasks"], 0)
 
+    def codex_input(self, message: object, **extra: object) -> dict:
+        return {
+            "cwd": str(self.project),
+            "hook_event_name": "Stop",
+            "session_id": "s",
+            "turn_id": "t",
+            "model": "m",
+            "permission_mode": "default",
+            "stop_hook_active": False,
+            "transcript_path": None,
+            "last_assistant_message": message,
+            **extra,
+        }
+
+    def test_codex_input_backed_code_is_not_recorded(self) -> None:
+        self.seed(self.blocked("WRONG_WORKTREE"))
+        self.assertEqual(stop_audit.audit(self.codex_input("BLOCKED WRONG_WORKTREE: x"), NOW, host="codex"), [])
+        self.assertEqual(len(self.journal.read_text().splitlines()), 1)
+
+    def test_codex_input_unbacked_code_records_the_host_and_no_text(self) -> None:
+        self.seed(self.blocked("PRIMARY_DIRTY"))
+        written = stop_audit.audit(self.codex_input("BLOCKED WRONG_WORKTREE: private reasoning"), NOW, host="codex")
+        self.assertEqual([(line["result"], line["host"]) for line in written], [("unbacked_block", "codex")])
+        self.assertNotIn("private reasoning", self.journal.read_text())
+
+    def test_every_written_line_names_its_host(self) -> None:
+        self.seed(self.blocked("PRIMARY_DIRTY"))
+        self.run_audit("BLOCKED WRONG_WORKTREE\nBLOCKED ACCEPTANCE_UNMET")
+        stop_audit.audit(self.codex_input("BLOCKED WRONG_WORKTREE\nBLOCKED ACCEPTANCE_UNMET"), NOW, host="codex")
+        lines = [json.loads(raw) for raw in self.journal.read_text().splitlines()[1:]]
+        self.assertEqual(
+            [(line["result"], line["host"]) for line in lines],
+            [("unbacked_block", "claude"), ("declared_block", "claude"), ("unbacked_block", "codex"), ("declared_block", "codex")],
+        )
+
+    def test_codex_null_message_and_malformed_input_exit_zero(self) -> None:
+        self.seed(self.blocked("PRIMARY_DIRTY"))
+        self.assertEqual(stop_audit.audit(self.codex_input(None), NOW, host="codex"), [])
+        for raw in ("not json", "[]", '{"cwd": 3}', ""):
+            with mock.patch("sys.stdin", io.StringIO(raw)):
+                self.assertEqual(stop_audit.main("codex"), 0)
+        self.assertEqual(len(self.journal.read_text().splitlines()), 1)
+
+    def test_cli_host_option_defaults_to_claude_and_rejects_others(self) -> None:
+        self.seed(self.blocked("PRIMARY_DIRTY"))
+        command = [sys.executable, str(ROOT / "scripts" / "meridian.py"), "hook", "stop-audit"]
+        payload = json.dumps(self.codex_input("BLOCKED WRONG_WORKTREE"))
+        for extra, expected in (([], "claude"), (["--host", "codex"], "codex")):
+            done = subprocess.run([*command, *extra], input=payload, text=True, capture_output=True)
+            self.assertEqual(done.returncode, 0)
+            self.assertEqual(json.loads(self.journal.read_text().splitlines()[-1])["host"], expected)
+        bad = subprocess.run([*command, "--host", "other"], input=payload, text=True, capture_output=True)
+        self.assertNotEqual(bad.returncode, 0)
+
+    def test_flow_report_totals_blocks_per_host_and_reads_old_lines_as_claude(self) -> None:
+        old = {"version": 1, "ts": "2026-10-05T11:30:00Z", "command": "stop-audit", "task": None, "result": "unbacked_block", "stop_code": "WRONG_WORKTREE", "exit": 0}
+        self.seed(self.blocked("PRIMARY_DIRTY"), old)
+        self.run_audit("BLOCKED WRONG_WORKTREE\nBLOCKED ACCEPTANCE_UNMET")
+        stop_audit.audit(self.codex_input("BLOCKED WRONG_WORKTREE"), NOW, host="codex")
+        report = meridian.flow_report(self.project, None, NOW)
+        self.assertEqual(report["unbacked_blocks"], 3)
+        self.assertEqual(report["blocks_by_host"], {"claude": {"unbacked": 2, "declared": 1}, "codex": {"unbacked": 1, "declared": 0}})
+        text = meridian.format_flow_report(report)
+        self.assertIn("Unbacked stop reports: claude=2, codex=1", text)
+        self.assertIn("Declared stop reports: claude=1, codex=0", text)
+
+    def test_codex_templates_register_the_stop_hook_beside_the_read_guard(self) -> None:
+        for mode in ("lean-delivery", "governed-sdd"):
+            hooks = json.loads((ROOT / "templates" / "workflows" / mode / ".codex" / "hooks.json").read_text())["hooks"]
+            stop = hooks["Stop"][0]["hooks"][0]
+            self.assertEqual(stop["command"], "meridian hook stop-audit --host codex")
+            self.assertLessEqual(stop["timeout"], 5)
+            self.assertEqual(hooks["PreToolUse"][0]["hooks"][0]["command"], "meridian hook read-guard --host codex")
+
 
 if __name__ == "__main__":
     unittest.main()
