@@ -1,6 +1,6 @@
 # Review Record
 
-<!-- MERIDIAN:BEGIN capability=review-remediation-record v3 -->
+<!-- MERIDIAN:BEGIN capability=review-remediation-record v4 -->
 Use one durable review record per required-review task at the location
 `meridian locations` resolves for it. It is the canonical handoff from reviewer to
 implementer; chat output may summarize it but must not be the only location of

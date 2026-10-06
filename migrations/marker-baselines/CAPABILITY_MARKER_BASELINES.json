@@ -23,8 +23,8 @@
       "version": 4
     },
     "codex-worktree-access": {
-      "sha256": "0c3d176ee3b192b194d32a59dd5222b5372c2b13a9c37d7faeaae2edde90bc57",
-      "version": 3
+      "sha256": "1f5397dce445667ab7d6621065f3df138e3f8ca559f338c58157e994c2cbc0c3",
+      "version": 4
     },
     "document-precedence": {
       "sha256": "ee8a4d168cd29fed41b336796c2b3ba5760c1f702404c9024d8eb9b5a7a2b60e",
@@ -39,7 +39,7 @@
       "version": 1
     },
     "git-workflow": {
-      "sha256": "db5e26c6fa8b3ed4dcac1aed01825d8ae8a84e0e42c2fc2df607b6b435e57f6f",
+      "sha256": "5a00df82072cb33050736f914c36181b5e7f95736b55860c630cd3303627b1ae",
       "version": 13
     },
     "review-policy": {
@@ -59,8 +59,8 @@
       "version": 3
     },
     "workflow-mode-lock": {
-      "sha256": "72212ae009df99006c3aa8b69070edcaac420cd270dcea168d19c5c0b75a999c",
-      "version": 1
+      "sha256": "c78393564487d9bcb41f08180e91c220ad7033e2408c8c2924bd1d574c71e0f5",
+      "version": 2
     }
   },
   "templates/workflows/governed-sdd/docs/AUDIT_PROMPT_READ_ONLY.md": {
@@ -77,8 +77,8 @@
   },
   "templates/workflows/governed-sdd/docs/CODE_REVIEW_PROMPT.md": {
     "code-review-prompt": {
-      "sha256": "0937ba7015ef19de538bb342514b5833361b169dd0dbc36f62c5eecf48c5f565",
-      "version": 1
+      "sha256": "0a154e8ed2f9246acf087df7cd17bce8e05eb4660a3e3c72de549eb1aeedc369",
+      "version": 2
     }
   },
   "templates/workflows/governed-sdd/docs/COMPLETION_REPORT_TEMPLATE.md": {
@@ -105,8 +105,8 @@
       "version": 1
     },
     "execution-evidence-profile": {
-      "sha256": "ae9d11b60b22b6dbbaead57bc4949b42fdcaee5a8569ab5d03a658ec9ba58c6a",
-      "version": 4
+      "sha256": "df73002adae2864cc016a7557d817281bce400728f529e21c84dac65fbbee5d6",
+      "version": 5
     },
     "isolated-exploration": {
       "sha256": "955337a68eb42e39c91fdd7b7a7a82446b5a78d46d74c9e0d40675357211f937",
@@ -135,8 +135,8 @@
   },
   "templates/workflows/governed-sdd/docs/EXECUTION_EVIDENCE_PROFILE.md": {
     "investigation-scope": {
-      "sha256": "7240335b50be2872123ce878fc37eb988f3c0bf0c84db887e0a02d93363f25ca",
-      "version": 1
+      "sha256": "16068a2752990dcfb2c49026da46b6162c1c2cba1f3aa7a6e56d15edc50c794a",
+      "version": 2
     },
     "long-command-waits": {
       "sha256": "942c3ebfa010f7aba0385d4e0fbb241edf1c17eea89158531a24cddb162198a8",
@@ -145,12 +145,12 @@
   },
   "templates/workflows/governed-sdd/docs/LIFECYCLE_ORCHESTRATION.md": {
     "lifecycle-orchestration": {
-      "sha256": "e604b2a5579aa54f670588c5960f52f5fa527f25a5e5b317fd534c196a40c3ee",
-      "version": 9
+      "sha256": "5577b2e63596df0822d38a3f7951e5cb574d751a6b68b4c72a8d0005fbe43d0a",
+      "version": 10
     },
     "rejected-attempt-restart": {
-      "sha256": "7620b5417d54c4934136956ef083dc78e68e19a03a6ad824a83a01d43e9413fc",
-      "version": 4
+      "sha256": "ba82461f5a67057585d8b2bd57a9486d7b3a739d99f7b43a40ad665a0984c9e4",
+      "version": 5
     }
   },
   "templates/workflows/governed-sdd/docs/PULL_REQUEST_POLICY.md": {
@@ -163,8 +163,8 @@
       "version": 1
     },
     "task-worktree-integration": {
-      "sha256": "89b7ed87efc8ae9c8430d9f2b052a17a97fff5ce43eb60a2bf5687635fb4d5cb",
-      "version": 4
+      "sha256": "4b932eb46097fe403fa691ceabd3e9c4ee62426e937533ba49e6453b1a0f3920",
+      "version": 5
     }
   },
   "templates/workflows/governed-sdd/docs/REVIEW_RECORD_TEMPLATE.md": {
@@ -174,7 +174,7 @@
     },
     "review-remediation-record": {
       "sha256": "a5801e3b837d0e225fd19e13ae7c0548c9bff7a3aec3a8dc54f79a3085024c7e",
-      "version": 3
+      "version": 4
     }
   },
   "templates/workflows/governed-sdd/docs/WORKTREE_LIFECYCLE.md": {
@@ -193,24 +193,24 @@
       "version": 2
     },
     "host-impact-routing": {
-      "sha256": "f5f19f2505c23165cf5ed7239159972729358cf3218297e0061b99af412db7f9",
-      "version": 1
+      "sha256": "cf52d83970d2711f2b818dbbf5017344c1afd38c6714d524900f6c847d98dfc9",
+      "version": 2
     },
     "manual-verification-precondition": {
-      "sha256": "db52e2880255e12678b2e0d41c2cefcefcba247606da05054623a34207b60bf1",
-      "version": 3
+      "sha256": "e5ea454aab09443cca97d4995f3bceabc688e9e7e0cc3ddff08f929dc6b46470",
+      "version": 4
     },
     "phase-reads": {
       "sha256": "5b98ca24de11232fc936e050a1e7a8718d2c94ca8bdf84c7ab251cde8f86331d",
       "version": 1
     },
     "spike-routing": {
-      "sha256": "70cedafaf7606a75a66059115f8f1fc9112567990dafaa82015cdafb4b6dd1b5",
-      "version": 1
+      "sha256": "d05a620308703a3d4963c19833a16df9e790a73b3b44dcd379372c5b3775d67b",
+      "version": 2
     },
     "task-worktree-boundary": {
-      "sha256": "f94d0bbeb7b07ee858c302a818433f1ff93064bdbaf65c1b1284710c9fec96a6",
-      "version": 8
+      "sha256": "b7d12b0c3f44f61f9f30f9759f427eba418b4ff1251957cd3a3d8861b62b0e4f",
+      "version": 9
     },
     "validation-scoping": {
       "sha256": "100a0d27e15610af351b9446cb66a3afa1e270f8498fd26181995cccf42918ab",
@@ -223,12 +223,12 @@
       "version": 3
     },
     "owner-acceptance-workflow": {
-      "sha256": "57a39f317d6721eefa08cf936de91a9f63e719b7f05235f86437bcb4f49eaef0",
-      "version": 2
+      "sha256": "6bc73f5509aa4ee5c1bc2635149335b890afa3363f8375a8bb97c861caccf012",
+      "version": 3
     },
     "rejected-attempt-restart": {
-      "sha256": "3f61871729e246df77c431f58bb5a04e8a1b87d9367b55cfbaf13db5d97a8092",
-      "version": 3
+      "sha256": "e7de82953fbef854985500c5a3c1d70dbb5513707afbad19396e27662ba75b97",
+      "version": 5
     },
     "task-worktree-lifecycle": {
       "sha256": "941614a187dcf4f5e4124c78dfca618076bf5b025aa3d23ae26abc389c1ba429",
@@ -245,16 +245,16 @@
       "version": 1
     },
     "rejected-attempt-restart": {
-      "sha256": "be0a386b853a79dff3e622ba9387f27e163064abb7e75ff8cd6d35beb187e29d",
-      "version": 3
+      "sha256": "221c7d6f5e41801eca5ff5d3185c01f053f96ed137d1067160ce2b3529b4c523",
+      "version": 5
     },
     "review-remediation-record": {
-      "sha256": "b541f30c46226b6728fa876c6fc52dd460b0ec7febade18a752dc24da1aa000f",
-      "version": 3
+      "sha256": "fd6ea63d21c414d73348b18dabf4ba7df3c8331afb0a5cb0de8afb672fe06d3f",
+      "version": 4
     },
     "task-worktree-remediation": {
-      "sha256": "2429da0de1ae2e355ad7fe86c45c05910b3107f79a6cbbc7adae1dc1eab87b26",
-      "version": 3
+      "sha256": "4fae73d91f79af76987632611a900824c695be552ab7a895328289e88cd223ca",
+      "version": 4
     }
   },
   "templates/workflows/governed-sdd/docs/workflows/REVIEW.md": {
@@ -275,29 +275,29 @@
       "version": 2
     },
     "reviewer-integrator-identity": {
-      "sha256": "df2454e30191feba9bdbe3505296c3112b574029f95ebab2d446787167c7e8ab",
-      "version": 2
+      "sha256": "5fb3547f0a7187bab210cbb4189f440080c373e10d52b4406a47c91094352bd2",
+      "version": 3
     },
     "task-worktree-review-procedure": {
-      "sha256": "da857675d776bbf7ed000aeaec69d4c45ad5a9eff415e53a76240c6674a9a3be",
-      "version": 10
+      "sha256": "d724e82b450c4922dde6387000b0884bddd50332217ac03a67c8c2c6d53ced5e",
+      "version": 11
     }
   },
   "templates/workflows/governed-sdd/tasks/TASK_BLUEPRINT.md": {
     "task-blueprint": {
-      "sha256": "1c86a5103c58b830387c582d6e55900800db030cd0f163dedd17571346efaee1",
-      "version": 14
+      "sha256": "1e18036e72b1daec97853231b391de5a2445869442b610bb00fe094e79d932ab",
+      "version": 15
     }
   },
   "templates/workflows/lean-delivery/AGENTS.md": {
     "git-workflow": {
-      "sha256": "539ca066d58f83614d24a1351cfb4219a589c00c1da812e3db225dff34d8ec64",
+      "sha256": "e9219ca1849d0bd39a434c0e6b77f95d81683c1982047a0a1ffbecc4ed655331",
       "version": 12
     }
   },
   "templates/workflows/lean-delivery/CLAUDE.md": {
     "git-workflow": {
-      "sha256": "539ca066d58f83614d24a1351cfb4219a589c00c1da812e3db225dff34d8ec64",
+      "sha256": "e9219ca1849d0bd39a434c0e6b77f95d81683c1982047a0a1ffbecc4ed655331",
       "version": 12
     }
   },
@@ -309,15 +309,15 @@
   },
   "templates/workflows/lean-delivery/PROJECT_WORKFLOW.md": {
     "bounded-worktree-lifecycle": {
-      "sha256": "d9b6dcd106e4207066d10764e144f3727cf1edc6f9cfc35f8a55a11f20838010",
-      "version": 4
+      "sha256": "b885c6ed7c420185bb3039e909e97bc593b3ed663bd1edd0006efef1ecbab958",
+      "version": 5
     },
     "codex-worktree-access": {
-      "sha256": "0317a096f55d591d66408601de6eddc2b29e2e39e9231216a1e5c60e73fb0901",
-      "version": 3
+      "sha256": "5db5c51499c52a6227ca4a4b797f98b8ced5caafcffb37db24508469297187c8",
+      "version": 4
     },
     "git-workflow": {
-      "sha256": "539ca066d58f83614d24a1351cfb4219a589c00c1da812e3db225dff34d8ec64",
+      "sha256": "e9219ca1849d0bd39a434c0e6b77f95d81683c1982047a0a1ffbecc4ed655331",
       "version": 12
     },
     "task-identity-policy": {

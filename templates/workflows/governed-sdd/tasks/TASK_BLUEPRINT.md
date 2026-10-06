@@ -1,6 +1,6 @@
 # Task [ID] — [Title]
 
-<!-- MERIDIAN:BEGIN capability=task-blueprint v14 -->
+<!-- MERIDIAN:BEGIN capability=task-blueprint v15 -->
 Priority: [P0 / P1 / P2]
 Status: QUEUED
 Review: REQUIRED
@@ -15,14 +15,14 @@ Investigation scope: [optional; overrides the profile's default cap]
 
 `Manual verification rationale` is checked before the evidence-availability
 probe, not after: a missing rationale, or one naming a property assertable at
-tier 1 or tier 2, returns `BLOCKED` asking for the task to be re-scoped as a
+tier 1 or tier 2, returns `BLOCKED SCOPE_CHANGE_REQUIRED` asking for the task to be re-scoped as a
 deterministic check instead.
 
 `Diagnostic attempts`, `Evidence captures`, `Context expansions`, and
 `Investigation scope` are
 optional per-task caps; omit any of them to inherit
 `docs/EXECUTION_EVIDENCE_PROFILE.md`'s default. Each is a cap, not a target:
-exhausting it requires `BLOCKED`, not a silently raised cap. Setting one
+exhausting it requires `BLOCKED BUDGET_EXHAUSTED`, not a silently raised cap. Setting one
 above the profile's default requires a one-line rationale in this task.
 
 ## Spike shape
