@@ -223,7 +223,7 @@
           },
           "installation": {
             "evidence": [
-              "sha256:b427ae75d05f8d193e2e12367db24fae6687b3ca0aa192a06c23cb8f488cc7dd",
+              "sha256:80e7c15e6133c0286613fe4ccf5e73b1a2e229fbffbf24c128f1395f3d012e7b",
               "sha256:895968d847cb7a7df0abc4a580569bd46435fc3de53e1ae1f0c7c14f7b66c4f1",
               "sha256:770dea958f4bc2d992b9beb7e6a166eeed3cf69911d11bceee72253c50611219"
             ],
@@ -333,7 +333,7 @@
   },
   "frameworkVersion": "1.1.49",
   "managedFiles": {
-    ".codex/hooks.json": "b427ae75d05f8d193e2e12367db24fae6687b3ca0aa192a06c23cb8f488cc7dd",
+    ".codex/hooks.json": "80e7c15e6133c0286613fe4ccf5e73b1a2e229fbffbf24c128f1395f3d012e7b",
     ".codex/rules/meridian.rules": "67ed1da6b14d5ded493cf14b6432de14d18aafbefa5e4c8c793feb6052d86d20",
     "AGENTS.md": "8e61fb70382af72a54f30917aa3602074e700a8a4dc50d9d6f6cc00a2e3bbd7a",
     "CLAUDE.md": "03e16e4a19ade1611d44c8eacb41ceb90d8ffa9393b64b8875d1191ad6a3bdec",

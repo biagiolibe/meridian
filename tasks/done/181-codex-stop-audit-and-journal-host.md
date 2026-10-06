@@ -25,36 +25,39 @@ record which host produced each audit line.
 
 ## Acceptance Criteria
 
-- [ ] `templates/workflows/lean-delivery/.codex/hooks.json` and
+- [x] `templates/workflows/lean-delivery/.codex/hooks.json` and
   `templates/workflows/governed-sdd/.codex/hooks.json` register a `Stop` hook
   that runs `meridian hook stop-audit --host codex` with a timeout of 5
   seconds or less. The existing `PreToolUse` read-guard entry is unchanged.
-  This repository's own `.codex/hooks.json` is updated through `meridian
-  upgrade`, not by hand.
-- [ ] `meridian hook stop-audit` accepts `--host claude|codex`, defaulting to
+  This repository's `.codex/hooks.json` gets the same entry as the template,
+  copied by hand, and its manifest digest is refreshed with `python3
+  scripts/check_repository.py --write-managed-digests`, following task 176.
+  Amended by the developer before closure: `meridian upgrade` is blocked on
+  this repository by its 1.1.49 self-hosting baseline.
+- [x] `meridian hook stop-audit` accepts `--host claude|codex`, defaulting to
   `claude` so the Claude Code entry from task 173 keeps working unchanged.
-- [ ] The Codex `Stop` hook input fields are verified against the installed
+- [x] The Codex `Stop` hook input fields are verified against the installed
   Codex CLI version. The handoff records that version, the top-level keys
   observed, and which field supplied the final message. If the final message
   is not available from the input, the transcript fallback is verified the
   same way.
-- [ ] Every `unbacked_block` and `declared_block` journal line carries
+- [x] Every `unbacked_block` and `declared_block` journal line carries
   `host: "claude"` or `host: "codex"`. Lines written before this task, which
   have no `host`, are read as `claude`. Journal lines written by lifecycle
   commands are unchanged.
-- [ ] `meridian report flow` reports unbacked and declared blocks per host.
-- [ ] The hook keeps every task 173 guarantee on Codex: no message text is
+- [x] `meridian report flow` reports unbacked and declared blocks per host.
+- [x] The hook keeps every task 173 guarantee on Codex: no message text is
   stored, it always exits 0, never blocks the stop, and does nothing outside a
   Meridian project or when no journal exists.
-- [ ] The managed `.codex/hooks.json` change ships through a migration to the
+- [x] The managed `.codex/hooks.json` change ships through a migration to the
   next template-changing release, shared with 169 and 176 if they ship
   together. `upgrade --check` on copies of the Palimpsest and Fusa manifests
   is recorded in the handoff.
-- [ ] Tests cover a Codex hook input with a backed code, an unbacked code, a
+- [x] Tests cover a Codex hook input with a backed code, an unbacked code, a
   malformed input, a `host` value on each written line, a pre-181 line
   without `host`, and the per-host `report flow` totals.
-- [ ] One changelog fragment is added per `CONTRIBUTING.md`.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
+- [x] One changelog fragment is added per `CONTRIBUTING.md`.
+- [x] `python3 scripts/check_repository.py` and the unit tests pass.
 
 ## Relevant Files
 
