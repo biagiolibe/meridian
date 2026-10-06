@@ -16,7 +16,7 @@ code and not in prose.
 
 ## Acceptance Criteria
 
-- [ ] In the managed `git-workflow` block of both workflows, and in the Lean
+- [x] In the managed `git-workflow` block of both workflows, and in the Lean
   router copies and this repository's copies, the closure order and the
   per-step stop list are replaced by a short rule. The rule tells the agent to:
   - run `meridian worktree advance <TASK-ID>`;
@@ -25,26 +25,26 @@ code and not in prose.
   - report its `BLOCKED` line when it stops.
   The deny list, the authority of `Proceed with`, the governance-file
   ownership rule, and the rules from task 164 stay.
-- [ ] The block is measurably shorter. The handoff records the byte size of
+- [x] The block is measurably shorter. The handoff records the byte size of
   each changed managed block before and after, and each block shrinks.
-- [ ] `docs/WORKTREE_LIFECYCLE.md` keeps the single-step commands as the
+- [x] `docs/WORKTREE_LIFECYCLE.md` keeps the single-step commands as the
   documented path for diagnosis and manual recovery.
-- [ ] The capability marker version is bumped through a migration whose `to` is
+- [x] The capability marker version is bumped through a migration whose `to` is
   the next release. `upgrade --check` on copies of the Palimpsest and Fusa
   manifests shows the update and no `BLOCKED`; the results go in the handoff.
-- [ ] The Codex and Claude Code skill assets for both modes stay in parity.
-- [ ] The shipped Codex rule templates
+- [x] The Codex and Claude Code skill assets for both modes stay in parity.
+- [x] The shipped Codex rule templates
   (`templates/workflows/*/.codex/rules/meridian.rules`) allow
   `meridian worktree advance` in both modes, and `meridian codex doctor`
   probes it with the other lifecycle commands. Both changes ship in this
   task's migration. They were deferred from task 174, whose Release A was
   CLI-only with no migration. This repository's `.codex/rules/meridian.rules`
   is updated through `meridian upgrade`, not by hand.
-- [ ] `VERSION`, `.claude-plugin/plugin.json`, and the release ledger are bumped
+- [x] `VERSION`, `.claude-plugin/plugin.json`, and the release ledger are bumped
   only if no earlier unreleased task has done so for the same release.
-- [ ] One changelog fragment states the change under `Changed` and the action
+- [x] One changelog fragment states the change under `Changed` and the action
   under `Upgrade notes`.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
+- [x] `python3 scripts/check_repository.py` and the unit tests pass.
 
 ## Relevant Files
 
