@@ -627,6 +627,43 @@ class ManagedDigestTest(unittest.TestCase):
         self.assertEqual([], cr.write_managed_digests(self.root))
         self.assertEqual(after_first_write, (self.root / ".meridian/manifest.json").read_bytes())
 
+    def test_refresh_restores_a_declared_surface_the_upgrade_dropped(self) -> None:
+        manifest = self.manifest()
+        managed_files = manifest["managedFiles"]
+        assert isinstance(managed_files, dict)
+        managed_files.pop("docs/COMPLETION_REPORT_TEMPLATE.md")
+        self.write_manifest(manifest)
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output), self.assertRaises(SystemExit):
+            cr.check_managed_digests(self.root)
+        self.assertIn("has no managedFiles digest", output.getvalue())
+
+        changes = cr.write_managed_digests(self.root)
+
+        self.assertEqual(1, len(changes))
+        self.assertIn("docs/COMPLETION_REPORT_TEMPLATE.md", changes[0])
+        cr.check_managed_digests(self.root)
+        restored = self.manifest()["managedFiles"]
+        assert isinstance(restored, dict)
+        self.assertEqual(sorted(restored), list(restored))
+
+    def test_refresh_recomputes_evidence_after_an_upgrade_rewrote_managed_files(self) -> None:
+        manifest = self.manifest()
+        managed_files = manifest["managedFiles"]
+        assert isinstance(managed_files, dict)
+        managed_files["docs/CONTEXT_BUDGET_POLICY.md"] = "0" * 64
+        profiles = manifest["capabilityProfiles"]
+        assert isinstance(profiles, dict)
+        capabilities = profiles["meridian-self-hosting"]["capabilities"]
+        assert isinstance(capabilities, dict)
+        capabilities["context-budgeting"]["installation"]["evidence"] = ["sha256:" + "1" * 64]
+        self.write_manifest(manifest)
+
+        cr.write_managed_digests(self.root)
+
+        cr.check_managed_digests(self.root)
+        self.assertEqual([], cr.write_managed_digests(self.root))
+
     def test_refresh_refuses_a_missing_listed_file(self) -> None:
         self.target.unlink()
         output = io.StringIO()
@@ -674,6 +711,47 @@ class ManagedDigestTest(unittest.TestCase):
         profile = (self.root / "docs/EXECUTION_EVIDENCE_PROFILE.md").read_text(encoding="utf-8")
         self.assertIn("Run every validation command of record as its own command", profile)
         self.assertIn("Never join it with `&&` or `;`", profile)
+
+
+class SelfHostingBaselineTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory()
+        self.root = Path(self.temporary.name) / "project"
+        shutil.copytree(ROOT, self.root, ignore=shutil.ignore_patterns(".git", "__pycache__"))
+        self.manifest_path = self.root / ".meridian/manifest.json"
+
+    def tearDown(self) -> None:
+        self.temporary.cleanup()
+
+    def set_baseline(self, version: str) -> None:
+        manifest = json.loads(self.manifest_path.read_text(encoding="utf-8"))
+        manifest["workflowBaselineVersion"] = version
+        self.manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+
+    def test_current_baseline_passes(self) -> None:
+        cr.check_self_hosting_baseline(self.root)
+
+    def test_lagging_baseline_fails_and_names_the_fix(self) -> None:
+        self.set_baseline("1.1.49")
+        output = io.StringIO()
+
+        with contextlib.redirect_stdout(output), self.assertRaises(SystemExit):
+            cr.check_self_hosting_baseline(self.root)
+
+        message = output.getvalue()
+        self.assertIn("1.1.49", message)
+        self.assertIn("upgrade --project . --check", message)
+        self.assertIn("--apply", message)
+
+    def test_migration_ahead_of_version_is_not_required_yet(self) -> None:
+        source = sorted((self.root / "migrations").glob("*.json"))[-1]
+        data = json.loads(source.read_text(encoding="utf-8"))
+        data["id"] = "999-ahead-of-version"
+        data["from"] = data["to"]
+        data["to"] = "99.0.0"
+        (self.root / "migrations/999-ahead-of-version.json").write_text(json.dumps(data), encoding="utf-8")
+
+        cr.check_self_hosting_baseline(self.root)
 
 
 class CatalogSurfaceMigrationTest(unittest.TestCase):
