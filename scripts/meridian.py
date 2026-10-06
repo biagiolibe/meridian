@@ -2336,15 +2336,22 @@ def advance_task_closure(
     *,
     accepted: bool,
     supplied_project: Path | None = None,
+    candidate_commands: list[str] | None = None,
+    candidate_exit_codes: list[int] | None = None,
 ) -> tuple[dict[str, object], bool]:
     """Run the mechanical closure steps and return where the agent must act next.
 
-    It performs C5 (evidence), C6 (stage) and C10 (cleanup) when closure_status
-    says their preconditions hold. It never runs a command the agent supplied.
+    It performs C5 (evidence), C6 (stage), C8 (finalize from the supplied
+    candidate validation results) and C10 (cleanup) when closure_status says
+    their preconditions hold. It never runs a command the agent supplied.
     The boolean is True when the result is a stop that the CLI reports with exit 2.
     """
+    candidate_commands = candidate_commands or []
+    candidate_exit_codes = candidate_exit_codes or []
     if len(validation_commands) != len(validation_exit_codes):
         raise MeridianError("each --validation-command requires one --validation-exit-code")
+    if len(candidate_commands) != len(candidate_exit_codes):
+        raise MeridianError("each --candidate-command requires one --candidate-exit-code")
     project_root = _verified_lifecycle_project(supplied_project)
     if Path.cwd().resolve() != project_root:
         raise MeridianError("worktree advance must run from the canonical primary checkout")
@@ -2428,9 +2435,56 @@ def advance_task_closure(
             return stopped(step, code)
         elif step == "C7":
             staged = _read_json_object(integration_path, "staged integration state")
-            _state, fragments = candidate_validation_declaration(project_root)
+            declaration_state, fragments = candidate_validation_declaration(project_root)
             commands = ["git diff --check", *fragments.get(str(staged.get("decision")), ())]
-            return result("C7", "run-candidate-validation", commands=commands, resume=str(status["resume"]))
+            if not candidate_commands:
+                return result("C7", "run-candidate-validation", commands=commands, resume=str(status["resume"]))
+            aborted_resume = (
+                "the integration was aborted; fix the failure on the task branch, rerun validation, "
+                "then rerun advance"
+            )
+            if any(exit_code != 0 for exit_code in candidate_exit_codes):
+                abort_task_integration(task, project_root)
+                _journal_advance_step(project_root, "integrate abort", task, "C7")
+                performed.append("abort")
+                return result(
+                    "C7", "resolve", stop_code="CANDIDATE_VALIDATION_FAILED", resume=aborted_resume, blocked=True
+                )
+            missing = (
+                commands
+                if declaration_state == "undeclared"
+                else list(missing_candidate_validation_commands(staged.get("decision"), candidate_commands, fragments))
+            )
+            if missing:
+                abort_task_integration(task, project_root)
+                _journal_advance_step(project_root, "integrate abort", task, "C7")
+                performed.append("abort")
+                return result(
+                    "C7",
+                    "run-candidate-validation",
+                    commands=missing,
+                    stop_code="UNDECLARED_VALIDATION_COMMANDS",
+                    resume="the integration was aborted; run the listed commands and rerun advance with every result",
+                    blocked=True,
+                )
+            candidate_evidence = state_path.with_suffix(".candidate-validation.json")
+            _write_json_atomic(candidate_evidence, {
+                "version": 1,
+                "task_id": task,
+                "candidate_tree": staged["candidate_tree"],
+                "passed": True,
+                "scope": "full" if staged.get("decision") == "FULL" else "bounded",
+                "commands": candidate_commands,
+            })
+            try:
+                finalize_task_integration(task, candidate_evidence, project_root)
+            except MeridianStop as error:
+                return stopped("C8", error.code)
+            performed.append("C8")
+            _journal_advance_step(project_root, "integrate finalize", task, "C8")
+            return result(
+                "C9", "push", commands=["git push origin main"], stop_code="PUSH_PENDING", resume="git push origin main"
+            )
         elif step == "C9":
             return result("C9", "push", commands=["git push origin main"], stop_code=code, resume="git push origin main")
         elif step == "C10":
@@ -10603,6 +10657,8 @@ def _run_cli(journal: LifecycleJournalEntry) -> int:
     worktree_advance.add_argument("--accepted", action="store_true")
     worktree_advance.add_argument("--validation-command", action="append", default=[])
     worktree_advance.add_argument("--validation-exit-code", action="append", type=int, default=[])
+    worktree_advance.add_argument("--candidate-command", action="append", default=[])
+    worktree_advance.add_argument("--candidate-exit-code", action="append", type=int, default=[])
     worktree_advance.add_argument("--format", choices=("json",), required=True)
     worktree_integrate = worktree_sub.add_parser("integrate", help="stage, finalize, or abort one owned integration")
     integrate_sub = worktree_integrate.add_subparsers(dest="integrate_command", required=True)
@@ -11026,6 +11082,8 @@ def _run_cli(journal: LifecycleJournalEntry) -> int:
                     arguments.validation_exit_code,
                     accepted=arguments.accepted,
                     supplied_project=project_root,
+                    candidate_commands=arguments.candidate_command,
+                    candidate_exit_codes=arguments.candidate_exit_code,
                 )
                 journal.observe(advanced)
                 print(json.dumps(advanced, sort_keys=True))
