@@ -15,4 +15,5 @@ prefix_rule(pattern=["git", "merge", "main"], decision="allow")
 
 # Project validation commands.
 prefix_rule(pattern=["python3", "scripts/check_repository.py"], decision="allow")
+prefix_rule(pattern=["python3", "scripts/run_tests.py", "--parallel"], decision="allow")
 prefix_rule(pattern=["python3", "-m", "unittest", "discover", "-s", "tests"], decision="allow")
