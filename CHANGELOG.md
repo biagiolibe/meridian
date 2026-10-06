@@ -15,6 +15,52 @@ records which release moved it.
 
 ## [Unreleased]
 
+
+## [1.2.10]
+
+CLI-only release: this release introduces no migration.
+
+### Added
+
+- Every lifecycle command (`prepare`, `check`, `closure-status`, `evidence`,
+  `integrate stage`, `integrate finalize`, `integrate abort`, and `cleanup`)
+  now appends one line to a local journal at
+  `<git-common-dir>/meridian-journal.jsonl`, recording its result and stop code
+  without any path, command text, or message content. A failed journal write
+  only prints a warning. See `docs/WORKTREE_LIFECYCLE.md`.
+- `meridian report flow` reads the lifecycle journal and reports per-task lead
+  time, stops by code and class, aborts, and `prepare --resume` runs, with
+  origin shares from an optional `Origin` task header, targets declared in
+  `.meridian/flow-targets.json`, and removal candidates among never-emitted
+  tool stops. It is read-only. See `docs/WORKTREE_LIFECYCLE.md`.
+- The lifecycle journal marks `prepare --resume` runs with `resume: true`.
+- A Claude Code `Stop` hook runs `meridian hook stop-audit`, which finds
+  `BLOCKED <CODE>` lines in the final assistant message and appends
+  `unbacked_block` to the lifecycle journal when no `blocked` journal line backs
+  the code, or `declared_block` for `command-exit` and `judgment` codes. It
+  stores the registered code only, never message text, and always exits 0.
+  `meridian report flow` counts the `unbacked_block` lines. See
+  `docs/WORKTREE_LIFECYCLE.md`.
+- `meridian worktree advance <TASK-ID>` drives task closure from the primary
+  checkout. It records evidence from the supplied validation results (C5),
+  stages the integration (C6), and cleans up once the push is proven (C10),
+  then returns one JSON object with `step`, `action_required`, `commands`,
+  `stop_code`, and `resume` when the next step needs validation, candidate
+  validation (C7), a push (C9), or a decision. It never runs a supplied
+  command and journals each step it performs. See `docs/WORKTREE_LIFECYCLE.md`.
+- `meridian worktree advance` accepts `--candidate-command` and
+  `--candidate-exit-code`, repeatable. At a staged integration it writes the
+  candidate-bound evidence from those results and runs `integrate finalize`,
+  then asks for the push. A failed or missing candidate command aborts the
+  integration with `CANDIDATE_VALIDATION_FAILED` or
+  `UNDECLARED_VALIDATION_COMMANDS`; a candidate tree that changed after stage
+  stops with `EVIDENCE_MISMATCH`. It still never runs a supplied command. See
+  `docs/WORKTREE_LIFECYCLE.md`.
+
+### Changed
+
+- `meridian worktree integrate stage` now reports under `warnings` in its JSON output each queue section that archival skips without error, naming the section heading and the reason, such as a heading level other than `###` or a table header that does not start with the expected columns. It also reports a Governed SDD section held open only by `INCONCLUSIVE` rows. A warning never blocks the stage, and which sections are archived does not change.
+
 ## [1.2.9]
 
 Template-changing release: migration `063-retire-reasoning-budget-contract` advances `workflowBaselineVersion` to `1.2.9`. It retires the reasoning budget contract, clarifies that a local `main` ahead of `origin/main` does not block integration, and states the stop and denial rules of `docs/ADR_STOPS_AND_DENIALS.md` in the managed `git-workflow` block. The CLI adds the stop-code registry and coded closure, execution, and handoff stops. The manifest shape and `protocolVersion` 2 are unchanged.
