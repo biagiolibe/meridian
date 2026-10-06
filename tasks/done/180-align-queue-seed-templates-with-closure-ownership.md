@@ -31,27 +31,27 @@ projects only; an adopted project's queue is never rewritten.
 
 ## Acceptance Criteria
 
-- [ ] `templates/base/tasks/QUEUE.md` states that the developer assigns a
+- [x] `templates/base/tasks/QUEUE.md` states that the developer assigns a
   task, that task branches do not edit the queue, that a row keeps `[ ]` until
   `meridian worktree integrate stage` sets `[x]` on the merged candidate, that
   in-progress state is derived from the task branch, registered worktree, and
   unarchived record, that the task branch moves its own task file to
   `tasks/done/`, and that `integrate stage` archives a fully closed phase. The
   wording matches this repository's `tasks/QUEUE.md`.
-- [ ] `templates/workflows/governed-sdd/tasks/QUEUE.md` no longer instructs an
+- [x] `templates/workflows/governed-sdd/tasks/QUEUE.md` no longer instructs an
   agent to choose a task, and its `Archiving` paragraph states that
   `integrate stage` archives closed rows, without changing which statuses
   satisfy dependencies.
-- [ ] No managed file, capability marker, or marker baseline changes. If the
+- [x] No managed file, capability marker, or marker baseline changes. If the
   release that ships this task has a migration, that migration may list the
   seed files as documentary only, following migration 026; this task adds no
   migration of its own.
-- [ ] Existing tests that read the seed queues pass unchanged, or are updated
+- [x] Existing tests that read the seed queues pass unchanged, or are updated
   only where they assert the replaced sentences; `meridian init` into a
   temporary directory still produces a queue that `integrate stage` can parse.
-- [ ] One changelog fragment is added under `Changed`. It states that existing
+- [x] One changelog fragment is added under `Changed`. It states that existing
   projects are not changed and may copy the new wording by hand.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
+- [x] `python3 scripts/check_repository.py` and the unit tests pass.
 
 ## Relevant Files
 

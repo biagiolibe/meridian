@@ -146,7 +146,7 @@
 - `[x]` 177 — Add an agent evaluation harness graded on the journal and Git state.
 - `[x]` 178 — Add the safety and remediation scenarios and run them before template-changing releases.
 - `[x]` 179 — Stabilize the parallel runner output comparison test.
-- `[ ]` 180 — Align the queue seed templates with closure ownership.
+- `[x]` 180 — Align the queue seed templates with closure ownership.
 - `[ ]` 181 — Run the stop audit on Codex and record the host on audit lines.
 - `[ ]` 182 — Make the parallel test runner this repository's standard validation.
 - `[ ]` 183 — Build lifecycle test repositories once per class and copy them per test.
