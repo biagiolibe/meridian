@@ -3012,6 +3012,7 @@ CLAUDE_PROJECT_ALLOWLIST = (
     "Bash(python3 scripts/meridian.py execution contract:*)",
     "Bash(python3 scripts/meridian.py execution investigate:*)",
     "Bash(python3 scripts/check_repository.py)",
+    "Bash(python3 scripts/run_tests.py --parallel)",
     "Bash(python3 -m unittest discover -s tests)",
     "Bash(python3 -m unittest discover -s tests -q)",
     "Bash(git mv tasks/:*)",

@@ -5,7 +5,7 @@
     ],
     "FULL": [
       "scripts/check_repository.py",
-      "unittest discover"
+      "scripts/run_tests.py"
     ],
     "REUSE": [
       "scripts/check_repository.py"

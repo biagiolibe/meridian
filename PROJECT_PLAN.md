@@ -148,8 +148,9 @@
 - `[x]` 179 — Stabilize the parallel runner output comparison test.
 - `[x]` 180 — Align the queue seed templates with closure ownership.
 - `[ ]` 181 — Run the stop audit on Codex and record the host on audit lines.
-- `[ ]` 182 — Make the parallel test runner this repository's standard validation.
+- `[x]` 182 — Make the parallel test runner this repository's standard validation.
 - `[ ]` 183 — Build lifecycle test repositories once per class and copy them per test.
+- `[ ]` 184 — Bring this repository's Meridian installation to the current release and keep it upgradable.
 - `[x]` 140 — Let `integrate stage` complete rows of project-shaped Governed queues.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.
