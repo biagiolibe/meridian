@@ -141,7 +141,7 @@
 - `[x]` 172 — Add `meridian report flow` over the lifecycle journal.
 - `[x]` 173 — Detect `BLOCKED` reports that no command emitted.
 - `[x]` 174 — Add `meridian worktree advance` to drive closure through its mechanical steps.
-- `[ ]` 175 — Let `advance` finalize from supplied candidate validation results.
+- `[x]` 175 — Let `advance` finalize from supplied candidate validation results.
 - `[ ]` 176 — Replace the closure procedure in managed text with `advance`.
 - `[ ]` 177 — Add an agent evaluation harness graded on the journal and Git state.
 - `[ ]` 178 — Add the safety and remediation scenarios and run them before template-changing releases.

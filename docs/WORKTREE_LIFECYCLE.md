@@ -50,7 +50,8 @@ The explicit option remains available for finishing a worktree in an old root.
   every completed command. It records results supplied by the agent and never
   executes a validation command.
 - `meridian worktree advance <TASK-ID> --project <primary> --format json
-  [--validation-command <command> --validation-exit-code <code>]... [--accepted]`
+  [--validation-command <command> --validation-exit-code <code>]... [--accepted]
+  [--candidate-command <command> --candidate-exit-code <code>]...`
   runs from the primary checkout. It evaluates `closure-status` and performs
   each mechanical step whose preconditions hold: C5 records evidence from the
   supplied results with the logic of `evidence` (`--accepted` and exit code `0`
@@ -66,7 +67,18 @@ The explicit option remains available for finishing a worktree in an old root.
   on a stop and `0` when the agent only has to act. It never runs a command
   that the agent supplied, never changes into the worktree, and a rerun
   continues from the derived state without repeating a completed step.
-  Candidate validation and finalization (C7-C8) stay single-step commands.
+  At C7, supplied `--candidate-command` and `--candidate-exit-code` pairs are
+  the agent's candidate validation results. When every exit code is `0` and
+  every command that the staged outcome requires is present, `advance` writes
+  the candidate-bound evidence file (the schema above, bound to the staged
+  `candidate_tree`), runs `integrate finalize` (C8), and returns `push` for
+  `git push origin main`. A non-zero exit code stops with
+  `CANDIDATE_VALIDATION_FAILED`, and a missing required command stops with
+  `UNDECLARED_VALIDATION_COMMANDS` and lists the commands to run; both run
+  `integrate abort` first and never finalize on partial evidence. A candidate
+  tree that changed after stage stops with `EVIDENCE_MISMATCH` and leaves the
+  staged merge for `integrate abort` and a restage. A rerun after an
+  interruption between finalize and push returns `push` again.
 - `meridian worktree closure-status <TASK-ID> --project <primary> [--format json]`
   is read-only. It reports the next closure `step`, any `stop_reason`, and a
   `resume` command from the registered worktree, lifecycle files, and Git
