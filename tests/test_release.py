@@ -123,6 +123,39 @@ class ReleasePrepareTest(unittest.TestCase):
         self.assertEqual(record["migrations"], ["001-test"])
         self.assertTrue(record["baselineChanged"])
 
+    def test_migration_release_prints_the_agent_evaluation_reminder_and_cli_only_does_not(self) -> None:
+        cli_only = io.StringIO()
+        with redirect_stdout(cli_only):
+            self.assertEqual(self.invoke("--bump", "patch", "--dry-run"), 0)
+        self.assertNotIn("run_agent_evals", cli_only.getvalue())
+
+        (self.root / "migrations/001-test.json").write_text('{"id":"001-test","to":"1.0.1"}', encoding="utf-8")
+        self.write_changelog("### Upgrade notes\n\n- Apply the migration.")
+        self.git("add", ".")
+        self.git("commit", "-qm", "migration")
+        dry_run = io.StringIO()
+        with redirect_stdout(dry_run):
+            self.assertEqual(self.invoke("--version", "1.0.1", "--dry-run"), 0)
+        prepared = io.StringIO()
+        with mock.patch.object(release, "validate", return_value=(0, [])), redirect_stdout(prepared):
+            self.assertEqual(self.invoke("--version", "1.0.1"), 0)
+        for text in (dry_run.getvalue(), prepared.getvalue()):
+            self.assertIn("python3 scripts/run_agent_evals.py --host claude", text)
+            self.assertIn("record the pass counts in the release commit message", text)
+            self.assertIn("This command does not run them.", text)
+        self.assertEqual(self.git("log", "-1", "--format=%s").stdout.strip(), "Release 1.0.1")
+
+    def test_directing_a_migration_release_to_publish_repeats_the_reminder(self) -> None:
+        (self.root / "migrations/001-test.json").write_text('{"id":"001-test","to":"1.0.1"}', encoding="utf-8")
+        (self.root / "VERSION").write_text("1.0.1\n", encoding="utf-8")
+        self.git("add", ".")
+        self.git("commit", "-qm", "migration and bump")
+        errors = io.StringIO()
+        with redirect_stderr(errors):
+            self.assertEqual(self.invoke("--bump", "patch"), 1)
+        self.assertIn("run python3 scripts/release.py publish --confirm v1.0.1", errors.getvalue())
+        self.assertIn("python3 scripts/run_agent_evals.py --host claude", errors.getvalue())
+
     def test_validation_failure_rolls_back(self) -> None:
         with mock.patch.object(release, "validate", return_value=(7, ["test", "failure"])), redirect_stderr(io.StringIO()):
             self.assertEqual(self.invoke("--version", "1.0.1"), 7)
