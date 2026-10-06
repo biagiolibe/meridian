@@ -135,7 +135,7 @@
 - `[x]` 166 — Give codes and actionable messages to the execution and handoff gates.
 - `[x]` 167 — Make the execution preflight satisfiable during remediation.
 - `[x]` 168 — Report queue sections that archival cannot read.
-- `[ ]` 169 — Code the remaining gates and require every stop to carry a code.
+- `[x]` 169 — Code the remaining gates and require every stop to carry a code.
 - `[x]` 170 — Require a declared validation ID for every command that proves a criterion.
 - `[x]` 171 — Record lifecycle command results in a local journal.
 - `[x]` 172 — Add `meridian report flow` over the lifecycle journal.

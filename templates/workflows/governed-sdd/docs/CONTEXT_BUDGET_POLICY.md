@@ -112,7 +112,7 @@ property belongs to; only tier 3 justifies it.
 If the property is readable as a value anywhere in the program, assert it instead of capturing it.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=execution-evidence-profile v4 -->
+<!-- MERIDIAN:BEGIN capability=execution-evidence-profile v5 -->
 ## Execution evidence discipline
 
 Apply the project-specific `docs/EXECUTION_EVIDENCE_PROFILE.md` before an
@@ -139,7 +139,7 @@ first implementation after an upgrade that adds it.
   implementation strategy. Before a second diagnostic attempt that changes an
   implementation hypothesis, state the evidence gap it will resolve. If a
   focused failure exposes a conflict between the task's acceptance criteria,
-  authority, or allowed code surface, return `BLOCKED`; do not continue
+  authority, or allowed code surface, return `BLOCKED SCOPE_CHANGE_REQUIRED`; do not continue
   searching for a workaround past the profile's declared diagnostic-attempt
   budget.
 - Inspect every changed hunk, beginning with a change summary and then

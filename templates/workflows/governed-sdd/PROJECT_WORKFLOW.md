@@ -1,6 +1,6 @@
 # Governed SDD Workflow — [Project Name]
 
-<!-- MERIDIAN:BEGIN capability=workflow-mode-lock v1 -->
+<!-- MERIDIAN:BEGIN capability=workflow-mode-lock v2 -->
 ## Workflow-mode lock
 
 The presence of this file selects **governed SDD exclusively**. Before any file
@@ -16,7 +16,7 @@ autonomous task selection, and direct completion updates that bypass a task's
 review policy are prohibited. A request such as “update the queue” changes
 only the authorized governed-SDD record and never authorizes a different
 workflow. If the local workflow documents are absent, contradictory, or cannot
-be read before a mutation, return `BLOCKED` without changing files or Git
+be read before a mutation, return `BLOCKED WORKFLOW_UNREADABLE` without changing files or Git
 state.
 <!-- MERIDIAN:END -->
 
@@ -142,7 +142,7 @@ committed deliverable does not self-evidently answer `Question`, record
 `INCONCLUSIVE` rather than `ANSWERED` on the strength of author judgment.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=codex-worktree-access v3 -->
+<!-- MERIDIAN:BEGIN capability=codex-worktree-access v4 -->
 Task worktrees live below one machine-level resolved root, namespaced as
 `<root>/<remote-host>/<owner>/<repository>/<canonical-task-id>`. Use `meridian
 codex worktree-path` for derivation and collision checks and `meridian codex
@@ -155,7 +155,7 @@ alone never proves effective host access.
 If `meridian codex configure --check` reports `repair-required`, the effective
 profile is identical and only Meridian's ownership markers were damaged, for
 example by a Codex app rewrite. Review the printed diff and run `--apply` only
-after explicit confirmation. A `BLOCKED` result names the diverging fields and
+after explicit confirmation. A `blocked` status names the diverging fields and
 requires manual reconciliation. Repair never proves that a running session
 loaded the profile; start a fresh session and probe it.
 <!-- MERIDIAN:END -->
@@ -191,7 +191,7 @@ archive records; `meridian worktree integrate stage`, the selected candidate
 validation, and `integrate finalize` or `abort`; one plain `git push origin
 main` of the resulting integration; and `meridian worktree cleanup`. Do not
 ask for confirmation at any of these steps. When a gate fails, stop once with
-`BLOCKED <reason>` and the resume command.
+`BLOCKED <CODE>` and the resume command.
 
 After `APPROVE`, `Review <TASK-ID>` carries the same authority for C6 through
 C10, including the one plain `git push origin main` and cleanup, subject to the
@@ -216,27 +216,28 @@ conflict; or work on another task.
   accepted-status commit. No reviewer session is required.
 
 - One writer at a time owns each task worktree. `meridian worktree prepare` consumes the shared task-identity resolver and repository-qualified path derivation, rejects partial or mismatched state, and returns the only branch and path workers may use.
-- Before any task read or mutation, the worker runs `meridian worktree check` from the exact prepared path. A host-created checkout, the primary checkout, or any sibling path is `BLOCKED` even when its branch and HEAD appear correct.
+- Before any task read or mutation, the worker runs `meridian worktree check` from the exact prepared path. A host-created checkout, the primary checkout, or any sibling path is `BLOCKED WRONG_WORKTREE` even when its branch and HEAD appear correct.
 - After validation, the implementer creates the task commit and, only when `T1_CI` validation is needed, pushes the task branch at most once for each review attempt; a project without CI never pushes it. Its completion handoff records the task branch, the machine-independent worktree value (the `handoff_worktree` field returned by `meridian worktree prepare`: the path relative to the worktree root, never an absolute path), implementation commit, validated task commit, validated base `main` commit, exact successful validation commands or CI evidence, the declared integration surface, and whether full combined-tree validation is required. It stops writing before review and leaves the dedicated worktree clean.
-- The reviewer-integrator's first review action in a fresh session is a fail-closed preflight against the completion handoff: before reading the task, implementation files, or diff, resolve the recorded `handoff_worktree` value against the worktree root at runtime, then locate the resulting absolute path and the recorded branch in `git worktree list --porcelain`, confirm the implementer has stopped, and verify the registered path, branch, HEAD, cleanliness, validated task commit, and validated base commit. Any missing or mismatched evidence is `BLOCKED` and preserves all state. A session launched from the primary checkout roots every review read and Git command in the verified task worktree; it never switches or treats the primary checkout as the task checkout.
+- The reviewer-integrator's first review action in a fresh session is a fail-closed preflight against the completion handoff: before reading the task, implementation files, or diff, resolve the recorded `handoff_worktree` value against the worktree root at runtime, then locate the resulting absolute path and the recorded branch in `git worktree list --porcelain`, confirm the implementer has stopped, and verify the registered path, branch, HEAD, cleanliness, validated task commit, and validated base commit. Any missing or mismatched evidence is `BLOCKED WRONG_WORKTREE` and preserves all state. A session launched from the primary checkout roots every review read and Git command in the verified task worktree; it never switches or treats the primary checkout as the task checkout.
 - For `Review: REQUIRED`, the reviewer-integrator must never push the task branch. On `CHANGES_REQUESTED`, it creates a local review-handoff commit containing only the review record and the task record's transition to `IN_PROGRESS`; it does not edit implementation artifacts. The implementer resolves that record, creates the next implementation commit, and, only to obtain `T1_CI`, pushes the branch once for the next review attempt. After `APPROVE`, create the local review-and-status commit that records `ACCEPTED` in the task record on the task branch.
 - For `Review: NOT_REQUIRED`, the implementer records `ACCEPTED` in the task record in a status commit after validation. Neither path rebases, amends, cherry-picks, or force-pushes reviewed task commits.
-- Final integration is serialized in the primary checkout through `meridian worktree integrate stage`. That command verifies accepted evidence, owns the lease and prescribed no-commit merge, and returns the deterministic decision and candidate tree without running project code. Run the selected bounded or full gate separately in the ordinary sandbox, bind successful evidence to that tree, and call `integrate finalize`; call `integrate abort` after failure. Stale, incomplete, or mismatched evidence is `BLOCKED`.
+- Final integration is serialized in the primary checkout through `meridian worktree integrate stage`. That command verifies accepted evidence, owns the lease and prescribed no-commit merge, and returns the deterministic decision and candidate tree without running project code. Run the selected bounded or full gate separately in the ordinary sandbox, bind successful evidence to that tree, and call `integrate finalize`; call `integrate abort` after failure. Stale or mismatched evidence is `BLOCKED EVIDENCE_MISMATCH`; missing or incomplete evidence is `BLOCKED EVIDENCE_INCOMPLETE`.
 - Task branches never edit the project's queue, queue archive, or plan (`meridian locations` resolves them). They edit only their own task record, its exact archive, its review record, and its handoff. `integrate stage` applies queue and plan status and phase archival once on the merged candidate tree. A shared-governance conflict aborts integration; never choose one task's state over another.
 - Only after successful validated integration and any required `main` push, use `meridian worktree cleanup`. Failure, requested changes, cancellation, or blocked integration retains both; exceptional cleanup remains explicitly authorized and outside the bounded command.
 - `Accept <TASK-ID>` appends an owner `APPROVE` attempt to the review record, sets the task record to `ACCEPTED`, and continues at C6 under the `Proceed with` authority. A manual merge is never permitted.
-- A forge approval cannot be supplied by the same identity that authored the PR. If an external approval is required but unavailable, leave the PR open and report `BLOCKED`.
+- A forge approval cannot be supplied by the same identity that authored the PR. If an external approval is required but unavailable, leave the PR open and report `BLOCKED REVIEW_REQUIRED`.
 
 ### Stops and denials
 
 The deny list above stays in force without a supporting command. A stop is
 valid only when it is backed by a `BLOCKED <CODE>` line from a Meridian
-command, a non-zero exit of a required command, or an acceptance criterion you
-can name as unmet. Guidance that no command backs is advice: follow it when you
-can, and never return `BLOCKED` on its strength alone.
+command, a non-zero exit of a required command, an acceptance criterion you
+can name as unmet, or a judgment stop that this workflow names with its code. Guidance that no command backs is advice: follow it when you
+can, and never stop on its strength alone.
 
 Never satisfy a gate by writing false state, such as setting a status only to
-pass a check. When a gate contradicts another rule, stop and report both rules.
+pass a check. When a gate contradicts another rule, stop with `BLOCKED RULE_CONFLICT` and
+report both rules.
 
 When a Meridian command accepted a state that this text appears to forbid,
 follow the command and record the difference under `Rule discrepancies:` in the
@@ -251,7 +252,7 @@ and handoff, run `meridian worktree advance <TASK-ID> --project
 <primary-checkout> --format json` from the primary checkout, giving each result
 as `--validation-command`/`--validation-exit-code` with `--accepted`. Perform
 exactly its `action_required`, rerun it with the results (candidate validation
-uses `--candidate-command`/`--candidate-exit-code`), and report its `BLOCKED`
+uses `--candidate-command`/`--candidate-exit-code`), and report its `BLOCKED <CODE>`
 line when it stops. `docs/WORKTREE_LIFECYCLE.md` keeps the single-step commands
 for diagnosis and manual recovery.
 A named sandbox skip is not a validation failure only when the test itself

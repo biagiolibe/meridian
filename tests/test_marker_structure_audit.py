@@ -95,8 +95,8 @@ class StandaloneBlockTemplateTest(unittest.TestCase):
 
     def test_review_prompt_is_one_block_and_applies_the_project_checklist(self) -> None:
         text = self.read("governed-sdd" + "/" + REVIEW_PROMPT)
-        self.assertEqual(meridian.marker_pairs(text), [("code-review-prompt", 1)])
-        block = meridian.extract_marker_block(text, "code-review-prompt", 1)
+        self.assertEqual(meridian.marker_pairs(text), [("code-review-prompt", 2)])
+        block = meridian.extract_marker_block(text, "code-review-prompt", 2)
         self.assertIn("## Project review checklist", block)
         self.assertNotRegex(block, r"(?m)^#+ Project review checklist")
         self.assertTrue(text.rstrip().endswith("<!-- MERIDIAN:END -->"))
@@ -186,7 +186,7 @@ class RetiredInlineMarkerUpgradeTest(FrameworkFixture):
         self.assertTrue(upgraded.startswith(current.rstrip("\n")))
         self.assertIn("## Project review checklist\n\n- Check the migration note.", upgraded)
         self.assertEqual(
-            meridian.marker_pairs(upgraded), [("code-review-prompt", 1)]
+            meridian.marker_pairs(upgraded), [("code-review-prompt", 2)]
         )
         self.assertNotIn("project rule", upgraded)
         self.assertIn("project rule", backup.read_text(encoding="utf-8"))
@@ -219,7 +219,7 @@ class RetiredInlineMarkerUpgradeTest(FrameworkFixture):
         self.assertIn("ci-verified-validation", requirements)
         self.assertNotIn("task-worktree-review", requirements)
         self.assertNotIn("manual-verification-review-check", requirements)
-        self.assertEqual(requirements["code-review-prompt"][0], 1)
+        self.assertEqual(requirements["code-review-prompt"][0], 2)
 
     def test_restructure_removes_retired_blocks_from_a_carried_checklist(self) -> None:
         current = self.locked_at_legacy_prompt(
@@ -237,7 +237,7 @@ class RetiredInlineMarkerUpgradeTest(FrameworkFixture):
         upgraded = (self.project / REVIEW_PROMPT).read_text(encoding="utf-8")
         self.assertTrue(upgraded.startswith(current.rstrip("\n")))
         self.assertTrue(upgraded.endswith("## Project review checklist\n\n- Keep this checklist item.\n"))
-        self.assertEqual(meridian.marker_pairs(upgraded), [("code-review-prompt", 1)])
+        self.assertEqual(meridian.marker_pairs(upgraded), [("code-review-prompt", 2)])
         code, output = self.audit()
         self.assertNotRegex(output, r"(?m)^FAIL\\s")
 

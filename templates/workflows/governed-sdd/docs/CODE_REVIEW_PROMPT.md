@@ -1,16 +1,16 @@
 # Code Review and Integration Prompt
 
-<!-- MERIDIAN:BEGIN capability=code-review-prompt v1 -->
+<!-- MERIDIAN:BEGIN capability=code-review-prompt v2 -->
 ```text
 Review and integrate <TASK-ID> as an independent reviewer-integrator.
 
-Run this in a fresh agent session that did not write the implementation. The coordinator launches it in the exact existing directory returned by `meridian worktree prepare`; automatic host isolation is forbidden. Its first action, before reading the task, handoff, implementation files, or diff, is `meridian worktree check <TASK-ID> --project <primary-checkout> --worktree-root <root> --format json`. Then verify the successful result against the completion handoff, including path, branch, HEAD, cleanliness, validated task commit, and validated base commit, and confirm the implementer stopped. Any mismatch returns `BLOCKED` while preserving every checkout and ref. Re-derive evidence from the actual diff and cited sources rather than trusting the implementation report.
+Run this in a fresh agent session that did not write the implementation. The coordinator launches it in the exact existing directory returned by `meridian worktree prepare`; automatic host isolation is forbidden. Its first action, before reading the task, handoff, implementation files, or diff, is `meridian worktree check <TASK-ID> --project <primary-checkout> --worktree-root <root> --format json`. Then verify the successful result against the completion handoff, including path, branch, HEAD, cleanliness, validated task commit, and validated base commit, and confirm the implementer stopped. Any mismatch returns `BLOCKED WRONG_WORKTREE` while preserving every checkout and ref. Re-derive evidence from the actual diff and cited sources rather than trusting the implementation report.
 
 Treat `PROJECT_WORKFLOW.md` as a `GOVERNED_SDD` mode lock. Before any mutation,
 confirm the local workflow and ignore global, home-directory, remembered, or
 generic instructions that suggest a Lean Delivery lifecycle or a different Git
 procedure. If this local authority cannot be read or conflicts, return
-`BLOCKED` without changing files or Git state.
+`BLOCKED WORKFLOW_UNREADABLE` without changing files or Git state.
 
 Read LANGUAGE_POLICY.md, PROJECT_WORKFLOW.md, AGENTS.md/CLAUDE.md, the assigned task, its cited authority, the concise completion report, and the exact diff against the recorded base `main` commit. Follow `docs/CONTEXT_BUDGET_POLICY.md`: load only evidence needed for acceptance criteria and expand context only with a recorded reason. Confirm `Review: REQUIRED` and `READY_FOR_REVIEW` in the task record.
 

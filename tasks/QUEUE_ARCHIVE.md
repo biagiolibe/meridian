@@ -628,3 +628,18 @@ reasons, and creates the implementation follow-ups.
 | `[x]` | 161 | State that a local `main` ahead of `origin/main` does not block integration | 🟡 P2 | — | [161](done/161-state-main-ahead-of-origin-is-allowed.md) |
 | `[x]` | 170 | Require a declared validation ID for every command that proves a criterion | 🟡 P2 | — | [170](done/170-declare-validation-id-for-every-proving-command.md) |
 | `[x]` | 179 | Stabilize the parallel runner output comparison test | 🔴 P1 | — | [179](done/179-stabilize-parallel-runner-output-test.md) |
+
+### Phase 54 — Stops and denials
+
+Authority: [docs/ADR_STOPS_AND_DENIALS.md](../docs/ADR_STOPS_AND_DENIALS.md). 162–167 shipped in 1.2.9 with 161. The ADR's second release is split by release kind: 168 changes only the CLI and ships in Release A with 171–175; 169 changes managed text and ships in Release B, before 176, so both share one migration and one `git-workflow` marker bump.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 162 | Add the stop-code registry and emit closure stops through it | 🟡 P2 | — | [162](done/162-stop-code-registry-and-closure-codes.md) |
+| `[x]` | 163 | Check that managed text and tests agree with the stop-code registry | 🟡 P2 | 162 | [163](done/163-check-stop-codes-against-registry.md) |
+| `[x]` | 164 | State the stop and denial rules in the managed workflow text | 🟡 P2 | 161, 163 | [164](done/164-state-stop-and-denial-rules-in-managed-text.md) |
+| `[x]` | 165 | Install the deny list as host permission rules | 🟡 P2 | — | [165](done/165-host-deny-rules-for-denied-actions.md) |
+| `[x]` | 166 | Give codes and actionable messages to the execution and handoff gates | 🟡 P2 | 162 | [166](done/166-coded-actionable-execution-and-handoff-gates.md) |
+| `[x]` | 167 | Make the execution preflight satisfiable during remediation | 🔴 P1 | 166 | [167](done/167-satisfiable-execution-preflight-during-remediation.md) |
+| `[x]` | 168 | Report queue sections that archival cannot read | 🟡 P2 | 162 | [168](done/168-report-unarchivable-queue-sections.md) |
+| `[x]` | 169 | Code the remaining gates and require every stop to carry a code | 🟡 P2 | 163, 166 | [169](done/169-code-remaining-gates-and-require-coded-stops.md) |
