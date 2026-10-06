@@ -68,10 +68,11 @@ python3 scripts/run_tests.py --shard 8/8
 the same coverage fields together with its selected count. A sharded run is
 complete only when every shard for the chosen count ran against the same tree
 and reported the same `total` and `digest`. `python3 -m unittest discover -s
-tests` remains the canonical full test run.
+tests` is the release gate (`release.yml` runs it) and the fallback for a host
+where the parallel run cannot start its workers.
 
-To run the shards concurrently and get one combined result, use the optional
-faster equivalent:
+To run the shards concurrently and get one combined result, use the standard
+validation command for this repository:
 
 ```bash
 python3 scripts/run_tests.py --parallel      # CPU count, at most 8 workers
@@ -86,7 +87,8 @@ selected. A failing, erroring, killed, or mismatched shard exits non-zero, and
 the failing shards print first, limited to their last 60 lines. On the
 reference machine (10 cores, 752 tests) the sequential run took about 277
 seconds and `--parallel` (8 workers) about 52 seconds. CI and the project's own
-candidate validation keep the canonical command.
+candidate validation use the parallel command; the release gate keeps the
+sequential one.
 
 The check validates JSON metadata, Bash syntax, required public-repository files, and links between the repository's Markdown documents.
 
@@ -107,7 +109,8 @@ to poll for a new run. Until Task 115 records whether task-branch pushes are
 covered by standing authorization, a missing run remains `unavailable`; do not
 work around it by pushing the branch.
 
-For changes under `bin/`, `migrations/`, or `scripts/meridian.py`, also run:
+For changes under `bin/`, `migrations/`, or `scripts/meridian.py`, also run the
+sequential suite:
 
 ```bash
 python3 -m unittest discover -s tests -v

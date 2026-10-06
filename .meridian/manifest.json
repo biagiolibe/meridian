@@ -292,7 +292,7 @@
           },
           "installation": {
             "evidence": [
-              "sha256:03e16e4a19ade1611d44c8eacb41ceb90d8ffa9393b64b8875d1191ad6a3bdec",
+              "sha256:31028079ff5eb878cad53df5bc1b89723b8a6d2d2b1185be4abc4bd413f4ac98",
               "sha256:8e61fb70382af72a54f30917aa3602074e700a8a4dc50d9d6f6cc00a2e3bbd7a",
               "sha256:67ed1da6b14d5ded493cf14b6432de14d18aafbefa5e4c8c793feb6052d86d20",
               "sha256:510ea3fa2750ea88ec77be24ee9c482dfc4f9931f4ec5b089e7efffd75f589fd"
@@ -336,7 +336,7 @@
     ".codex/hooks.json": "b427ae75d05f8d193e2e12367db24fae6687b3ca0aa192a06c23cb8f488cc7dd",
     ".codex/rules/meridian.rules": "67ed1da6b14d5ded493cf14b6432de14d18aafbefa5e4c8c793feb6052d86d20",
     "AGENTS.md": "8e61fb70382af72a54f30917aa3602074e700a8a4dc50d9d6f6cc00a2e3bbd7a",
-    "CLAUDE.md": "03e16e4a19ade1611d44c8eacb41ceb90d8ffa9393b64b8875d1191ad6a3bdec",
+    "CLAUDE.md": "31028079ff5eb878cad53df5bc1b89723b8a6d2d2b1185be4abc4bd413f4ac98",
     "LANGUAGE_POLICY.md": "65fc7654c6d37865fae03290b4c21304efee616bbb8615fa298c3e55abfdf558",
     "PROJECT_WORKFLOW.md": "510ea3fa2750ea88ec77be24ee9c482dfc4f9931f4ec5b089e7efffd75f589fd",
     "docs/COMPLETION_REPORT_TEMPLATE.md": "d8dc3de99bd73d9ce8685e845772245d43741a4234f00c3de336547159517d71",

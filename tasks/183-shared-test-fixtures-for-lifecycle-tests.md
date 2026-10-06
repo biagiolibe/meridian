@@ -49,7 +49,8 @@ the same setup.
   `python3 scripts/run_tests.py --parallel` on the same tree.
 - [ ] The parallel runner still passes, and the tests still pass when run one
   at a time by id (`python3 -m unittest <test id>`).
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
+- [ ] `python3 scripts/check_repository.py` and
+  `python3 scripts/run_tests.py --parallel` pass.
 
 ## Relevant Files
 
