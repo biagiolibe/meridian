@@ -844,9 +844,29 @@ def write_managed_digests(root: Path = ROOT) -> list[str]:
         current = meridian.sha256(path)
         if recorded != current:
             refreshed[relative] = (str(recorded), current)
+    profiles = manifest.get("capabilityProfiles", {})
+    # `upgrade --apply` rebuilds managedFiles from the template's managed list, so
+    # a managed-copy surface a profile declares beyond that list loses its digest.
+    for profile in profiles.values() if isinstance(profiles, dict) else ():
+        capabilities = profile.get("capabilities") if isinstance(profile, dict) else None
+        for declaration in capabilities.values() if isinstance(capabilities, dict) else ():
+            for surface in declaration.get("managedSurface", []) if isinstance(declaration, dict) else ():
+                relative = surface.get("path") if isinstance(surface, dict) else None
+                if (
+                    isinstance(relative, str)
+                    and surface.get("form") == "managed-copy"
+                    and relative not in managed_files
+                    and relative not in refreshed
+                ):
+                    path = root / relative
+                    if not path.is_file():
+                        fail(f"refusing to write managed digests: declared file is missing: {relative}")
+                    refreshed[relative] = ("absent", meridian.sha256(path))
     for relative, (_recorded, current) in refreshed.items():
         managed_files[relative] = current
-    profiles = manifest.get("capabilityProfiles", {})
+    ordered = dict(sorted(managed_files.items()))
+    managed_files.clear()
+    managed_files.update(ordered)
     if isinstance(profiles, dict):
         for profile in profiles.values():
             if not isinstance(profile, dict) or not isinstance(profile.get("capabilities"), dict):
