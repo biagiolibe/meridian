@@ -8558,6 +8558,89 @@ class WorktreeLifecycleCliTest(unittest.TestCase):
             ("C6", "resolve", "PRIMARY_DIRTY", []),
         )
 
+    def _candidate(self, *commands: str, exit_code: int = 0) -> tuple[str, ...]:
+        arguments: list[str] = []
+        for command in commands:
+            arguments += ["--candidate-command", command, "--candidate-exit-code", str(exit_code)]
+        return tuple(arguments)
+
+    def _all_candidate_commands(self) -> tuple[str, ...]:
+        return self._candidate("git diff --check", "python3 scripts/check_repository.py", "python3 -m unittest discover")
+
+    def _staged_at_c7(self) -> None:
+        self._advance_ready_task()
+        staged = json.loads(self._advance(*self._passing()).stdout)
+        self.assertEqual(staged["step"], "C7")
+
+    def _main_subject(self) -> str:
+        return subprocess.run(
+            ["git", "log", "-1", "--format=%s"], cwd=self.project, text=True, capture_output=True, check=True
+        ).stdout.strip()
+
+    def test_advance_finalizes_from_candidate_results_and_asks_for_the_push(self) -> None:
+        self._staged_at_c7()
+        result = self._advance(*self._all_candidate_commands())
+        self.assertEqual(result.returncode, 0, result.stderr)
+        report = json.loads(result.stdout)
+        self.assertEqual(
+            (report["step"], report["action_required"], report["commands"], report["performed"]),
+            ("C9", "push", ["git push origin main"], ["C8"]),
+        )
+        self.assertEqual(self._main_subject(), "Integrate 056")
+        self.assertEqual([line["command"] for line in self._journal()].count("integrate finalize"), 1)
+
+    def test_advance_reruns_after_an_interruption_between_finalize_and_push(self) -> None:
+        self._staged_at_c7()
+        self._advance(*self._all_candidate_commands())
+        rerun = self._advance(*self._all_candidate_commands())
+        self.assertEqual(rerun.returncode, 0, rerun.stderr)
+        report = json.loads(rerun.stdout)
+        self.assertEqual((report["step"], report["action_required"], report["performed"]), ("C9", "push", []))
+        self.assertEqual([line["command"] for line in self._journal()].count("integrate finalize"), 1)
+
+    def test_advance_aborts_and_stops_when_a_candidate_command_failed(self) -> None:
+        self._staged_at_c7()
+        result = self._advance(
+            *self._candidate("git diff --check", "python3 scripts/check_repository.py"),
+            "--candidate-command", "python3 -m unittest discover", "--candidate-exit-code", "1",
+        )
+        self.assertEqual(result.returncode, 2, result.stderr)
+        report = json.loads(result.stdout)
+        self.assertEqual((report["step"], report["stop_code"]), ("C7", "CANDIDATE_VALIDATION_FAILED"))
+        self.assertIn("aborted", report["resume"])
+        self.assertEqual(self._main_subject(), "declare")
+        self.assertFalse((self.project / ".git/MERGE_HEAD").exists())
+        self.assertEqual(self._journal()[-1]["stop_code"], "CANDIDATE_VALIDATION_FAILED")
+        self.assertIn("integrate abort", [line["command"] for line in self._journal()])
+
+    def test_advance_aborts_without_finalizing_when_a_required_command_is_missing(self) -> None:
+        self._staged_at_c7()
+        result = self._advance(*self._candidate("python3 scripts/check_repository.py"))
+        self.assertEqual(result.returncode, 2, result.stderr)
+        report = json.loads(result.stdout)
+        self.assertEqual((report["step"], report["stop_code"]), ("C7", "UNDECLARED_VALIDATION_COMMANDS"))
+        self.assertEqual(report["commands"], ["git diff --check"])
+        self.assertNotIn("integrate finalize", [line["command"] for line in self._journal()])
+        self.assertFalse((self.project / ".git/MERGE_HEAD").exists())
+        self.assertEqual(self._main_subject(), "declare")
+
+    def test_advance_reports_a_candidate_tree_that_changed_after_stage(self) -> None:
+        self._staged_at_c7()
+        (self.project / "late.txt").write_text("late\n", encoding="utf-8")
+        subprocess.run(["git", "add", "late.txt"], cwd=self.project, check=True)
+        result = self._advance(*self._all_candidate_commands())
+        self.assertEqual(result.returncode, 2, result.stderr)
+        report = json.loads(result.stdout)
+        self.assertEqual((report["step"], report["stop_code"]), ("C8", "EVIDENCE_MISMATCH"))
+        self.assertIn("integrate abort", report["resume"])
+        self.assertTrue((self.project / ".git/MERGE_HEAD").exists())
+        self.assertEqual(self._journal()[-1]["stop_code"], "EVIDENCE_MISMATCH")
+
+    def test_advance_rejects_unpaired_candidate_results(self) -> None:
+        self._staged_at_c7()
+        result = self._advance("--candidate-command", "git diff --check")
+        self.assertNotEqual(result.returncode, 0)
+
     def run_console(self, *arguments: str) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
             [
