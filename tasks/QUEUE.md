@@ -65,5 +65,5 @@ Authority: the test suite cost review of 2026-10-06 (848 tests, 343 s sequential
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[ ]` | 182 | Make the parallel test runner this repository's standard validation | 🟡 P2 | — | [182](182-parallel-suite-as-standard-validation.md) |
+| `[x]` | 182 | Make the parallel test runner this repository's standard validation | 🟡 P2 | — | [182](done/182-parallel-suite-as-standard-validation.md) |
 | `[ ]` | 183 | Build lifecycle test repositories once per class and copy them per test | 🟡 P2 | — | [183](183-shared-test-fixtures-for-lifecycle-tests.md) |
