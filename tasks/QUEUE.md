@@ -68,7 +68,7 @@ Release plan:
 | `[x]` | 173 | Detect `BLOCKED` reports that no command emitted | 🟡 P2 | 171 | [173](done/173-detect-unbacked-blocked-reports.md) |
 | `[x]` | 174 | Add `meridian worktree advance` to drive closure through its mechanical steps | 🟡 P2 | 171 | [174](done/174-worktree-advance-driver.md) |
 | `[x]` | 175 | Let `advance` finalize from supplied candidate validation results | 🟡 P2 | 174 | [175](done/175-advance-through-candidate-validation.md) |
-| `[ ]` | 176 | Replace the closure procedure in managed text with `advance` | 🟡 P2 | 164, 175 | [176](176-closure-text-uses-advance.md) |
+| `[x]` | 176 | Replace the closure procedure in managed text with `advance` | 🟡 P2 | 164, 175 | [176](done/176-closure-text-uses-advance.md) |
 | `[ ]` | 177 | Add an agent evaluation harness graded on the journal and Git state | 🟡 P2 | 171 | [177](177-agent-eval-harness.md) |
 | `[ ]` | 178 | Add the safety and remediation scenarios and run them before template-changing releases | 🟡 P2 | 177, 167 | [178](178-agent-eval-scenarios-and-release-gate.md) |
 | `[ ]` | 180 | Align the queue seed templates with closure ownership | 🟢 P3 | — | [180](180-align-queue-seed-templates-with-closure-ownership.md) |

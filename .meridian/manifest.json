@@ -258,7 +258,7 @@
           "installation": {
             "evidence": [
               "sha256:50386055561fd45a1809340403492dd8d0f8dbb1b0aa04e7c7838b3bf6987735",
-              "sha256:f4bfae484f8e41138f6c64f3b05d22bfb4cef42828d8baa38d8aca0847f59006"
+              "sha256:c7cca6b3526da94d56d1635442b89070ce3b2cc4caa45b4d47941839bcb2512e"
             ],
             "notApplicableRationale": null,
             "state": "INSTALLED"
@@ -292,10 +292,10 @@
           },
           "installation": {
             "evidence": [
-              "sha256:32b38ef1af1b7caf716594e286642da311da9e7571df94bfcba2c7f53ce08e57",
-              "sha256:b7ec7168927fd4b8e5c69e588cd9822e9e06d30e576f363ee82f358209099b76",
-              "sha256:5f91cd0840dcbeacfdcbaaefd125005e076490a223d71f1d3b82a11fbaf222a3",
-              "sha256:f4bfae484f8e41138f6c64f3b05d22bfb4cef42828d8baa38d8aca0847f59006"
+              "sha256:45ab68fe15f5f6eb9b00097c79ab829bdaa717eeccdf7f615176a8beeca1780d",
+              "sha256:783e8a94e77926d667f0a4000dbb12600eef17f74174df32112d4f3a4610c46a",
+              "sha256:67ed1da6b14d5ded493cf14b6432de14d18aafbefa5e4c8c793feb6052d86d20",
+              "sha256:c7cca6b3526da94d56d1635442b89070ce3b2cc4caa45b4d47941839bcb2512e"
             ],
             "notApplicableRationale": null,
             "state": "INSTALLED"
@@ -334,11 +334,11 @@
   "frameworkVersion": "1.1.49",
   "managedFiles": {
     ".codex/hooks.json": "b427ae75d05f8d193e2e12367db24fae6687b3ca0aa192a06c23cb8f488cc7dd",
-    ".codex/rules/meridian.rules": "5f91cd0840dcbeacfdcbaaefd125005e076490a223d71f1d3b82a11fbaf222a3",
-    "AGENTS.md": "b7ec7168927fd4b8e5c69e588cd9822e9e06d30e576f363ee82f358209099b76",
-    "CLAUDE.md": "32b38ef1af1b7caf716594e286642da311da9e7571df94bfcba2c7f53ce08e57",
+    ".codex/rules/meridian.rules": "67ed1da6b14d5ded493cf14b6432de14d18aafbefa5e4c8c793feb6052d86d20",
+    "AGENTS.md": "783e8a94e77926d667f0a4000dbb12600eef17f74174df32112d4f3a4610c46a",
+    "CLAUDE.md": "45ab68fe15f5f6eb9b00097c79ab829bdaa717eeccdf7f615176a8beeca1780d",
     "LANGUAGE_POLICY.md": "65fc7654c6d37865fae03290b4c21304efee616bbb8615fa298c3e55abfdf558",
-    "PROJECT_WORKFLOW.md": "f4bfae484f8e41138f6c64f3b05d22bfb4cef42828d8baa38d8aca0847f59006",
+    "PROJECT_WORKFLOW.md": "c7cca6b3526da94d56d1635442b89070ce3b2cc4caa45b4d47941839bcb2512e",
     "docs/COMPLETION_REPORT_TEMPLATE.md": "d8dc3de99bd73d9ce8685e845772245d43741a4234f00c3de336547159517d71",
     "docs/CONTEXT_BUDGET_POLICY.md": "50386055561fd45a1809340403492dd8d0f8dbb1b0aa04e7c7838b3bf6987735",
     "docs/EXECUTION_EVIDENCE_PROFILE.md": "392d13907e5772aca36df0ce9c52335dee31e6337087d6e78a1f08a868d485a0"
