@@ -161,7 +161,7 @@ class CapabilityMarkerBaselineTest(unittest.TestCase):
         """The baseline guard's original task-014 behavior: an absence with
         no accounting migration is still an unauthorized change, retirement
         infrastructure or not."""
-        self._remove_marker_block(self.root / "templates/workflows/governed-sdd/docs/workflows/IMPLEMENTATION.md", "spike-routing", 1)
+        self._remove_marker_block(self.root / "templates/workflows/governed-sdd/docs/workflows/IMPLEMENTATION.md", "spike-routing", 2)
         with self.assertRaises(SystemExit):
             cr.check_capability_marker_baselines(self.root)
 
@@ -169,7 +169,7 @@ class CapabilityMarkerBaselineTest(unittest.TestCase):
         """Task 007: `check_capability_marker_baselines` must reuse the same
         `removes` declaration `meridian upgrade` honors, not a second,
         independent notion of what a legitimate removal looks like."""
-        self._remove_marker_block(self.root / "templates/workflows/governed-sdd/docs/workflows/IMPLEMENTATION.md", "spike-routing", 1)
+        self._remove_marker_block(self.root / "templates/workflows/governed-sdd/docs/workflows/IMPLEMENTATION.md", "spike-routing", 2)
         (self.root / "migrations" / "999-retire-spike-routing.json").write_text(
             '{"id": "999-retire-spike-routing", "from": "1.1.20", "to": "1.1.21", '
             '"description": "test-only", "removes": '
@@ -815,10 +815,39 @@ class StopCodeRegistryCheckTest(unittest.TestCase):
         (self.root / "scripts/meridian.py").write_text('report("C1", "CLI_STOP")\n', encoding="utf-8")
         cr.check_stop_code_registry(self.root)
 
-    def test_blocked_line_without_a_code_is_not_yet_required_to_carry_one(self) -> None:
+    def test_blocked_line_without_a_code_in_managed_text_fails(self) -> None:
         self.text += "BLOCKED: some free-form reason.\n"
         self.write()
+        self.assertIn("templates/workflow.md:2: BLOCKED without a registered stop code", self.failure())
+        self.text = "If it cannot be read, return `BLOCKED` without changing files.\n"
+        self.write()
+        self.assertIn("templates/workflow.md:1: BLOCKED without a registered stop code", self.failure())
+
+    def test_coded_placeholder_and_verdict_enumerations_in_managed_text_pass(self) -> None:
+        self.text += (
+            "Report `BLOCKED ALPHA_STOP` or `BLOCKED <CODE>`.\n"
+            "Return APPROVE, CHANGES_REQUESTED, or BLOCKED.\n"
+            "## Attempt <N> - <CHANGES_REQUESTED | APPROVE | BLOCKED>\n"
+        )
+        self.write()
         cr.check_stop_code_registry(self.root)
+
+    def test_verdict_proximity_does_not_exempt_a_stop(self) -> None:
+        self.text += "After two `CHANGES_REQUESTED` verdicts, stop and report `BLOCKED`.\n"
+        self.write()
+        self.assertIn("templates/workflow.md:2: BLOCKED without a registered stop code", self.failure())
+
+    def test_uncoded_blocked_in_the_cli_fails_and_coded_forms_pass(self) -> None:
+        cli = self.root / "scripts/meridian.py"
+        cli.write_text('STATE = "BLOCKED"\nFORMAT = f"BLOCKED {code}: {detail}; resume: {resume}"\n'
+                       'print("BLOCKED ALPHA_STOP: detail")\n', encoding="utf-8")
+        cr.check_stop_code_registry(self.root)
+        cli.write_text('x = 1\nraise MeridianError("validation BLOCKED: bad id")\n', encoding="utf-8")
+        self.assertIn("scripts/meridian.py:2: BLOCKED without a registered stop code", self.failure())
+        cli.write_text('print(f"BLOCKED: {error}")\n', encoding="utf-8")
+        self.assertIn("scripts/meridian.py:1: BLOCKED without a registered stop code", self.failure())
+        cli.write_text('print("BLOCKED NOT_REGISTERED: detail")\n', encoding="utf-8")
+        self.assertIn("scripts/meridian.py:1: BLOCKED without a registered stop code", self.failure())
 
     def test_repository_passes(self) -> None:
         cr.check_stop_code_registry(ROOT)

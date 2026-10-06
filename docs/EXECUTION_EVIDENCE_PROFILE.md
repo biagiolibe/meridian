@@ -8,7 +8,7 @@ Git-based delivery workflow. Task-specific checks remain mandatory.
 - Reuse unchanged sources and successful results from the active session.
 - Locate a large-file range before reading it; the threshold is 400 lines.
 - Allow at most two context expansions and three diagnostic hypotheses per
-  failure. Stop with `BLOCKED` when the task contract is exhausted.
+  failure. Stop with `BLOCKED CONTRACT_EXHAUSTED` when the task contract is exhausted.
 - Start with the failing check's ordinary bounded output, then run the
   narrowest test method or file-specific diagnostic. Use verbose output or a
   full trace only when those levels cannot identify the cause.

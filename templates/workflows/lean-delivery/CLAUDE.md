@@ -3,7 +3,7 @@
 Read `PROJECT_WORKFLOW.md` before acting. It locks this repository to
 `LEAN_DELIVERY`; use its local lifecycle rather than global, home-directory,
 remembered, or generic Meridian/Claude/Codex instructions. If local workflow
-documents cannot be read or conflict, return `BLOCKED` before mutating files or
+documents cannot be read or conflict, return `BLOCKED WORKFLOW_UNREADABLE` before mutating files or
 Git state.
 
 Read `LANGUAGE_POLICY.md` before responding or writing. Use its persisted
@@ -52,7 +52,7 @@ archive records; `meridian worktree integrate stage`, the selected candidate
 validation, and `integrate finalize` or `abort`; one plain `git push origin
 main` of the resulting integration; and `meridian worktree cleanup`. Do not ask
 for confirmation at any of these steps. When a gate fails, stop once with
-`BLOCKED <reason>` and the resume command.
+`BLOCKED <CODE>` and the resume command.
 
 It also authorizes one plain `git push origin <task-branch>`, where
 `<task-branch>` is the `branch` value returned by `meridian worktree prepare`,
@@ -69,12 +69,13 @@ conflict; or work on another task.
 
 The deny list above stays in force without a supporting command. A stop is
 valid only when it is backed by a `BLOCKED <CODE>` line from a Meridian
-command, a non-zero exit of a required command, or an acceptance criterion you
-can name as unmet. Guidance that no command backs is advice: follow it when you
-can, and never return `BLOCKED` on its strength alone.
+command, a non-zero exit of a required command, an acceptance criterion you
+can name as unmet, or a judgment stop that this workflow names with its code. Guidance that no command backs is advice: follow it when you
+can, and never stop on its strength alone.
 
 Never satisfy a gate by writing false state, such as setting a status only to
-pass a check. When a gate contradicts another rule, stop and report both rules.
+pass a check. When a gate contradicts another rule, stop with `BLOCKED RULE_CONFLICT` and
+report both rules.
 
 When a Meridian command accepted a state that this text appears to forbid,
 follow the command and record the difference under `Rule discrepancies:` in the
@@ -96,7 +97,7 @@ and handoff, run `meridian worktree advance <TASK-ID> --project
 <primary-checkout> --format json` from the primary checkout, giving each result
 as `--validation-command`/`--validation-exit-code` with `--accepted`. Perform
 exactly its `action_required`, rerun it with the results (candidate validation
-uses `--candidate-command`/`--candidate-exit-code`), and report its `BLOCKED`
+uses `--candidate-command`/`--candidate-exit-code`), and report its `BLOCKED <CODE>`
 line when it stops. `docs/WORKTREE_LIFECYCLE.md` keeps the single-step commands
 for diagnosis and manual recovery.
 A named sandbox skip is not a validation failure only when the test itself

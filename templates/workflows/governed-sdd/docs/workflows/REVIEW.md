@@ -2,7 +2,7 @@
 
 Use this procedure only for `Review <TASK-ID>` after the entry-point router has applied its always-loaded invariants.
 
-<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v10 -->
+<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v11 -->
 ## Mandatory task-worktree preflight
 
 After `APPROVE`, `Review <TASK-ID>` has the `Proceed with` authority for C6 through C10, including the single plain `git push origin main` and cleanup, with the same prohibitions.
@@ -18,7 +18,7 @@ implementation files, or any implementation diff:
    handoff. Obtain its `handoff_worktree` value (relative to the worktree root), task branch, current task
    commit, validated task commit, and validated base `main` commit. Confirm
    that the implementer session has stopped. A missing field, missing handoff,
-   or active or unconfirmed implementer is `BLOCKED`.
+   or active or unconfirmed implementer is `BLOCKED EVIDENCE_INCOMPLETE`.
 3. Confirm that the successful check result and handoff name the same path,
    branch, HEAD, base, clean state, and repository. As an additional bounded
    check, run `git worktree list
@@ -32,14 +32,14 @@ implementation files, or any implementation diff:
    value as `HEAD` for this comparison. Do not infer the task worktree from
    the session's initial current directory. If the path is absent, unregistered,
    duplicated, disagrees with the handoff, names a different commit, or has a
-   mismatched subject, return `BLOCKED`.
+   mismatched subject, return `BLOCKED WRONG_WORKTREE`.
 4. Root additional read-only Git checks in the recorded path with `git -C
    <absolute-task-worktree> ...`. Verify its absolute top level, symbolic
    branch, `HEAD`, and empty `git status --short`; verify that the validated
    task and base commits exist; then verify that the base is an ancestor of
    the validated task commit and the validated task commit is an ancestor of
    current task `HEAD`. A missing commit, detached or mismatched branch,
-   mismatched `HEAD`, dirty worktree, or failed ancestry check is `BLOCKED`.
+   mismatched `HEAD`, dirty worktree, or failed ancestry check is `BLOCKED WRONG_WORKTREE`.
 
 Every failure above stops before substantive review and preserves the task,
 branch, primary checkout, and linked worktree exactly as found. Never switch,
@@ -60,7 +60,7 @@ status on the task branch, then use the serialized integration transaction in
 The validated task commit must remain an ancestor of task `HEAD`, with only
 permitted lifecycle records in the intervening diff. Current `main` may have
 advanced; reuse evidence, run the bounded gate, select full validation, or
-return `BLOCKED` only through that transaction's deterministic decision.
+return `BLOCKED EVIDENCE_MISMATCH` only through that transaction's deterministic decision.
 Independent review, acceptance evidence, and forge gates remain mandatory.
 
 `Proceed with <TASK-ID>` already authorizes the gated task lifecycle through
@@ -129,13 +129,13 @@ continues at C6. Checkout selection, validation ancestry, integration, and clean
 are governed by their current dedicated procedures, not by this handoff.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=reviewer-integrator-identity v2 -->
+<!-- MERIDIAN:BEGIN capability=reviewer-integrator-identity v3 -->
 ## Reviewer-integrator identity on a single-operator project
 
 Both controls are mandatory and neither substitutes for the other:
 
 - Review runs in a fresh agent session that did not write the code. Re-derive evidence from the actual diff and cited sources; do not trust the implementation report.
-- Only for the `ACCEPTED` commit, use the project-scoped reviewer author override. Its value is printed by `meridian project show --field reviewer-author`, which formats the project declared in `.meridian/project.json`; if that declaration is missing, the command reports `BLOCKED` and the commit waits for the developer to declare the project:
+- Only for the `ACCEPTED` commit, use the project-scoped reviewer author override. Its value is printed by `meridian project show --field reviewer-author`, which formats the project declared in `.meridian/project.json`; if that declaration is missing, the command reports `BLOCKED COMMAND_REFUSED` and the commit waits for the developer to declare the project:
 
   ```bash
   git commit --author="$(meridian project show --field reviewer-author)" -m "docs: reviewer-integrator pass <TASK-ID>; independently re-verified diff, cited sources, acceptance evidence, and validation"

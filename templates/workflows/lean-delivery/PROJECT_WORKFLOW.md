@@ -12,7 +12,7 @@ Do not fall back to Governed SDD. In particular, do not invent ADR gates,
 reviewer-integrator roles, required task branches, `READY_FOR_REVIEW`,
 `ACCEPTED`, or governed status-only commits unless this project explicitly adds
 them. If the local workflow documents are missing, contradictory, or cannot be
-read before a mutation, return `BLOCKED` without changing files or Git state.
+read before a mutation, return `BLOCKED WORKFLOW_UNREADABLE` without changing files or Git state.
 
 ## Purpose
 
@@ -52,7 +52,7 @@ do not provide a second identity policy or imply task semantics.
 
 ## Task worktree boundary
 
-<!-- MERIDIAN:BEGIN capability=codex-worktree-access v3 -->
+<!-- MERIDIAN:BEGIN capability=codex-worktree-access v4 -->
 Every task uses exactly one branch and one linked worktree, with one writer at
 a time. Normalize the canonical task ID to lowercase `task-<number>` and use
 it as the branch name. Meridian resolves one machine-level worktree root from
@@ -62,24 +62,24 @@ default. Derive the path with `meridian worktree path <task-id> --project
 `<root>/<remote-host>/<owner>/<repository>/<canonical-task-id>`; a repository
 without a usable remote uses a deterministic local name plus a canonical
 Git-common-directory hash. Unsafe, ambiguous, colliding, or mismatched paths
-are `BLOCKED`. Existing legacy worktrees remain discoverable and are never
+stop with the `BLOCKED <CODE>` line the command prints. Existing legacy worktrees remain discoverable and are never
 moved or deleted automatically. The first `git worktree list --porcelain`
 entry identifies the primary checkout.
 
 Once per machine, run `meridian setup --check`, review its bounded changes,
 then explicitly consent with `meridian setup --apply` and restart Codex.
 Claude Code needs no host configuration. Static configuration is not proof of
-effective host access; treat `blocked` as `BLOCKED`.
+effective host access; treat a `blocked` status as no access.
 
 If `meridian codex configure --check` reports `repair-required`, the effective
 profile is identical and only Meridian's ownership markers were damaged, for
 example by a Codex app rewrite. Review the printed diff and run `--apply` only
-after explicit confirmation. A `BLOCKED` result names the diverging fields and
+after explicit confirmation. A `blocked` status names the diverging fields and
 requires manual reconciliation. Repair never proves that a running session
 loaded the profile; start a fresh session and probe it.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=bounded-worktree-lifecycle v4 -->
+<!-- MERIDIAN:BEGIN capability=bounded-worktree-lifecycle v5 -->
 `Proceed with <TASK-ID>` runs `meridian worktree prepare <task-id> --project
 <primary-checkout> --format json` before
 starting a worker. The coordinator passes the returned branch and absolute
@@ -87,7 +87,7 @@ path as durable launch inputs and does not use a host facility that creates a
 second checkout. The worker starts in that exact directory and, before any task
 read or write, runs `meridian worktree check <task-id> --project
 <primary-checkout> --format json`. Any path,
-branch, HEAD, root, state, or cleanliness mismatch is `BLOCKED`.
+branch, HEAD, root, state, or cleanliness mismatch is `BLOCKED WRONG_WORKTREE`.
 Absolute paths are runtime launch inputs only. A handoff or other tracked
 record that names the worktree uses the `handoff_worktree` value returned by
 `meridian worktree prepare`, the path relative to the worktree root, never an
@@ -99,7 +99,7 @@ instead. `--resume` is allowed only for that directive: it accepts the task's
 existing worktree even when it has uncommitted changes, never creates or
 changes anything, and refuses when no worktree exists. When it returns `dirty:
 true`, `dirty-worktree` is the only error `worktree check` may report; any other
-error is `BLOCKED`. Read `git status` and the diff before continuing.
+error is `BLOCKED WRONG_WORKTREE`. Read `git status` and the diff before continuing.
 <!-- MERIDIAN:END -->
 
 Reservation, completion, review, and archive edits are committed on the task
@@ -107,7 +107,7 @@ branch. Concurrent tasks edit only their own task rows and records; they do
 not reorder shared files, update shared timestamps, or archive a phase. A
 fully closed phase is archived only after all of its task branches have been
 integrated. A conflict in a shared governance file is an integration conflict:
-abort and return `BLOCKED` without choosing or recreating either task's state.
+abort and return `BLOCKED INTEGRATION_CONFLICT` without choosing or recreating either task's state.
 
 <!-- MERIDIAN:BEGIN capability=git-workflow v12 -->
 ## Authority of `Proceed with`
@@ -118,7 +118,7 @@ archive records; `meridian worktree integrate stage`, the selected candidate
 validation, and `integrate finalize` or `abort`; one plain `git push origin
 main` of the resulting integration; and `meridian worktree cleanup`. Do not ask
 for confirmation at any of these steps. When a gate fails, stop once with
-`BLOCKED <reason>` and the resume command.
+`BLOCKED <CODE>` and the resume command.
 
 It also authorizes one plain `git push origin <task-branch>`, where
 `<task-branch>` is the `branch` value returned by `meridian worktree prepare`,
@@ -135,12 +135,13 @@ conflict; or work on another task.
 
 The deny list above stays in force without a supporting command. A stop is
 valid only when it is backed by a `BLOCKED <CODE>` line from a Meridian
-command, a non-zero exit of a required command, or an acceptance criterion you
-can name as unmet. Guidance that no command backs is advice: follow it when you
-can, and never return `BLOCKED` on its strength alone.
+command, a non-zero exit of a required command, an acceptance criterion you
+can name as unmet, or a judgment stop that this workflow names with its code. Guidance that no command backs is advice: follow it when you
+can, and never stop on its strength alone.
 
 Never satisfy a gate by writing false state, such as setting a status only to
-pass a check. When a gate contradicts another rule, stop and report both rules.
+pass a check. When a gate contradicts another rule, stop with `BLOCKED RULE_CONFLICT` and
+report both rules.
 
 When a Meridian command accepted a state that this text appears to forbid,
 follow the command and record the difference under `Rule discrepancies:` in the
@@ -162,7 +163,7 @@ and handoff, run `meridian worktree advance <TASK-ID> --project
 <primary-checkout> --format json` from the primary checkout, giving each result
 as `--validation-command`/`--validation-exit-code` with `--accepted`. Perform
 exactly its `action_required`, rerun it with the results (candidate validation
-uses `--candidate-command`/`--candidate-exit-code`), and report its `BLOCKED`
+uses `--candidate-command`/`--candidate-exit-code`), and report its `BLOCKED <CODE>`
 line when it stops. `docs/WORKTREE_LIFECYCLE.md` keeps the single-step commands
 for diagnosis and manual recovery.
 A named sandbox skip is not a validation failure only when the test itself

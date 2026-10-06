@@ -2,17 +2,17 @@
 
 Use this procedure only for `Address review <TASK-ID>` after the entry-point router has applied its always-loaded invariants.
 
-<!-- MERIDIAN:BEGIN capability=task-worktree-remediation v3 -->
+<!-- MERIDIAN:BEGIN capability=task-worktree-remediation v4 -->
 Remediation reuses the prepared task worktree only after the reviewer has
 stopped. Start in the coordinator-supplied existing directory and run
 `meridian worktree check <TASK-ID> --project <primary-checkout>
 --format json` before reading the task or review record.
 Verify the result against the durable handoff before writing. Never remediate
 in the primary checkout, create a replacement worktree, or run concurrently
-with a reviewer. A mismatch is `BLOCKED` and preserves the existing state.
+with a reviewer. A mismatch is `BLOCKED WRONG_WORKTREE` and preserves the existing state.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=review-remediation-record v3 -->
+<!-- MERIDIAN:BEGIN capability=review-remediation-record v4 -->
 ### Review-remediation workflow
 
 For `Address review <TASK-ID>`, read the assigned task, its cited authority,
@@ -27,13 +27,13 @@ the task record to `READY_FOR_REVIEW`. Commit the remediation and
 updated review record, then push the task branch only to obtain `T1_CI` for that commit, at most once per review attempt, and not at all when the project has no CI; `Address review` authorizes
 that one push. Report the review-record path, resolved findings, commit, and
 validation. If a finding needs an authority or scope change, leave it
-unchecked and return `BLOCKED`.
+unchecked and return `BLOCKED SCOPE_CHANGE_REQUIRED`.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=rejected-attempt-restart v3 -->
+<!-- MERIDIAN:BEGIN capability=rejected-attempt-restart v5 -->
 If a `CHANGES_REQUESTED` finding explicitly cannot be remediated because it
 needs new or amended authority or scope, leave it unchecked and return
-`BLOCKED` without ref or status mutation. Do not use remediation to restart it;
+`BLOCKED SCOPE_CHANGE_REQUIRED` without ref or status mutation. Do not use remediation to restart it;
 only explicit developer authorization may invoke the procedure in
 `docs/LIFECYCLE_ORCHESTRATION.md`.
 <!-- MERIDIAN:END -->
