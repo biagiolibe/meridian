@@ -11,6 +11,17 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "meridian hook stop-audit --host codex",
+            "timeout": 5
+          }
+        ]
+      }
     ]
   }
 }
