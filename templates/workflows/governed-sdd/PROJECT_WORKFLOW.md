@@ -180,7 +180,7 @@ record that names the worktree uses the `handoff_worktree` value returned by
 absolute path.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=git-workflow v12 -->
+<!-- MERIDIAN:BEGIN capability=git-workflow v13 -->
 ## Git workflow
 
 ### Authority of `Proceed with`
@@ -245,19 +245,18 @@ stop that a command printed.
 
 ### Closure
 
-Close a validated task in order: verify acceptance criteria; run task and
-baseline validation; commit completion and archive records; then stop at
-`REVIEW_REQUIRED` if its declared review is required. Otherwise, or after the
-reviewer-integrator approves, run `worktree check`; record machine evidence;
-stage from a clean primary checkout whose `main` equals `origin/main` or is
-ahead of it with commits not yet pushed (they are pushed with the integration;
-`main` behind the fetched `origin/main` is `MAIN_BEHIND_ORIGIN`); validate the candidate;
-finalize; push `origin main`; and clean up. The stop codes of these steps are registered in
-`capabilities/stop-codes-v1.json`; `meridian worktree closure-status` reports
-the current step and its code, and each stop names its resume command. A named sandbox skip is not
-a validation failure only when the test itself reports it and no acceptance
-criterion depends solely on that test. Record its test name, reason, and
-reporting command as `Validation skips:` in the handoff.
+Close a validated task with `meridian worktree advance`. After verifying the
+acceptance criteria, running validation, and committing the completion record
+and handoff, run `meridian worktree advance <TASK-ID> --project
+<primary-checkout> --format json` from the primary checkout, giving each result
+as `--validation-command`/`--validation-exit-code` with `--accepted`. Perform
+exactly its `action_required`, rerun it with the results (candidate validation
+uses `--candidate-command`/`--candidate-exit-code`), and report its `BLOCKED`
+line when it stops. `docs/WORKTREE_LIFECYCLE.md` keeps the single-step commands
+for diagnosis and manual recovery.
+A named sandbox skip is not a validation failure only when the test itself
+reports it and no acceptance criterion depends solely on that test. Record its
+test name, reason, and reporting command as `Validation skips:` in the handoff.
 <!-- MERIDIAN:END -->
 
 <!-- MERIDIAN:BEGIN capability=execution-discipline v1 -->

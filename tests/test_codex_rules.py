@@ -60,7 +60,7 @@ class CodexRulesTemplateTest(unittest.TestCase):
         self.assertEqual(len(set(blocks)), 1)
         block = blocks[0]
         for line in (
-            'prefix_rule(pattern=["meridian", "worktree", ["evidence", "closure-status"]], decision="allow")',
+            'prefix_rule(pattern=["meridian", "worktree", ["evidence", "closure-status", "advance"]], decision="allow")',
             'prefix_rule(pattern=["git", "mv"], decision="allow")',
             'prefix_rule(pattern=["git", "mv", ["-f", "--force"]], decision="prompt")',
             'prefix_rule(pattern=["python3", "scripts/check_repository.py"], decision="allow")',
@@ -80,6 +80,7 @@ class CodexRulesTemplateTest(unittest.TestCase):
         cases = [
             (["meridian", "worktree", "evidence", "TASK-1", "--format", "json"], "allow"),
             (["meridian", "worktree", "closure-status", "TASK-1", "--format", "json"], "allow"),
+            (["meridian", "worktree", "advance", "TASK-1", "--format", "json"], "allow"),
             (["git", "mv", "tasks/1.md", "tasks/done/1.md"], "allow"),
             (["git", "mv", "-f", "tasks/1.md", "tasks/done/1.md"], "prompt"),
             (["git", "mv", "--force", "a", "b"], "prompt"),
