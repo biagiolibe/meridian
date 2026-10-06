@@ -8,6 +8,10 @@ transition, and `64` for command-line usage errors.
 
 ## Commands
 
+Routine closure uses `advance`, which the managed workflow text names. The
+single-step commands below remain the documented path for diagnosis and manual
+recovery.
+
 All paths are absolute after resolution. `--project`, when supplied, must name
 the current repository's primary checkout. The worktree root resolves from an
 explicit `--worktree-root`, then `MERIDIAN_WORKTREE_ROOT`, then

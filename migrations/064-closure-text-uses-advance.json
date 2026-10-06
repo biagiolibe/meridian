@@ -1,0 +1,24 @@
+{
+  "id": "064-closure-text-uses-advance",
+  "from": "1.2.9",
+  "to": "1.2.11",
+  "description": "Replaces the closure procedure in the managed git-workflow text with a short rule that drives closure through meridian worktree advance, and lets the shipped Codex rules and codex doctor cover that command.",
+  "capabilities": [],
+  "delta": "The git-workflow block (v13 in the Governed SDD PROJECT_WORKFLOW.md, v12 in the three Lean Delivery workflow files) no longer lists the closure order, the evidence, stage, candidate validation, finalize, push, and cleanup steps, or the closure stop codes. It tells the agent to verify the acceptance criteria, run validation, and commit the completion record and handoff; then, from the primary checkout, run meridian worktree advance <TASK-ID> with each validation result and --accepted, perform exactly its action_required, rerun it with the results (candidate validation uses --candidate-command and --candidate-exit-code), and report its BLOCKED line when it stops. The single-step commands stay documented in docs/WORKTREE_LIFECYCLE.md for diagnosis and manual recovery. The deny list, the authority of Proceed with, the stops and denials rules, the governance-file ownership rule, the Governed SDD review-gate rules, and the Validation skips: rule are unchanged; a Governed SDD review gate is reported by advance as a human action. Both .codex/rules/meridian.rules templates allow meridian worktree advance, and meridian codex doctor probes it with the other lifecycle commands.",
+  "managedPaths": [
+    "PROJECT_WORKFLOW.md",
+    "AGENTS.md",
+    "CLAUDE.md",
+    ".codex/rules/meridian.rules"
+  ],
+  "verification": [
+    "a clean Governed SDD upgrade installs git-workflow v13 and a clean Lean Delivery upgrade installs git-workflow v12, each directing closure through meridian worktree advance and no longer listing the closure order or stop codes",
+    "an upgraded project's .codex/rules/meridian.rules allows meridian worktree advance and keeps its local rules",
+    "meridian codex doctor probes meridian worktree advance with the other lifecycle commands",
+    "python3 scripts/check_repository.py and python3 -m unittest discover -s tests pass"
+  ],
+  "capabilityVersions": [
+    {"capability": "git-workflow", "capabilityVersion": 13, "workflowMode": "governed-sdd"},
+    {"capability": "git-workflow", "capabilityVersion": 12, "workflowMode": "lean-delivery"}
+  ]
+}

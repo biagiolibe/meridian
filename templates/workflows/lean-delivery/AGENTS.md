@@ -37,7 +37,7 @@ discard, or commit them; report the conflict and stop.
   fix. Report actionable findings; do not silently correct implementation code
   during review.
 
-<!-- MERIDIAN:BEGIN capability=git-workflow v11 -->
+<!-- MERIDIAN:BEGIN capability=git-workflow v12 -->
 ## Authority of `Proceed with`
 
 `Proceed with <TASK-ID>` authorizes that task's whole lifecycle when every gate
@@ -84,17 +84,18 @@ and phase archival once on the merged candidate tree. The queue retains `[ ]`
 until then; in-progress state is derived from the canonical branch, registered
 worktree, and unarchived record.
 
-Close a validated task in order: verify acceptance criteria; run task and
-baseline validation; commit its completion record and handoff; run `worktree
-check`; record machine evidence; stage from a clean primary checkout whose `main` equals `origin/main` or is
-ahead of it with commits not yet pushed (they are pushed with the integration;
-`main` behind the fetched `origin/main` is `MAIN_BEHIND_ORIGIN`); run the selected candidate validation; finalize with
-candidate-bound evidence; push `origin main`; and clean up. The stop codes of these steps are registered in
-`capabilities/stop-codes-v1.json`; `meridian worktree closure-status` reports
-the current step and its code, and each stop names its resume command. A named sandbox skip is not a
-validation failure only when the test itself reports it and no acceptance
-criterion depends solely on that test. Record its test name, reason, and
-reporting command as `Validation skips:` in the handoff.
+Close a validated task with `meridian worktree advance`. After verifying the
+acceptance criteria, running validation, and committing the completion record
+and handoff, run `meridian worktree advance <TASK-ID> --project
+<primary-checkout> --format json` from the primary checkout, giving each result
+as `--validation-command`/`--validation-exit-code` with `--accepted`. Perform
+exactly its `action_required`, rerun it with the results (candidate validation
+uses `--candidate-command`/`--candidate-exit-code`), and report its `BLOCKED`
+line when it stops. `docs/WORKTREE_LIFECYCLE.md` keeps the single-step commands
+for diagnosis and manual recovery.
+A named sandbox skip is not a validation failure only when the test itself
+reports it and no acceptance criterion depends solely on that test. Record its
+test name, reason, and reporting command as `Validation skips:` in the handoff.
 <!-- MERIDIAN:END -->
 
 ## Command triggers
