@@ -7,7 +7,7 @@ Read `LANGUAGE_POLICY.md` before responding or writing. Use its persisted conver
 ## Commands
 
 ```bash
-python3 -m unittest discover -s tests
+python3 scripts/run_tests.py --parallel
 python3 scripts/check_repository.py
 ```
 

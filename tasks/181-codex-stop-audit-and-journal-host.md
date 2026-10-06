@@ -54,7 +54,8 @@ record which host produced each audit line.
   malformed input, a `host` value on each written line, a pre-181 line
   without `host`, and the per-host `report flow` totals.
 - [ ] One changelog fragment is added per `CONTRIBUTING.md`.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
+- [ ] `python3 scripts/check_repository.py` and
+  `python3 scripts/run_tests.py --parallel` pass.
 
 ## Relevant Files
 

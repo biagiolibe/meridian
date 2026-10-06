@@ -25,40 +25,41 @@ fallback.
 
 ## Acceptance Criteria
 
-- [ ] `CLAUDE.md`'s `## Commands` section (outside the `git-workflow` marker)
+- [x] `CLAUDE.md`'s `## Commands` section (outside the `git-workflow` marker)
   names `python3 scripts/run_tests.py --parallel` as the test command. No
   capability-marker text changes.
-- [ ] `CONTRIBUTING.md` names the parallel run as the standard validation and
+- [x] `CONTRIBUTING.md` names the parallel run as the standard validation and
   the sequential `unittest discover` run as the release gate and the
   fallback for a host where the parallel run cannot start its workers. It no
   longer calls the sequential run "the canonical full test run" without that
   qualification.
-- [ ] `.meridian/candidate-validation.json` FULL lists `scripts/run_tests.py`
+- [x] `.meridian/candidate-validation.json` FULL lists `scripts/run_tests.py`
   in place of `unittest discover`, and an `advance` or `integrate finalize`
   with evidence from the parallel command is accepted. Evidence that names
   only `unittest discover` is still accepted, or the change states why not.
-- [ ] An agent in this repository can run `python3 scripts/run_tests.py
+- [x] An agent in this repository can run `python3 scripts/run_tests.py
   --parallel` without a permission prompt: Codex through the tracked
   `.codex/rules/local.rules`, and Claude Code through the project allowlist
   that `meridian setup` writes, next to the existing
   `Bash(python3 -m unittest discover -s tests)` entry. The handoff states
   whether that allowlist entry also reaches other projects and why that is
   acceptable.
-- [ ] `.github/workflows/validate.yml` runs the parallel runner.
+- [x] `.github/workflows/validate.yml` runs the parallel runner.
   `.github/workflows/release.yml` keeps the sequential
   `python3 -m unittest discover -s tests -v` run.
-- [ ] The Validation sections of open task records (`tasks/*.md`, not
+- [x] The Validation sections of open task records (`tasks/*.md`, not
   `tasks/done/`) name the parallel command. Archived records and handoffs
   are not edited.
-- [ ] The default candidate-validation proposal that `meridian setup` offers
+- [x] The default candidate-validation proposal that `meridian setup` offers
   other projects is unchanged. This task changes only this repository's own
   validation, so it adds no migration and ships no template change.
-- [ ] The handoff records the wall time of the sequential and the parallel
+- [x] The handoff records the wall time of the sequential and the parallel
   run on the same tree, with the `total` and `digest` the parallel run
   printed.
-- [ ] One changelog fragment is added per `CONTRIBUTING.md`, only if a
+- [x] One changelog fragment is added per `CONTRIBUTING.md`, only if a
   shipped file changes; otherwise the handoff states that none is needed.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
+- [x] `python3 scripts/check_repository.py` and
+  `python3 scripts/run_tests.py --parallel` pass.
 
 ## Relevant Files
 
