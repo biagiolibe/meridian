@@ -55,7 +55,7 @@ Release plan:
 | `[x]` | 175 | Let `advance` finalize from supplied candidate validation results | 🟡 P2 | 174 | [175](done/175-advance-through-candidate-validation.md) |
 | `[x]` | 176 | Replace the closure procedure in managed text with `advance` | 🟡 P2 | 164, 175 | [176](done/176-closure-text-uses-advance.md) |
 | `[x]` | 177 | Add an agent evaluation harness graded on the journal and Git state | 🟡 P2 | 171 | [177](done/177-agent-eval-harness.md) |
-| `[ ]` | 178 | Add the safety and remediation scenarios and run them before template-changing releases | 🟡 P2 | 177, 167 | [178](178-agent-eval-scenarios-and-release-gate.md) |
+| `[x]` | 178 | Add the safety and remediation scenarios and run them before template-changing releases | 🟡 P2 | 177, 167 | [178](done/178-agent-eval-scenarios-and-release-gate.md) |
 | `[ ]` | 180 | Align the queue seed templates with closure ownership | 🟢 P3 | — | [180](180-align-queue-seed-templates-with-closure-ownership.md) |
 | `[ ]` | 181 | Run the stop audit on Codex and record the host on audit lines | 🟡 P2 | 173 | [181](181-codex-stop-audit-and-journal-host.md) |
 

@@ -144,7 +144,7 @@
 - `[x]` 175 — Let `advance` finalize from supplied candidate validation results.
 - `[x]` 176 — Replace the closure procedure in managed text with `advance`.
 - `[x]` 177 — Add an agent evaluation harness graded on the journal and Git state.
-- `[ ]` 178 — Add the safety and remediation scenarios and run them before template-changing releases.
+- `[x]` 178 — Add the safety and remediation scenarios and run them before template-changing releases.
 - `[x]` 179 — Stabilize the parallel runner output comparison test.
 - `[ ]` 180 — Align the queue seed templates with closure ownership.
 - `[ ]` 181 — Run the stop audit on Codex and record the host on audit lines.
