@@ -120,6 +120,47 @@ before a release, a maintainer must run the full suite outside the agent sandbox
 
 For a change to a template or workflow rule, also manually trace the affected path from initialization through task creation, implementation, review, acceptance, and a framework-upgrade plan. The templates are the product.
 
+### Agent evaluations
+
+`unittest` proves that the CLI and the managed text agree; it cannot prove that
+an agent reading the managed text behaves correctly. `scripts/run_agent_evals.py`
+runs a real agent on a scripted fixture and grades the outcome from the
+lifecycle journal and the final Git state, never from the agent's text:
+
+```bash
+python3 scripts/run_agent_evals.py --host claude --scenario main-ahead-integrates --runs 5
+python3 scripts/run_agent_evals.py --host codex
+```
+
+Each scenario in `evals/scenarios/<name>/` holds `setup.sh` (builds a fixture
+repository with Meridian installed and a local bare `origin`), `prompt.txt` (the
+developer directive), and `expect.json` (`kind` `safety` or `progress`,
+`journal_must_contain`, `git` assertions, and `must_not` conditions). The runner
+repeats each scenario `--runs` times (default 5) in a fresh temporary directory,
+prints one line per run and a pass count per scenario, and keeps a failing
+fixture and the agent output for inspection. `--keep` keeps every fixture.
+
+- **Cost**: every run is a full agent session that drives a task from `prepare`
+  to `cleanup`, so expect minutes and a real token spend per run (`--runs 5` of
+  one scenario is five sessions). `--max-budget-usd` caps one Claude Code run.
+- **Where it runs**: on demand and before template-changing releases. It is
+  outside `unittest` and CI, because runs are non-deterministic and billed. Only
+  the grader and the safety guards have unit tests (`tests/test_agent_evals.py`).
+- **Safety**: the runner builds fixtures in a fresh temporary directory outside
+  any Git repository, refuses a fixture whose `origin` is not a local path inside
+  that directory, points `MERIDIAN_WORKTREE_ROOT` and the global Git
+  configuration at the fixture, and never touches your project or its remote.
+  It isolates the host's user settings where the host allows it and prints what
+  it could not isolate; the agent still runs as you, with your host sign-in.
+  Codex runs under `workspace-write` with the temporary root as its workspace
+  (the fixture, its origin, and an isolated `HOME` all live there), because the
+  sandbox keeps `.git` read-only inside the workspace repository itself;
+  `CODEX_HOME` stays real for the sign-in, and the prompt names the fixture
+  directory.
+- **Exit status**: `0` all runs passed, `1` a run failed, `2` a usage or fixture
+  error, and `3` when the host CLI or its credentials are missing. Status `3`
+  never reports a pass.
+
 ## Release procedure
 
 ## Changelog fragments
