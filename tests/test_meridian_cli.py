@@ -4719,6 +4719,17 @@ Evidence plan:
             "of 1 or more",
         )
 
+    def test_investigation_arguments_name_the_missing_options(self) -> None:
+        self.write_task("TASK-406", "IN_PROGRESS")
+        result = self.run_cli("execution", "investigate", "TASK-406", "--question", " ", "--scope", "1", "--source", "x", "--finding", "")
+        self.assertEqual(
+            self.blocked_line(result),
+            "BLOCKED EXECUTION_EVIDENCE_ARGUMENTS: rule: an investigation records its question, sources, and finding; "
+            "options checked: --question, --source, --finding; accepted: a non-empty value for each; found: missing or "
+            "empty --question, --finding; resume: rerun meridian execution investigate with --question, --source, and "
+            "--finding",
+        )
+
     def test_uncoded_command_refusal_reports_command_refused(self) -> None:
         refused = self.run_cli("budget", "show", "TASK-404")
         line = self.blocked_line(refused)
