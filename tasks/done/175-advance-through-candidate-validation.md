@@ -16,24 +16,24 @@ hand and call `integrate finalize`, or `integrate abort` on failure. Let
 
 ## Acceptance Criteria
 
-- [ ] `advance` accepts `--candidate-command CMD --candidate-exit-code N`,
+- [x] `advance` accepts `--candidate-command CMD --candidate-exit-code N`,
   repeatable. With a staged integration at C7, it writes the candidate-bound
   evidence file in the schema that `integrate finalize` requires, bound to the
   staged candidate tree, and runs `integrate finalize`.
-- [ ] When any supplied exit code is non-zero, or a required command for the
+- [x] When any supplied exit code is non-zero, or a required command for the
   stage outcome is missing, `advance` runs `integrate abort` and reports
   `CANDIDATE_VALIDATION_FAILED` or `UNDECLARED_VALIDATION_COMMANDS`, with the
   resume step. It never finalizes on partial evidence.
-- [ ] A candidate tree that changed after stage is reported as
+- [x] A candidate tree that changed after stage is reported as
   `EVIDENCE_MISMATCH`, with abort and restage as the resume step.
-- [ ] After finalize, `advance` returns `action_required: push`.
-- [ ] Each step and stop is written to the journal.
-- [ ] Tests cover a successful finalize, a failed command, a missing required
+- [x] After finalize, `advance` returns `action_required: push`.
+- [x] Each step and stop is written to the journal.
+- [x] Tests cover a successful finalize, a failed command, a missing required
   command, a changed candidate tree, and a rerun after an interruption between
   finalize and push.
-- [ ] One changelog fragment is added per `CONTRIBUTING.md`; this is a CLI-only
+- [x] One changelog fragment is added per `CONTRIBUTING.md`; this is a CLI-only
   change.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
+- [x] `python3 scripts/check_repository.py` and the unit tests pass.
 
 ## Relevant Files
 
