@@ -2084,7 +2084,7 @@ def stage_task_integration(
         ),
     )
     if decision.outcome == IntegrationValidationOutcome.BLOCKED:
-        raise MeridianError(decision.reason)
+        raise stop_error("EVIDENCE_MISMATCH", decision.reason, task_id=identity.canonical_id, project=project_root)
     lease = {
         "version": 1,
         "task_id": identity.canonical_id,
@@ -7070,7 +7070,7 @@ def assisted_orchestrator_prompt(
             "diff, and commit it together with the approved migration. Never run generic adopt --apply",
             "for an assisted adoption.",
             "",
-            "Exit 2 (BLOCKED): stop immediately and report the exact printed reason — this covers two",
+            "Exit 2 (a BLOCKED ADOPTION_BLOCKED line): stop immediately and report the exact printed line — this covers two",
             "consecutive CHANGES_REQUESTED verdicts and any malformed review record. A developer must",
             "resolve the underlying issue before an orchestrator restarts the loop.",
             "",
@@ -7130,7 +7130,7 @@ def print_assisted_adoption_plan(
         print(f"CAPABILITY {capability_state:7} {capability.migration} — {capability.evidence}")
 
     if state.action == "BLOCKED":
-        raise MeridianError(state.reason)
+        raise stop_error("ADOPTION_BLOCKED", state.reason)
 
     if state.action in ("IMPLEMENT_MIGRATION", "ADDRESS_REVIEW"):
         print("AGENT_REQUIRED")
@@ -7855,9 +7855,9 @@ def print_plan(
     if edited_copies:
         print(f"WARNING: {edited_copies} edited managed copy/copies will fail the digest audit after upgrade.")
     if conflicts:
-        print(f"BLOCKED: {conflicts} conflict(s); no files were changed.")
+        print(format_stop("UPGRADE_BLOCKED", f"{conflicts} conflict(s); no files were changed"))
     if router_blockers:
-        print(f"BLOCKED: {router_blockers} router requirement(s); no files were changed.")
+        print(format_stop("UPGRADE_BLOCKED", f"{router_blockers} router requirement(s); no files were changed"))
 
 
 def plan_has_blockers(plan: list[PlanItem], owner_reconciled: bool = False) -> bool:
@@ -9680,7 +9680,7 @@ def format_flow_report(report: dict[str, object]) -> str:
     lines.append("Stops by code: " + (", ".join(f"{k}={v}" for k, v in report["stops_by_code"].items()) or "none"))  # type: ignore[attr-defined]
     lines.append("Stops by class: " + (", ".join(f"{k}={v}" for k, v in report["stops_by_class"].items()) or "none"))  # type: ignore[attr-defined]
     if report["unbacked_blocks"]:
-        lines.append(f"Unbacked BLOCKED reports: {report['unbacked_blocks']}")
+        lines.append(f"Unbacked stop reports: {report['unbacked_blocks']}")
     lines.append("Origin share: " + ", ".join(f"{k}={v}%" for k, v in report["origin_share_percent"].items()))  # type: ignore[attr-defined]
     for target in report["targets"]:  # type: ignore[index]
         lines.append(f"Target {target['target']}: {target['state']} (measured {target['measured']}, limit {target['limit']}, window {target['window']})")
@@ -9754,7 +9754,11 @@ def budget_spend(
     project_root: Path, task_id: str, kind: str, scope: str | None = None, amount: int = 1
 ) -> tuple[int, int]:
     if amount < 1:
-        raise MeridianError("budget spend BLOCKED: amount must be at least 1")
+        raise stop_error(
+            "EXECUTION_EVIDENCE_ARGUMENTS",
+            f"rule: a budget use is at least one; option checked: --scope; accepted: an integer of 1 or more; found: {amount}",
+            resume="rerun meridian execution investigate with --scope of 1 or more",
+        )
     state = load_budget_state(project_root)
     key, text = resolve_budget_key(project_root, state, task_id)
     counters = dict(state.get(key, {}))
@@ -9763,10 +9767,10 @@ def budget_spend(
     count = stored + amount
     cap = task_cap(project_root, text, kind)
     if count > cap:
-        raise MeridianError(
+        raise stop_error(
+            "BUDGET_EXHAUSTED",
             f"{BUDGET_FIELD_NAMES[kind]} exhausted for {task_id}: "
-            f"{stored} of {cap} allowed uses already recorded, {amount} more requested; "
-            "return BLOCKED, do not raise the cap"
+            f"{stored} of {cap} allowed uses already recorded, {amount} more requested; do not raise the cap",
         )
     counters[counter_key] = count
     state[key] = counters
@@ -9811,7 +9815,7 @@ def host_impact_field(section: str, field: str) -> str | None:
 def host_impact_required_profiles(section: str) -> list[tuple[str, str]]:
     """Validate a REQUIRED declaration and return its claimed profile states."""
     if not host_impact_field(section, "Policy outcome"):
-        raise MeridianError("host-impact declaration BLOCKED: REQUIRED declaration is missing Policy outcome")
+        raise stop_error("HOST_IMPACT_DECLARATION_INVALID", "REQUIRED declaration is missing Policy outcome")
 
     table = re.search(
         r"^\|\s*Profile\s*\|\s*Before\s*\|\s*Intended after\s*\|\s*Activation preconditions\s*\|\s*Fallback\s*\|\s*$\n"
@@ -9821,7 +9825,7 @@ def host_impact_required_profiles(section: str) -> list[tuple[str, str]]:
         re.MULTILINE,
     )
     if table is None:
-        raise MeridianError("host-impact declaration BLOCKED: REQUIRED declaration is missing the profile table")
+        raise stop_error("HOST_IMPACT_DECLARATION_INVALID", "REQUIRED declaration is missing the profile table")
 
     profiles: list[tuple[str, str]] = []
     for line in table.group(1).splitlines():
@@ -9829,7 +9833,7 @@ def host_impact_required_profiles(section: str) -> list[tuple[str, str]]:
             continue
         values = [value.strip() for value in line.strip().strip("|").split("|")]
         if len(values) != 5:
-            raise MeridianError("host-impact declaration BLOCKED: profile table row must contain five fields")
+            raise stop_error("HOST_IMPACT_DECLARATION_INVALID", "profile table row must contain five fields")
         profile, before, intended_after, activation, fallback = values
         for name, value in (
             ("Profile", profile),
@@ -9839,17 +9843,18 @@ def host_impact_required_profiles(section: str) -> list[tuple[str, str]]:
             ("Fallback", fallback),
         ):
             if not value:
-                raise MeridianError(f"host-impact declaration BLOCKED: profile table is missing {name}")
+                raise stop_error("HOST_IMPACT_DECLARATION_INVALID", f"profile table is missing {name}")
         for name, value in (("Before", before), ("Intended after", intended_after)):
             if value not in HOST_IMPACT_STATES:
-                raise MeridianError(
-                    f"host-impact declaration BLOCKED: profile {profile!r} has invalid {name} state {value!r}"
+                raise stop_error(
+                    "HOST_IMPACT_DECLARATION_INVALID",
+                    f"profile {profile!r} has invalid {name} state {value!r}; accepted: {', '.join(HOST_IMPACT_STATES)}",
                 )
         profiles.append((profile, intended_after))
 
     for category in HOST_IMPACT_EVIDENCE_CATEGORIES:
         if not re.search(rf"^- {re.escape(category)}:\s*\S+", section, re.MULTILINE):
-            raise MeridianError(f"host-impact declaration BLOCKED: REQUIRED declaration is missing {category} evidence plan")
+            raise stop_error("HOST_IMPACT_DECLARATION_INVALID", f"REQUIRED declaration is missing {category} evidence plan")
     return profiles
 
 
@@ -9861,12 +9866,13 @@ def validate_host_impact_declaration(text: str) -> list[tuple[str, str]]:
     classification = host_impact_field(section, "Classification")
     if classification == "NOT_APPLICABLE":
         if not host_impact_field(section, "Rationale"):
-            raise MeridianError("host-impact declaration BLOCKED: NOT_APPLICABLE declaration is missing Rationale")
+            raise stop_error("HOST_IMPACT_DECLARATION_INVALID", "NOT_APPLICABLE declaration is missing Rationale")
         return []
     if classification == "REQUIRED":
         return host_impact_required_profiles(section)
-    raise MeridianError(
-        "host-impact declaration BLOCKED: Classification must be NOT_APPLICABLE or REQUIRED"
+    raise stop_error(
+        "HOST_IMPACT_DECLARATION_INVALID",
+        f"Classification must be NOT_APPLICABLE or REQUIRED; found: {classification!r}",
     )
 
 
@@ -9884,9 +9890,9 @@ def verify_host_impact_completion_evidence(text: str) -> None:
     }
     missing = [profile for profile in enforced_profiles if profile not in evidence]
     if missing:
-        raise MeridianError(
-            "host-impact completion BLOCKED: enforced profile is missing Completion evidence: "
-            + ", ".join(missing)
+        raise stop_error(
+            "HOST_IMPACT_EVIDENCE_MISSING",
+            "enforced profile is missing Completion evidence: " + ", ".join(missing),
         )
 
 
@@ -10263,8 +10269,10 @@ def run_validation(project_root: Path, task_id: str, command_id: str) -> int:
     commands = validation_commands(text)
     if command_id not in commands:
         available = ", ".join(sorted(commands)) or "none"
-        raise MeridianError(
-            f"validation BLOCKED: {command_id!r} is not a declared validation ID for {task_id} (available: {available})"
+        raise stop_error(
+            "VALIDATION_ID_UNDECLARED",
+            f"rule: only a task-declared validation ID runs; field checked: Validation in the {task_id} record; "
+            f"accepted: {available}; found: {command_id!r}",
         )
     command = commands[command_id]
     completed = subprocess.run(command, shell=True, executable="/bin/bash", cwd=project_root, check=False)
@@ -10326,8 +10334,14 @@ def record_investigation(
     finding: str,
 ) -> str:
     """Record a bounded exploration without making a host or worker normative."""
-    if not question.strip() or not finding.strip() or not sources:
-        raise MeridianError("investigation BLOCKED: --question, --source, and --finding are required")
+    empty = [option for option, present in (("--question", question.strip()), ("--source", sources), ("--finding", finding.strip())) if not present]
+    if empty:
+        raise stop_error(
+            "EXECUTION_EVIDENCE_ARGUMENTS",
+            "rule: an investigation records its question, sources, and finding; options checked: --question, --source, "
+            "--finding; accepted: a non-empty value for each; found: missing or empty " + ", ".join(empty),
+            resume="rerun meridian execution investigate with --question, --source, and --finding",
+        )
     execution_preflight(project_root, task_id)
     count, cap = budget_spend(project_root, task_id, "investigations", amount=scope)
     path = project_root / EXECUTION_EVIDENCE_PATH
@@ -10827,7 +10841,7 @@ def _run_cli(journal: LifecycleJournalEntry) -> int:
     hook_sub = hook.add_subparsers(dest="hook_command", required=True)
     read_guard = hook_sub.add_parser("read-guard", help="apply the advisory-safe read guard")
     read_guard.add_argument("--host", choices=("codex",), required=True)
-    hook_sub.add_parser("stop-audit", help="record BLOCKED reports that no command emitted (Claude Code Stop hook)")
+    hook_sub.add_parser("stop-audit", help="record `BLOCKED <CODE>` reports that no command emitted (Claude Code Stop hook)")
 
     arguments = parser.parse_args()
     journal.begin(arguments)
@@ -11036,7 +11050,14 @@ def _run_cli(journal: LifecycleJournalEntry) -> int:
                 journal.observe(report)
                 print(json.dumps(report, sort_keys=True))
                 if not ready:
-                    journal.stopped(None)
+                    mismatch = stop_error(
+                        "WRONG_WORKTREE",
+                        "worktree check reported: " + ", ".join(str(error) for error in report["errors"]),
+                        task_id=arguments.task_id,
+                        project=project_root,
+                    )
+                    journal.stopped(mismatch.code)
+                    print(mismatch, file=sys.stderr)
                     return 2
             elif arguments.worktree_command == "evidence":
                 recorded = (record_task_evidence(
@@ -11251,10 +11272,14 @@ def _run_cli(journal: LifecycleJournalEntry) -> int:
         print(error, file=sys.stderr)
         return 2
     except MeridianError as error:
-        print(f"BLOCKED: {error}", file=sys.stderr)
+        refused = stop_error("COMMAND_REFUSED", str(error))
+        journal.stopped(refused.code)
+        print(refused, file=sys.stderr)
         return 2
     except OSError as error:
-        print(f"BLOCKED: operating-system access failed: {error}", file=sys.stderr)
+        failed = stop_error("OS_ACCESS_FAILED", str(error))
+        journal.stopped(failed.code)
+        print(failed, file=sys.stderr)
         return 2
     return 0
 

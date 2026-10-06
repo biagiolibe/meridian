@@ -2,7 +2,7 @@
 
 Task context loading, task shape, and completion handoffs are governed by `docs/CONTEXT_BUDGET_POLICY.md`, `tasks/TASK_BLUEPRINT.md`, and `docs/COMPLETION_REPORT_TEMPLATE.md`; this document defines review and forge integration only.
 
-<!-- MERIDIAN:BEGIN capability=task-worktree-integration v4 -->
+<!-- MERIDIAN:BEGIN capability=task-worktree-integration v5 -->
 For `Review: REQUIRED`, the implementer pushes the task branch only to obtain `T1_CI` for that commit, at most once per review attempt, and not at all when the project has no CI, and records its deterministic branch,
 machine-independent dedicated-worktree value (relative to the worktree root, never an absolute path), implementation commit, validated task and
 base `main` commits, exact successful validation evidence, declared integration
@@ -34,7 +34,7 @@ git diff --name-only <validated-task-commit>..<current-task-commit>
 
 Current `main` need not be an ancestor of the branch. Missing evidence, a
 failed ancestry check, or any task-relevant change after validation is
-`BLOCKED`; do not mark the task `ACCEPTED`. Do not fetch,
+`BLOCKED EVIDENCE_MISMATCH`; do not mark the task `ACCEPTED`. Do not fetch,
 rebase, amend, cherry-pick, or force-push as recovery. After `APPROVE`, append
 the verdict and evidence to the review record and create only the local
 review-and-status commit that records `ACCEPTED` in the task record.
@@ -42,17 +42,17 @@ review-and-status commit that records `ACCEPTED` in the task record.
 Final integration is serialized in the primary checkout under one exclusive
 integration lease, acquired by atomically creating
 `meridian-integration.lock` in the absolute common Git directory, which is computed at runtime and never written to a tracked file. An existing
-lease is `BLOCKED`; only its owner removes it, and stale-lease removal requires
+lease is `BLOCKED LEASE_HELD`; only its owner removes it, and stale-lease removal requires
 explicit developer authorization. If the primary checkout is missing, dirty,
-cannot switch to `main`, or another integration owns the lease, return
-`BLOCKED` and preserve task state. When current `main` equals the validated
+cannot switch to `main`, return `BLOCKED PRIMARY_DIRTY`; if another integration owns the lease, return
+`BLOCKED LEASE_HELD`. Either stop preserves task state. When current `main` equals the validated
 base, reuse the task evidence. When it advanced, compare
 `git diff --name-only <validated-base>..main` and the advanced dependency,
 generated-input, configuration, schema, shared-governance, and behavioral
 identities with the handoff's declared integration surface. Equal or nested
 paths or any shared identity are material interactions and select full
 combined-tree validation. An incomplete declaration or comparison is
-`BLOCKED`; neither a conflict-free merge nor disjoint filenames establishes
+`BLOCKED EVIDENCE_MISMATCH`; neither a conflict-free merge nor disjoint filenames establishes
 independence. Record an independent comparison before selecting the bounded
 gate. An explicit task requirement also selects full validation.
 

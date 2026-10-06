@@ -346,7 +346,7 @@ class MeridianCliTest(unittest.TestCase):
             "",
         ))
         previous_implementation = re.sub(
-            r"<!-- MERIDIAN:BEGIN capability=task-worktree-boundary v8 -->.*?<!-- MERIDIAN:END -->\n",
+            r"<!-- MERIDIAN:BEGIN capability=task-worktree-boundary v9 -->.*?<!-- MERIDIAN:END -->\n",
             legacy_implementation,
             current_implementation,
             count=1,
@@ -1081,7 +1081,7 @@ class MeridianCliTest(unittest.TestCase):
         blueprint = self.framework / "templates/workflows/governed-sdd/tasks/TASK_BLUEPRINT.md"
         current = blueprint.read_text(encoding="utf-8")
         declaration = current.split("\n## Host impact\n", 1)[1].split("\n## Goal\n", 1)[0]
-        previous = current.replace("capability=task-blueprint v14", "capability=task-blueprint v11", 1)
+        previous = current.replace("capability=task-blueprint v15", "capability=task-blueprint v11", 1)
         previous = previous.replace("\n## Host impact\n" + declaration, "", 1)
 
         installed_baseline = self.project / ".meridian/baselines/1.1.39"
@@ -1095,10 +1095,10 @@ class MeridianCliTest(unittest.TestCase):
         implementation = self.framework / "templates/workflows/governed-sdd/docs/workflows/IMPLEMENTATION.md"
         routed = implementation.read_text(encoding="utf-8")
         routing = routed.split(
-            "<!-- MERIDIAN:BEGIN capability=host-impact-routing v1 -->", 1
+            "<!-- MERIDIAN:BEGIN capability=host-impact-routing v2 -->", 1
         )[1].split("<!-- MERIDIAN:END -->", 1)[0]
         previous_routed = routed.replace(
-            "<!-- MERIDIAN:BEGIN capability=host-impact-routing v1 -->" + routing + "<!-- MERIDIAN:END -->\n\n",
+            "<!-- MERIDIAN:BEGIN capability=host-impact-routing v2 -->" + routing + "<!-- MERIDIAN:END -->\n\n",
             "",
             1,
         )
@@ -1114,13 +1114,13 @@ class MeridianCliTest(unittest.TestCase):
         applied = self.run_cli("upgrade", "--apply")
         self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
         upgraded_blueprint = (self.project / "tasks/TASK_BLUEPRINT.md").read_text(encoding="utf-8")
-        self.assertIn("capability=task-blueprint v14", upgraded_blueprint)
+        self.assertIn("capability=task-blueprint v15", upgraded_blueprint)
         self.assertIn("Classification: NOT_APPLICABLE", upgraded_blueprint)
         self.assertIn("Classification: REQUIRED", upgraded_blueprint)
         self.assertIn("Project-owned task note.", upgraded_blueprint)
         upgraded_routing = (self.project / "docs/workflows/IMPLEMENTATION.md").read_text(encoding="utf-8")
-        self.assertIn("capability=host-impact-routing v1", upgraded_routing)
-        self.assertIn("return `BLOCKED`", upgraded_routing)
+        self.assertIn("capability=host-impact-routing v2", upgraded_routing)
+        self.assertIn("return `BLOCKED HOST_IMPACT_DECLARATION_INVALID`", upgraded_routing)
         manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
         self.assertEqual(manifest["frameworkVersion"], "1.1.40")
         self.assertEqual(manifest["appliedMigrations"][-1], "043-host-impact-task-declaration")
@@ -1202,7 +1202,7 @@ class MeridianCliTest(unittest.TestCase):
         self.assertIn("capability=git-workflow v13", project_workflow.read_text(encoding="utf-8"))
         self.assertIn("Consumer-owned note.", project_workflow.read_text(encoding="utf-8"))
         self.assertIn(
-            "capability=task-worktree-boundary v8",
+            "capability=task-worktree-boundary v9",
             (self.project / "docs/workflows/IMPLEMENTATION.md").read_text(encoding="utf-8"),
         )
         report = (self.project / "docs/COMPLETION_REPORT_TEMPLATE.md").read_text(encoding="utf-8")
@@ -1357,7 +1357,7 @@ worktree before the branch only after validated integration succeeds.
         )
         previous["docs/LIFECYCLE_ORCHESTRATION.md"] = previous[
             "docs/LIFECYCLE_ORCHESTRATION.md"
-        ].replace("capability=lifecycle-orchestration v9", "capability=lifecycle-orchestration v5")
+        ].replace("capability=lifecycle-orchestration v10", "capability=lifecycle-orchestration v5")
 
         for relative, text in previous.items():
             (workflow / relative).write_text(text, encoding="utf-8")
@@ -1383,7 +1383,7 @@ worktree before the branch only after validated integration succeeds.
 
         upgraded = review.read_text(encoding="utf-8")
         self.assertIn("capability=implementer-reviewer-handoff v4", upgraded)
-        self.assertIn("capability=task-worktree-review-procedure v10", upgraded)
+        self.assertIn("capability=task-worktree-review-procedure v11", upgraded)
         self.assertIn("Consumer-owned review note.", upgraded)
         self.assertNotIn("uses that same primary checkout", upgraded)
         self.assertNotIn("git switch <task-branch>", upgraded)
@@ -1435,7 +1435,7 @@ worktree before the branch only after validated integration succeeds.
                 applied = self.run_cli("upgrade", "--apply")
                 self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
                 upgraded = project_workflow.read_text(encoding="utf-8")
-                self.assertIn("capability=codex-worktree-access v3", upgraded)
+                self.assertIn("capability=codex-worktree-access v4", upgraded)
                 self.assertIn("reports `repair-required`", upgraded)
                 self.assertIn("Consumer-owned note.", upgraded)
                 manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -1456,7 +1456,7 @@ worktree before the branch only after validated integration succeeds.
         applied = self.run_cli("upgrade", "--apply")
         self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
 
-        self.assertIn("capability=task-worktree-boundary v8", implementation.read_text(encoding="utf-8"))
+        self.assertIn("capability=task-worktree-boundary v9", implementation.read_text(encoding="utf-8"))
         self.assertIn("**Manually triggered.**", implementation.read_text(encoding="utf-8"))
         upgraded_workflow = project_workflow.read_text(encoding="utf-8")
         self.assertIn("capability=bounded-worktree-lifecycle v4", upgraded_workflow)
@@ -1516,7 +1516,7 @@ worktree before the branch only after validated integration succeeds.
         self.assertIn("created after this report", upgraded_report)
         self.assertIn("Consumer-owned handoff note.", upgraded_report)
         upgraded_review = (self.project / "docs/workflows/REVIEW.md").read_text(encoding="utf-8")
-        self.assertIn("capability=task-worktree-review-procedure v10", upgraded_review)
+        self.assertIn("capability=task-worktree-review-procedure v11", upgraded_review)
         self.assertIn("resolve it to the registered task branch `HEAD`", upgraded_review)
         manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
         self.assertEqual(manifest["workflowBaselineVersion"], "1.1.55")
@@ -1584,7 +1584,7 @@ worktree before the branch only after validated integration succeeds.
                 flags=re.DOTALL,
             ),
             "docs/workflows/IMPLEMENTATION.md": re.sub(
-                r"\n<!-- MERIDIAN:BEGIN capability=task-worktree-boundary v8 -->.*?<!-- MERIDIAN:END -->\n",
+                r"\n<!-- MERIDIAN:BEGIN capability=task-worktree-boundary v9 -->.*?<!-- MERIDIAN:END -->\n",
                 "\n",
                 current["docs/workflows/IMPLEMENTATION.md"],
                 flags=re.DOTALL,
@@ -1626,9 +1626,9 @@ worktree before the branch only after validated integration succeeds.
         upgraded_review = (self.project / "docs/workflows/REVIEW.md").read_text(encoding="utf-8")
         self.assertIn("capability=git-workflow v13", upgraded_workflow)
         self.assertIn("Review: REQUIRED` is a gate, not a request for authorization", upgraded_workflow)
-        self.assertIn("capability=task-worktree-boundary v8", upgraded_implementation)
+        self.assertIn("capability=task-worktree-boundary v9", upgraded_implementation)
         self.assertIn("REVIEW_REQUIRED`; it is a gate", upgraded_implementation)
-        self.assertIn("capability=task-worktree-review-procedure v10", upgraded_review)
+        self.assertIn("capability=task-worktree-review-procedure v11", upgraded_review)
         self.assertIn("reviewer-integrator performs C6 through C10", upgraded_review)
         self.assertIn("Consumer-owned closure note.", upgraded_implementation)
         manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
@@ -1761,7 +1761,7 @@ worktree before the branch only after validated integration succeeds.
         previous = {
             "PROJECT_WORKFLOW.md": resume_paragraph.sub(
                 "\n", current["PROJECT_WORKFLOW.md"].replace(
-                    "capability=bounded-worktree-lifecycle v4", "capability=bounded-worktree-lifecycle v3"
+                    "capability=bounded-worktree-lifecycle v5", "capability=bounded-worktree-lifecycle v3"
                 ), count=1,
             ),
             "docs/WORKTREE_LIFECYCLE.md": resume_bullet.sub(
@@ -1796,7 +1796,7 @@ worktree before the branch only after validated integration succeeds.
         self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
 
         upgraded = project_workflow.read_text(encoding="utf-8")
-        self.assertIn("capability=bounded-worktree-lifecycle v4", upgraded)
+        self.assertIn("capability=bounded-worktree-lifecycle v5", upgraded)
         self.assertIn("`--resume` is allowed only for that directive", upgraded)
         self.assertIn("Consumer-owned resume note.", upgraded)
         lifecycle = (self.project / "docs/WORKTREE_LIFECYCLE.md").read_text(encoding="utf-8")
@@ -2039,7 +2039,7 @@ worktree before the branch only after validated integration succeeds.
         profile = self.framework / "templates/workflows/governed-sdd/docs/EXECUTION_EVIDENCE_PROFILE.md"
         incoming_policy = policy.read_text(encoding="utf-8")
         marker = re.search(
-            r"<!-- MERIDIAN:BEGIN capability=execution-evidence-profile v4 -->\n?.*?"
+            r"<!-- MERIDIAN:BEGIN capability=execution-evidence-profile v5 -->\n?.*?"
             r"<!-- MERIDIAN:END -->\n?",
             incoming_policy,
             re.DOTALL,
@@ -2086,7 +2086,7 @@ worktree before the branch only after validated integration succeeds.
         )
         self.assertIsNotNone(appended)
         self.assertIn("## Project validation baseline", appended)
-        self.assertIn("capability=execution-evidence-profile v4", appended)
+        self.assertIn("capability=execution-evidence-profile v5", appended)
 
         checked = self.run_cli("upgrade", "--check")
         self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
@@ -2097,7 +2097,7 @@ worktree before the branch only after validated integration succeeds.
         upgraded = local_policy.read_text(encoding="utf-8")
         self.assertIn("## Project validation baseline", upgraded)
         self.assertIn("capability=validation-scoping v2", upgraded)
-        self.assertIn("capability=execution-evidence-profile v4", upgraded)
+        self.assertIn("capability=execution-evidence-profile v5", upgraded)
         self.assertTrue((self.project / "docs/EXECUTION_EVIDENCE_PROFILE.md").is_file())
 
     def test_upgrade_preserves_a_verified_agents_pointer_claude_file(self) -> None:
@@ -2188,16 +2188,16 @@ worktree before the branch only after validated integration succeeds.
 
     def test_marker_insertion_promotes_an_identical_unmarked_local_rule(self) -> None:
         template = (
-            "# Profile\n\n<!-- MERIDIAN:BEGIN capability=investigation-scope v1 -->\n"
+            "# Profile\n\n<!-- MERIDIAN:BEGIN capability=investigation-scope v2 -->\n"
             "- Investigation scope: 2 per task.\n<!-- MERIDIAN:END -->\n"
         )
-        content = meridian.extract_marker_block(template, "investigation-scope", 1)
+        content = meridian.extract_marker_block(template, "investigation-scope", 2)
         self.assertIsNotNone(content)
         local = "# Profile\n\n" + content
         upgraded = meridian.append_only_new_markers(local, "# Profile\n", template)
         self.assertIsNotNone(upgraded)
         self.assertEqual(upgraded.count("Investigation scope: 2 per task."), 1)
-        self.assertIn("capability=investigation-scope v1", upgraded)
+        self.assertIn("capability=investigation-scope v2", upgraded)
 
     def test_long_command_waits_block_is_added_once_to_a_customized_profile(self) -> None:
         for mode in ("lean-delivery", "governed-sdd"):
@@ -2543,7 +2543,7 @@ worktree before the branch only after validated integration succeeds.
             encoding="utf-8"
         )
         previous = current.replace(
-            "capability=execution-evidence-profile v4", "capability=execution-evidence-profile v3"
+            "capability=execution-evidence-profile v5", "capability=execution-evidence-profile v3"
         ).replace(
             "\n## Lifecycle orchestration", "\n" + self.REASONING_CONTRACT_BLOCK + "## Lifecycle orchestration", 1
         )
@@ -2584,7 +2584,7 @@ worktree before the branch only after validated integration succeeds.
         self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
         upgraded = local_policy.read_text(encoding="utf-8")
         self.assertNotIn("reasoning-budget-contract", upgraded)
-        self.assertIn("capability=execution-evidence-profile v4", upgraded)
+        self.assertIn("capability=execution-evidence-profile v5", upgraded)
         self.assertIn("Task-First Loading (project wording)", upgraded)
 
     def test_upgrade_refuses_to_retire_a_locally_edited_reasoning_contract(self) -> None:
@@ -2926,7 +2926,11 @@ worktree before the branch only after validated integration succeeds.
         checked = self.run_cli("upgrade", "--check")
         self.assertEqual(checked.returncode, 2)
         self.assertIn("CONFLICT PROJECT_WORKFLOW.md", checked.stdout)
-        self.assertIn("BLOCKED: 1 conflict(s)", checked.stdout)
+        self.assertIn(
+            "BLOCKED UPGRADE_BLOCKED: 1 conflict(s); no files were changed; resume: resolve each conflict or router "
+            "requirement that the plan lists, then rerun meridian upgrade --check",
+            checked.stdout,
+        )
 
     def test_adopt_applies_packaged_legacy_migrations(self) -> None:
         shutil.rmtree(self.project)
@@ -3064,13 +3068,13 @@ worktree before the branch only after validated integration succeeds.
         # The evidence text proves the legacy fallback did its job (v1 found),
         # distinct from "no marker found" — it's the v1->v2 gap that's real.
         self.assertIn(
-            "CAPABILITY MISSING 061-governed-phase-reads — no marker found; "
-            "legacy pre-marker evidence only confirms v1, but v3 is required",
+            "CAPABILITY MISSING 064-closure-text-uses-advance — no marker found; "
+            "legacy pre-marker evidence only confirms v1, but v4 is required",
             planned.stdout,
         )
         self.assertIn(
-            "CAPABILITY MISSING 063-retire-reasoning-budget-contract — no marker found; "
-            "legacy pre-marker evidence only confirms v1, but v9 is required",
+            "CAPABILITY MISSING 064-closure-text-uses-advance — no marker found; "
+            "legacy pre-marker evidence only confirms v1, but v10 is required",
             planned.stdout,
         )
         self.assertIn("\nNEXT_ACTION IMPLEMENT_MIGRATION\n", planned.stdout)
@@ -3224,7 +3228,18 @@ worktree before the branch only after validated integration succeeds.
             "adopt", "--mode", "governed-sdd", "--from", "1.0.0", "--assisted", "--check"
         )
         self.assertEqual(blocked.returncode, 2)
-        self.assertIn("two consecutive CHANGES_REQUESTED verdicts", blocked.stderr)
+        line = next(line for line in blocked.stderr.splitlines() if line.startswith("BLOCKED "))
+        self.assertTrue(
+            line.startswith("BLOCKED ADOPTION_BLOCKED: two consecutive CHANGES_REQUESTED verdicts (attempt 2); resolve "),
+            line,
+        )
+        self.assertTrue(
+            line.endswith(
+                "manually before retrying; resume: resolve the adoption review record that the detail names manually, "
+                "then restart the assisted adoption loop"
+            ),
+            line,
+        )
 
     def test_emit_returns_single_prompt_block(self) -> None:
         shutil.rmtree(self.project)
@@ -4091,7 +4106,11 @@ class BudgetCliTest(unittest.TestCase):
         task.write_text(task.read_text(encoding="utf-8").replace("Rationale: This task changes only application behavior.\n", ""), encoding="utf-8")
         missing_rationale = self.run_cli("execution", "preflight", "TASK-019")
         self.assertNotEqual(missing_rationale.returncode, 0)
-        self.assertIn("NOT_APPLICABLE declaration is missing Rationale", missing_rationale.stderr)
+        self.assertEqual(
+            self.blocked_line(missing_rationale),
+            "BLOCKED HOST_IMPACT_DECLARATION_INVALID: NOT_APPLICABLE declaration is missing Rationale; resume: correct "
+            "the task's Host impact declaration as the detail names, then rerun the blocked meridian execution command",
+        )
 
         required = """Classification: REQUIRED
 Policy outcome: The lifecycle gate validates host-impact evidence.
@@ -4112,7 +4131,12 @@ Evidence plan:
         task.write_text(task.read_text(encoding="utf-8").replace("- Host execution: fixture command\n", ""), encoding="utf-8")
         missing_evidence = self.run_cli("execution", "preflight", "TASK-019")
         self.assertNotEqual(missing_evidence.returncode, 0)
-        self.assertIn("missing Host execution evidence plan", missing_evidence.stderr)
+        self.assertEqual(
+            self.blocked_line(missing_evidence),
+            "BLOCKED HOST_IMPACT_DECLARATION_INVALID: REQUIRED declaration is missing Host execution evidence plan; "
+            "resume: correct the task's Host impact declaration as the detail names, then rerun the blocked meridian "
+            "execution command",
+        )
 
     def test_ready_check_requires_evidence_only_for_enforced_host_profiles(self) -> None:
         (self.project / "docs").mkdir(exist_ok=True)
@@ -4139,7 +4163,12 @@ Evidence plan:
         )
         missing = self.run_cli("execution", "ready-check", "TASK-020", str(report))
         self.assertNotEqual(missing.returncode, 0)
-        self.assertIn("enforced profile is missing Completion evidence", missing.stderr)
+        self.assertEqual(
+            self.blocked_line(missing),
+            "BLOCKED HOST_IMPACT_EVIDENCE_MISSING: enforced profile is missing Completion evidence: Meridian CLI / "
+            "direct / project; resume: add a Completion evidence entry for each listed profile to the task's Host "
+            "impact section, then rerun the blocked meridian execution command",
+        )
 
         task.write_text(
             task.read_text(encoding="utf-8").replace(
@@ -4624,7 +4653,13 @@ Evidence plan:
         self.assertEqual(evidence["TASK-010"][0]["id"], "probe")
         missing = self.run_cli("execution", "validate", "TASK-010", "not-declared")
         self.assertNotEqual(missing.returncode, 0)
-        self.assertIn("not a declared validation ID", missing.stderr)
+        self.assertEqual(
+            self.blocked_line(missing),
+            "BLOCKED VALIDATION_ID_UNDECLARED: rule: only a task-declared validation ID runs; field checked: "
+            "Validation in the TASK-010 record; accepted: probe; found: 'not-declared'; resume: rerun meridian "
+            "execution validate with a validation ID listed in the task's Validation section, or declare the command "
+            "there first",
+        )
 
     def test_evidence_requires_a_gap_and_capture_provenance(self) -> None:
         self.write_task("TASK-011", "IN_PROGRESS")
@@ -4669,10 +4704,53 @@ Evidence plan:
             self.assertEqual(accepted.stdout.strip(), f"TASK-003: captures {used}/2")
         exhausted = self.run_cli("budget", "spend", "TASK-003", "captures")
         self.assertNotEqual(exhausted.returncode, 0)
-        self.assertIn("BLOCKED", exhausted.stderr)
-        self.assertIn("do not raise the cap", exhausted.stderr)
-        self.assertIn("Evidence captures exhausted", exhausted.stderr)
-        self.assertIn("2 of 2 allowed uses already recorded", exhausted.stderr)
+        self.assertEqual(
+            self.blocked_line(exhausted),
+            "BLOCKED BUDGET_EXHAUSTED: Evidence captures exhausted for TASK-003: 2 of 2 allowed uses already "
+            "recorded, 1 more requested; do not raise the cap; resume: report this stop and ask the developer to "
+            "raise the cap or re-scope the task; never raise the cap yourself",
+        )
+        with self.assertRaises(meridian.MeridianStop) as invalid:
+            meridian.budget_spend(self.project, "TASK-003", "captures", amount=0)
+        self.assertEqual(
+            str(invalid.exception),
+            "BLOCKED EXECUTION_EVIDENCE_ARGUMENTS: rule: a budget use is at least one; option checked: --scope; "
+            "accepted: an integer of 1 or more; found: 0; resume: rerun meridian execution investigate with --scope "
+            "of 1 or more",
+        )
+
+    def test_investigation_arguments_name_the_missing_options(self) -> None:
+        self.write_task("TASK-406", "IN_PROGRESS")
+        result = self.run_cli("execution", "investigate", "TASK-406", "--question", " ", "--scope", "1", "--source", "x", "--finding", "")
+        self.assertEqual(
+            self.blocked_line(result),
+            "BLOCKED EXECUTION_EVIDENCE_ARGUMENTS: rule: an investigation records its question, sources, and finding; "
+            "options checked: --question, --source, --finding; accepted: a non-empty value for each; found: missing or "
+            "empty --question, --finding; resume: rerun meridian execution investigate with --question, --source, and "
+            "--finding",
+        )
+
+    def test_uncoded_command_refusal_reports_command_refused(self) -> None:
+        refused = self.run_cli("budget", "show", "TASK-404")
+        line = self.blocked_line(refused)
+        self.assertTrue(line.startswith("BLOCKED COMMAND_REFUSED: "), line)
+        self.assertTrue(
+            line.endswith("; resume: correct the condition that the detail names, then rerun the same meridian command"),
+            line,
+        )
+        self.assertNotIn("BLOCKED:", refused.stderr)
+
+    def test_operating_system_failure_reports_os_access_failed(self) -> None:
+        self.write_task("TASK-405", "IN_PROGRESS")
+        (self.project / ".meridian").mkdir()
+        (self.project / ".meridian/budget.json").mkdir()
+        failed = self.run_cli("budget", "spend", "TASK-405", "diagnostic")
+        line = self.blocked_line(failed)
+        self.assertTrue(line.startswith("BLOCKED OS_ACCESS_FAILED: "), line)
+        self.assertTrue(
+            line.endswith("; resume: fix the access problem that the detail names, then rerun the same meridian command"),
+            line,
+        )
 
     def test_spend_respects_task_override_cap(self) -> None:
         self.write_task("TASK-004", "IN_PROGRESS", **{"Diagnostic attempts": "1"})
@@ -4835,15 +4913,15 @@ class CapabilityMarkerTest(unittest.TestCase):
     def test_agents_and_claude_carry_expected_marker_versions(self) -> None:
         for name in ("AGENTS.md", "CLAUDE.md"):
             self.assertEqual(self.marker_pairs((self.WORKFLOW / name).read_text(encoding="utf-8")), [("command-triggers", "3")])
-        self.assertIn(("review-remediation-record", "3"), self.marker_pairs((self.WORKFLOW / "docs/workflows/REMEDIATION.md").read_text(encoding="utf-8")))
+        self.assertIn(("review-remediation-record", "4"), self.marker_pairs((self.WORKFLOW / "docs/workflows/REMEDIATION.md").read_text(encoding="utf-8")))
         self.assertIn(("lifecycle-orchestration", "3"), self.marker_pairs((self.WORKFLOW / "docs/workflows/LIFECYCLE.md").read_text(encoding="utf-8")))
         implementation = self.marker_pairs((self.WORKFLOW / "docs/workflows/IMPLEMENTATION.md").read_text(encoding="utf-8"))
-        for pair in (("execution-command-gate", "2"), ("validation-scoping", "2"), ("spike-routing", "1"), ("host-impact-routing", "1")):
+        for pair in (("execution-command-gate", "2"), ("validation-scoping", "2"), ("spike-routing", "2"), ("host-impact-routing", "2")):
             self.assertIn(pair, implementation)
 
     def test_manual_proceed_migration_leaves_remediation_bytes_unchanged(self) -> None:
         expected = {
-            "REMEDIATION.md": "919aac8c9942718b51a56ef30ef2c747abb6c28770ea1767f1658125f99b68a9",
+            "REMEDIATION.md": "c776e87108d24bdc0a09bdc3c3c7b48e2e2e4b3ebe05f9fe42b06c46cd7f59af",
         }
         for name, digest in expected.items():
             path = self.WORKFLOW / "docs/workflows" / name
@@ -4852,7 +4930,7 @@ class CapabilityMarkerTest(unittest.TestCase):
     def test_host_impact_declaration_has_both_governed_shapes_and_evidence_routing(self) -> None:
         blueprint = (self.WORKFLOW / "tasks/TASK_BLUEPRINT.md").read_text(encoding="utf-8")
         implementation = (self.WORKFLOW / "docs/workflows/IMPLEMENTATION.md").read_text(encoding="utf-8")
-        self.assertIn(("task-blueprint", "14"), self.marker_pairs(blueprint))
+        self.assertIn(("task-blueprint", "15"), self.marker_pairs(blueprint))
         self.assertIn("Classification: NOT_APPLICABLE", blueprint)
         self.assertIn("Rationale:", blueprint)
         self.assertIn("Classification: REQUIRED", blueprint)
@@ -4861,22 +4939,22 @@ class CapabilityMarkerTest(unittest.TestCase):
         self.assertIn("- Host execution:", blueprint)
         self.assertIn("- Manual activation:", blueprint)
         self.assertIn("Completion evidence:", blueprint)
-        self.assertIn(("host-impact-routing", "1"), self.marker_pairs(implementation))
-        self.assertIn("return `BLOCKED`", implementation)
+        self.assertIn(("host-impact-routing", "2"), self.marker_pairs(implementation))
+        self.assertIn("return `BLOCKED HOST_IMPACT_DECLARATION_INVALID`", implementation)
         self.assertIn("not host enforcement", implementation)
 
     def test_review_record_template_carries_its_own_marker(self) -> None:
         text = (self.WORKFLOW / "docs/REVIEW_RECORD_TEMPLATE.md").read_text(encoding="utf-8")
         self.assertEqual(
             self.marker_pairs(text),
-            [("review-remediation-record", "3"), ("manual-verification-record", "1")],
+            [("review-remediation-record", "4"), ("manual-verification-record", "1")],
         )
 
     def test_lifecycle_orchestration_carries_its_own_marker(self) -> None:
         text = (self.WORKFLOW / "docs/LIFECYCLE_ORCHESTRATION.md").read_text(encoding="utf-8")
         self.assertEqual(
             self.marker_pairs(text),
-            [("lifecycle-orchestration", "9"), ("rejected-attempt-restart", "4")],
+            [("lifecycle-orchestration", "10"), ("rejected-attempt-restart", "5")],
         )
 
     def test_context_budget_policy_carries_its_capability_markers(self) -> None:
@@ -4891,7 +4969,7 @@ class CapabilityMarkerTest(unittest.TestCase):
                 ("minimal-read-only-status", "2"),
                 ("validation-scoping", "2"),
                 ("evidence-tiers", "1"),
-                ("execution-evidence-profile", "4"),
+                ("execution-evidence-profile", "5"),
                 ("phase-reads", "1"),
             ],
         )
@@ -4901,7 +4979,7 @@ class CapabilityMarkerTest(unittest.TestCase):
         profile = (self.WORKFLOW / "docs/EXECUTION_EVIDENCE_PROFILE.md").read_text(
             encoding="utf-8"
         )
-        self.assertIn(("execution-evidence-profile", "4"), self.marker_pairs(policy))
+        self.assertIn(("execution-evidence-profile", "5"), self.marker_pairs(policy))
         self.assertIn("Successful validation output", profile)
         self.assertIn("Failure diagnostics", profile)
         self.assertIn("Manual evidence", profile)
@@ -4921,9 +4999,9 @@ class CapabilityMarkerTest(unittest.TestCase):
         ]
         texts = {path: (self.WORKFLOW / path).read_text(encoding="utf-8") for path in paths}
 
-        self.assertIn(("task-blueprint", "14"), self.marker_pairs(texts["tasks/TASK_BLUEPRINT.md"]))
+        self.assertIn(("task-blueprint", "15"), self.marker_pairs(texts["tasks/TASK_BLUEPRINT.md"]))
         self.assertIn(
-            ("lifecycle-orchestration", "9"), self.marker_pairs(texts["docs/LIFECYCLE_ORCHESTRATION.md"])
+            ("lifecycle-orchestration", "10"), self.marker_pairs(texts["docs/LIFECYCLE_ORCHESTRATION.md"])
         )
         self.assertNotIn(
             "reasoning-budget-contract", dict(self.marker_pairs(texts["docs/CONTEXT_BUDGET_POLICY.md"]))
@@ -4981,7 +5059,7 @@ class CapabilityMarkerTest(unittest.TestCase):
         self.assertEqual(
             self.marker_pairs(pull_request_policy),
             [
-                ("task-worktree-integration", "4"),
+                ("task-worktree-integration", "5"),
                 ("ci-verified-validation", "1"),
                 ("remote-branch-cleanup", "1"),
             ],
@@ -4990,7 +5068,7 @@ class CapabilityMarkerTest(unittest.TestCase):
         code_review_prompt = (self.WORKFLOW / "docs/CODE_REVIEW_PROMPT.md").read_text(encoding="utf-8")
         self.assertEqual(
             self.marker_pairs(code_review_prompt),
-            [("code-review-prompt", "1")],
+            [("code-review-prompt", "2")],
         )
 
         completion_report = (self.WORKFLOW / "docs/COMPLETION_REPORT_TEMPLATE.md").read_text(encoding="utf-8")
@@ -5005,9 +5083,9 @@ class CapabilityMarkerTest(unittest.TestCase):
 
     def test_manual_verification_precondition_gates_implementation_start(self) -> None:
         agents = (self.WORKFLOW / "docs/workflows/IMPLEMENTATION.md").read_text(encoding="utf-8")
-        self.assertIn(("manual-verification-precondition", "3"), self.marker_pairs(agents))
+        self.assertIn(("manual-verification-precondition", "4"), self.marker_pairs(agents))
         self.assertIn("Manual verification: required", agents)
-        self.assertIn("return `BLOCKED` immediately", agents)
+        self.assertIn("return `BLOCKED SCOPE_CHANGE_REQUIRED` immediately", agents)
         self.assertIn("deterministic test", agents)
         self.assertIn("probe that actually succeeds", agents)
         self.assertIn(
@@ -5044,12 +5122,13 @@ class CapabilityMarkerTest(unittest.TestCase):
                 "execution-discipline",
             )
         }
+        expected["workflow-mode-lock"] = "2"
         expected["document-precedence"] = "2"
         expected["execution-assets"] = "4"
         expected["roles"] = "3"
         expected["git-workflow"] = "13"
         expected["bounded-worktree-lifecycle"] = "4"
-        expected["codex-worktree-access"] = "3"
+        expected["codex-worktree-access"] = "4"
         expected["task-identity-policy"] = "1"
         expected["task-lifecycle"] = "3"
         expected["review-policy"] = "3"
@@ -5065,7 +5144,7 @@ class CapabilityMarkerTest(unittest.TestCase):
             block = " ".join(text[start : text.index("<!-- MERIDIAN:END -->", start)].split())
             self.assertIn("meridian worktree advance", block, path)
             self.assertIn("`action_required`", block, path)
-            self.assertIn("`BLOCKED` line", block, path)
+            self.assertIn("`BLOCKED <CODE>`", block, path)
             self.assertNotIn("Close a validated task in order", block, path)
             self.assertNotIn("closure-status", block, path)
             self.assertIn("`Validation skips:`", block, path)
@@ -5073,7 +5152,7 @@ class CapabilityMarkerTest(unittest.TestCase):
     def test_whole_file_baseline_capabilities_each_carry_one_marker(self) -> None:
         expectations = {
             "LANGUAGE_POLICY.md": ("language-policy", "2"),
-            "tasks/TASK_BLUEPRINT.md": ("task-blueprint", "14"),
+            "tasks/TASK_BLUEPRINT.md": ("task-blueprint", "15"),
             "docs/CODE_ORGANIZATION.md": ("code-organization", "2"),
             "docs/AUDIT_PROMPT_READ_ONLY.md": ("audit-prompt", "3"),
         }
@@ -5101,8 +5180,8 @@ class CapabilityMarkerTest(unittest.TestCase):
         review = self.marker_pairs((self.WORKFLOW / "docs/workflows/REVIEW.md").read_text(encoding="utf-8"))
         self.assertIn(("review-mode-boundary", "2"), review)
         self.assertIn(("implementer-reviewer-handoff", "4"), review)
-        self.assertIn(("reviewer-integrator-identity", "2"), review)
-        self.assertIn(("task-worktree-review-procedure", "10"), review)
+        self.assertIn(("reviewer-integrator-identity", "3"), review)
+        self.assertIn(("task-worktree-review-procedure", "11"), review)
 
     def test_review_preflight_fails_closed_before_substantive_inspection(self) -> None:
         review = (self.WORKFLOW / "docs/workflows/REVIEW.md").read_text(encoding="utf-8")
@@ -6485,8 +6564,8 @@ class CodexProfileRepairTest(unittest.TestCase):
             self.assertIn(fragment, contract)
         for mode in ("lean-delivery", "governed-sdd"):
             workflow = (ROOT / f"templates/workflows/{mode}/PROJECT_WORKFLOW.md").read_text(encoding="utf-8")
-            region = workflow.split("capability=codex-worktree-access v3 -->", 1)[1].split("<!-- MERIDIAN:END -->", 1)[0]
-            for fragment in ("repair-required", "`--apply` only", "BLOCKED", "fresh session"):
+            region = workflow.split("capability=codex-worktree-access v4 -->", 1)[1].split("<!-- MERIDIAN:END -->", 1)[0]
+            for fragment in ("repair-required", "`--apply` only", "`blocked` status", "fresh session"):
                 self.assertIn(fragment, region, mode)
 
     def test_doctor_reports_ownership_separately_from_root_access(self) -> None:
@@ -7937,6 +8016,12 @@ class WorktreeLifecycleCliTest(unittest.TestCase):
         )
         self.assertEqual(wrong.returncode, 2)
         self.assertIn("wrong-worktree", json.loads(wrong.stdout)["errors"])
+        errors = ", ".join(json.loads(wrong.stdout)["errors"])
+        self.assertEqual(
+            wrong.stderr.strip(),
+            f"BLOCKED WRONG_WORKTREE: worktree check reported: {errors}; resume: meridian worktree prepare 056 "
+            f"--project {self.project.resolve()} --format json",
+        )
         correct = self.run_cli(
             "worktree", "check", "056", "--project", str(self.project),
             "--worktree-root", str(self.worktree_root), "--format", "json",
@@ -8258,10 +8343,19 @@ class WorktreeLifecycleCliTest(unittest.TestCase):
             "HANDOFF_VALIDATION_EVIDENCE_MISSING", "HANDOFF_EXPLORATION_MISMATCH",
             "HANDOFF_EXPLORATION_SUMMARY_MISSING",
         )
-        self.assertEqual(set(registry), set(closure) | set(gates))
+        remaining = (
+            "COMMAND_REFUSED", "OS_ACCESS_FAILED", "VALIDATION_ID_UNDECLARED", "BUDGET_EXHAUSTED",
+            "HOST_IMPACT_DECLARATION_INVALID", "HOST_IMPACT_EVIDENCE_MISSING", "UPGRADE_BLOCKED", "ADOPTION_BLOCKED",
+            "WORKFLOW_UNREADABLE", "RULE_CONFLICT", "CONTRACT_EXHAUSTED", "SCOPE_CHANGE_REQUIRED",
+            "REVIEW_LOOP_EXHAUSTED",
+        )
+        self.assertEqual(set(registry), set(closure) | set(gates) | set(remaining))
         self.assertEqual(
             {code for code, entry in registry.items() if entry["class"] == "judgment"},
-            {"ACCEPTANCE_UNMET", "REVIEW_REQUIRED"},
+            {
+                "ACCEPTANCE_UNMET", "REVIEW_REQUIRED", "WORKFLOW_UNREADABLE", "RULE_CONFLICT", "CONTRACT_EXHAUSTED",
+                "SCOPE_CHANGE_REQUIRED", "REVIEW_LOOP_EXHAUSTED",
+            },
         )
         self.assertEqual(registry["PUSH_PENDING"]["kind"], "status")
         for code, entry in registry.items():

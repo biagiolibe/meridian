@@ -7,7 +7,7 @@ tool choices current; the task's declared validation and acceptance criteria
 remain mandatory.
 
 The diagnostic-attempt, evidence-capture, context-expansion, and investigation
-budgets below are caps, not targets: reaching one requires `BLOCKED`, never a
+budgets below are caps, not targets: reaching one requires `BLOCKED BUDGET_EXHAUSTED`, never a
 silently raised cap. Raising a default above its stated value requires a
 recorded rationale in the task.
 
@@ -21,14 +21,14 @@ recorded rationale in the task.
   outside the task's Authority/exemptions; locate the needed lines with
   `grep -n` first, then read that range. Override with a different numeric
   value when this project's files are legitimately larger.
-- Context-expansion budget and the condition that requires `BLOCKED` rather
+- Context-expansion budget and the condition that requires `BLOCKED BUDGET_EXHAUSTED` rather
   than another expansion: `Context expansions`: 2 per task. One expansion is
   one read beyond the task's declared `Authority` and `Expected code
   surface` — a file, ADR, specification, or prior chat opened to resolve a
   blocker or verify an acceptance criterion. Override with the task's
   `Context expansions` field.
-<!-- MERIDIAN:BEGIN capability=investigation-scope v1 -->
-- Isolated-exploration budget and the condition that requires `BLOCKED` rather
+<!-- MERIDIAN:BEGIN capability=investigation-scope v2 -->
+- Isolated-exploration budget and the condition that requires `BLOCKED BUDGET_EXHAUSTED` rather
   than a broader search: `Investigation scope`: 2 per task. One scope unit is
   at most three primary files or 300 lines of primary material consulted to
   answer one declared question outside the task's initial authority. Override
@@ -104,7 +104,7 @@ Long commands and suite runs:
 
 - First targeted diagnostic or bounded-log procedure: `[procedure]`.
 - Conditions for full traces, verbose output, or complete logs: `[conditions]`.
-- Diagnostic-attempt budget and the condition that requires `BLOCKED` rather
+- Diagnostic-attempt budget and the condition that requires `BLOCKED BUDGET_EXHAUSTED` rather
   than another implementation hypothesis: `Diagnostic attempts`: 3 per
   failure. One attempt is one diagnostic action that changes the
   implementation hypothesis — a new targeted probe, log capture, or

@@ -52,7 +52,7 @@
         "governed-sdd"
       ],
       "step": "C4",
-      "emitter": "`meridian worktree closure-status`",
+      "emitter": "`meridian worktree closure-status`; `meridian worktree check`",
       "human_decision": false,
       "resume": "meridian worktree prepare {task_id} --project {project} --format json",
       "kind": "stop",
@@ -306,11 +306,11 @@
       "workflows": [
         "governed-sdd"
       ],
-      "emitter": "`meridian execution evidence`",
+      "emitter": "`meridian execution evidence`; `meridian execution investigate`; `meridian budget spend`",
       "human_decision": false,
       "resume": "rerun the meridian execution evidence command with the missing options",
       "kind": "stop",
-      "summary": "an execution evidence command lacks a required option",
+      "summary": "an execution evidence, investigation, or budget command lacks a required option or has an invalid one",
       "test": "tests.test_meridian_cli.BudgetCliTest.test_execution_gates_report_coded_actionable_stops"
     },
     {
@@ -416,6 +416,177 @@
       "kind": "stop",
       "summary": "the report omits a recorded exploration question or finding",
       "test": "tests.test_meridian_cli.BudgetCliTest.test_handoff_gates_report_coded_actionable_stops"
+    },
+    {
+      "code": "COMMAND_REFUSED",
+      "class": "tool",
+      "workflows": [
+        "lean-delivery",
+        "governed-sdd"
+      ],
+      "emitter": "any `meridian` command that refuses to run without a more specific code",
+      "human_decision": false,
+      "resume": "correct the condition that the detail names, then rerun the same meridian command",
+      "kind": "stop",
+      "summary": "a meridian command refused to run because a precondition on its inputs or on the project state is not met",
+      "test": "tests.test_meridian_cli.BudgetCliTest.test_uncoded_command_refusal_reports_command_refused"
+    },
+    {
+      "code": "OS_ACCESS_FAILED",
+      "class": "tool",
+      "workflows": [
+        "lean-delivery",
+        "governed-sdd"
+      ],
+      "emitter": "any `meridian` command whose file or process access fails at the operating-system level",
+      "human_decision": false,
+      "resume": "fix the access problem that the detail names, then rerun the same meridian command",
+      "kind": "stop",
+      "summary": "an operating-system call failed while a meridian command read or wrote a file",
+      "test": "tests.test_meridian_cli.BudgetCliTest.test_operating_system_failure_reports_os_access_failed"
+    },
+    {
+      "code": "VALIDATION_ID_UNDECLARED",
+      "class": "tool",
+      "workflows": [
+        "governed-sdd"
+      ],
+      "emitter": "`meridian execution validate`",
+      "human_decision": false,
+      "resume": "rerun meridian execution validate with a validation ID listed in the task's Validation section, or declare the command there first",
+      "kind": "stop",
+      "summary": "the requested validation ID is not declared in the task record",
+      "test": "tests.test_meridian_cli.BudgetCliTest.test_validation_runs_only_a_declared_literal_command_and_records_status"
+    },
+    {
+      "code": "BUDGET_EXHAUSTED",
+      "class": "tool",
+      "workflows": [
+        "governed-sdd"
+      ],
+      "emitter": "`meridian budget spend`; `meridian execution investigate`",
+      "human_decision": true,
+      "resume": "report this stop and ask the developer to raise the cap or re-scope the task; never raise the cap yourself",
+      "kind": "stop",
+      "summary": "a task budget cap is reached and the requested use would exceed it",
+      "test": "tests.test_meridian_cli.BudgetCliTest.test_spend_returns_non_zero_and_names_blocked_once_cap_is_used"
+    },
+    {
+      "code": "HOST_IMPACT_DECLARATION_INVALID",
+      "class": "tool",
+      "workflows": [
+        "governed-sdd"
+      ],
+      "emitter": "`meridian execution preflight`; `meridian execution ready-check`",
+      "human_decision": false,
+      "resume": "correct the task's Host impact declaration as the detail names, then rerun the blocked meridian execution command",
+      "kind": "stop",
+      "summary": "the task's Host impact declaration is malformed or incomplete",
+      "test": "tests.test_meridian_cli.BudgetCliTest.test_execution_preflight_validates_host_impact_declarations"
+    },
+    {
+      "code": "HOST_IMPACT_EVIDENCE_MISSING",
+      "class": "tool",
+      "workflows": [
+        "governed-sdd"
+      ],
+      "emitter": "`meridian execution preflight`; `meridian execution ready-check`",
+      "human_decision": false,
+      "resume": "add a Completion evidence entry for each listed profile to the task's Host impact section, then rerun the blocked meridian execution command",
+      "kind": "stop",
+      "summary": "an enforced host-impact profile has no completion evidence",
+      "test": "tests.test_meridian_cli.BudgetCliTest.test_ready_check_requires_evidence_only_for_enforced_host_profiles"
+    },
+    {
+      "code": "UPGRADE_BLOCKED",
+      "class": "tool",
+      "workflows": [
+        "lean-delivery",
+        "governed-sdd"
+      ],
+      "emitter": "`meridian upgrade --check`; `meridian upgrade --apply`",
+      "human_decision": true,
+      "resume": "resolve each conflict or router requirement that the plan lists, then rerun meridian upgrade --check",
+      "kind": "stop",
+      "summary": "the upgrade plan has a conflict or an unmet router requirement and changed no file",
+      "test": "tests.test_meridian_cli.MeridianCliTest.test_check_reports_multiple_merge_conflicts"
+    },
+    {
+      "code": "ADOPTION_BLOCKED",
+      "class": "tool",
+      "workflows": [
+        "governed-sdd"
+      ],
+      "emitter": "`meridian adopt --assisted`",
+      "human_decision": true,
+      "resume": "resolve the adoption review record that the detail names manually, then restart the assisted adoption loop",
+      "kind": "stop",
+      "summary": "the assisted adoption state cannot advance without a developer decision",
+      "test": "tests.test_meridian_cli.MeridianCliTest.test_address_review_and_retry_limit"
+    },
+    {
+      "code": "WORKFLOW_UNREADABLE",
+      "class": "judgment",
+      "workflows": [
+        "lean-delivery",
+        "governed-sdd"
+      ],
+      "emitter": "agent judgment before the first mutation: a local workflow document cannot be read or contradicts another",
+      "human_decision": true,
+      "resume": "ask the developer to restore or reconcile the workflow documents, then restart from the same command",
+      "kind": "stop",
+      "summary": "a required workflow document is missing, unreadable, or contradicts another before any mutation"
+    },
+    {
+      "code": "RULE_CONFLICT",
+      "class": "judgment",
+      "workflows": [
+        "lean-delivery",
+        "governed-sdd"
+      ],
+      "emitter": "agent judgment: a gate contradicts another rule, or an authority is in conflict",
+      "human_decision": true,
+      "resume": "report both rules and ask the developer which governs; never write false state to satisfy a gate",
+      "kind": "stop",
+      "summary": "a gate seems to contradict another rule or authority, so neither can be followed without breaking the other"
+    },
+    {
+      "code": "CONTRACT_EXHAUSTED",
+      "class": "judgment",
+      "workflows": [
+        "lean-delivery",
+        "governed-sdd"
+      ],
+      "emitter": "agent judgment: the task's diagnostic, evidence, or context-expansion allowance is used up; `meridian budget spend` reports the counted form as BUDGET_EXHAUSTED",
+      "human_decision": true,
+      "resume": "report this stop and ask the developer to raise the allowance or re-scope the task; never raise it yourself",
+      "kind": "stop",
+      "summary": "the task's declared allowance for diagnostics, evidence, or context expansion is exhausted"
+    },
+    {
+      "code": "SCOPE_CHANGE_REQUIRED",
+      "class": "judgment",
+      "workflows": [
+        "lean-delivery",
+        "governed-sdd"
+      ],
+      "emitter": "agent judgment: the task cannot continue without new or amended authority or scope, or without a spike task",
+      "human_decision": true,
+      "resume": "report the missing authority, scope, or spike task and ask the developer to amend the task; change no ref or status",
+      "kind": "stop",
+      "summary": "the task cannot continue without new or amended authority, scope, or a spike task"
+    },
+    {
+      "code": "REVIEW_LOOP_EXHAUSTED",
+      "class": "judgment",
+      "workflows": [
+        "governed-sdd"
+      ],
+      "emitter": "agent judgment after two consecutive CHANGES_REQUESTED verdicts",
+      "human_decision": true,
+      "resume": "report the review-record path and unresolved findings; the developer resolves the scope or authority issue and restarts the lifecycle",
+      "kind": "stop",
+      "summary": "two consecutive CHANGES_REQUESTED verdicts leave findings unresolved"
     }
   ]
 }

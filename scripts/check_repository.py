@@ -334,6 +334,71 @@ def stop_tokens_in(text: str, known: set[str]) -> list[tuple[int, str]]:
     return found
 
 
+BLOCKED_WORD = re.compile(r"\bBLOCKED\b")
+_BLOCKED_TOKEN_AFTER = re.compile(rf"[ \t]*`?[ \t]*(<CODE>|{STOP_TOKEN})")
+_VERDICT = r"(?:APPROVE|CHANGES_REQUESTED)"
+_VERDICT_SEPARATOR = r"[`>\s]*(?:\||,\s*or\b|,|\bor\b)[`\s]*"
+# A review or adoption verdict enumeration, such as `APPROVE | CHANGES_REQUESTED | BLOCKED`,
+# names a verdict value and is not a stop.
+VERDICT_ENUMERATION = re.compile(
+    rf"{_VERDICT}{_VERDICT_SEPARATOR}(?:{_VERDICT}{_VERDICT_SEPARATOR})*BLOCKED"
+    rf"|BLOCKED{_VERDICT_SEPARATOR}{_VERDICT}"
+)
+# The only f-string through which the CLI prints a stop; its code is a registered value.
+CLI_STOP_FORMAT = "BLOCKED {}: {}; resume: {}"
+
+
+def uncoded_blocked_offsets(text: str, known: set[str]) -> list[int]:
+    """Return the offsets of each `BLOCKED` in `text` that is not followed by a stop code.
+
+    A registered code or the `<CODE>` placeholder follows a coded stop. A verdict
+    enumeration is not a stop.
+    """
+    exempt = [match.span() for match in VERDICT_ENUMERATION.finditer(text)]
+    offsets = []
+    for match in BLOCKED_WORD.finditer(text):
+        coded = _BLOCKED_TOKEN_AFTER.match(text, match.end())
+        if coded and (coded.group(1) == "<CODE>" or coded.group(1) in known):
+            continue
+        if any(start <= match.start() < end for start, end in exempt):
+            continue
+        offsets.append(match.start())
+    return offsets
+
+
+def cli_string_literals(source: str) -> list[tuple[int, str]]:
+    """Return (line, text) for each string the CLI source holds, with f-string fields as `{}`."""
+    tree = ast.parse(source)
+    inside_fstring = {id(part) for node in ast.walk(tree) if isinstance(node, ast.JoinedStr) for part in node.values}
+    found = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.JoinedStr):
+            text = "".join(
+                part.value if isinstance(part, ast.Constant) and isinstance(part.value, str) else "{}"
+                for part in node.values
+            )
+            found.append((node.lineno, text))
+        elif isinstance(node, ast.Constant) and isinstance(node.value, str) and id(node) not in inside_fstring:
+            found.append((node.lineno, node.value))
+    return found
+
+
+def check_uncoded_blocked(root: Path, known: set[str], texts: dict[Path, str]) -> None:
+    """Fail on a `BLOCKED` in managed text or in the CLI that carries no registered stop code."""
+    for path, text in texts.items():
+        for offset in uncoded_blocked_offsets(text, known):
+            line = text.count("\n", 0, offset) + 1
+            fail(f"{path.relative_to(root)}:{line}: BLOCKED without a registered stop code")
+    cli = root / "scripts" / "meridian.py"
+    if not cli.is_file():
+        return
+    for line, text in cli_string_literals(cli.read_text(encoding="utf-8")):
+        if text == "BLOCKED" or text == CLI_STOP_FORMAT:
+            continue  # a verdict or state value, and the helper's single output format
+        if uncoded_blocked_offsets(text, known):
+            fail(f"scripts/meridian.py:{line}: BLOCKED without a registered stop code")
+
+
 def check_stop_code_registry(root: Path = ROOT) -> None:
     """Keep managed text, the CLI, and tests in agreement with the stop-code registry."""
     registry = json.loads((root / "capabilities" / "stop-codes-v1.json").read_text(encoding="utf-8"))
@@ -348,6 +413,7 @@ def check_stop_code_registry(root: Path = ROOT) -> None:
             if token not in entries:
                 line = text.count("\n", 0, offset) + 1
                 fail(f"{path.relative_to(root)}:{line}: unregistered stop code {token}")
+    check_uncoded_blocked(root, set(entries), texts)
     test_names = set()
     for source in (root / "tests").glob("test_*.py"):
         tree = ast.parse(source.read_text(encoding="utf-8"))

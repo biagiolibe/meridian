@@ -2,7 +2,7 @@
 
 Use this procedure only for `Proceed with <TASK-ID>` after the entry-point router has applied its always-loaded invariants.
 
-<!-- MERIDIAN:BEGIN capability=task-worktree-boundary v8 -->
+<!-- MERIDIAN:BEGIN capability=task-worktree-boundary v9 -->
 Order of operations: before `prepare`, read only the router read set
 (`AGENTS.md` or `CLAUDE.md`, `PROJECT_WORKFLOW.md`, `LANGUAGE_POLICY.md`, and
 this procedure); read no task material and mutate nothing. Apart from the
@@ -27,13 +27,13 @@ list --porcelain`. Before any other command, run `meridian worktree prepare
 <TASK-ID> --project <primary-checkout> --format json` for exactly the task ID
 in the trigger, without `--worktree-root`. A non-zero result, including partial
 or mismatched state, an existing active writer, or an unresolvable task ID, is
-`BLOCKED`: report the command's message verbatim and change nothing else.
+a stop: report the command's `BLOCKED <CODE>` line verbatim and change nothing else.
 `prepare` is the only command permitted before `check` passes. A `Proceed with`
 directive that says to Resume instead runs the same command with `--resume`,
 which is allowed only for that directive: it accepts the task's existing dirty
 worktree, never creates or changes anything, and refuses when none exists. When
 it returns `dirty: true`, `dirty-worktree` is the only error `check` may
-report; any other error is `BLOCKED`. Read `git status` and the diff before
+report; any other error is `BLOCKED WRONG_WORKTREE`. Read `git status` and the diff before
 continuing. After a
 successful `prepare`, change to its returned worktree and run `meridian
 worktree check <TASK-ID> --project <primary-checkout> --format json` there.
@@ -41,7 +41,7 @@ worktree check <TASK-ID> --project <primary-checkout> --format json` there.
 For either mode, a blocked `check` result stops all task work and preserves both
 checkouts, except the `dirty-worktree` result tolerated after a resumed `dirty:
 true` prepare. If the host cannot run commands or write in the prepared directory,
-return `BLOCKED`, name that exact directory, and tell the developer to restart
+return `BLOCKED WRONG_WORKTREE`, name that exact directory, and tell the developer to restart
 the session there; never fall back to the primary checkout. Run every later
 read, implementation, validation, status, and handoff operation in the same
 verified worktree, never the primary checkout.
@@ -72,11 +72,11 @@ acceptance criterion depends solely on it; record it as `Validation skips:` in
 the handoff.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=manual-verification-precondition v3 -->If the task declares `Manual verification: required`, check its `Manual verification rationale` first, before any probe: if it is missing, or names a property readable as a value anywhere in the program (a tier-1 structural or tier-2 derived-value property per `docs/CONTEXT_BUDGET_POLICY.md`'s evidence tiers), return `BLOCKED` asking for the task to be re-scoped as a deterministic check instead — do not run the probe. Only once the rationale names a genuine tier-3 perceptual property, confirm evidence availability before any implementation, not after: run an end-to-end probe that actually succeeds and produces the exact evidence channel the task will record, confirmed readable by the responsible agent or reviewer. A visible terminal entry, a launched process, or a presumed ability to automate an application window is not evidence availability; the probe must actually locate the application window and acquire its image, or otherwise produce and open the real artifact. If no such probe succeeds before implementation, return `BLOCKED` immediately; do not implement in the hope the channel will become available later. A probe that has been attempted and failed is positive evidence about the environment: report it and request the evidence channel from the developer before continuing, whatever the evidence tier — never respond to a failed probe by exploring the local environment for an alternative. When a deterministic test can serve as the change's primary acceptance evidence (for example, a geometry or layout assertion), it suspends only the requirement to *capture* manual or visual confirmation as the sole gate; it never suspends the requirement to stop on a probe that has already been attempted and failed.<!-- MERIDIAN:END -->
+<!-- MERIDIAN:BEGIN capability=manual-verification-precondition v4 -->If the task declares `Manual verification: required`, check its `Manual verification rationale` first, before any probe: if it is missing, or names a property readable as a value anywhere in the program (a tier-1 structural or tier-2 derived-value property per `docs/CONTEXT_BUDGET_POLICY.md`'s evidence tiers), return `BLOCKED SCOPE_CHANGE_REQUIRED` asking for the task to be re-scoped as a deterministic check instead — do not run the probe. Only once the rationale names a genuine tier-3 perceptual property, confirm evidence availability before any implementation, not after: run an end-to-end probe that actually succeeds and produces the exact evidence channel the task will record, confirmed readable by the responsible agent or reviewer. A visible terminal entry, a launched process, or a presumed ability to automate an application window is not evidence availability; the probe must actually locate the application window and acquire its image, or otherwise produce and open the real artifact. If no such probe succeeds before implementation, return `BLOCKED SCOPE_CHANGE_REQUIRED` immediately; do not implement in the hope the channel will become available later. A probe that has been attempted and failed is positive evidence about the environment: report it and request the evidence channel from the developer before continuing, whatever the evidence tier — never respond to a failed probe by exploring the local environment for an alternative. When a deterministic test can serve as the change's primary acceptance evidence (for example, a geometry or layout assertion), it suspends only the requirement to *capture* manual or visual confirmation as the sole gate; it never suspends the requirement to stop on a probe that has already been attempted and failed.<!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=host-impact-routing v1 -->Before implementation, read the task's `Host impact` declaration. `NOT_APPLICABLE` needs a non-empty rationale explaining why no host-facing contract can change. `REQUIRED` needs a host-independent policy outcome, one profile row with every declared column, all three evidence-plan categories, and a fallback for every profile. For a host-sensitive task, if the required static, host-execution, or manual-activation evidence cannot be obtained for a profile, stop and return `BLOCKED`; retain that profile as `unverified`, `advisory`, or `unsupported` with its fallback rather than claiming `enforced`. A template declaration is not host enforcement, and no automatic host probe is required by this routing rule.<!-- MERIDIAN:END -->
+<!-- MERIDIAN:BEGIN capability=host-impact-routing v2 -->Before implementation, read the task's `Host impact` declaration. `NOT_APPLICABLE` needs a non-empty rationale explaining why no host-facing contract can change. `REQUIRED` needs a host-independent policy outcome, one profile row with every declared column, all three evidence-plan categories, and a fallback for every profile. For a host-sensitive task, if the required static, host-execution, or manual-activation evidence cannot be obtained for a profile, stop and return `BLOCKED HOST_IMPACT_DECLARATION_INVALID`; retain that profile as `unverified`, `advisory`, or `unsupported` with its fallback rather than claiming `enforced`. A template declaration is not host enforcement, and no automatic host probe is required by this routing rule.<!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=spike-routing v1 -->If any acceptance criterion cannot be evaluated without first discovering an unknown, do not implement past that point: return `BLOCKED`, naming the exact `Class: SPIKE` task (see `tasks/TASK_BLUEPRINT.md`'s spike shape) needed to resolve the unknown, proposing it if it does not exist yet. Do not investigate the unknown inside this task's own branch, commit, or budget — that is what turns a spike into an unbounded side-channel for work that should have gone through its own `Question`/`Budget` gate.<!-- MERIDIAN:END -->
+<!-- MERIDIAN:BEGIN capability=spike-routing v2 -->If any acceptance criterion cannot be evaluated without first discovering an unknown, do not implement past that point: return `BLOCKED SCOPE_CHANGE_REQUIRED`, naming the exact `Class: SPIKE` task (see `tasks/TASK_BLUEPRINT.md`'s spike shape) needed to resolve the unknown, proposing it if it does not exist yet. Do not investigate the unknown inside this task's own branch, commit, or budget — that is what turns a spike into an unbounded side-channel for work that should have gone through its own `Question`/`Budget` gate.<!-- MERIDIAN:END -->
 
 <!-- MERIDIAN:BEGIN capability=validation-scoping v2 -->
 Scope validation to the diff's actual surface, following the validation-scope rule in `docs/CONTEXT_BUDGET_POLICY.md`. Skip a full build, test, or lint suite for a documentation or policy-only change, and state the skip explicitly in the completion report.

@@ -1,6 +1,6 @@
 # Autonomous Task Lifecycle Orchestration
 
-<!-- MERIDIAN:BEGIN capability=lifecycle-orchestration v9 -->
+<!-- MERIDIAN:BEGIN capability=lifecycle-orchestration v10 -->
 `Run lifecycle <TASK-ID>` authorizes an orchestrator to carry one dependency-ready
 task through implementation, independent review, requested-change remediation,
 acceptance, and `main` integration without further developer prompts. It does
@@ -19,7 +19,7 @@ Run lifecycle <TASK-ID>
        -> APPROVE: acceptance commit, validated merge commit on main, push main
        -> CHANGES_REQUESTED: implementer: Address review <TASK-ID>
                               -> reviewer: Review <TASK-ID>
-       -> BLOCKED: stop and report the exact condition
+       -> stop: report the `BLOCKED <CODE>` line
 ```
 
 The task record, Git commits, completion report, and the declared
@@ -36,7 +36,7 @@ Before delegation, confirm that the task is assigned and dependency-ready,
 then run `meridian worktree prepare` from the primary checkout. Pass its exact
 existing path, branch, primary checkout, and worktree root to every worker as
 durable launch inputs. If the host cannot launch a fresh session with that path
-as its effective workspace, return `BLOCKED`; never use automatic isolation,
+as its effective workspace, return `BLOCKED WRONG_WORKTREE`; never use automatic isolation,
 `.claude/worktrees`, the primary checkout, or a substitute path.
 Do not run implementation and review concurrently in the same worktree. Every
 worker's first action is `meridian worktree check` in the prepared directory,
@@ -49,7 +49,7 @@ review read and command in the verified task worktree and never switches the
 primary checkout.
 
 Continue automatically only while the current task record state permits the
-next transition. Stop with `BLOCKED` when validation fails, authority is
+next transition. Stop with the `BLOCKED <CODE>` line of the failing gate when validation fails, authority is
 ambiguous, the task branch or required local handoff commit is unavailable,
 the worktree becomes dirty with unrelated changes, its registered branch/path
 mapping changes, validation evidence is missing or stale, independence from an
@@ -57,7 +57,7 @@ advanced `main` cannot be established, serialized integration conflicts or
 fails its selected integration gate, or an external forge approval is required
 but unavailable.
 
-After two consecutive `CHANGES_REQUESTED` verdicts, stop and report `BLOCKED`
+After two consecutive `CHANGES_REQUESTED` verdicts, stop and report `BLOCKED REVIEW_LOOP_EXHAUSTED`
 with the review-record path and unresolved findings. A developer may explicitly
 restart the lifecycle after resolving the underlying scope or authority issue.
 
@@ -74,7 +74,7 @@ the validated base must be an ancestor of the validated commit. When current `ma
 base, reuse the successful task evidence. When `main` advanced, use the
 deterministic material-interaction comparison in `PROJECT_WORKFLOW.md`; use the
 bounded gate only after independence is recorded, full validation for an
-interaction or explicit requirement, and `BLOCKED` when independence cannot
+interaction or explicit requirement, and `BLOCKED EVIDENCE_MISMATCH` when independence cannot
 be established. A dirty or unavailable primary checkout blocks integration
 without changing the task worktree. A merge conflict or bounded/full gate
 failure uses `integrate abort` and preserves the task branch and worktree. Only
@@ -83,7 +83,7 @@ These reuse
 rules do not weaken independent review, acceptance evidence, or forge gates,
 and do not fabricate an external approval. If the
 forge requires an approval from a distinct authorized identity, leave the PR
-open and report `BLOCKED` unless that independent identity has actually
+open and report `BLOCKED REVIEW_REQUIRED` unless that independent identity has actually
 approved it.
 
 ## Token discipline
@@ -100,7 +100,7 @@ gate, `BOUNDED` adds affected-module tests, and `FULL` adds the declared full su
 undeclared project stops before staging, lease, or merge; `none` deliberately retains a
 non-empty command-list gate.
 
-<!-- MERIDIAN:BEGIN capability=rejected-attempt-restart v4 -->
+<!-- MERIDIAN:BEGIN capability=rejected-attempt-restart v5 -->
 ## Rejected-attempt restart after authority change
 
 Use this procedure only when a `CHANGES_REQUESTED` finding explicitly cannot be
@@ -109,7 +109,7 @@ explicitly authorizes restart. Before any ref or status mutation, verify the
 original branch, rejected exact tip, review record, handoff, validation evidence,
 clean checkout, and available target names; also verify a separate tech-design
 change amended authority and scope, received required independent review, is
-`ACCEPTED`, and is integrated into `main`. Otherwise return `BLOCKED` with no
+`ACCEPTED`, and is integrated into `main`. Otherwise return `BLOCKED SCOPE_CHANGE_REQUIRED` with no
 ref or status mutation.
 
 In one atomic ref transaction, retain `archive/rejected/<normalized-task-id>-<attempt>`
