@@ -7942,6 +7942,8 @@ class WorktreeLifecycleCliTest(unittest.TestCase):
         subprocess.run(["git", "init", "-b", "main"], cwd=self.project, check=True, capture_output=True)
         subprocess.run(["git", "config", "user.name", "Meridian Test"], cwd=self.project, check=True)
         subprocess.run(["git", "config", "user.email", "meridian@example.invalid"], cwd=self.project, check=True)
+        # Fixture commits must not leave detached Git maintenance running during snapshots.
+        subprocess.run(["git", "config", "maintenance.auto", "false"], cwd=self.project, check=True)
         (self.project / "tasks").mkdir()
         (self.project / "tasks/056-lifecycle.md").write_text(
             "# Task 056\n\n> **ID**: `056`\n", encoding="utf-8"
