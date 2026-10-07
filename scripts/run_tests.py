@@ -27,7 +27,8 @@ MAX_WORKERS = 8
 # Lines of a failing shard's output that a combined report prints.
 FAILURE_LINES = 60
 HEADER = re.compile(r"^shard=(\d+)/(\d+) total=(\d+) selected=(\d+) digest=([0-9a-f]{64})$")
-RESULT = re.compile(r"^result ran=(\d+) failures=(\d+) errors=(\d+) skipped=(\d+)$")
+RESULT = re.compile(r"^result ran=(\d+) failures=(\d+) errors=(\d+) skipped=(\d+)$", re.MULTILINE)
+FAILURE_BLOCK = re.compile(r"^(?:FAIL|ERROR): .*\n^-{5,}\n.*?^-{5,}$", re.MULTILINE | re.DOTALL)
 
 
 def iter_tests(suite: unittest.TestSuite) -> Iterable[unittest.TestCase]:
@@ -175,6 +176,25 @@ def bounded(output: str, limit: int = FAILURE_LINES) -> str:
     return "\n".join([f"... {len(lines) - limit} earlier lines omitted ..."] + lines[-limit:])
 
 
+def failure_report(output: str) -> str:
+    """Keep bounded context while preserving every unittest diagnostic block.
+
+    Unittest places each failure or error between separator lines.  Those
+    blocks name the test and contain its traceback, so they must not be lost
+    merely because a shard emits extensive output after them.
+    """
+    blocks = [match.group(0) for match in FAILURE_BLOCK.finditer(output)]
+    if not blocks:
+        return bounded(output)
+
+    summaries = list(RESULT.finditer(output))
+    summary = summaries[-1].group(0) if summaries else None
+    context = FAILURE_BLOCK.sub("", output)
+    context = RESULT.sub("", context)
+    sections = [section for section in (bounded(context).strip(), *blocks, summary) if section]
+    return "\n".join(sections)
+
+
 def run_parallel(
     requested: int,
     tests_directory: Path = TESTS_DIRECTORY,
@@ -215,7 +235,7 @@ def run_parallel(
 
     for result in failed:
         print(f"--- shard {result.index}/{workers} (exit {result.returncode}) ---")
-        print(bounded(result.output))
+        print(failure_report(result.output) if result.counts is not None else bounded(result.output))
     for problem in problems:
         print(f"problem: {problem}")
     print(

@@ -32,15 +32,15 @@ Two defects caused this:
 
 ## Acceptance Criteria
 
-- [ ] For a failing shard, `run_tests.py --parallel` prints every `FAIL:` and
+- [x] For a failing shard, `run_tests.py --parallel` prints every `FAIL:` and
   `ERROR:` block with its full traceback, whatever their position in the
   shard's output, followed by the shard's summary line. Other output stays
   bounded. A test proves that a failure followed by more than
   `FAILURE_LINES` lines of unrelated output is still printed by name with its
   traceback.
-- [ ] A shard that ends without a unittest result (killed or crashed) still
+- [x] A shard that ends without a unittest result (killed or crashed) still
   prints its bounded output tail, as today.
-- [ ] Every test that asserts a wall-clock bound is listed in the handoff with
+- [x] Every test that asserts a wall-clock bound is listed in the handoff with
   its bound. At least `test_stays_under_two_seconds_on_a_300_row_queue`,
   `test_refresh_is_non_blocking_single_flight_and_published_atomically`, and
   the `test_task_state_lookups` elapsed check no longer fail on load alone:
@@ -48,14 +48,14 @@ Two defects caused this:
   call count, a non-blocking return proven by an event, or a relative
   comparison measured in the same process), or keeps a bound with margin
   justified in the handoff by measurement under `run_tests.py --parallel`.
-- [ ] Each changed test still fails when the property it protects is broken.
+- [x] Each changed test still fails when the property it protects is broken.
   The handoff states, per test, how that was checked (for example by
   temporarily slowing or blocking the code path).
-- [ ] `python3 scripts/run_tests.py --parallel 4` passes five consecutive runs
+- [x] `python3 scripts/run_tests.py --parallel 4` passes five consecutive runs
   on the developer's machine, recorded in the handoff with their times.
-- [ ] One changelog fragment is added per `CONTRIBUTING.md`, only if a shipped
+- [x] One changelog fragment is added per `CONTRIBUTING.md`, only if a shipped
   file changes; otherwise the handoff states that none is needed.
-- [ ] `python3 scripts/check_repository.py` and the unit tests pass.
+- [x] `python3 scripts/check_repository.py` and the unit tests pass.
 
 ## Relevant Files
 
