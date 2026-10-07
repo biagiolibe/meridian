@@ -20,18 +20,18 @@ lifecycle state.
 
 ## Acceptance Criteria
 
-- [ ] `meridian worktree closure-status` does not create or modify a lifecycle
+- [x] `meridian worktree closure-status` does not create or modify a lifecycle
   journal, maintenance lock, repository file, or task worktree file for every
   reported lifecycle state, including `C4` / `WRONG_WORKTREE`, in text and JSON
   output modes.
-- [ ] The command preserves its current status, stop-code, and resume-command
+- [x] The command preserves its current status, stop-code, and resume-command
   reporting semantics.
-- [ ] A regression test reproduces the former `C4` mutation and proves the
+- [x] A regression test reproduces the former `C4` mutation and proves the
   primary checkout and task worktree remain byte-identical after each
   `closure-status` invocation it covers.
-- [ ] `python3 scripts/check_repository.py` passes.
-- [ ] `python3 scripts/run_tests.py --parallel` passes.
-- [ ] A changelog fragment is added if a shipped file changes, following
+- [x] `python3 scripts/check_repository.py` passes.
+- [x] `python3 scripts/run_tests.py --parallel` passes.
+- [x] A changelog fragment is added if a shipped file changes, following
   `CONTRIBUTING.md`.
 
 ## Relevant Files
