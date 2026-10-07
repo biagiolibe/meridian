@@ -18,20 +18,20 @@ status query and not afterward. The completed Task 186 remains closed.
 
 ## Acceptance Criteria
 
-- [ ] Determine and document which operation creates and removes the transient
+- [x] Determine and document which operation creates and removes the transient
   maintenance lock in the test fixture. Do not infer that `closure-status`
   created it merely because the snapshots differ.
-- [ ] The test controls or waits for fixture-owned Git maintenance before
+- [x] The test controls or waits for fixture-owned Git maintenance before
   taking a snapshot, without excluding real repository or worktree mutations
   caused by `closure-status` from the comparison.
-- [ ] The test still fails when `closure-status` writes a lifecycle journal or
+- [x] The test still fails when `closure-status` writes a lifecycle journal or
   another persistent file in either checkout. Include a focused negative
   control or equivalent evidence in the handoff.
-- [ ] Text and JSON status reporting, including C4 and C5, remain covered.
-- [ ] The focused regression test passes repeatedly under parallel suite load
+- [x] Text and JSON status reporting, including C4 and C5, remain covered.
+- [x] The focused regression test passes repeatedly under parallel suite load
   or an equivalent Git maintenance stress reproduction; record the command and
   results in the handoff.
-- [ ] `python3 scripts/check_repository.py` and the full unit suite pass. Add
+- [x] `python3 scripts/check_repository.py` and the full unit suite pass. Add
   a changelog fragment if a shipped file changes under `CONTRIBUTING.md`.
 
 ## Relevant Files
