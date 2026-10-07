@@ -8113,7 +8113,7 @@ class WorktreeLifecycleCliTest(unittest.TestCase):
                 f"{root.name}/{path.relative_to(root)}": hashlib.sha256(path.read_bytes()).hexdigest()
                 for root in roots
                 for path in root.rglob("*")
-                if path.is_file() and not path.name.startswith("meridian-journal")
+                if path.is_file()
             }
 
         def status(
@@ -8863,13 +8863,12 @@ class LifecycleJournalTest(unittest.TestCase):
         self.assertNotIn("resume", first)
         self.assertIs(second["resume"], True)
 
-    def test_each_lifecycle_command_appends_one_line(self) -> None:
+    def test_each_journaled_lifecycle_command_appends_one_line(self) -> None:
         evidence = self.root / "evidence.json"
         evidence.write_text("{}", encoding="utf-8")
         commands = (
             ("prepare", "--format", "json"),
             ("check", "--format", "json"),
-            ("closure-status", "--format", "json"),
             ("evidence", "--validation-command", "true", "--validation-exit-code", "0", "--format", "json"),
             ("integrate stage", "--evidence", str(evidence), "--format", "json"),
             ("integrate finalize", "--evidence", str(evidence), "--format", "json"),
@@ -8888,7 +8887,9 @@ class LifecycleJournalTest(unittest.TestCase):
             self.assertIn(line["result"], {"ok", "blocked", "error"})
         first = self.lines()[0]
         self.assertEqual((first["result"], first["exit"], first["step"]), ("ok", 0, "check"))
-        self.assertIn("step", self.lines()[2])
+        recorded = self.lines()
+        self.lifecycle("closure-status", "--format", "json")
+        self.assertEqual(self.lines(), recorded)
 
     def test_blocked_result_records_its_registered_code(self) -> None:
         self.prepare_with_commit()
