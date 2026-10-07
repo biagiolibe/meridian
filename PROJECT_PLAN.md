@@ -151,6 +151,7 @@
 - `[x]` 182 — Make the parallel test runner this repository's standard validation.
 - `[ ]` 183 — Build lifecycle test repositories once per class and copy them per test.
 - `[x]` 184 — Bring this repository's Meridian installation to the current release and keep it upgradable.
+- `[ ]` 185 — Report failing tests by name in the parallel runner and make timing tests tolerate a loaded runner.
 - `[x]` 140 — Let `integrate stage` complete rows of project-shaped Governed queues.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.
