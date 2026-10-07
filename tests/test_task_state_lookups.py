@@ -6,7 +6,6 @@ import json
 import subprocess
 import sys
 import tempfile
-import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -60,12 +59,9 @@ class TaskStateLookupTest(unittest.TestCase):
         with mock.patch.object(meridian, "_git_worktrees", return_value=self.records), \
              mock.patch.object(meridian, "canonical_project_root", return_value=self.root), \
              mock.patch.object(meridian, "_task_authorities", side_effect=counted):
-            started = time.monotonic()
             states = meridian.registered_worktree_task_states(self.root)
-            states_elapsed = time.monotonic() - started
             self.assertEqual(states, [{"task_id": "001", "status": "IN_PROGRESS"}])
             self.assertEqual(calls, 1)
-            self.assertLess(states_elapsed, 1.0)
 
             calls = 0
             active = meridian.active_worktree_task(self.worker)

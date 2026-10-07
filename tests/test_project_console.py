@@ -1867,16 +1867,17 @@ class BackgroundRefreshTest(unittest.TestCase):
         state.snapshot = self.snapshot("old")
         release = threading.Event()
         started = threading.Event()
+        returned = threading.Event()
 
         def slow(_project, _identities):
             started.set()
+            self.assertTrue(returned.wait(5), "start_refresh must return before loading completes")
             release.wait(5)
             return self.snapshot("new")
 
         with mock.patch.object(console, "load_snapshot", side_effect=slow) as loader:
-            began = time.monotonic()
             self.assertTrue(state.start_refresh())
-            self.assertLess(time.monotonic() - began, 1)
+            returned.set()
             self.assertTrue(started.wait(5))
             self.assertFalse(state.start_refresh(), "refreshes must not overlap")
             state.apply_pending()

@@ -210,6 +210,66 @@ class ParallelTestRunnerTest(unittest.TestCase):
         shown = runner.bounded(text, 5).splitlines()
         self.assertEqual(shown, ["... 195 earlier lines omitted ...", "195", "196", "197", "198", "199"])
 
+    def test_failing_shard_keeps_diagnostics_before_a_long_output_tail(self) -> None:
+        directory = self.make_suite(["pass"])
+        sys.modules.pop("test_generated_00", None)
+        self.addCleanup(sys.modules.pop, "test_generated_00", None)
+        total, digest = runner.coverage(runner.discover_tests(directory))
+        blocks = (
+            "FAIL: test_value (test_generated_00.GeneratedTest.test_value)\n"
+            "----------------------------------------------------------------------\n"
+            "Traceback (most recent call last):\n"
+            "  File \"generated.py\", line 1, in test_value\n"
+            "AssertionError: boom\n"
+            "----------------------------------------------------------------------\n"
+            "ERROR: test_error (test_generated_00.GeneratedTest.test_error)\n"
+            "----------------------------------------------------------------------\n"
+            "Traceback (most recent call last):\n"
+            "  File \"generated.py\", line 2, in test_error\n"
+            "RuntimeError: boom\n"
+            "----------------------------------------------------------------------"
+        )
+        noise = "\n".join(f"unrelated output {number}" for number in range(runner.FAILURE_LINES + 10))
+        output = (
+            f"shard=1/1 total={total} selected=1 digest={digest}\n{blocks}\n{noise}\n"
+            "result ran=1 failures=1 errors=1 skipped=0\n"
+        )
+
+        def command(_index: int, _count: int, _directory: Path) -> list[str]:
+            return [sys.executable, "-c", f"import sys; sys.stdout.write({output!r}); sys.exit(1)"]
+
+        with mock.patch("sys.stdout", new_callable=__import__("io").StringIO) as captured:
+            status = runner.run_parallel(1, directory, command)
+
+        report = captured.getvalue()
+        self.assertEqual(status, 1)
+        self.assertIn("FAIL: test_value", report)
+        self.assertIn("AssertionError: boom", report)
+        self.assertIn("ERROR: test_error", report)
+        self.assertIn("RuntimeError: boom", report)
+        self.assertNotIn("unrelated output 0", report)
+        self.assertIn("unrelated output 69", report)
+        self.assertLess(report.index("RuntimeError: boom"), report.index("result ran=1 failures=1 errors=1 skipped=0"))
+
+    def test_shard_without_a_result_keeps_its_bounded_tail(self) -> None:
+        directory = self.make_suite(["pass"])
+        sys.modules.pop("test_generated_00", None)
+        self.addCleanup(sys.modules.pop, "test_generated_00", None)
+        output = "\n".join(f"tail line {number}" for number in range(runner.FAILURE_LINES + 10))
+
+        def command(_index: int, _count: int, _directory: Path) -> list[str]:
+            code = f"import os, sys; sys.stdout.write({output!r}); sys.stdout.flush(); os.kill(os.getpid(), 9)"
+            return [sys.executable, "-c", code]
+
+        with mock.patch("sys.stdout", new_callable=__import__("io").StringIO) as captured:
+            status = runner.run_parallel(1, directory, command)
+
+        report = captured.getvalue()
+        self.assertEqual(status, 1)
+        self.assertIn("... 10 earlier lines omitted ...", report)
+        self.assertNotIn("tail line 0", report)
+        self.assertIn("tail line 69", report)
+
     def test_a_killed_shard_fails_the_run(self) -> None:
         directory = self.make_suite(["pass", "os.kill(os.getpid(), signal.SIGKILL)", "pass"])
         result = self.run_parallel(directory, "--parallel", "3")
