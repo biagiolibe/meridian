@@ -153,6 +153,7 @@
 - `[x]` 184 — Bring this repository's Meridian installation to the current release and keep it upgradable.
 - `[x]` 185 — Report failing tests by name in the parallel runner and make timing tests tolerate a loaded runner.
 - `[x]` 186 — Keep `closure-status` read-only when reporting lifecycle state.
+- `[ ]` 187 — Stabilize the `closure-status` non-mutation test against Git maintenance.
 - `[x]` 140 — Let `integrate stage` complete rows of project-shaped Governed queues.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.
