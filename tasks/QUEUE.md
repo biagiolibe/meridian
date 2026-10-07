@@ -46,3 +46,4 @@ Authority: the test suite cost review of 2026-10-06 (848 tests, 343 s sequential
 | `[x]` | 182 | Make the parallel test runner this repository's standard validation | 🟡 P2 | — | [182](done/182-parallel-suite-as-standard-validation.md) |
 | `[ ]` | 183 | Build lifecycle test repositories once per class and copy them per test | 🟡 P2 | — | [183](183-shared-test-fixtures-for-lifecycle-tests.md) |
 | `[x]` | 185 | Report failing tests by name in the parallel runner and make timing tests tolerate a loaded runner | 🟡 P2 | — | [185](done/185-diagnosable-parallel-failures-and-load-tolerant-timing-tests.md) |
+| `[ ]` | 186 | Keep `closure-status` read-only when reporting lifecycle state | 🔴 P1 | — | [186](186-keep-closure-status-read-only.md) |
