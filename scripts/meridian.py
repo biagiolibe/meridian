@@ -211,7 +211,7 @@ JOURNAL_NAME = "meridian-journal.jsonl"
 JOURNAL_ROTATED_NAME = "meridian-journal.1.jsonl"
 JOURNAL_MAX_BYTES = 5 * 1024 * 1024
 JOURNAL_VERSION = 1
-JOURNALED_WORKTREE_COMMANDS = frozenset({"prepare", "check", "closure-status", "advance", "evidence", "cleanup"})
+JOURNALED_WORKTREE_COMMANDS = frozenset({"prepare", "check", "advance", "evidence", "cleanup"})
 JOURNALED_INTEGRATE_COMMANDS = frozenset({"stage", "finalize", "abort"})
 
 
