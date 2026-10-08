@@ -48,3 +48,11 @@ Authority: the test suite cost review of 2026-10-06 (848 tests, 343 s sequential
 | `[x]` | 185 | Report failing tests by name in the parallel runner and make timing tests tolerate a loaded runner | 🟡 P2 | — | [185](done/185-diagnosable-parallel-failures-and-load-tolerant-timing-tests.md) |
 | `[x]` | 186 | Keep `closure-status` read-only when reporting lifecycle state | 🔴 P1 | — | [186](done/186-keep-closure-status-read-only.md) |
 | `[x]` | 187 | Stabilize the `closure-status` non-mutation test against Git maintenance | 🔴 P1 | 186 | [187](done/187-stabilize-closure-status-nonmutation-test.md) |
+
+### Phase 58 — Worktree resume access
+
+Authority: Task 183 resume access failure of 2026-10-08.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 189 | Keep worktree resume independent of Git metadata writes | 🔴 P1 | — | [189](189-keep-worktree-resume-read-only.md) |
