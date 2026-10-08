@@ -43,6 +43,10 @@ this reason.
 
 ## Validation
 
+Use Python 3.12 or later for Meridian development and validation. Check the
+interpreter selected by your shell with `python3 --version` before running the
+commands below.
+
 Run the repository checks before proposing a change:
 
 ```bash
