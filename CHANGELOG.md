@@ -16,6 +16,45 @@ records which release moved it.
 ## [Unreleased]
 
 
+## [1.2.11]
+
+Template-changing release: migration `064-closure-text-uses-advance` advances `workflowBaselineVersion` to `1.2.11`. The managed `git-workflow` block now closes tasks through `meridian worktree advance` instead of listing the closure order, every stop in managed text and in the CLI carries a registered code, and Codex records unbacked `BLOCKED` reports through a `Stop` hook. `prepare --resume` no longer writes lifecycle state. Python 3.12 is the new minimum. The manifest shape and `protocolVersion` 2 are unchanged.
+
+### Added
+
+- The managed `.codex/hooks.json` registers a Codex `Stop` hook that runs `meridian hook stop-audit --host codex`, so a `BLOCKED <CODE>` report that no command emitted is recorded on Codex as it is on Claude Code. `meridian hook stop-audit` accepts `--host claude|codex` and defaults to `claude`.
+- Every `unbacked_block` and `declared_block` journal line records its `host`; older lines without one are read as `claude`. `meridian report flow` reports both kinds per host.
+
+### Changed
+
+- Every remaining `BLOCKED` the CLI prints now carries a registered stop code: `COMMAND_REFUSED` and `OS_ACCESS_FAILED` for the generic catch-alls, `VALIDATION_ID_UNDECLARED`, `BUDGET_EXHAUSTED`, `HOST_IMPACT_DECLARATION_INVALID`, `HOST_IMPACT_EVIDENCE_MISSING`, `UPGRADE_BLOCKED`, and `ADOPTION_BLOCKED`. Investigation and budget argument errors use `EXECUTION_EVIDENCE_ARGUMENTS`, and a rejected integration decision uses `EVIDENCE_MISMATCH`. `meridian worktree check` now also prints `BLOCKED WRONG_WORKTREE` on a mismatch.
+- Every managed-text line that tells an agent to stop now names a registered code. Workflow-unreadable and rule-conflict stops get the judgment codes `WORKFLOW_UNREADABLE` and `RULE_CONFLICT`; the Governed SDD documents also use `SCOPE_CHANGE_REQUIRED`, `CONTRACT_EXHAUSTED`, and `REVIEW_LOOP_EXHAUSTED`.
+- `python3 scripts/check_repository.py` fails on a `BLOCKED` without a registered code in managed text or in the CLI.
+- The managed `git-workflow` block (v13 in the Governed SDD `PROJECT_WORKFLOW.md`, v12 in the three Lean Delivery workflow files) no longer lists the closure order or the closure stop codes. It tells the agent to run `meridian worktree advance <TASK-ID>` from the primary checkout, perform exactly its `action_required`, rerun it with the results, and report its `BLOCKED` line when it stops. The single-step commands stay documented in `docs/WORKTREE_LIFECYCLE.md` for diagnosis and manual recovery.
+- The shipped Codex rules allow `meridian worktree advance` in both modes, and `meridian codex doctor` probes it with the other lifecycle commands.
+- The queue files that `meridian init` seeds into new projects now agree with
+  closure ownership: task branches do not edit the queue, `integrate stage`
+  sets `[x]` and archives closed rows, and the developer assigns the task
+  (Governed SDD no longer tells agents to pick one). Existing projects are not
+  changed; copy the new wording into `tasks/QUEUE.md` by hand if you want it.
+- `meridian setup` now also adds `Bash(python3 scripts/run_tests.py --parallel)`
+  to the Claude Code project allowlist. The entry matches only that exact
+  command, so it has no effect in a project that has no `scripts/run_tests.py`.
+- Python 3.12 is now the minimum supported version for Meridian maintenance commands and tests.
+
+### Fixed
+
+- Preserve every failing unittest diagnostic block in parallel test-runner reports.
+- Keep `meridian worktree closure-status` read-only, including blocked lifecycle reports.
+- `meridian worktree prepare --resume` no longer writes lifecycle state, so a worker that can only read the shared Git metadata can resume its task. A resume with missing lifecycle state now derives the base commit from Git and reports a repair command instead of failing, and a mismatched state file stops with `BLOCKED WRONG_WORKTREE`.
+
+### Upgrade notes
+
+- Affected capabilities: `git-workflow` v13 (Governed SDD) or v12 (Lean Delivery); `bounded-worktree-lifecycle` v5 and `codex-worktree-access` v4 (Lean Delivery); and, in Governed SDD, `code-review-prompt` v2, `codex-worktree-access` v4, `execution-evidence-profile` v5, `host-impact-routing` v2, `investigation-scope` v2, `lifecycle-orchestration` v10, `manual-verification-precondition` v4, `owner-acceptance-workflow` v3, `rejected-attempt-restart` v5, `review-remediation-record` v4, `reviewer-integrator-identity` v3, `spike-routing` v2, `task-blueprint` v15, `task-worktree-boundary` v9, `task-worktree-integration` v5, `task-worktree-remediation` v4, `task-worktree-review-procedure` v11, and `workflow-mode-lock` v2. Managed paths: `PROJECT_WORKFLOW.md`, `AGENTS.md`, `CLAUDE.md`, `tasks/TASK_BLUEPRINT.md`, `.codex/hooks.json`, `.codex/rules/meridian.rules`, `docs/CODE_REVIEW_PROMPT.md`, `docs/CONTEXT_BUDGET_POLICY.md`, `docs/EXECUTION_EVIDENCE_PROFILE.md`, `docs/LIFECYCLE_ORCHESTRATION.md`, `docs/OPERATOR_PROMPTS.md`, `docs/PULL_REQUEST_POLICY.md`, and `docs/workflows/{IMPLEMENTATION,LIFECYCLE,REMEDIATION,REVIEW}.md`.
+- Required action: run `meridian upgrade --check`, then `meridian upgrade --apply` to receive migration `064-closure-text-uses-advance`. It replaces the managed `git-workflow` block with the `meridian worktree advance` closure rule, replaces managed text that carried a bare `BLOCKED` with registered codes, adds `advance` to `.codex/rules/meridian.rules`, and adds the Codex `Stop` entry to `.codex/hooks.json` while keeping the `PreToolUse` read guard. Run `meridian setup --apply` to add the `run_tests.py --parallel` allow entry to an existing project. Local edits outside the managed blocks and local rules are kept.
+- Likely conflict areas for adapted projects: the `git-workflow` block of `PROJECT_WORKFLOW.md`, `AGENTS.md`, and `CLAUDE.md`; managed Governed SDD documents that named stops without a code; and locally edited `.codex/rules/meridian.rules` or `.codex/hooks.json`. Resolve in place and keep protected markers intact.
+- Minimum requirement: `bin/meridian` and Meridian's maintenance commands now need Python 3.12 or later. No minimum framework or `protocolVersion` change.
+
 ## [1.2.10]
 
 CLI-only release: this release introduces no migration.
