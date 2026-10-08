@@ -367,10 +367,21 @@ export PATH="$MERIDIAN_ROOT/bin:$PATH"
 Codex scans `$HOME/.agents/skills` for user skills and follows these symlinks
 (verified with Codex CLI 0.159.2; see
 [`docs/HOST_CAPABILITY_CONTRACT.md`](docs/HOST_CAPABILITY_CONTRACT.md)). Restart
-Codex after linking. `bin/meridian` needs Python 3.11 or later on the `PATH` of
-the shell Codex uses; with an older `python3` the launcher fails on
-`import tomllib`. An older `~/.codex/skills` copy is also discovered, so remove
-a stale one yourself rather than expecting Meridian to.
+Codex after linking. `bin/meridian` needs Python 3.12 or later on the `PATH` of
+the shell Codex uses. On macOS with Homebrew, install the supported baseline
+without replacing another Python installation:
+
+```bash
+brew install python@3.12
+export PATH="$(brew --prefix python@3.12)/libexec/bin:$PATH"
+command -v python3  # should point to Homebrew's Python 3.12
+python3 --version  # must report 3.12 or later
+```
+
+Add the `export PATH` line to the shell startup file used by Codex if you need
+it in future sessions, then restart Codex and check `python3 --version` there.
+An older `~/.codex/skills` copy is also discovered, so remove a stale one
+yourself rather than expecting Meridian to.
 
 Have Meridian review and, after confirmation, create the skill links:
 
@@ -669,8 +680,8 @@ CONTRIBUTING.md                   Contribution guidance and validation
 
 ## Development and contributions
 
-Meridian's maintenance commands and test suite support Python 3.11 and later;
-CI uses Python 3.11 as the minimum-version baseline.
+Meridian's maintenance commands and test suite support Python 3.12 and later;
+CI uses Python 3.12 as the minimum-version baseline.
 
 Meridian’s templates are the product. Before proposing a change, run:
 
