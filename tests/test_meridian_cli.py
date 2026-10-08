@@ -8865,6 +8865,15 @@ class LifecycleJournalTest(unittest.TestCase):
         self.assertNotIn("resume", first)
         self.assertIs(second["resume"], True)
 
+    def test_resume_survives_a_failed_journal_write(self) -> None:
+        self.assertEqual(self.lifecycle("prepare", "--format", "json").returncode, 0)
+        self.journal.unlink()
+        self.journal.mkdir()
+        resumed = self.lifecycle("prepare", "--resume", "--format", "json")
+        self.assertEqual(resumed.returncode, 0, resumed.stderr)
+        self.assertIs(json.loads(resumed.stdout)["resumed"], True)
+        self.assertIn("lifecycle journal not written", resumed.stderr)
+
     def test_each_journaled_lifecycle_command_appends_one_line(self) -> None:
         evidence = self.root / "evidence.json"
         evidence.write_text("{}", encoding="utf-8")

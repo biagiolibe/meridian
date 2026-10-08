@@ -421,6 +421,62 @@ class BoundedWorktreeLifecycleTest(unittest.TestCase):
         self.assertFalse(ready)
         self.assertEqual(report["errors"], ["dirty-worktree"])
 
+    def test_resume_never_attempts_a_lifecycle_state_write(self) -> None:
+        prepared, worktree = self.dirty_worktree()
+        state_directory = self.primary / ".git/meridian-worktrees"
+        before = sorted(item.name for item in state_directory.iterdir())
+        state_path = next(state_directory.glob("*.json"))
+        original = state_path.read_bytes()
+        with mock.patch.object(meridian, "_write_json_atomic", side_effect=AssertionError("state write")), \
+                mock.patch.object(meridian.tempfile, "mkstemp", side_effect=AssertionError("temporary file")):
+            resumed = self.resume()
+        self.assertEqual(sorted(item.name for item in state_directory.iterdir()), before)
+        self.assertEqual(state_path.read_bytes(), original)
+        self.assertEqual(
+            {key: resumed[key] for key in ("branch", "worktree", "base_commit", "started_at")},
+            {key: prepared[key] for key in ("branch", "worktree", "base_commit", "started_at")},
+        )
+        self.assertNotIn("state", resumed)
+
+    def test_resume_stops_with_a_registered_code_on_mismatched_state(self) -> None:
+        self.dirty_worktree()
+        state_path = next((self.primary / ".git/meridian-worktrees").glob("*.json"))
+        original = state_path.read_text(encoding="utf-8")
+        state_path.write_text(original.replace('"branch": "task-056"', '"branch": "other"'), encoding="utf-8")
+        with self.assertRaises(meridian.MeridianStop) as raised:
+            self.resume()
+        self.assertEqual(raised.exception.code, "WRONG_WORKTREE")
+        message = str(raised.exception)
+        self.assertTrue(message.startswith("BLOCKED WRONG_WORKTREE: "))
+        for expected in (str(state_path), "branch task-056", "branch other"):
+            self.assertIn(expected, message)
+        self.assertEqual(state_path.read_text(encoding="utf-8").count('"other"'), 1)
+
+    def test_resume_with_missing_state_derives_from_git_and_repairs_later(self) -> None:
+        prepared, worktree = self.dirty_worktree()
+        state_directory = self.primary / ".git/meridian-worktrees"
+        next(state_directory.glob("*.json")).unlink()
+        with mock.patch.object(meridian, "_write_json_atomic", side_effect=AssertionError("state write")):
+            resumed = self.resume()
+        self.assertEqual(list(state_directory.glob("*.json")), [])
+        self.assertEqual(resumed["base_commit"], prepared["base_commit"])
+        self.assertEqual(resumed["base_commit_source"], "derived")
+        self.assertEqual(resumed["state"], "missing")
+        self.assertNotIn("started_at", resumed)
+        self.assertEqual((resumed["resumed"], resumed["dirty"], resumed["branch"]), (True, True, "task-056"))
+        self.assertEqual(
+            resumed["state_repair"],
+            f"meridian worktree prepare 056 --project {self.primary.resolve()} --format json",
+        )
+        with self.assertRaisesRegex(meridian.MeridianError, "dirty and was retained"):
+            self.prepare()
+        self.git("checkout", "--", "README.md", cwd=worktree)
+        (worktree / "new.txt").unlink()
+        repaired = self.prepare()
+        self.assertEqual(repaired["base_commit"], prepared["base_commit"])
+        self.assertEqual(len(list(state_directory.glob("*.json"))), 1)
+        self.assertNotIn("state", self.resume())
+
     def test_resume_counts_renames_and_clean_worktrees(self) -> None:
         prepared = self.prepare()
         worktree = Path(str(prepared["worktree"]))

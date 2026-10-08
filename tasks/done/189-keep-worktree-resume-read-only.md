@@ -17,23 +17,23 @@ access to `.git/meridian-worktrees` merely to resume the task.
 
 ## Acceptance Criteria
 
-- [ ] Resuming an existing clean or dirty canonical worktree that has a
+- [x] Resuming an existing clean or dirty canonical worktree that has a
   matching lifecycle state file returns the same branch, path, base commit,
   `started_at`, and resume and dirty information as today. It does not create,
   replace, or change the lifecycle state file, Git references, the index, or
   the worktree contents.
-- [ ] A resume succeeds when the existing lifecycle state and the shared Git
+- [x] A resume succeeds when the existing lifecycle state and the shared Git
   metadata are readable but lifecycle-state writes are denied. A focused
   regression test detects any attempted temporary-file creation or atomic
   rewrite of the state file, for example by denying writes to the state
   directory or by failing `_write_json_atomic`. It does not rely only on the
   file contents being unchanged.
-- [ ] Mismatched lifecycle state (a state file naming another worktree or
+- [x] Mismatched lifecycle state (a state file naming another worktree or
   branch) stops with a registered, actionable stop code instead of the current
   generic error. The detail names the state file and the expected and found
   values. Existing branch and worktree mismatch protections and integration
   lease protections stay intact.
-- [ ] Missing lifecycle state on resume is neither repaired nor a dead end. A
+- [x] Missing lifecycle state on resume is neither repaired nor a dead end. A
   dirty worktree has no other entry point, because `prepare` without
   `--resume` refuses a dirty worktree. In that case the resume:
   - succeeds without writing anything;
@@ -47,21 +47,21 @@ access to `.git/meridian-worktrees` merely to resume the task.
   The existing state repair done by `prepare` without `--resume` on a clean
   worktree is unchanged. A test covers a dirty worktree with missing state,
   from resume through the later repair.
-- [ ] The best-effort lifecycle journal entry for a resume is kept, and a
+- [x] The best-effort lifecycle journal entry for a resume is kept, and a
   failed journal write never turns a valid resume into a failure. The managed
   `bounded-worktree-lifecycle` text is not changed, so no marker bump or
   migration is needed. `docs/WORKTREE_LIFECYCLE.md` states that the
   non-mutation promise covers lifecycle state, Git, and the worktree, and that
   the diagnostic journal is the one explicit exception.
-- [ ] The task records whether any other step that runs on the worker side
+- [x] The task records whether any other step that runs on the worker side
   writes under the primary checkout's `.git/` directory (for example
   `meridian-worktrees/` or the journal). With closure now driven by `meridian
   worktree advance` from the primary checkout, none is expected. Any
   exception found is listed in the handoff as a proposed follow-up and is not
   fixed here.
-- [ ] One changelog fragment states the fix under `Fixed`, per
+- [x] One changelog fragment states the fix under `Fixed`, per
   `CONTRIBUTING.md`.
-- [ ] Focused worktree and CLI regression tests, the repository checks, and
+- [x] Focused worktree and CLI regression tests, the repository checks, and
   the full parallel test suite pass. The exact commands and results are
   recorded in the handoff.
 

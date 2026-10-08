@@ -1006,6 +1006,7 @@ def prepare_task_worktree(
     created = False
     prior: dict[str, object] = {}
     dirty_summary: dict[str, int] | None = None
+    state_missing = False
     if resume:
         if registered is None:
             raise MeridianError(
@@ -1043,8 +1044,21 @@ def prepare_task_worktree(
         if state_path.is_file():
             prior = _read_json_object(state_path, "worktree lifecycle state")
             if prior.get("worktree") != str(path) or prior.get("branch") != identity.branch_name:
-                raise MeridianError(f"lifecycle state mismatch retained at {state_path}")
+                raise stop_error(
+                    "WRONG_WORKTREE",
+                    f"lifecycle state mismatch retained at {state_path}: expected worktree {path} and branch "
+                    f"{identity.branch_name}; found worktree {prior.get('worktree')} and branch {prior.get('branch')}",
+                    resume=f"the developer corrects or removes the lifecycle state file {state_path}, then rerun "
+                    f"meridian worktree prepare {identity.canonical_id} --project {project_root} --format json",
+                )
             base_commit = str(prior.get("base_commit", base_commit))
+        elif resume:
+            # Missing state is never repaired by a resume; Git supplies the facts instead.
+            merge_base = _run_git(project_root, "merge-base", base, identity.branch_name)
+            if merge_base.returncode != 0:
+                raise MeridianError(merge_base.stderr.strip() or f"cannot derive the base commit of {identity.branch_name}")
+            base_commit = merge_base.stdout.strip()
+            state_missing = True
     state = {
         "version": 1,
         "task_id": identity.canonical_id,
@@ -1063,13 +1077,20 @@ def prepare_task_worktree(
         # Keep a pre-existing value byte-for-byte; malformed values are handled
         # as unavailable by the read-only console rather than rewritten.
         state["started_at"] = prior["started_at"]
-    _write_json_atomic(state_path, state)
+    if not resume:
+        _write_json_atomic(state_path, state)
     result: dict[str, object] = {
         **state,
         "handoff_worktree": handoff_worktree_value(root, path),
         "created": created,
         "next_action": "check",
     }
+    if state_missing:
+        result.update({
+            "base_commit_source": "derived",
+            "state": "missing",
+            "state_repair": f"meridian worktree prepare {identity.canonical_id} --project {project_root} --format json",
+        })
     if dirty_summary is not None:
         dirty = bool(dirty_summary["changed_paths"] or dirty_summary["untracked_paths"])
         result.update({"resumed": True, "dirty": dirty, **dirty_summary})
