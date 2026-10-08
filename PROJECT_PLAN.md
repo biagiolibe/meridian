@@ -156,7 +156,7 @@
 - `[x]` 187 — Stabilize the `closure-status` non-mutation test against Git maintenance.
 - `[x]` 188 — Raise Meridian's minimum supported Python version to 3.12.
 - `[x]` 189 — Keep worktree resume independent of Git metadata writes.
-- `[ ]` 190 — Make agent evaluations an optional tool, not a release gate.
+- `[x]` 190 — Make agent evaluations an optional tool, not a release gate.
 - `[x]` 140 — Let `integrate stage` complete rows of project-shaped Governed queues.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.

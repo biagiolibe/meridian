@@ -20,7 +20,7 @@ harness itself unchanged.
 
 ## Acceptance Criteria
 
-- [ ] `CONTRIBUTING.md`:
+- [x] `CONTRIBUTING.md`:
   - "Agent evaluations" describes the harness as an optional, on-demand tool;
   - it gives examples of when a run is useful, such as a change to stop,
     denial, or closure rules in managed text, or an agent behavior regression
@@ -28,19 +28,21 @@ harness itself unchanged.
   - it no longer requires a run before a release, a release block on a missed
     safety threshold, or pass counts in the release commit message;
   - the release procedure no longer mentions agent evaluations as a step.
-- [ ] `scripts/release.py` no longer prints the agent-evaluation reminder in
+- [x] `scripts/release.py` no longer prints the agent-evaluation reminder in
   `prepare`, in its dry run, or when it directs a prepared release to
   `publish`. `agent_eval_reminder` is removed.
-- [ ] `tests/test_release.py` asserts that no release path prints
+- [x] `tests/test_release.py` asserts that no release path prints
   `run_agent_evals`, and the other release behavior is unchanged.
-- [ ] `docs/ADR_STOPS_AND_DENIALS.md` keeps its follow-up list but no longer
+- [x] `docs/ADR_STOPS_AND_DENIALS.md` keeps its follow-up list but no longer
   says the evaluations run on template-changing releases. It states that they
   run on demand, with a short note that the developer decided this on
   2026-10-08.
-- [ ] `scripts/run_agent_evals.py`, the scenarios, and their thresholds are
+- [x] `scripts/run_agent_evals.py`, the scenarios, and their thresholds are
   unchanged; a run still reports `threshold MET` or `MISSED`.
-- [ ] One changelog fragment states the change under `Changed`.
-- [ ] `python3 scripts/check_repository.py`, the parallel unit suite, and `git
+- [x] No changelog fragment is added. This is a maintainer-only process change,
+  and no release note ever announced the evaluation gate (tasks 177 and 178
+  added none). Corrected during implementation.
+- [x] `python3 scripts/check_repository.py`, the parallel unit suite, and `git
   diff --check` pass.
 
 ## Relevant Files
