@@ -93,6 +93,26 @@ the same setup.
 - `shutil.copytree` must keep Git's file modes and symlinks
   (`symlinks=True`).
 
+## Resolution
+
+Cancelled on 2026-10-08 by the developer. Controlled measurements on the same
+Mac with Python 3.12.15 compared pre-refactor commit `2d0753ee` with the
+shared-seed implementation. The six required classes improved from 358.27 s
+to 351.89 s, a 1.8% reduction, below the required 25%.
+
+| Class | Before (s) | After (s) | Reduction |
+|---|---:|---:|---:|
+| `WorktreeLifecycleCliTest` | 147.49 | 141.67 | 3.9% |
+| `BudgetCliTest` | 86.80 | 88.90 | -2.4% |
+| `LifecycleJournalTest` | 26.86 | 26.59 | 1.0% |
+| `BoundedWorktreeLifecycleTest` | 55.38 | 51.91 | 6.3% |
+| `LeanClosingTaskTest` | 22.60 | 23.14 | -2.4% |
+| `GovernedClosingTaskTest` | 19.14 | 19.68 | -2.8% |
+
+The investigation found that the dominant cost is CLI subprocess invocation
+(about 230 ms each), not per-test repository setup. Restore the original test
+setup and reopen only if a lower-cost subprocess strategy is in scope.
+
 ## Dependencies
 
 - **Depends on**: none
