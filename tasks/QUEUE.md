@@ -37,18 +37,6 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, 25, 26, 27, 28, 31, 32, 34, 35, 36, 42, 44, 45, 46, and 47
 are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 
-### Phase 56 — Test suite cost
-
-Authority: the test suite cost review of 2026-10-06 (848 tests, 343 s sequential, 61 s parallel).
-
-| Status | ID | Title | Priority | Depends on | File |
-|--------|----|-------|----------|------------|------|
-| `[x]` | 182 | Make the parallel test runner this repository's standard validation | 🟡 P2 | — | [182](done/182-parallel-suite-as-standard-validation.md) |
-| `[ ]` | 183 | Build lifecycle test repositories once per class and copy them per test | 🟡 P2 | — | [183](183-shared-test-fixtures-for-lifecycle-tests.md) |
-| `[x]` | 185 | Report failing tests by name in the parallel runner and make timing tests tolerate a loaded runner | 🟡 P2 | — | [185](done/185-diagnosable-parallel-failures-and-load-tolerant-timing-tests.md) |
-| `[x]` | 186 | Keep `closure-status` read-only when reporting lifecycle state | 🔴 P1 | — | [186](done/186-keep-closure-status-read-only.md) |
-| `[x]` | 187 | Stabilize the `closure-status` non-mutation test against Git maintenance | 🔴 P1 | 186 | [187](done/187-stabilize-closure-status-nonmutation-test.md) |
-
 ### Phase 58 — Worktree resume access
 
 Authority: Task 183 resume access failure of 2026-10-08.

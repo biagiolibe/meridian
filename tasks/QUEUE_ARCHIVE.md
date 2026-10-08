@@ -679,3 +679,15 @@ Authority: the task 181 unblock of 2026-10-06; `upgrade --check` on this reposit
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
 | `[x]` | 188 | Raise Meridian's minimum supported Python version to 3.12 | 🟡 P2 | — | [188](done/188-python-312-minimum.md) |
+
+### Phase 56 — Test suite cost
+
+Authority: the test suite cost review of 2026-10-06 (848 tests, 343 s sequential, 61 s parallel).
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 182 | Make the parallel test runner this repository's standard validation | 🟡 P2 | — | [182](done/182-parallel-suite-as-standard-validation.md) |
+| `[x]` | 183 | Build lifecycle test repositories once per class and copy them per test | 🟡 P2 | — | [183](done/183-shared-test-fixtures-for-lifecycle-tests.md) |
+| `[x]` | 185 | Report failing tests by name in the parallel runner and make timing tests tolerate a loaded runner | 🟡 P2 | — | [185](done/185-diagnosable-parallel-failures-and-load-tolerant-timing-tests.md) |
+| `[x]` | 186 | Keep `closure-status` read-only when reporting lifecycle state | 🔴 P1 | — | [186](done/186-keep-closure-status-read-only.md) |
+| `[x]` | 187 | Stabilize the `closure-status` non-mutation test against Git maintenance | 🔴 P1 | 186 | [187](done/187-stabilize-closure-status-nonmutation-test.md) |
