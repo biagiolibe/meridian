@@ -52,7 +52,7 @@
         "governed-sdd"
       ],
       "step": "C4",
-      "emitter": "`meridian worktree closure-status`; `meridian worktree check`",
+      "emitter": "`meridian worktree closure-status`; `meridian worktree check`; `meridian worktree prepare` on a mismatched lifecycle state file",
       "human_decision": false,
       "resume": "meridian worktree prepare {task_id} --project {project} --format json",
       "kind": "stop",

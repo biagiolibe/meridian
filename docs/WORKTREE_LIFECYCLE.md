@@ -104,9 +104,20 @@ The explicit option remains available for finishing a worktree in an old root.
   task that has uncommitted changes. Only the console's Resume directive for a
   dirty worktree uses it; ordinary preparation still refuses a dirty worktree.
   A resume never creates, moves, removes, resets, stages, or commits anything,
-  leaves `started_at` and `base_commit` as recorded, and refuses when the task
-  has no worktree, on every mismatch ordinary preparation blocks, and while an
-  integration lease or staged merge names the task. It adds `resumed: true`,
+  and never writes lifecycle state, so it works when only reads of the shared
+  Git metadata are allowed. Its non-mutation promise covers lifecycle state,
+  Git, and the worktree; the best-effort diagnostic journal is the one explicit
+  exception, and a failed journal write never fails a resume. It leaves
+  `started_at` and `base_commit` as recorded and refuses when the task has no
+  worktree, on every mismatch ordinary preparation blocks (a lifecycle state
+  file that names another worktree or branch stops with `BLOCKED WRONG_WORKTREE`
+  and names the file with the expected and found values), and while an
+  integration lease or staged merge names the task. When the lifecycle state
+  file is missing, a resume does not repair it: it derives `base_commit` from
+  `git merge-base main <branch>`, adds `base_commit_source: "derived"`, `state:
+  "missing"`, and a `state_repair` command, and omits `started_at`. Run that
+  command once the worktree is clean; ordinary preparation then repairs the
+  state. A resume adds `resumed: true`,
   `dirty`, `changed_paths`, and `untracked_paths` (counts only, never names or
   contents) to the result; a dirty result has `next_action` `inspect-dirty`, and
   `check` then reports `dirty-worktree` and no other error. The agent reads
