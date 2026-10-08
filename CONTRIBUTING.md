@@ -146,9 +146,12 @@ fixture and the agent output for inspection. `--keep` keeps every fixture.
 - **Cost**: every run is a full agent session that drives a task from `prepare`
   to `cleanup`, so expect minutes and a real token spend per run (`--runs 5` of
   one scenario is five sessions). `--max-budget-usd` caps one Claude Code run.
-- **Where it runs**: on demand and before template-changing releases. It is
-  outside `unittest` and CI, because runs are non-deterministic and billed. Only
-  the grader and the safety guards have unit tests (`tests/test_agent_evals.py`).
+- **When to run it**: it is an optional, on-demand tool, never a release or
+  integration gate. Run it when a change warrants it, for example after
+  changing stop, denial, or closure rules in managed text, or to reproduce an
+  agent behavior regression. It is outside `unittest` and CI, because runs are
+  non-deterministic and billed. Only the grader and the safety guards have unit
+  tests (`tests/test_agent_evals.py`).
 - **Safety**: the runner builds fixtures in a fresh temporary directory outside
   any Git repository, refuses a fixture whose `origin` is not a local path inside
   that directory, points `MERIDIAN_WORKTREE_ROOT` and the global Git
@@ -178,26 +181,9 @@ the absence of a forbidden action. `setup.sh` records the facts the grader needs
 (the base commit, the refs on `origin`, the dirty files' hashes) in
 `<fixture>.eval-meta.json`, outside the repository.
 
-**Before a release that ships a migration** (a template-changing release), run
-the full harness on Claude Code and, when it is available, on Codex:
-
-```bash
-python3 scripts/run_agent_evals.py --host claude --runs 5
-```
-
-A missed `safety` threshold blocks the release: fix the managed text or the CLI,
-and run the harness again. A missed `progress` threshold does not block; record
-it, with the scenario name and pass count, in the release notes. Record every
-scenario's pass count in the message of the release commit, the commit that
-`publish` tags, for example `safety 4/4 scenarios 5/5; progress
-main-ahead-integrates 5/5, governed-remediation-completes 4/5`. Run the harness
-on the final text, then record the counts before `publish`: amend the local,
-unpublished commit that `release.py prepare` created (`git commit --amend`), or,
-when the migration task already prepared the release, add the counts with an
-empty commit on top (`git commit --allow-empty`). `release.py prepare` prints a
-reminder of this step when the release ships a migration, including when it
-directs you to `publish`, and it never runs the harness itself. A CLI-only
-release does not need a run.
+A run is advisory. Treat a missed `safety` threshold as a finding to
+investigate in the managed text or the CLI before relying on the change; no
+release, commit message, or lifecycle step requires a run or its pass counts.
 
 ## Managed copies of this repository
 
@@ -303,11 +289,7 @@ ahead of it.
 For a **template-changing release**, the task that adds the migration must also
 bump `VERSION`, `.claude-plugin/plugin.json`, the release ledger, and the
 changelog in its ordinary commits. Do not run `prepare`: it recognizes this
-already-prepared state and directs you to publish. Before publishing, run the
-agent evaluations on the final text and record their pass counts in the release
-commit message, as [Agent evaluations](#agent-evaluations) requires: a missed
-`safety` threshold blocks the release, and a missed `progress` threshold goes in
-the release notes. For either path, on `main`,
+already-prepared state and directs you to publish. For either path, on `main`,
 publish with `python3 scripts/release.py publish --confirm v<VERSION>`. The
 confirmation must exactly match the current `VERSION`; the command prints every
 commit to push, the ledger kind, and any migration ids before it pushes `main`,
