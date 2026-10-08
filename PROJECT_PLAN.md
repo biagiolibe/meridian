@@ -154,6 +154,7 @@
 - `[x]` 185 — Report failing tests by name in the parallel runner and make timing tests tolerate a loaded runner.
 - `[x]` 186 — Keep `closure-status` read-only when reporting lifecycle state.
 - `[x]` 187 — Stabilize the `closure-status` non-mutation test against Git maintenance.
+- `[ ]` 188 — Raise Meridian's minimum supported Python version to 3.12.
 - `[x]` 140 — Let `integrate stage` complete rows of project-shaped Governed queues.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.
