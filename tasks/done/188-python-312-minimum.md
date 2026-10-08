@@ -16,19 +16,19 @@ baseline with the `unittest --durations` measurement required by Task 183.
 
 ## Acceptance Criteria
 
-- [ ] The root README and contributor guidance state Python 3.12 or later as
+- [x] The root README and contributor guidance state Python 3.12 or later as
   the minimum. The README gives a usable macOS Homebrew installation and PATH
   check without altering a user's existing Python installation.
-- [ ] Validation and release GitHub Actions use Python 3.12; the validation
+- [x] Validation and release GitHub Actions use Python 3.12; the validation
   workflow still runs its repository, profile, audit, and parallel-suite gates.
-- [ ] Current host-capability guidance names Python 3.12 or later for the
+- [x] Current host-capability guidance names Python 3.12 or later for the
   unverified Codex launcher probe. Historical probe observations remain intact.
-- [ ] A repository search finds no current claim that Python 3.11 is the
+- [x] A repository search finds no current claim that Python 3.11 is the
   supported minimum. Historical task and handoff records are unchanged.
-- [ ] `python3 scripts/check_repository.py` and the full parallel suite pass.
+- [x] `python3 scripts/check_repository.py` and the full parallel suite pass.
   The GitHub Actions validation run on the task commit passes under Python 3.12
   before integration.
-- [ ] Add one changelog fragment for the support-policy change according to
+- [x] Add one changelog fragment for the support-policy change according to
   `CONTRIBUTING.md`.
 
 ## Relevant Files

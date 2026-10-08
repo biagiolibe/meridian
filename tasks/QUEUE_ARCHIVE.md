@@ -673,3 +673,9 @@ Authority: the task 181 unblock of 2026-10-06; `upgrade --check` on this reposit
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
 | `[x]` | 184 | Bring this repository's Meridian installation to the current release and keep it upgradable | 🟡 P2 | 181 | [184](done/184-bring-self-hosting-installation-current.md) |
+
+### Phase 57 — Python runtime baseline
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 188 | Raise Meridian's minimum supported Python version to 3.12 | 🟡 P2 | — | [188](done/188-python-312-minimum.md) |
