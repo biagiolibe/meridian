@@ -699,3 +699,11 @@ Authority: Task 183 resume access failure of 2026-10-08.
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
 | `[x]` | 189 | Keep worktree resume independent of Git metadata writes | 🔴 P1 | — | [189](done/189-keep-worktree-resume-read-only.md) |
+
+### Phase 59 — Release process
+
+Authority: developer decision of 2026-10-08 during the 1.2.11 release preparation.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 190 | Make agent evaluations an optional tool, not a release gate | 🔴 P1 | — | [190](done/190-make-agent-evaluations-optional.md) |

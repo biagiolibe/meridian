@@ -231,20 +231,7 @@ def ensure_not_already_prepared(root: Path, current: str) -> None:
         raise ReleaseError(
             f"preflight failed: release {current} is already prepared; "
             f"run python3 scripts/release.py publish --confirm v{current}"
-            + (f"\n{agent_eval_reminder(True)}".rstrip("\n") if migration_targets_current else "")
         )
-
-
-def agent_eval_reminder(ships_migration: bool) -> str:
-    """Remind the maintainer of the agent evaluation run a migration release needs; empty for a CLI-only release."""
-    if not ships_migration:
-        return ""
-    return (
-        "Reminder: this release ships a migration, so run the agent evaluations before publishing: "
-        "python3 scripts/run_agent_evals.py --host claude (see CONTRIBUTING.md, Agent evaluations). "
-        "A missed safety threshold blocks the release; record the pass counts in the release commit message. "
-        "This command does not run them.\n"
-    )
 
 
 def protocol_version(root: Path) -> int:
@@ -342,7 +329,6 @@ def prepare_main(argv: list[str] | None = None) -> int:
             print(render_release_section(new_version, kind, body), end="")
             if used_legacy and used_fragments:
                 print("Release changelog uses both legacy [Unreleased] content and fragments.")
-            print(agent_eval_reminder(bool(migrations)), end="")
             return 0
         if protocol == previous.get("protocolVersion"):
             print("Manifest comparison remains a manual check; this command does not perform it.")
@@ -360,7 +346,6 @@ def prepare_main(argv: list[str] | None = None) -> int:
             raise ReleaseError(f"could not create release commit: {commit.stderr.strip()}")
         print(
             f"Created {commit.stdout.strip()}\nDerived kind: {kind}\n"
-            f"{agent_eval_reminder(bool(migrations))}"
             "Next: python3 scripts/release.py publish (Task 094)"
         )
         return 0

@@ -160,7 +160,8 @@ not been verified and is part of the follow-up work.
     and detection of `BLOCKED` lines that no command emitted, through a Claude
     Code Stop hook. Codex support is unverified;
   - agent-run scenario evaluations graded on the journal and the final Git
-    state, run on template-changing releases and kept outside `unittest` and CI.
+    state, kept outside `unittest` and CI. Since 2026-10-08, by the
+    developer's decision, they run on demand only and gate no release.
 
 ## Rejected alternatives
 
