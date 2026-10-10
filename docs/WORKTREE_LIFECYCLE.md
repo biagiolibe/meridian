@@ -202,9 +202,17 @@ The explicit option remains available for finishing a worktree in an old root.
   path blocks stage before a lease or merge. Any fully closed section moves to
   `tasks/QUEUE_ARCHIVE.md` using that
   mode's template table shape, creating it when needed; a project-shaped
-  Governed section is not archived. It returns `REUSE`, `BOUNDED`, or `FULL`
-  with the exact candidate tree. Unknown row or section shapes are blocked
-  without changing the candidate's lifecycle records.
+  Governed section is not archived. Only `###` sections are archival candidates;
+  each ends at the next heading of the same or higher level. Nested headings
+  belong to that range, and every task table and row must be recognized and
+  terminal (`[x]` in Lean Delivery; `ACCEPTED` or `ANSWERED` in Governed SDD).
+  A later open or ambiguous table retains the entire section. Ambiguous input
+  produces a warning naming the section and reason; archival warnings use the
+  same boundaries and checks. Generated archive headers refer to the operational
+  queue role, including projects with a custom queue location. It returns `REUSE`, `BOUNDED`, or `FULL`
+  with the exact candidate tree. Unknown completion-row shapes are blocked
+  without changing the candidate's lifecycle records; ambiguous archival shapes
+  are retained with warnings.
 - `meridian worktree integrate finalize <TASK-ID> --project <primary>
   --evidence <candidate-validation.json> --format json` creates the fixed merge
   commit only when successful evidence matches the staged candidate and

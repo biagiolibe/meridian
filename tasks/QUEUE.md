@@ -44,7 +44,7 @@ provide supported base-record recovery, and correct cleanup-only console state.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[ ]` | 191 | Prevent archival of open queue sections | 🔴 P1 | 168 | [191](191-prevent-archival-of-open-queue-sections.md) |
+| `[x]` | 191 | Prevent archival of open queue sections | 🔴 P1 | 168 | [191](done/191-prevent-archival-of-open-queue-sections.md) |
 | `[ ]` | 192 | Allow SPIKE execution evidence at integration | 🔴 P1 | 142 | [192](192-allow-spike-execution-evidence-at-integration.md) |
 | `[ ]` | 193 | Align the SPIKE blueprint with worktree closure | 🟡 P2 | 192 | [193](193-align-spike-blueprint-with-worktree-closure.md) |
 | `[ ]` | 194 | Detect and repair stale worktree base records | 🟡 P2 | 189 | [194](194-detect-and-repair-stale-worktree-base-records.md) |
