@@ -1,6 +1,6 @@
 # Task [ID] — [Title]
 
-<!-- MERIDIAN:BEGIN capability=task-blueprint v16 -->
+<!-- MERIDIAN:BEGIN capability=task-blueprint v15 -->
 Priority: [P0 / P1 / P2]
 Status: QUEUED
 Review: REQUIRED
@@ -35,21 +35,14 @@ Class:       SPIKE
 Question:    [the thing that is not known]
 Budget:      [max iterations / max wall time]
 Deliverable: an ADR or a documented reference value — not production code
-Branch:      canonical task branch in its dedicated task worktree
-Probe branch: optional separate local throwaway branch, never merged or pushed
+Branch:      throwaway, never merged
 ```
 
-The optional probe branch may contain code needed to answer `Question` — a
-probe binary, a reproduction, a benchmark harness. Keep it separate from the
-canonical task branch; probe code is never merged or pushed. Record the answer
-as the `Deliverable` on the canonical task branch, together with only the
-lifecycle and evidence records permitted by `PROJECT_WORKFLOW.md` and
-`docs/WORKTREE_LIFECYCLE.md` (including the canonical execution-evidence ledger).
-Do not commit the deliverable directly to `main`. The canonical task branch
-completes through the ordinary governed worktree closure and integration;
-`ANSWERED` or `INCONCLUSIVE` records the spike outcome, not an exemption from
-that closure. The deliverable remains an ADR or documented reference value,
-never production code.
+The branch may contain code needed to answer `Question` — a probe binary, a
+reproduction, a benchmark harness. Only the branch is throwaway, not
+everything run on it: the constraint is on what gets merged (nothing) and
+what ships (the `Deliverable` alone, committed directly to `main`), not on
+what the investigation is allowed to execute.
 
 ## Authority
 

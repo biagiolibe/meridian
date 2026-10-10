@@ -63,7 +63,8 @@
     "061-governed-phase-reads",
     "062-primary-project-declaration-and-review-authority",
     "063-retire-reasoning-budget-contract",
-    "064-closure-text-uses-advance"
+    "064-closure-text-uses-advance",
+    "065-spike-blueprint-worktree-closure"
   ],
   "capabilityProfiles": {
     "meridian-self-hosting": {
@@ -343,7 +344,7 @@
       "profileVersion": 1
     }
   },
-  "frameworkVersion": "1.2.11",
+  "frameworkVersion": "1.2.12",
   "managedFiles": {
     ".codex/hooks.json": "80e7c15e6133c0286613fe4ccf5e73b1a2e229fbffbf24c128f1395f3d012e7b",
     ".codex/rules/meridian.rules": "67ed1da6b14d5ded493cf14b6432de14d18aafbefa5e4c8c793feb6052d86d20",
@@ -357,6 +358,6 @@
     "docs/WORKTREE_LIFECYCLE.md": "b0b7868ef13bbbf1eb9057b93d5a9fa75f872470db69e737872e082700ca5831"
   },
   "protocolVersion": 2,
-  "workflowBaselineVersion": "1.2.11",
+  "workflowBaselineVersion": "1.2.12",
   "workflowMode": "lean-delivery"
 }
