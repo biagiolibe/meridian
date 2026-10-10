@@ -1,6 +1,6 @@
 # Bounded Worktree Lifecycle
 
-<!-- MERIDIAN:BEGIN capability=worktree-lifecycle v2 -->
+<!-- MERIDIAN:BEGIN capability=worktree-lifecycle v3 -->
 Use the host-neutral `meridian worktree` namespace for task checkout lifecycle
 operations. Commands exit `0` on success, `2` when blocked, and `64` on usage
 errors. The root resolves from an explicit option, the environment, user
@@ -37,6 +37,34 @@ the exact candidate tree, `passed: true`, the required `bounded` or `full`
 scope, and the successful commands. The CLI rejects stale or incomplete
 evidence, requires `git diff --check` in every candidate command list, and
 never executes project-provided commands.
+
+## Commit-less fast-forward recovery
+
+A clean task branch advanced only by `git merge main --ff-only` before any
+task commit may retain a stale recorded base. Detection requires an intact
+branch reflog proving creation from that base followed only by fast-forward
+merges from `main`, no task commits, and a HEAD that is an ancestor of current
+`main`; a different merge base alone is not proof. `check`, ordinary `prepare`,
+and closure report `BLOCKED STALE_WORKTREE_BASE`; `prepare --resume` preserves
+state without mutation.
+
+Run `meridian worktree repair-base <TASK-ID> --project <primary> --format json`
+from the primary checkout or canonical worktree. It requires a clean,
+correctly registered worktree, matching lifecycle identity, and no integration
+lease or staged merge. It changes only recorded `base_commit` and `task_commit`
+to current task HEAD, preserving identity and timing; it never advances Git or
+edits a handoff. Existing validation evidence stays unchanged and becomes
+stale: renew validation and record new evidence before closure. The result
+reports `evidence_renewal_required: true`; repeating recovery at the same commit
+is a read-only no-op. Unproven transitions report `BLOCKED WRONG_WORKTREE`.
+
+## Conservative queue-section archival
+
+Only `###` sections are archival candidates; each ends at the next heading of
+the same or higher level, including its nested headings. Every task table and
+row must be recognized and terminal (`[x]` in Lean Delivery). An open or
+ambiguous table retains the entire section; warnings name the section and
+reason. Ambiguous or project-shaped tables are retained rather than guessed.
 
 ## Candidate validation by integration outcome
 

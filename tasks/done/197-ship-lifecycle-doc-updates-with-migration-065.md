@@ -28,7 +28,7 @@ adding a second migration.
 
 ## Acceptance Criteria
 
-- [ ] Both template copies of `docs/WORKTREE_LIFECYCLE.md` gain a concise
+- [x] Both template copies of `docs/WORKTREE_LIFECYCLE.md` gain a concise
   version of the three behaviors above, written for an adopting project:
   - a commit-less fast-forward recovery section that covers when
     `STALE_WORKTREE_BASE` is reported, how to run `repair-base`, what it
@@ -41,23 +41,23 @@ adding a second migration.
   The SPIKE paragraph goes only into the Governed SDD copy unless the Lean
   copy already describes SPIKE tasks. Wording follows the repository copy
   where it fits, and nothing else in the copies changes.
-- [ ] The `worktree-lifecycle` marker moves from v2 to v3 in both copies.
+- [x] The `worktree-lifecycle` marker moves from v2 to v3 in both copies.
   Migration 065 changes from its single `capability` and `capabilityVersion`
   pair to a `capabilities` list and per-mode `capabilityVersions`, following
   migration 064's format. The list keeps `task-blueprint` v16 and adds
   `worktree-lifecycle` v3. `docs/WORKTREE_LIFECYCLE.md` is added to
   `managedPaths`, and the `delta` describes only the added text.
   Migration 065 keeps its `id`, `from`, and `to`.
-- [ ] `migrations/marker-baselines/CAPABILITY_MARKER_BASELINES.json`,
+- [x] `migrations/marker-baselines/CAPABILITY_MARKER_BASELINES.json`,
   `migrations/CAPABILITY_MARKERS.md`, and this repository's own managed
   baseline under `.meridian/baselines/1.2.12/`, if it carries the file, are
   updated consistently. `meridian audit` reports no drift.
-- [ ] `meridian upgrade --check` on copies of the Palimpsest and Fusa manifests
+- [x] `meridian upgrade --check` on copies of the Palimpsest and Fusa manifests
   shows both 065 changes and no `BLOCKED`; the results go in the handoff.
-- [ ] `VERSION` stays 1.2.12 and no new migration file is added.
-- [ ] One changelog fragment states the documentation under `Documentation`
+- [x] `VERSION` stays 1.2.12 and no new migration file is added.
+- [x] One changelog fragment states the documentation under `Documentation`
   and the action under `Upgrade notes`.
-- [ ] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
+- [x] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
   --parallel`, and `git diff --check` pass.
 
 ## Relevant Files
@@ -97,3 +97,9 @@ publishing 1.2.12.
 
 - **Depends on**: 191, 192, 194
 - **Blocks**: publication of 1.2.12
+
+## Completion
+
+Implemented and validated on `task-197`; see `tasks/handoffs/197.md`.
+Migration 065 delivers both capabilities without changing VERSION or adding
+a migration. Queue and project-plan closure are owned by integration stage.

@@ -122,7 +122,7 @@ class StandaloneBlockTemplateTest(unittest.TestCase):
     def test_lifecycle_and_remote_cleanup_are_managed_capabilities(self) -> None:
         for mode in ("governed-sdd", "lean-delivery"):
             text = self.read(f"{mode}/docs/WORKTREE_LIFECYCLE.md")
-            self.assertEqual(meridian.marker_pairs(text), [("worktree-lifecycle", 2)])
+            self.assertEqual(meridian.marker_pairs(text), [("worktree-lifecycle", 3)])
         policy = self.read("governed-sdd/docs/PULL_REQUEST_POLICY.md")
         self.assertIn(("remote-branch-cleanup", 1), meridian.marker_pairs(policy))
         self.assertNotIn("distinct authorized reviewer identity", policy)
