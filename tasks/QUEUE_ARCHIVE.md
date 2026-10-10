@@ -721,3 +721,11 @@ provide supported base-record recovery, and correct cleanup-only console state.
 | `[x]` | 194 | Detect and repair stale worktree base records | 🟡 P2 | 189 | [194](done/194-detect-and-repair-stale-worktree-base-records.md) |
 | `[x]` | 195 | Count cleanup-pending tasks as done in the console | 🟡 P2 | 124, 186 | [195](done/195-console-count-cleanup-pending-tasks-as-done.md) |
 | `[x]` | 196 | Tolerate archived task records in the console before integration | 🟡 P2 | 195 | [196](done/196-console-tolerate-archived-records-before-integration.md) |
+
+### Phase 60 — 1.2.12 release readiness
+
+Authority: release readiness review of 2026-10-10; lifecycle documentation for tasks 191, 192, and 194 that adopted projects do not yet receive.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 197 | Ship the 1.2.12 lifecycle documentation through migration 065 | 🟡 P2 | 191, 192, 194 | [197](done/197-ship-lifecycle-doc-updates-with-migration-065.md) |

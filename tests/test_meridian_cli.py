@@ -1806,8 +1806,11 @@ worktree before the branch only after validated integration succeeds.
                 ), count=1,
             ),
             "docs/WORKTREE_LIFECYCLE.md": resume_bullet.sub(
-                "", current["docs/WORKTREE_LIFECYCLE.md"].replace(
-                    "capability=worktree-lifecycle v2", "capability=worktree-lifecycle v1"
+                "", re.sub(
+                    r"## Commit-less fast-forward recovery.*?(?=## Candidate validation)",
+                    "", current["docs/WORKTREE_LIFECYCLE.md"], flags=re.DOTALL,
+                ).replace(
+                    "capability=worktree-lifecycle v3", "capability=worktree-lifecycle v1"
                 ), count=1,
             ),
         }
@@ -1841,7 +1844,7 @@ worktree before the branch only after validated integration succeeds.
         self.assertIn("`--resume` is allowed only for that directive", upgraded)
         self.assertIn("Consumer-owned resume note.", upgraded)
         lifecycle = (self.project / "docs/WORKTREE_LIFECYCLE.md").read_text(encoding="utf-8")
-        self.assertIn("capability=worktree-lifecycle v2", lifecycle)
+        self.assertIn("capability=worktree-lifecycle v3", lifecycle)
         self.assertIn("Only a Resume directive adds `--resume`", lifecycle)
 
     def test_upgrade_installs_closure_command_policy_for_lean_and_keeps_local_rules(self) -> None:
