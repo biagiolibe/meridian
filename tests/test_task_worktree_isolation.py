@@ -1593,6 +1593,91 @@ class GovernedCompletionRowsTest(unittest.TestCase):
         self.assertEqual(retained, inconclusive)
         self.assertIsNone(archive)
 
+    def test_governed_spike_integrates_declared_validation_evidence(self) -> None:
+        docs = self.primary / "docs"
+        docs.mkdir()
+        (docs / "EXECUTION_EVIDENCE_PROFILE.md").write_text("profile\n", encoding="utf-8")
+        task = self.primary / "tasks/056-lifecycle.md"
+        task.write_text(
+            "# Task 056\n\n> **ID**: `056`\n\nClass: SPIKE\nStatus: QUEUED\n"
+            "Question: Does the declared probe pass?\nBudget: 1 iteration\n"
+            "Deliverable: `docs/answer.md#result`\n\n## Authority\n\n"
+            "## Validation\n\n- `probe`: `test -f docs/answer.md`\n",
+            encoding="utf-8",
+        )
+        task.write_text(task.read_text(encoding="utf-8") + "\n" +
+                        meridian.execution_contract(self.primary, "056") + "\n", encoding="utf-8")
+        queue = self.primary / "tasks/QUEUE.md"
+        queue.write_text(queue.read_text(encoding="utf-8").replace("NOT_REQUIRED", "SPIKE"), encoding="utf-8")
+        self.git("add", "-A")
+        self.git("commit", "-m", "declare spike validation")
+        self.base = self.git("rev-parse", "HEAD").stdout.strip()
+        prepared = self.prepare()
+        worktree = Path(str(prepared["worktree"]))
+        (worktree / "docs/answer.md").write_text("# Result\n\nThe probe passes.\n", encoding="utf-8")
+        validated = subprocess.run(
+            [sys.executable, str(ROOT / "scripts/meridian.py"), "execution", "validate", "056", "probe",
+             "--project", str(worktree)], cwd=worktree, text=True, capture_output=True, check=False,
+        )
+        self.assertEqual(validated.returncode, 0, validated.stderr)
+        ledger = worktree / meridian.EXECUTION_EVIDENCE_PATH
+        evidence_bytes = ledger.read_bytes()
+        self.assertEqual(json.loads(evidence_bytes)["056"], [
+            {"id": "probe", "command": "test -f docs/answer.md", "exitStatus": 0},
+        ])
+        task = worktree / "tasks/056-lifecycle.md"
+        task.write_text(task.read_text(encoding="utf-8").replace("Status: QUEUED", "Status: ANSWERED"), encoding="utf-8")
+        self.git("add", "-A", cwd=worktree)
+        self.git("commit", "-m", "answer spike with durable evidence", cwd=worktree)
+        task_commit = self.git("rev-parse", "HEAD", cwd=worktree).stdout.strip()
+        evidence_path = self.root / "integration-evidence.json"
+        evidence_path.write_text(json.dumps({
+            "accepted": True, "validation_passed": True,
+            "validated_task_commit": task_commit, "validated_base_commit": self.base,
+            "full_validation_required": False, "interaction_assessment_complete": True,
+            "task_paths": [str(meridian.EXECUTION_EVIDENCE_PATH), "docs/answer.md", "tasks/056-lifecycle.md"],
+            "task_dependencies": [], "task_behavioral_surfaces": [],
+            "main_advanced_dependencies": [], "main_advanced_behavioral_surfaces": [],
+        }), encoding="utf-8")
+        staged = meridian.stage_task_integration("056", self.worktree_root, evidence_path, self.primary)
+        self.assertEqual(staged["decision"], "REUSE")
+        self.assertEqual((self.primary / meridian.EXECUTION_EVIDENCE_PATH).read_bytes(), evidence_bytes)
+        self.assertEqual(self.git("show", f":{meridian.EXECUTION_EVIDENCE_PATH}").stdout.encode(), evidence_bytes)
+        candidate = self.root / "candidate-validation.json"
+        candidate.write_text(json.dumps({
+            "candidate_tree": staged["candidate_tree"], "passed": True, "scope": "bounded",
+            "commands": ["git diff --check", "python3 scripts/check_repository.py"],
+        }), encoding="utf-8")
+        meridian.finalize_task_integration("056", candidate, self.primary)
+        self.assertEqual((self.primary / meridian.EXECUTION_EVIDENCE_PATH).read_bytes(), evidence_bytes)
+        self.assertEqual((self.primary / "docs/answer.md").read_bytes(), (worktree / "docs/answer.md").read_bytes())
+        self.assertIn("ANSWERED | SPIKE", (self.primary / "tasks/QUEUE_ARCHIVE.md").read_text(encoding="utf-8"))
+
+    def test_spike_path_allowlist_stays_exact_and_does_not_restrict_normal_tasks(self) -> None:
+        prepared = self.prepare()
+        worktree = Path(str(prepared["worktree"]))
+        task = worktree / "tasks/056-lifecycle.md"
+        task.write_text(task.read_text(encoding="utf-8") +
+                        "\nClass: SPIKE\nDeliverable: `docs/answer.md`\n", encoding="utf-8")
+        paths = [".meridian/execution-evidence.json", ".meridian/execution-evidence-extra.json",
+                 ".meridian/other.json", "docs/answer.md", "docs/undeclared.md", "source.py"]
+        for path in paths:
+            target = worktree / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text("changed\n", encoding="utf-8")
+        self.git("add", "-A", cwd=worktree)
+        self.git("commit", "-m", "exercise exact spike path boundary", cwd=worktree)
+        identity = meridian.resolve_task_identity(self.primary, "056", "existing")
+        commit = self.git("rev-parse", "HEAD", cwd=worktree).stdout.strip()
+        self.assertEqual(set(meridian._spike_disallowed_paths(self.primary.resolve(), identity, self.base, commit)), {
+            ".meridian/execution-evidence-extra.json", ".meridian/other.json", "docs/undeclared.md", "source.py",
+        })
+        task.write_text(task.read_text(encoding="utf-8").replace("Class: SPIKE", "Class: NORMAL"), encoding="utf-8")
+        self.git("add", "tasks/056-lifecycle.md", cwd=worktree)
+        self.git("commit", "-m", "exercise normal task path behavior", cwd=worktree)
+        commit = self.git("rev-parse", "HEAD", cwd=worktree).stdout.strip()
+        self.assertEqual(meridian._spike_disallowed_paths(self.primary.resolve(), identity, self.base, commit), ())
+
     def test_governed_stage_blocks_a_spike_source_change_before_a_lease(self) -> None:
         task = self.primary / "tasks/056-lifecycle.md"
         task.write_text(
