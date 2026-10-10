@@ -47,5 +47,5 @@ provide supported base-record recovery, and correct cleanup-only console state.
 | `[x]` | 191 | Prevent archival of open queue sections | 🔴 P1 | 168 | [191](done/191-prevent-archival-of-open-queue-sections.md) |
 | `[x]` | 192 | Allow SPIKE execution evidence at integration | 🔴 P1 | 142 | [192](done/192-allow-spike-execution-evidence-at-integration.md) |
 | `[x]` | 193 | Align the SPIKE blueprint with worktree closure | 🟡 P2 | 192 | [193](done/193-align-spike-blueprint-with-worktree-closure.md) |
-| `[ ]` | 194 | Detect and repair stale worktree base records | 🟡 P2 | 189 | [194](194-detect-and-repair-stale-worktree-base-records.md) |
+| `[x]` | 194 | Detect and repair stale worktree base records | 🟡 P2 | 189 | [194](done/194-detect-and-repair-stale-worktree-base-records.md) |
 | `[ ]` | 195 | Count cleanup-pending tasks as done in the console | 🟡 P2 | 124, 186 | [195](195-console-count-cleanup-pending-tasks-as-done.md) |
