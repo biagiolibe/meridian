@@ -707,3 +707,17 @@ Authority: developer decision of 2026-10-08 during the 1.2.11 release preparatio
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
 | `[x]` | 190 | Make agent evaluations an optional tool, not a release gate | 🔴 P1 | — | [190](done/190-make-agent-evaluations-optional.md) |
+
+### Phase 48 — GitHub issue fixes
+
+Prioritize safe queue archival, unblock SPIKE closure, align its blueprint,
+provide supported base-record recovery, and correct cleanup-only console state.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 191 | Prevent archival of open queue sections | 🔴 P1 | 168 | [191](done/191-prevent-archival-of-open-queue-sections.md) |
+| `[x]` | 192 | Allow SPIKE execution evidence at integration | 🔴 P1 | 142 | [192](done/192-allow-spike-execution-evidence-at-integration.md) |
+| `[x]` | 193 | Align the SPIKE blueprint with worktree closure | 🟡 P2 | 192 | [193](done/193-align-spike-blueprint-with-worktree-closure.md) |
+| `[x]` | 194 | Detect and repair stale worktree base records | 🟡 P2 | 189 | [194](done/194-detect-and-repair-stale-worktree-base-records.md) |
+| `[x]` | 195 | Count cleanup-pending tasks as done in the console | 🟡 P2 | 124, 186 | [195](done/195-console-count-cleanup-pending-tasks-as-done.md) |
+| `[x]` | 196 | Tolerate archived task records in the console before integration | 🟡 P2 | 195 | [196](done/196-console-tolerate-archived-records-before-integration.md) |
