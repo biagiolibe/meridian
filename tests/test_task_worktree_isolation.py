@@ -1087,6 +1087,79 @@ class BoundedWorktreeLifecycleTest(unittest.TestCase):
         self.assertIn("### Phase 1 — Closing", archive.read_text(encoding="utf-8"))
         self.assertIn("| `[x]` | 056 | Lifecycle |", archive.read_text(encoding="utf-8"))
 
+    def test_archival_checks_all_tables_and_nested_rows_in_both_modes(self) -> None:
+        for mode in ("lean-delivery", "governed-sdd"):
+            if mode == "lean-delivery":
+                header = "| Status | ID | Title |\n|---|---|---|\n"
+                closed = "| `[x]` | A | Done |\n"
+                terminals = ("[x]",)
+                open_states = ("[ ]", "[/]")
+                row = lambda status: f"| `{status}` | B | Other |\n"
+            else:
+                header = "| Order | ID | Priority | Status | Review | Dependencies | Task file |\n|---|---|---|---|---|---|---|\n"
+                closed = "| 1 | A | P0 | ACCEPTED | NOT_REQUIRED | — | A.md |\n"
+                terminals = ("ACCEPTED", "ANSWERED")
+                open_states = ("QUEUED", "IN_PROGRESS", "CHANGES_REQUESTED", "READY_FOR_REVIEW", "INCONCLUSIVE")
+                row = lambda status: f"| 2 | B | P0 | {status} | SPIKE | — | B.md |\n"
+            for nested in ("", "#### Nested\n", "##### Deep\n"):
+                for status in terminals + open_states:
+                    with self.subTest(mode=mode, nested=nested, status=status):
+                        contents = "### Phase\n" + header + closed + "\n" + nested + header + row(status)
+                        retained, archive = meridian._archive_completed_queue_sections(
+                            contents, self.primary / "custom/QUEUE.md", self.primary / "archive.md", mode
+                        )
+                        if status in terminals:
+                            self.assertEqual(retained, "\n")
+                            self.assertEqual((archive or "").count(closed), 1)
+                            self.assertEqual((archive or "").count(row(status)), 1)
+                        else:
+                            self.assertEqual(retained, contents)
+                            self.assertIsNone(archive)
+                for malformed in (header + row("UNKNOWN"), header.splitlines()[0] + "\n", header + row(terminals[0]).replace(" | B |", " | B | extra |")):
+                    contents = "### Ambiguous\n" + header + closed + "\n" + nested + malformed
+                    retained, archive = meridian._archive_completed_queue_sections(
+                        contents, self.primary / "QUEUE.md", self.primary / "archive.md", mode
+                    )
+                    self.assertEqual(retained, contents)
+                    self.assertIsNone(archive)
+                    warnings = meridian._queue_archival_warnings(contents, mode)
+                    self.assertEqual(len(warnings), 1)
+                    self.assertIn("### Ambiguous", warnings[0])
+
+    def test_archival_mixed_boundaries_do_not_duplicate_nested_content(self) -> None:
+        table = "| Status | ID | Title |\n|---|---|---|\n| `[x]` | A | Done |\n"
+        contents = "# Queue\n## Parent\n### One\n" + table + "#### Notes\nText\n### Two\n" + table + "# Later\nKeep me\n"
+        retained, archive = meridian._archive_completed_queue_sections(
+            contents, self.primary / "QUEUE.md", self.primary / "archive.md"
+        )
+        self.assertEqual(retained, "# Queue\n## Parent\n# Later\nKeep me\n")
+        self.assertEqual((archive or "").count("#### Notes"), 1)
+        self.assertEqual((archive or "").count(table), 2)
+        self.assertNotIn("Keep me", archive or "")
+        self.assertEqual(meridian._queue_archival_warnings(contents), [])
+
+    def test_issue_8_archival_does_not_carry_later_open_phase(self) -> None:
+        contents = (
+            "## Phase A\n### Completed\n"
+            "| Order | ID | Priority | Status | Review | Dependencies | Task file |\n"
+            "|---|---|---|---|---|---|---|\n"
+            "| 1 | A | P0 | ACCEPTED | NOT_REQUIRED | — | A.md |\n"
+            "## Phase B\n"
+            "| Order | ID | Priority | Status | Review | Dependencies | Task file |\n"
+            "|---|---|---|---|---|---|---|\n"
+            "| 1 | B-SPIKE | P0 | QUEUED | SPIKE | — | B.md |\n"
+        )
+        retained, archive = meridian._archive_completed_queue_sections(
+            contents, self.primary / "docs/QUEUE.md", self.primary / "archive.md", "governed-sdd"
+        )
+        self.assertIn("B-SPIKE", retained)
+        self.assertNotIn("B-SPIKE", archive or "")
+        self.assertIn("A.md", archive or "")
+        self.assertNotIn("tasks/QUEUE.md", archive or "")
+        warnings = meridian._queue_archival_warnings(contents, "governed-sdd")
+        self.assertEqual(len(warnings), 1)
+        self.assertIn("## Phase B", warnings[0])
+
     def test_completed_queue_archival_leaves_an_open_phase_in_place(self) -> None:
         queue = self.primary / "tasks/QUEUE.md"
         contents = (
@@ -1144,7 +1217,7 @@ class BoundedWorktreeLifecycleTest(unittest.TestCase):
         self.assertEqual(repeated_queue, archived)
         self.assertIsNone(repeated_archive)
 
-    def test_completion_rows_reject_unknown_section_shape_without_editing(self) -> None:
+    def test_completion_rows_retain_ambiguous_archival_section_with_warning(self) -> None:
         identity = meridian.resolve_task_identity(self.primary, "056", "existing")
         queue = self.primary / "tasks/QUEUE.md"
         contents = (
@@ -1154,9 +1227,14 @@ class BoundedWorktreeLifecycleTest(unittest.TestCase):
             "| Status | ID | Title |\n|---|---|---|\n| [x] | 057 | Malformed status |\n"
         )
         queue.write_text(contents, encoding="utf-8")
-        with self.assertRaisesRegex(meridian.MeridianError, "unrecognized queue section shape"):
-            meridian._apply_task_completion_rows(self.primary, identity)
-        self.assertEqual(queue.read_text(encoding="utf-8"), contents)
+        result = meridian._apply_task_completion_rows(self.primary, identity)
+        retained = queue.read_text(encoding="utf-8")
+        self.assertEqual(result["status"], "COMPLETED")
+        self.assertIn(contents[contents.index("### Phase 2"):], retained)
+        warnings = meridian._queue_archival_warnings(retained)
+        self.assertEqual(len(warnings), 1)
+        self.assertIn("### Phase 2 — Malformed", warnings[0])
+        self.assertIn("unrecognized task row", warnings[0])
 
     def test_stage_blocks_invalid_archive_before_creating_lifecycle_state(self) -> None:
         prepared = self.prepare()
