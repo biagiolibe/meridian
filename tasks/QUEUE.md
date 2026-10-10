@@ -49,3 +49,4 @@ provide supported base-record recovery, and correct cleanup-only console state.
 | `[x]` | 193 | Align the SPIKE blueprint with worktree closure | 🟡 P2 | 192 | [193](done/193-align-spike-blueprint-with-worktree-closure.md) |
 | `[x]` | 194 | Detect and repair stale worktree base records | 🟡 P2 | 189 | [194](done/194-detect-and-repair-stale-worktree-base-records.md) |
 | `[ ]` | 195 | Count cleanup-pending tasks as done in the console | 🟡 P2 | 124, 186 | [195](195-console-count-cleanup-pending-tasks-as-done.md) |
+| `[ ]` | 196 | Tolerate archived task records in the console before integration | 🟡 P2 | 195 | [196](196-console-tolerate-archived-records-before-integration.md) |
