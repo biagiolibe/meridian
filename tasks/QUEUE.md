@@ -36,3 +36,16 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 
 Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, 25, 26, 27, 28, 31, 32, 34, 35, 36, 42, 44, 45, 46, and 47
 are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
+
+### Phase 48 — GitHub issue fixes
+
+Prioritize safe queue archival, unblock SPIKE closure, align its blueprint,
+provide supported base-record recovery, and correct cleanup-only console state.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 191 | Prevent archival of open queue sections | 🔴 P1 | 168 | [191](191-prevent-archival-of-open-queue-sections.md) |
+| `[ ]` | 192 | Allow SPIKE execution evidence at integration | 🔴 P1 | 142 | [192](192-allow-spike-execution-evidence-at-integration.md) |
+| `[ ]` | 193 | Align the SPIKE blueprint with worktree closure | 🟡 P2 | 192 | [193](193-align-spike-blueprint-with-worktree-closure.md) |
+| `[ ]` | 194 | Detect and repair stale worktree base records | 🟡 P2 | 189 | [194](194-detect-and-repair-stale-worktree-base-records.md) |
+| `[ ]` | 195 | Count cleanup-pending tasks as done in the console | 🟡 P2 | 124, 186 | [195](195-console-count-cleanup-pending-tasks-as-done.md) |
