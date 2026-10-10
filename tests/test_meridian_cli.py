@@ -8219,7 +8219,7 @@ class WorktreeLifecycleCliTest(unittest.TestCase):
             "accepted": True,
             "validation_passed": True,
             "validated_task_commit": task_commit,
-            "validated_base_commit": task_commit,
+            "validated_base_commit": json.loads(prepared.stdout)["base_commit"],
             "full_validation_required": False,
             "interaction_assessment_complete": True,
             "task_paths": [],
@@ -8376,7 +8376,7 @@ class WorktreeLifecycleCliTest(unittest.TestCase):
             "ACCEPTANCE_UNMET", "VALIDATION_FAILED", "REVIEW_REQUIRED", "WRONG_WORKTREE", "EVIDENCE_INCOMPLETE",
             "PRIMARY_DIRTY", "MAIN_BEHIND_ORIGIN", "LEASE_HELD", "INTEGRATION_CONFLICT",
             "CANDIDATE_VALIDATION_FAILED", "EVIDENCE_MISMATCH", "PUSH_PENDING", "PUSH_REJECTED", "CLEANUP_BLOCKED",
-            "UNDECLARED_VALIDATION_COMMANDS",
+            "UNDECLARED_VALIDATION_COMMANDS", "STALE_WORKTREE_BASE",
         )
         gates = (
             "EXECUTION_CONTRACT_UNRESOLVED", "EXECUTION_PROFILE_MISSING", "VALIDATION_ENTRY_FORMAT",

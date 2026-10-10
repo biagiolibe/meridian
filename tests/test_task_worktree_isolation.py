@@ -381,6 +381,153 @@ class BoundedWorktreeLifecycleTest(unittest.TestCase):
     def resume(self) -> dict[str, object]:
         return meridian.prepare_task_worktree("056", self.worktree_root, self.primary, resume=True)
 
+    def stale_base(self) -> tuple[dict[str, object], Path]:
+        prepared = self.prepare()
+        worktree = Path(str(prepared["worktree"]))
+        (self.primary / "upstream.txt").write_text("main advancement\n", encoding="utf-8")
+        self.git("add", "upstream.txt")
+        self.git("commit", "-m", "advance main")
+        self.git("merge", "main", "--ff-only", cwd=worktree)
+        return prepared, worktree
+
+    def test_stale_base_check_and_repair(self) -> None:
+        prepared, worktree = self.stale_base()
+        identity = meridian.resolve_task_identity(self.primary, "056", "existing")
+        state_path, _, _ = meridian._lifecycle_paths(self.primary, identity)
+        evidence_path = state_path.with_suffix(".evidence.json")
+        evidence_path.write_text(json.dumps({"validated_base_commit": self.base}), encoding="utf-8")
+        evidence_before = evidence_path.read_bytes()
+        before = self.snapshot(worktree)
+        os.chdir(worktree)
+        report, ready = meridian.inspect_task_worktree("056", self.worktree_root, self.primary)
+        self.assertFalse(ready)
+        self.assertEqual(report["errors"], ["stale-base-record"])
+        self.assertEqual(report["stop_reason"], "STALE_WORKTREE_BASE")
+        self.assertEqual(before, self.snapshot(worktree))
+        command = [sys.executable, str(ROOT / "scripts/meridian.py"), "worktree", "check",
+                   "056", "--project", str(self.primary), "--worktree-root", str(self.worktree_root),
+                   "--format", "json"]
+        checked = subprocess.run(command, cwd=worktree, text=True, capture_output=True, check=False)
+        self.assertEqual(checked.returncode, 2)
+        self.assertEqual(checked.stderr.strip(),
+                         "BLOCKED STALE_WORKTREE_BASE: worktree check reported: stale-base-record; resume: "
+                         + str(report["resume"]))
+        self.assertEqual(before, self.snapshot(worktree))
+        self.assertEqual(self.resume()["base_commit"], self.base)
+        self.assertEqual(before, self.snapshot(worktree))
+        with self.assertRaisesRegex(meridian.MeridianError, "BLOCKED STALE_WORKTREE_BASE:"):
+            self.prepare()
+        closure, _ = meridian.closure_status("056", self.worktree_root, self.primary)
+        self.assertEqual(closure["stop_reason"], "STALE_WORKTREE_BASE")
+        original = json.loads(state_path.read_text(encoding="utf-8"))
+        recovered = meridian.repair_task_worktree_base("056", self.worktree_root, self.primary)
+        self.assertTrue(recovered["repaired"])
+        self.assertTrue(recovered["evidence_renewal_required"])
+        renewed = json.loads(state_path.read_text(encoding="utf-8"))
+        head = self.git("rev-parse", "HEAD", cwd=worktree).stdout.strip()
+        self.assertEqual(renewed, {**original, "base_commit": head, "task_commit": head})
+        self.assertEqual(renewed["started_at"], prepared["started_at"])
+        self.assertEqual(evidence_before, evidence_path.read_bytes())
+        snapshot = self.snapshot(worktree)
+        self.assertFalse(meridian.repair_task_worktree_base("056", self.worktree_root, self.primary)["repaired"])
+        command[3] = "repair-base"
+        repeated = subprocess.run(command, cwd=worktree, text=True, capture_output=True, check=False)
+        self.assertEqual(repeated.returncode, 0, repeated.stderr)
+        self.assertFalse(json.loads(repeated.stdout)["repaired"])
+        self.assertEqual(snapshot, self.snapshot(worktree))
+        self.assertTrue(meridian.inspect_task_worktree("056", self.worktree_root, self.primary)[1])
+        # Another main fast-forward after recovery remains provable.
+        (self.primary / "second.txt").write_text("second main advancement\n", encoding="utf-8")
+        self.git("add", "second.txt")
+        self.git("commit", "-m", "advance main again")
+        self.git("merge", "main", "--ff-only", cwd=worktree)
+        self.assertEqual(meridian.inspect_task_worktree("056", self.worktree_root, self.primary)[0]["stop_reason"],
+                         "STALE_WORKTREE_BASE")
+        self.assertTrue(meridian.repair_task_worktree_base("056", self.worktree_root, self.primary)["repaired"])
+
+    def test_repaired_base_rejects_old_validation_evidence(self) -> None:
+        _, worktree = self.stale_base()
+        meridian.repair_task_worktree_base("056", self.worktree_root, self.primary)
+        (worktree / "task.txt").write_text("task work\n", encoding="utf-8")
+        self.git("add", "task.txt", cwd=worktree)
+        self.git("commit", "-m", "task work", cwd=worktree)
+        os.chdir(worktree)
+        recorded = meridian.record_task_evidence(
+            "056", self.worktree_root, validation_commands=["git diff --check"], validation_exit_codes=[0],
+            accepted=True, task_dependencies=[], task_behavioral_surfaces=[], main_advanced_dependencies=[],
+            main_advanced_behavioral_surfaces=[], full_validation_required=False, supplied_project=self.primary,
+        )
+        evidence_path = Path(str(recorded["evidence"]))
+        evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+        evidence["validated_base_commit"] = self.base
+        evidence_path.write_text(json.dumps(evidence), encoding="utf-8")
+        before = evidence_path.read_bytes()
+        os.chdir(self.primary)
+        self.assertEqual(meridian.closure_status("056", self.worktree_root, self.primary)[0]["step"], "C5")
+        with self.assertRaisesRegex(meridian.MeridianError, "BLOCKED EVIDENCE_MISMATCH:"):
+            meridian.stage_task_integration("056", self.worktree_root, evidence_path, self.primary)
+        self.assertEqual(evidence_path.read_bytes(), before)
+        self.assertFalse((self.primary / ".git/MERGE_HEAD").exists())
+
+    def test_base_repair_rejects_unsafe_worktree_facts(self) -> None:
+        _, worktree = self.stale_base()
+        identity = meridian.resolve_task_identity(self.primary, "056", "existing")
+        state_path, lease, integration = meridian._lifecycle_paths(self.primary, identity)
+        original = state_path.read_bytes()
+        mutations = [
+            (worktree / "dirty.txt", "dirty\n"),
+            (lease, '{}'), (integration, '{}'),
+        ]
+        for path, contents in mutations:
+            with self.subTest(path=path.name):
+                path.write_text(contents, encoding="utf-8")
+                with self.assertRaisesRegex(meridian.MeridianError, "BLOCKED WRONG_WORKTREE:"):
+                    meridian.repair_task_worktree_base("056", self.worktree_root, self.primary)
+                self.assertEqual(state_path.read_bytes(), original)
+                path.unlink()
+        for field in ("task_id", "project", "worktree", "branch", "worktree_root", "git_common_dir"):
+            with self.subTest(field=field):
+                state = json.loads(original)
+                state[field] = "unrelated"
+                state_path.write_text(json.dumps(state), encoding="utf-8")
+                before = state_path.read_bytes()
+                with self.assertRaisesRegex(meridian.MeridianError, "BLOCKED WRONG_WORKTREE:"):
+                    meridian.repair_task_worktree_base("056", self.worktree_root, self.primary)
+                self.assertEqual(state_path.read_bytes(), before)
+                state_path.write_bytes(original)
+        self.git("switch", "-c", "unrelated", cwd=worktree)
+        with self.assertRaisesRegex(meridian.MeridianError, "BLOCKED WRONG_WORKTREE:"):
+            meridian.repair_task_worktree_base("056", self.worktree_root, self.primary)
+
+    def test_task_commits_and_normal_main_advancement_are_not_stale(self) -> None:
+        prepared = self.prepare()
+        worktree = Path(str(prepared["worktree"]))
+        (worktree / "task.txt").write_text("task work\n", encoding="utf-8")
+        self.git("add", "task.txt", cwd=worktree)
+        self.git("commit", "-m", "task work", cwd=worktree)
+        (self.primary / "upstream.txt").write_text("main work\n", encoding="utf-8")
+        self.git("add", "upstream.txt")
+        self.git("commit", "-m", "main work")
+        self.assertTrue(meridian.inspect_task_worktree("056", self.worktree_root, self.primary,
+                                                      require_effective_worktree=False)[1])
+        with self.assertRaisesRegex(meridian.MeridianError, "unproven-fast-forward"):
+            meridian.repair_task_worktree_base("056", self.worktree_root, self.primary)
+        # Even after main contains the task commit, ancestry alone cannot prove recovery.
+        self.git("merge", "task-056", "--no-edit")
+        self.git("merge", "main", "--ff-only", cwd=worktree)
+        self.assertTrue(meridian.inspect_task_worktree("056", self.worktree_root, self.primary,
+                                                      require_effective_worktree=False)[1])
+        with self.assertRaisesRegex(meridian.MeridianError, "unproven-fast-forward"):
+            meridian.repair_task_worktree_base("056", self.worktree_root, self.primary)
+
+    def test_base_repair_requires_intact_fast_forward_reflog(self) -> None:
+        _, worktree = self.stale_base()
+        self.git("reflog", "expire", "--expire=now", "refs/heads/task-056")
+        self.assertTrue(meridian.inspect_task_worktree("056", self.worktree_root, self.primary,
+                                                      require_effective_worktree=False)[1])
+        with self.assertRaisesRegex(meridian.MeridianError, "unproven-fast-forward"):
+            meridian.repair_task_worktree_base("056", self.worktree_root, self.primary)
+
     def dirty_worktree(self) -> tuple[dict[str, object], Path]:
         prepared = self.prepare()
         worktree = Path(str(prepared["worktree"]))
