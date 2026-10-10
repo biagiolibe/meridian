@@ -26,25 +26,25 @@ independent of the live repository's governance state.
 
 ## Acceptance Criteria
 
-- [ ] When a queue row has a link whose target lies in a task root but does not exist,
+- [x] When a queue row has a link whose target lies in a task root but does not exist,
   `_task_path` searches the task roots for a record with the same file name as the link
   target, using the scan and exclusions of `RecordResolver`. It uses the result only when
   there is exactly one match whose heading names the same task. With zero or several
   matches, the existing error stays.
-- [ ] A link that leaves the project, or a link that is not unambiguous,
+- [x] A link that leaves the project, or a link that is not unambiguous,
   remains an error as today.
-- [ ] A fixture whose record was moved to `tasks/done/`, with a queue row that
+- [x] A fixture whose record was moved to `tasks/done/`, with a queue row that
   still links the original path, produces a valid snapshot that resolves the
   archived record.
-- [ ] Without any matching record, the snapshot still fails with an explicit
+- [x] Without any matching record, the snapshot still fails with an explicit
   error. The same holds for a link outside the project and for two matches.
-- [ ] `test_one_shot_against_repository` no longer depends on the live
+- [x] `test_one_shot_against_repository` no longer depends on the live
   repository's governance state. It still proves that the one-shot command
   works, but on a controlled copy or fixture, or a dedicated test covers the
   intermediate state. Its existing assertions are not weakened.
-- [ ] The suite passes both before and after a record is archived.
-- [ ] The `done` count and the behavior introduced by task 195 do not change.
-- [ ] `python3 scripts/check_repository.py`, the parallel unit suite, and `git
+- [x] The suite passes both before and after a record is archived.
+- [x] The `done` count and the behavior introduced by task 195 do not change.
+- [x] `python3 scripts/check_repository.py`, the parallel unit suite, and `git
   diff --check` pass.
 
 ## Relevant Files
