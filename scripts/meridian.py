@@ -1979,6 +1979,7 @@ def _spike_disallowed_paths(
         str(archived_path.relative_to(project_root)),
         str(identity.handoff_path.relative_to(project_root)),
         str(find_adr_log(project_root).relative_to(project_root)),
+        EXECUTION_EVIDENCE_PATH.as_posix(),
     }
     deliverable = read_task_field(task_record, "Deliverable") or ""
     allowed.update(
