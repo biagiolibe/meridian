@@ -164,6 +164,7 @@
 - `[x]` 195 — Count cleanup-pending tasks as done in the console.
 - `[x]` 196 — Tolerate archived task records in the console before integration.
 - `[x]` 197 — Ship the 1.2.12 lifecycle documentation through migration 065.
+- `[ ]` 198 — Report retired framework text left outside managed markers.
 - `[x]` 140 — Let `integrate stage` complete rows of project-shaped Governed queues.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.
