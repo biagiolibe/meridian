@@ -4,7 +4,7 @@
 > **Category**: Bugfix / Design
 > **Priority**: 🟡 P2
 > **Assigned to**: Codex
-> **Status**: IN_PROGRESS
+> **Status**: DONE
 > **Session**: GitHub issue triage, 2026-10-10
 
 ## Objective
@@ -17,26 +17,26 @@ Authority: the local worktree lifecycle and `docs/ADR_STOPS_AND_DENIALS.md`.
 
 ## Acceptance Criteria
 
-- [ ] Reproduce the reported sequence and distinguish it from ordinary main
+- [x] Reproduce the reported sequence and distinguish it from ordinary main
   advancement after task commits. Merely differing from the current merge base
   must not trigger automatic repair.
-- [ ] Record the chosen detection and repair contract in lifecycle documentation
+- [x] Record the chosen detection and repair contract in lifecycle documentation
   before implementation. Use Git ancestry and clean canonical worktree facts
   to prove the supported commit-less fast-forward case. If a broader repair
   requires unresolved architectural changes, report the concrete decision gap
   rather than silently extending this task.
-- [ ] `worktree check` remains read-only and identifies a proven stale record
+- [x] `worktree check` remains read-only and identifies a proven stale record
   with a registered actionable code and a supported recovery command.
-- [ ] The explicit recovery preserves task identity and `started_at`, changes
+- [x] The explicit recovery preserves task identity and `started_at`, changes
   only the owned base-record facts, and rejects unrelated branches, dirty or
   mismatched worktrees, task-owned commits, and active integration state.
-- [ ] Evidence tied to the previous base is not silently reused or rewritten
+- [x] Evidence tied to the previous base is not silently reused or rewritten
   as passed; recovery explicitly requires or records renewed evidence.
-- [ ] Repeated recovery is idempotent. Tests cover the reported sequence,
+- [x] Repeated recovery is idempotent. Tests cover the reported sequence,
   rejection cases, normal advanced-main integration, and resume non-mutation.
-- [ ] Document recovery and add a changelog fragment. Register any new stop
+- [x] Document recovery and add a changelog fragment. Register any new stop
   code and preserve existing command compatibility.
-- [ ] Repository checks, the full unit suite, and `git diff --check` pass.
+- [x] Repository checks, the full unit suite, and `git diff --check` pass.
 
 ## Relevant Files
 
