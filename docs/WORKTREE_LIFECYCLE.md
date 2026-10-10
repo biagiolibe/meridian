@@ -198,7 +198,10 @@ The explicit option remains available for finishing a worktree in an old root.
   record. A task record with `Class: SPIKE` needs no review record: stage sets its
   row to its terminal `ANSWERED` or `INCONCLUSIVE` status. A spike may integrate
   only its task record or exact archive rename, handoff, ADR log, documentation
-  paths named in its deliverable, and changelog fragments; any other task diff
+  paths named in its deliverable, changelog fragments, and the canonical
+  `.meridian/execution-evidence.json` ledger produced by `meridian execution
+  validate`. This exact ledger path does not permit other `.meridian/` paths
+  or relax validation evidence checks; any other task diff
   path blocks stage before a lease or merge. Any fully closed section moves to
   `tasks/QUEUE_ARCHIVE.md` using that
   mode's template table shape, creating it when needed; a project-shaped
