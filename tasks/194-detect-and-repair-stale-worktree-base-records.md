@@ -3,7 +3,8 @@
 > **ID**: `194`
 > **Category**: Bugfix / Design
 > **Priority**: 🟡 P2
-> **Assigned to**: unassigned
+> **Assigned to**: Codex
+> **Status**: IN_PROGRESS
 > **Session**: GitHub issue triage, 2026-10-10
 
 ## Objective

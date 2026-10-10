@@ -10,6 +10,7 @@ import hashlib
 import json
 import os
 import re
+import shlex
 import shutil
 import statistics
 import stat
@@ -981,6 +982,64 @@ def _dirty_summary(worktree: Path) -> dict[str, int]:
     return {"changed_paths": changed, "untracked_paths": untracked}
 
 
+def _proven_stale_base(project: Path, state: dict[str, object], head: str) -> bool:
+    """Prove only branch creation followed by commit-less main fast-forwards."""
+    base = state.get("base_commit")
+    if not isinstance(base, str) or base == head or state.get("task_commit") != base:
+        return False
+    if _run_git(project, "merge-base", "--is-ancestor", head, "main").returncode != 0:
+        return False
+    reflog = _run_git(project, "reflog", "show", "--format=%H%x09%gs", str(state.get("branch", "")))
+    entries = [line.split("\t", 1) for line in reversed(reflog.stdout.splitlines())]
+    if reflog.returncode or not entries or any(len(entry) != 2 for entry in entries):
+        return False
+    if not entries[0][1].startswith("branch: Created from "):
+        return False
+    previous = entries[0][0]
+    saw_base = previous == base
+    for commit, action in entries[1:]:
+        if (action != "merge main: Fast-forward" or commit == previous
+                or _run_git(project, "merge-base", "--is-ancestor", previous, commit).returncode != 0):
+            return False
+        previous = commit
+        saw_base = saw_base or commit == base
+    return saw_base and previous == head
+
+
+def repair_task_worktree_base(
+    task_id: str, worktree_root: Path | None, supplied_project: Path | None = None,
+) -> dict[str, object]:
+    project = _verified_lifecycle_project(supplied_project)
+    identity = resolve_task_identity(project, task_id, "existing")
+    report, _ready = inspect_task_worktree(task_id, worktree_root, project, require_effective_worktree=False)
+    errors = [item for item in report["errors"] if item != "stale-base-record"]
+    if Path.cwd().resolve() not in (project, Path(str(report["worktree"]))):
+        errors.append("wrong-worktree")
+    if report["integration_active"]:
+        errors.append("active-integration")
+    state_path, _lease, _integration = _lifecycle_paths(project, identity)
+    state = _read_json_object(state_path, "worktree lifecycle state") if state_path.is_file() else {}
+    head = str(report["task_commit"])
+    unchanged = state.get("base_commit") == head and state.get("task_commit") == head
+    if unchanged and _run_git(project, "merge-base", "--is-ancestor", head, "main").returncode != 0:
+        errors.append("task-owned-commits")
+    if errors or (not unchanged and "stale-base-record" not in report["errors"]):
+        raise stop_error(
+            "WRONG_WORKTREE", "base recovery rejected: " + ", ".join(errors or ["unproven-fast-forward"]),
+            task_id=identity.canonical_id, project=project,
+        )
+    old_base = state["base_commit"]
+    if not unchanged:
+        state.update(base_commit=head, task_commit=head)
+        _write_json_atomic(state_path, state)
+    return {
+        "version": 1, "task_id": identity.canonical_id, "repaired": not unchanged,
+        "previous_base_commit": old_base, "base_commit": head,
+        "evidence_renewal_required": True,
+        "next_action": "renew-validation-and-evidence",
+    }
+
+
 def prepare_task_worktree(
     task_id: str,
     worktree_root: Path | None,
@@ -1052,6 +1111,11 @@ def prepare_task_worktree(
                     f"meridian worktree prepare {identity.canonical_id} --project {project_root} --format json",
                 )
             base_commit = str(prior.get("base_commit", base_commit))
+            if not resume and _proven_stale_base(project_root, prior, str(branch_commit)):
+                raise stop_error("STALE_WORKTREE_BASE", "prepared branch fast-forwarded without task commits",
+                                 resume=stop_resume("STALE_WORKTREE_BASE", task_id=identity.canonical_id,
+                                                    project=shlex.quote(str(project_root)))
+                                 + f" --worktree-root {shlex.quote(str(root))}")
         elif resume:
             # Missing state is never repaired by a resume; Git supplies the facts instead.
             merge_base = _run_git(project_root, "merge-base", base, identity.branch_name)
@@ -1184,6 +1248,12 @@ def inspect_task_worktree(
         "errors": errors,
         "next_action": "implement" if not errors else "repair-or-abort",
     }
+    if not errors and not result["integration_active"] and _proven_stale_base(project_root, state, head):
+        errors.append("stale-base-record")
+        result.update(status="blocked", next_action="repair-base", stop_reason="STALE_WORKTREE_BASE",
+                      resume=stop_resume("STALE_WORKTREE_BASE", task_id=identity.canonical_id,
+                                         project=shlex.quote(str(project_root)))
+                      + f" --worktree-root {shlex.quote(str(root))}")
     return result, not errors
 
 
@@ -1310,6 +1380,9 @@ def closure_status(
         return report("C7", None, "run the selected candidate validation")
 
     state = _read_json_object(state_path, "worktree lifecycle state")
+    inspection, _ready = inspect_task_worktree(task_id, root, project_root, require_effective_worktree=False)
+    if inspection.get("stop_reason") == "STALE_WORKTREE_BASE":
+        return report("C4", "STALE_WORKTREE_BASE", str(inspection["resume"]))
     if state.get("base_commit") == branch_commit:
         return report("C1", "ACCEPTANCE_UNMET", stop_resume("ACCEPTANCE_UNMET"))
 
@@ -1358,6 +1431,7 @@ def closure_status(
             and evidence["accepted"] is True
             and evidence["validation_passed"] is True
             and evidence["validated_task_commit"] == branch_commit
+            and evidence["validated_base_commit"] == state["base_commit"]
         ):
             return report(
                 "C6",
@@ -2069,6 +2143,12 @@ def stage_task_integration(
     task_commit = str(inspection["task_commit"])
     validated_task = str(evidence["validated_task_commit"])
     validated_base = str(evidence["validated_base_commit"])
+    if validated_base != inspection["base_commit"]:
+        raise stop_error(
+            "EVIDENCE_MISMATCH",
+            f"validated base {validated_base} differs from recorded base {inspection['base_commit']}; renew validation evidence",
+            task_id=identity.canonical_id, project=project_root,
+        )
     base_is_ancestor = _run_git(
         project_root, "merge-base", "--is-ancestor", validated_base, validated_task
     ).returncode == 0
@@ -10679,6 +10759,11 @@ def _run_cli(journal: LifecycleJournalEntry) -> int:
     worktree_check.add_argument("--project", type=Path)
     worktree_check.add_argument("--worktree-root", type=Path)
     worktree_check.add_argument("--format", choices=("json",), required=True)
+    worktree_repair = worktree_sub.add_parser("repair-base", help="repair a proven commit-less main fast-forward base")
+    worktree_repair.add_argument("task_id")
+    worktree_repair.add_argument("--project", type=Path)
+    worktree_repair.add_argument("--worktree-root", type=Path)
+    worktree_repair.add_argument("--format", choices=("json",), required=True)
     worktree_active = worktree_sub.add_parser("active", help="resolve the active task from this registered worktree")
     worktree_active.add_argument("--format", choices=("json",), required=True)
     worktree_states = worktree_sub.add_parser("states", help="list task states from registered worktrees")
@@ -11085,6 +11170,10 @@ def _run_cli(journal: LifecycleJournalEntry) -> int:
                 )
                 journal.observe(prepared)
                 print(json.dumps(prepared, sort_keys=True))
+            elif arguments.worktree_command == "repair-base":
+                repaired = repair_task_worktree_base(arguments.task_id, arguments.worktree_root, project_root)
+                journal.observe(repaired)
+                print(json.dumps(repaired, sort_keys=True))
             elif arguments.worktree_command == "check":
                 report, ready = inspect_task_worktree(
                     arguments.task_id,
@@ -11095,8 +11184,9 @@ def _run_cli(journal: LifecycleJournalEntry) -> int:
                 print(json.dumps(report, sort_keys=True))
                 if not ready:
                     mismatch = stop_error(
-                        "WRONG_WORKTREE",
+                        str(report.get("stop_reason", "WRONG_WORKTREE")),
                         "worktree check reported: " + ", ".join(str(error) for error in report["errors"]),
+                        resume=report.get("resume"),
                         task_id=arguments.task_id,
                         project=project_root,
                     )

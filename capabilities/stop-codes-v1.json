@@ -2,6 +2,19 @@
   "version": 1,
   "stops": [
     {
+      "code": "STALE_WORKTREE_BASE",
+      "class": "tool",
+      "workflows": ["lean-delivery", "governed-sdd"],
+      "step": "C4",
+      "emitter": "`meridian worktree check`; `prepare`; `closure-status`",
+      "human_decision": false,
+      "resume": "meridian worktree repair-base {task_id} --project {project} --format json",
+      "tool_hint": "meridian worktree repair-base",
+      "kind": "stop",
+      "summary": "a proven commit-less main fast-forward left an obsolete task base",
+      "test": "tests.test_task_worktree_isolation.BoundedWorktreeLifecycleTest.test_stale_base_check_and_repair"
+    },
+    {
       "code": "ACCEPTANCE_UNMET",
       "class": "judgment",
       "workflows": [
