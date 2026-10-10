@@ -354,7 +354,7 @@ def _read_text(path: Path) -> str:
 
 
 class RecordResolver:
-    """Find task records for queue rows that carry no file link.
+    """Find task records for queue rows with absent or missing file targets.
 
     The task roots are walked at most once per snapshot, and only when a row
     needs the search, so resolution adds no per-task subprocess work.
@@ -404,13 +404,21 @@ class RecordResolver:
 
 def _task_path(project: Path, queue: Path, row: QueueRow,
                resolver: RecordResolver) -> tuple[Path | None, str | None]:
-    """Resolve a task record: the queue link when present, else a search of the task roots."""
+    """Resolve a queue link, searching task roots when its record has moved."""
     if not has_link(row.link):
         return resolver.find(row.task_id)
     target = link_target(queue.relative_to(project).as_posix(), row.link)
     if target is None:
         raise ConsoleError(f"Task {row.task_id} has no unambiguous file link")
     path = (project / target).resolve()
+    if path.is_relative_to(project) and not path.exists():
+        relative = path.relative_to(project).as_posix()
+        in_task_root = any(relative.startswith(root.rstrip("/") + "/")
+                           for root in resolver.roots)
+        if in_task_root and is_task_record_path(relative, resolver.excluded):
+            archived, problem = resolver.find(row.task_id)
+            if archived is not None and problem is None:
+                return archived, None
     if not path.is_relative_to(project) or not path.is_file():
         raise ConsoleError(f"Task {row.task_id} file is unavailable within the project: {path}")
     return path, None

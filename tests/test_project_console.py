@@ -129,17 +129,82 @@ class ProjectConsoleTest(unittest.TestCase):
         with self.assertRaisesRegex(console.ConsoleError, "Duplicate task ID"):
             self.snapshot()
 
-    def test_one_shot_against_repository(self) -> None:
-        result = subprocess.run(
-            [sys.executable, str(ROOT / "scripts" / "project_console.py"),
-             "--project", str(ROOT), "--once"],
-            capture_output=True, text=True, check=False,
-        )
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("MERIDIAN |", result.stdout)
-        self.assertIn("Updated:", result.stdout)
-        self.assertIn("Open:", result.stdout)
-        self.assertIn("Agent activity: unavailable", result.stdout)
+    def test_one_shot_against_fixture_repository(self) -> None:
+        self.write_queue()
+        subprocess.run(["git", "init", "-q", "-b", "main", str(self.project)],
+                       capture_output=True, text=True, check=True)
+        for archived in (False, True):
+            with self.subTest(archived=archived):
+                if archived:
+                    target = self.project / "tasks/done/002-second.md"
+                    target.parent.mkdir()
+                    (self.project / "tasks/002-second.md").rename(target)
+                result = subprocess.run(
+                    [sys.executable, str(ROOT / "scripts" / "project_console.py"),
+                     "--project", str(self.project), "--once"],
+                    capture_output=True, text=True, check=False,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn("MERIDIAN |", result.stdout)
+                self.assertIn("Updated:", result.stdout)
+                self.assertIn("Open:", result.stdout)
+                self.assertIn("Agent activity: unavailable", result.stdout)
+
+    def test_linked_record_resolves_before_and_after_archival(self) -> None:
+        self.write_queue()
+        before = self.snapshot()
+        archived = self.project / "tasks/done/002-second.md"
+        archived.parent.mkdir()
+        (self.project / "tasks/002-second.md").rename(archived)
+        after = self.snapshot()
+        self.assertEqual(before.tasks[0].path, self.project / "tasks/002-second.md")
+        self.assertEqual(after.tasks[0].path, archived.resolve())
+        self.assertIsNone(after.tasks[0].record_problem)
+        self.assertEqual(after.tasks[0].objective, before.tasks[0].objective)
+        self.assertEqual(after.tasks[0].criteria, before.tasks[0].criteria)
+        self.assertEqual(after.tasks[0].readiness, before.tasks[0].readiness)
+        self.assertEqual(after.done_count, before.done_count)
+
+    def test_missing_link_target_with_no_record_is_rejected(self) -> None:
+        self.write_queue()
+        (self.project / "tasks/002-second.md").unlink()
+        with self.assertRaisesRegex(console.ConsoleError, "Task 002 file is unavailable"):
+            self.snapshot()
+
+    def test_missing_link_target_with_multiple_records_is_rejected(self) -> None:
+        self.write_queue()
+        record = self.project / "tasks/002-second.md"
+        for directory in ("done", "copies"):
+            target = self.project / "tasks" / directory
+            target.mkdir()
+            (target / record.name).write_text(record.read_text(), encoding="utf-8")
+        record.unlink()
+        with self.assertRaisesRegex(console.ConsoleError, "Task 002 file is unavailable"):
+            self.snapshot()
+
+    def test_unsafe_link_does_not_fall_back_to_matching_record(self) -> None:
+        self.write_queue()
+        queue = self.project / "tasks/QUEUE.md"
+        text = queue.read_text()
+        for link, message in (
+            ("[002](../../outside.md)", "no unambiguous file link"),
+            ("[002](002-second.md) [other](001-first.md)", "no unambiguous file link"),
+            ("[002](../other/missing.md)", "unavailable within the project"),
+            ("[002](handoffs/missing.md)", "unavailable within the project"),
+        ):
+            with self.subTest(link=link):
+                queue.write_text(text.replace("[002](002-second.md)", link), encoding="utf-8")
+                with self.assertRaisesRegex(console.ConsoleError, message):
+                    self.snapshot()
+
+    def test_link_resolving_outside_project_does_not_use_fallback(self) -> None:
+        self.write_queue()
+        (self.project / "tasks/escape").symlink_to(self.project.parent, target_is_directory=True)
+        queue = self.project / "tasks/QUEUE.md"
+        queue.write_text(queue.read_text().replace("[002](002-second.md)",
+                                                  "[002](escape/missing.md)"), encoding="utf-8")
+        with self.assertRaisesRegex(console.ConsoleError, "unavailable within the project"):
+            self.snapshot()
 
     def test_elapsed_formatting_is_wall_clock_and_legacy_values_are_unavailable(self) -> None:
         start = "2026-01-01T00:00:00Z"
@@ -1466,7 +1531,7 @@ class LinklessQueueTest(RepoCase):
         self.write(self.project, *self.record("M37-CAUSE-001"))
         for cell, message in (("see notes", "no unambiguous file link"),
                               ("[x](../../outside.md)", "no unambiguous file link"),
-                              ("[x](tasks/missing.md)", "unavailable within the project")):
+                              ("[x](other/missing.md)", "unavailable within the project")):
             self.write(self.project, "docs/TASK_QUEUE.md", "# Q\n\n" + header
                        + f"| 1 | M37-CAUSE-001 | P1 | QUEUED | — | {cell} |\n")
             with self.assertRaisesRegex(console.ConsoleError, message, msg=cell):
