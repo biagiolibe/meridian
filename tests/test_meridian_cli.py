@@ -1072,6 +1072,47 @@ class MeridianCliTest(unittest.TestCase):
         self.assertEqual(manifest["frameworkVersion"], "1.1.1")
         self.assertEqual(manifest["workflowBaselineVersion"], "1.1.1")
 
+    def test_spike_blueprint_upgrade_preserves_consumer_text_and_task_records(self) -> None:
+        blueprint = self.framework / "templates/workflows/governed-sdd/tasks/TASK_BLUEPRINT.md"
+        current = blueprint.read_text(encoding="utf-8")
+        previous = (ROOT / "tests/fixtures/task-blueprint-v15.md").read_text(encoding="utf-8")
+        self.assertIn("capability=task-blueprint v15", previous)
+        blueprint.write_text(previous, encoding="utf-8")
+        (self.framework / "VERSION").write_text("1.2.11\n", encoding="utf-8")
+        self.copy_governed_templates()
+        self.assertEqual(self.run_cli("lock", "--mode", "governed-sdd").returncode, 0)
+        installed = self.project / "tasks/TASK_BLUEPRINT.md"
+        installed.write_text(previous + "\nConsumer-owned task note.\n", encoding="utf-8")
+        records = {}
+        for status in ("IN_PROGRESS", "ANSWERED", "INCONCLUSIVE"):
+            record = self.project / "tasks" / f"probe-{status}.md"
+            records[record] = f"Class: SPIKE\nStatus: {status}\n" + previous
+            record.write_text(records[record], encoding="utf-8")
+        blueprint.write_text(current, encoding="utf-8")
+        (self.framework / "VERSION").write_text("1.2.12\n", encoding="utf-8")
+        checked = self.run_cli("upgrade", "--check")
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+        self.assertIn("MIGRATION 065-spike-blueprint-worktree-closure", checked.stdout)
+        applied = self.run_cli("upgrade", "--apply")
+        self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+        upgraded = installed.read_text(encoding="utf-8")
+        self.assertEqual(upgraded, current + "\nConsumer-owned task note.\n")
+        self.assertNotIn("committed directly to `main`", upgraded)
+        self.assertNotIn("Branch:      throwaway, never merged", upgraded)
+        self.assertIn("probe code is never merged or pushed", upgraded)
+        self.assertIn("ordinary governed worktree closure and integration", upgraded)
+        for record, content in records.items():
+            self.assertEqual(record.read_text(encoding="utf-8"), content)
+        audit = self.run_cli("audit")
+        # This legacy lock fixture has no capabilityProfiles; audit reports
+        # UNVERIFIED for that declaration independently of marker integrity.
+        self.assertIn("tasks/TASK_BLUEPRINT.md: capability=task-blueprint v16 matches the released text", audit.stdout)
+        self.assertNotIn("FAIL           marker-integrity", audit.stdout)
+        self.assertNotIn("DRIFT", audit.stdout)
+        repeated = self.run_cli("upgrade", "--check")
+        self.assertEqual(repeated.returncode, 0, repeated.stdout + repeated.stderr)
+        self.assertNotIn("CONFLICT", repeated.stdout)
+
     def test_clean_upgrade_installs_host_impact_declarations_and_preserves_consumer_text(self) -> None:
         """Migration 043 upgrades the two managed host-impact files without
         replacing consumer-owned text outside their protected regions."""
@@ -1081,7 +1122,7 @@ class MeridianCliTest(unittest.TestCase):
         blueprint = self.framework / "templates/workflows/governed-sdd/tasks/TASK_BLUEPRINT.md"
         current = blueprint.read_text(encoding="utf-8")
         declaration = current.split("\n## Host impact\n", 1)[1].split("\n## Goal\n", 1)[0]
-        previous = current.replace("capability=task-blueprint v15", "capability=task-blueprint v11", 1)
+        previous = current.replace("capability=task-blueprint v16", "capability=task-blueprint v11", 1)
         previous = previous.replace("\n## Host impact\n" + declaration, "", 1)
 
         installed_baseline = self.project / ".meridian/baselines/1.1.39"
@@ -1114,7 +1155,7 @@ class MeridianCliTest(unittest.TestCase):
         applied = self.run_cli("upgrade", "--apply")
         self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
         upgraded_blueprint = (self.project / "tasks/TASK_BLUEPRINT.md").read_text(encoding="utf-8")
-        self.assertIn("capability=task-blueprint v15", upgraded_blueprint)
+        self.assertIn("capability=task-blueprint v16", upgraded_blueprint)
         self.assertIn("Classification: NOT_APPLICABLE", upgraded_blueprint)
         self.assertIn("Classification: REQUIRED", upgraded_blueprint)
         self.assertIn("Project-owned task note.", upgraded_blueprint)
@@ -4930,7 +4971,7 @@ class CapabilityMarkerTest(unittest.TestCase):
     def test_host_impact_declaration_has_both_governed_shapes_and_evidence_routing(self) -> None:
         blueprint = (self.WORKFLOW / "tasks/TASK_BLUEPRINT.md").read_text(encoding="utf-8")
         implementation = (self.WORKFLOW / "docs/workflows/IMPLEMENTATION.md").read_text(encoding="utf-8")
-        self.assertIn(("task-blueprint", "15"), self.marker_pairs(blueprint))
+        self.assertIn(("task-blueprint", "16"), self.marker_pairs(blueprint))
         self.assertIn("Classification: NOT_APPLICABLE", blueprint)
         self.assertIn("Rationale:", blueprint)
         self.assertIn("Classification: REQUIRED", blueprint)
@@ -4999,7 +5040,7 @@ class CapabilityMarkerTest(unittest.TestCase):
         ]
         texts = {path: (self.WORKFLOW / path).read_text(encoding="utf-8") for path in paths}
 
-        self.assertIn(("task-blueprint", "15"), self.marker_pairs(texts["tasks/TASK_BLUEPRINT.md"]))
+        self.assertIn(("task-blueprint", "16"), self.marker_pairs(texts["tasks/TASK_BLUEPRINT.md"]))
         self.assertIn(
             ("lifecycle-orchestration", "10"), self.marker_pairs(texts["docs/LIFECYCLE_ORCHESTRATION.md"])
         )
@@ -5152,7 +5193,7 @@ class CapabilityMarkerTest(unittest.TestCase):
     def test_whole_file_baseline_capabilities_each_carry_one_marker(self) -> None:
         expectations = {
             "LANGUAGE_POLICY.md": ("language-policy", "2"),
-            "tasks/TASK_BLUEPRINT.md": ("task-blueprint", "15"),
+            "tasks/TASK_BLUEPRINT.md": ("task-blueprint", "16"),
             "docs/CODE_ORGANIZATION.md": ("code-organization", "2"),
             "docs/AUDIT_PROMPT_READ_ONLY.md": ("audit-prompt", "3"),
         }
