@@ -128,6 +128,34 @@ The explicit option remains available for finishing a worktree in an old root.
   state, handoff-state consistency, active integration state, errors, and the
   next action. `wrong-worktree` is distinct from registration, branch, state,
   and cleanliness failures.
+### Commit-less fast-forward recovery
+
+After preparation, a clean task branch may have been advanced with
+`git merge main --ff-only` before any task commit. Its recorded base then
+attributes changes from `main` to the task. A different merge base alone is
+never evidence of this condition. Detection requires an intact branch reflog:
+creation from the recorded base, followed only by `merge main: Fast-forward`
+entries, each advancing by ancestry; the recorded task commit must still equal
+the old base, and the current HEAD must be an ancestor of current `main`.
+Expired, missing, or other reflog transitions do not prove this narrow case.
+
+`check` remains read-only and reports `BLOCKED STALE_WORKTREE_BASE` with
+`meridian worktree repair-base <TASK-ID> --project <primary> --format json`.
+Ordinary `prepare` and closure also stop on that proof; `prepare --resume`
+continues to preserve state without mutation.
+
+Run `repair-base` from the primary checkout or canonical worktree. It requires
+a clean, correctly registered canonical worktree, matching lifecycle identity,
+and no integration lease or staged merge. It never advances Git or edits a
+handoff. It changes only `base_commit` and `task_commit` to current task HEAD,
+preserving all other state, including `started_at`. Existing validation
+evidence remains byte-for-byte unchanged and is stale against the new base;
+renew validation and record new evidence before closure. The result explicitly
+reports `evidence_renewal_required: true`. Repeating recovery at that same
+commit is a read-only no-op. Task-owned commits, unrelated branches, and
+unproven transitions are rejected with `BLOCKED WRONG_WORKTREE`; recovery of
+those cases is outside this contract.
+
 - `meridian worktree evidence <TASK-ID> --project <primary>
   --validation-command <command> --validation-exit-code <code> --accepted
   --format json` records the task and base commits plus changed paths from Git
@@ -173,7 +201,7 @@ The explicit option remains available for finishing a worktree in an old root.
   After finalization, it reports `PUSH_PENDING` at C9 when local `main` is
   ahead of the already fetched `origin/main`.
   When the recorded `<id>.evidence.json` is accepted, passed, and names the
-  branch's current commit, it reports step `C6` with the `integrate stage`
+  branch's current commit and recorded base, it reports step `C6` with the `integrate stage`
   command instead of `EVIDENCE_INCOMPLETE`.
 - `integrate stage` requires the primary checkout to be clean and on `main`, with
   `main` equal to the already fetched `origin/main` or ahead of it with commits
