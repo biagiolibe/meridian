@@ -36,3 +36,11 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 
 Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, 25, 26, 27, 28, 31, 32, 34, 35, 36, 42, 44, 45, 46, and 47
 are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
+
+### Phase 60 — 1.2.12 release readiness
+
+Authority: release readiness review of 2026-10-10; lifecycle documentation for tasks 191, 192, and 194 that adopted projects do not yet receive.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 197 | Ship the 1.2.12 lifecycle documentation through migration 065 | 🟡 P2 | 191, 192, 194 | [197](197-ship-lifecycle-doc-updates-with-migration-065.md) |
