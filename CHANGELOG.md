@@ -16,6 +16,18 @@ records which release moved it.
 ## [Unreleased]
 
 
+## [1.2.12]
+
+Template-changing release: migration `065-spike-blueprint-worktree-closure` advances `workflowBaselineVersion` to `1.2.12` and aligns `task-blueprint` v16 with governed worktree closure. The manifest shape and `protocolVersion` 2 are unchanged.
+
+### Fixed
+
+- Align the SPIKE blueprint and governed skills with dedicated task worktrees: a separate local throwaway probe branch is never merged or pushed, while the canonical task branch carries the deliverable and permitted lifecycle/evidence records through ordinary governed closure.
+
+### Upgrade notes
+
+- Run `meridian upgrade --apply` to install `task-blueprint` v16 in `tasks/TASK_BLUEPRINT.md` (migration `065-spike-blueprint-worktree-closure`). Adapted text inside the managed block may require conflict review; consumer-owned text outside it is preserved. Inspect copied branch and closure instructions in non-terminal SPIKE records and align them manually; upgrade does not rewrite historical task records. No minimum framework or `protocolVersion` change is required.
+
 ## [1.2.11]
 
 Template-changing release: migration `064-closure-text-uses-advance` advances `workflowBaselineVersion` to `1.2.11`. The managed `git-workflow` block now closes tasks through `meridian worktree advance` instead of listing the closure order, every stop in managed text and in the CLI carries a registered code, and Codex records unbacked `BLOCKED` reports through a `Stop` hook. `prepare --resume` no longer writes lifecycle state. Python 3.12 is the new minimum. The manifest shape and `protocolVersion` 2 are unchanged.
