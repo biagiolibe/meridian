@@ -1623,18 +1623,17 @@ def _completed_task_row(contents: str, task_id: str, path: Path, pattern: str) -
     return f"{contents[:match.start(1)]}[x]{contents[match.end(1):]}"
 
 
-_QUEUE_SECTION_HEADING = re.compile(r"^### .+\n?$", re.MULTILINE)
 _QUEUE_TABLE_DIVIDER = re.compile(r"^\|(?:\s*:?-{3,}:?\s*\|)+\s*$")
 _QUEUE_TASK_ROW = re.compile(r"^\| `(?P<status>\[[ /x]\])` \| [^|]+ \|.*$")
 _QUEUE_ARCHIVE_HEADER = (
     "# Task Execution Queue — Archive\n\n"
-    "Closed phases and sections moved out of `tasks/QUEUE.md` once every row in them is\n"
-    "`[x]`, to keep that file's reading cost low. Mirrors `QUEUE.md`'s own table\n"
+    "Closed phases and sections moved out of the operational queue once every row in them is\n"
+    "`[x]`, to keep that file's reading cost low. Mirrors the queue's own table\n"
     "structure.\n"
 )
 _GOVERNED_QUEUE_ARCHIVE_HEADER = (
     "# Task Execution Queue — Archive\n\n"
-    "Accepted tasks moved out of `tasks/QUEUE.md`. Mirrors `QUEUE.md`'s own table\n"
+    "Accepted tasks moved out of the operational queue. Mirrors the queue's own table\n"
     "structure.\n"
 )
 _GOVERNED_QUEUE_TASK_ROW = re.compile(
@@ -1778,36 +1777,66 @@ def _governed_completion_row(
     )
 
 
+def _queue_section_ranges(contents: str) -> list[tuple[int, int, int, str]]:
+    """Bound each heading by the next heading of the same or higher level."""
+    marks = list(re.finditer(r"^(?P<marks>#{1,6})[ \t]+.+$", contents, re.MULTILINE))
+    ranges = []
+    for index, mark in enumerate(marks):
+        level = len(mark.group("marks"))
+        end = next((other.start() for other in marks[index + 1:]
+                    if len(other.group("marks")) <= level), len(contents))
+        ranges.append((mark.start(), end, level, mark.group(0).strip()))
+    return ranges
+
+
+def _queue_section_completion(section: str, mode: str) -> tuple[list[re.Match[str]], str | None]:
+    """Check every pipe table, retaining ambiguous task input with a reason."""
+    expected = "| Order | ID | Priority | Status | Review |" if mode == "governed-sdd" else "| Status |"
+    pattern = _GOVERNED_QUEUE_TASK_ROW if mode == "governed-sdd" else _QUEUE_TASK_ROW
+    lines = section.splitlines()
+    rows: list[re.Match[str]] = []
+    index = 0
+    while index < len(lines):
+        if not lines[index].lstrip().startswith("|"):
+            index += 1
+            continue
+        end = index + 1
+        while end < len(lines) and lines[end].lstrip().startswith("|"):
+            end += 1
+        table = lines[index:end]
+        index = end
+        cells = [cell.strip().strip("`").casefold() for cell in table[0].strip().strip("|").split("|")]
+        task_like = "status" in cells or any(pattern.fullmatch(line) for line in table)
+        if not task_like:
+            continue
+        if not (table[0].startswith(expected + " ") or table[0].rstrip() == expected):
+            return rows, f"table header {table[0].strip()!r} does not start with the expected columns {expected!r}"
+        if len(table) < 3 or not _QUEUE_TABLE_DIVIDER.fullmatch(table[1]):
+            return rows, "task table has a missing or malformed divider or no task rows"
+        column_count = len(table[0].split("|"))
+        if len(table[1].split("|")) != column_count:
+            return rows, "task table divider does not match its header columns"
+        for line in table[2:]:
+            row = pattern.fullmatch(line)
+            if row is None or len(line.split("|")) != column_count:
+                return rows, f"unrecognized task row or mismatched cells: {line.strip()!r}"
+            rows.append(row)
+    return rows, None
+
+
 def _archive_completed_queue_sections(
     queue_contents: str, queue_path: Path, archive_path: Path, mode: str = "lean-delivery"
 ) -> tuple[str, str | None]:
-    """Move fully complete, recognized queue sections to the archive in memory."""
-    headings = list(_QUEUE_SECTION_HEADING.finditer(queue_contents))
+    """Move disjoint, fully complete recognized sections to the archive in memory."""
     completed_sections: list[tuple[int, int, str]] = []
-    for index, heading in enumerate(headings):
-        section_end = headings[index + 1].start() if index + 1 < len(headings) else len(queue_contents)
-        section = queue_contents[heading.start():section_end]
-        lines = section.splitlines(keepends=True)
-        table_index = next((
-            line_index for line_index, line in enumerate(lines)
-            if line.rstrip("\n").startswith("| Status |")
-            or (mode == "governed-sdd" and line.rstrip("\n").startswith("| Order | ID | Priority | Status | Review |"))
-        ), None)
-        if table_index is None:
+    completed_statuses = {"ACCEPTED", "ANSWERED"} if mode == "governed-sdd" else {"[x]"}
+    for start, end, level, _heading in _queue_section_ranges(queue_contents):
+        if level != 3:
             continue
-        if table_index + 2 >= len(lines) or not _QUEUE_TABLE_DIVIDER.fullmatch(lines[table_index + 1].rstrip("\n")):
-            raise MeridianError(f"unrecognized queue section shape in {queue_path}: {lines[0].strip()}")
-        task_rows: list[str] = []
-        for line in lines[table_index + 2:]:
-            if not line.startswith("|"):
-                break
-            task_rows.append(line)
-        row_pattern = _GOVERNED_QUEUE_TASK_ROW if mode == "governed-sdd" else _QUEUE_TASK_ROW
-        if not task_rows or any(row_pattern.fullmatch(row.rstrip("\n")) is None for row in task_rows):
-            raise MeridianError(f"unrecognized queue section shape in {queue_path}: {lines[0].strip()}")
-        completed_statuses = {"ACCEPTED", "ANSWERED"} if mode == "governed-sdd" else {"[x]"}
-        if all(row_pattern.fullmatch(row.rstrip("\n")).group("status") in completed_statuses for row in task_rows):
-            completed_sections.append((heading.start(), section_end, section))
+        section = queue_contents[start:end]
+        rows, reason = _queue_section_completion(section, mode)
+        if rows and reason is None and all(row.group("status") in completed_statuses for row in rows):
+            completed_sections.append((start, end, section))
     if not completed_sections:
         return queue_contents, None
     archived = "".join(section.rstrip("\n") + "\n" for _, _, section in completed_sections)
@@ -1824,45 +1853,27 @@ def _archive_completed_queue_sections(
 
 
 def _queue_archival_warnings(queue_contents: str, mode: str = "lean-delivery") -> list[str]:
-    """Name queue sections the archiver skips without error; never changes the queue."""
-    marks = [
-        (match.start(), len(match.group("marks")), match.group(0).strip())
-        for match in re.finditer(r"^(?P<marks>#{1,6}) .+$", queue_contents, re.MULTILINE)
-    ]
-    expected = "| Order | ID | Priority | Status | Review |" if mode == "governed-sdd" else "| Status |"
+    """Use the archival boundaries and completion checks to explain retained input."""
     warnings: list[str] = []
-    owner_open = False
-    for index, (start, level, heading) in enumerate(marks):
-        if level == 3:
-            owner_open = True
-        elif owner_open:
-            continue  # the archiver reads everything after a `###` heading up to the next one as one section
-        end = marks[index + 1][0] if index + 1 < len(marks) else len(queue_contents)
-        if level == 3:
-            end = next((m[0] for m in marks[index + 1:] if m[1] == 3), len(queue_contents))
-        lines = queue_contents[start:end].splitlines()
-        header = next((
-            line for position, line in enumerate(lines[:-1])
-            if line.startswith("|") and _QUEUE_TABLE_DIVIDER.fullmatch(lines[position + 1])
-            and "status" in {cell.strip().strip("`").casefold() for cell in line.strip().strip("|").split("|")}
-        ), None)
-        if header is None:
+    ranges = _queue_section_ranges(queue_contents)
+    for index, (start, end, level, heading) in enumerate(ranges):
+        if level > 3 and any(parent_start < start < parent_end and parent_level == 3
+                             for parent_start, parent_end, parent_level, _ in ranges):
             continue
-        if level != 3:
+        # Non-archival headings own only their direct content, not child tables.
+        if level != 3 and index + 1 < len(ranges):
+            end = min(end, ranges[index + 1][0])
+        rows, reason = _queue_section_completion(queue_contents[start:end], mode)
+        if reason is not None:
+            warnings.append(f"queue section {heading!r} is not archived: {reason}")
+        elif rows and level != 3:
             warnings.append(
                 f"queue section {heading!r} is not archived: heading level {level} is not `###`, "
                 "the only level archival reads"
             )
-        elif not any(line.startswith(expected + " ") or line.rstrip() == expected for line in lines):
-            warnings.append(
-                f"queue section {heading!r} is not archived: table header {header.strip()!r} "
-                f"does not start with the expected columns {expected!r}"
-            )
-        elif mode == "governed-sdd":
-            rows = [m for line in lines if (m := _GOVERNED_QUEUE_TASK_ROW.fullmatch(line)) is not None]
+        elif mode == "governed-sdd" and rows:
             inconclusive = [row.group("id").strip() for row in rows if row.group("status") == "INCONCLUSIVE"]
-            done = {"ACCEPTED", "ANSWERED", "INCONCLUSIVE"}
-            if inconclusive and all(row.group("status") in done for row in rows):
+            if inconclusive and all(row.group("status") in {"ACCEPTED", "ANSWERED", "INCONCLUSIVE"} for row in rows):
                 warnings.append(
                     f"queue section {heading!r} stays open only because of INCONCLUSIVE row(s): "
                     + ", ".join(inconclusive)
