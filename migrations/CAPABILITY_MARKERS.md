@@ -424,3 +424,10 @@ labeled extension text immediately outside the marker, never inside it.
 Verification: `meridian audit` all `PASS`, `meridian upgrade --check` zero
 conflicts across all previously-conflicting files, and a manual line-by-line
 diff confirming no existing Palimpsest rule was dropped, only relocated.
+
+**Migration 065 — 1.2.12 lifecycle documentation.** The unreleased migration
+keeps `task-blueprint` v16 and also registers `worktree-lifecycle` v3 for both
+workflow modes. The lifecycle documents add proven commit-less fast-forward
+base recovery with renewed validation, conservative `###` queue-section
+archival, and, in Governed SDD only, the canonical SPIKE execution-evidence
+ledger exception. Other lifecycle template text is unchanged.
