@@ -136,6 +136,7 @@ class Task:
     workflow: str = "lean-delivery"
     closure_stop_reason: str | None = None
     closure_resume: str | None = None
+    cleanup_pending: bool = False
     started_at: str | None = None
     progress_phase: str = "unavailable"
     remaining_gates: tuple[str, ...] = ()
@@ -623,7 +624,7 @@ CLOSING_STEPS = frozenset({"C6", "C7", "C9", "C10"})
 def _closing_task(project: Path, profile: Profile, row: QueueRow, queue: Path,
                   worktrees: dict[str, str], identities: IdentityCache | None,
                   resolver: RecordResolver, by_id: dict[str, str]) -> Task | None:
-    """List a task whose queue row is done but whose closure is not cleaned up.
+    """List a terminal task with closure work or a cleanup-only hint.
 
     The queue keeps its real status; `CLOSING` is derived from the registered
     canonical worktree and the lifecycle command, and nothing is written. The
@@ -644,13 +645,17 @@ def _closing_task(project: Path, profile: Profile, row: QueueRow, queue: Path,
     closure: dict[str, object] | None = None
     try:
         report, _ready = closure_status(row.task_id, None, project)
-        if report.get("step") in CLOSING_STEPS:
+        if (isinstance(report, dict) and report.get("step") in CLOSING_STEPS
+                and "resume" in report and "stop_reason" in report
+                and (report["resume"] is None or isinstance(report["resume"], str))
+                and (report["stop_reason"] is None or isinstance(report["stop_reason"], str))):
             closure = report
     except (MeridianError, OSError, ValueError):
         # A transient lifecycle read keeps the task listed with unavailable progress.
         pass
     if closure is not None and closure["step"] == "C10" and closure["resume"] is None:
         return None
+    cleanup_pending = bool(closure and closure["step"] == "C10" and closure["resume"])
     started_at = None
     try:
         started_at = lifecycle_started_at(row.task_id, project)
@@ -669,7 +674,9 @@ def _closing_task(project: Path, profile: Profile, row: QueueRow, queue: Path,
         status=row.status, phase=row.section, dependencies=dependencies, path=path,
         objective=_section(text or "", "Objective", "Goal"),
         criteria=_section(text or "", "Acceptance Criteria"),
-        worktree=worktree, readiness="CLOSING", lifecycle="closing", source="main",
+        worktree=worktree, readiness="DONE" if cleanup_pending else "CLOSING",
+        lifecycle="done" if cleanup_pending else "closing", source="main",
+        cleanup_pending=cleanup_pending,
         registered_worktree=True, workflow=profile.name,
         updated_at=_committed_update(project, _relative(project, path)) if path else None,
         closure_stop_reason=closure["stop_reason"] if closure else None,
@@ -712,14 +719,14 @@ def load_snapshot(project: Path, identities: IdentityCache | None = None) -> Sna
                                 resolver, by_id)
         if closing:
             tasks.append(closing)
-            closing_count += 1
+            closing_count += int(not closing.cleanup_pending)
     for row in active_rows:
         if profile.phases[row.status] == "done":
             closing = _closing_task(project, profile, row, queue, worktrees, identities,
                                     resolver, by_id)
             if closing:
                 tasks.append(closing)
-                closing_count += 1
+                closing_count += int(not closing.cleanup_pending)
             continue
         dependencies = _dependency_ids(row)
         path, main_problem = _task_path(project, queue, row, resolver)
@@ -900,7 +907,8 @@ def one_shot(state: ConsoleState) -> str:
     lines = [
         (f"MERIDIAN | {state.framework.label} | {snapshot.project} | {snapshot.branch}"
          f" | {snapshot.git_summary}"),
-        f"Updated: {stamp} | Open: {len(snapshot.tasks)} | Done: {snapshot.done_count}",
+        (f"Updated: {stamp} | Open: {sum(not task.cleanup_pending for task in snapshot.tasks)}"
+         f" | Done: {snapshot.done_count}"),
     ]
     for task in snapshot.tasks:
         objective = " ".join(task.objective)
@@ -914,6 +922,8 @@ def one_shot(state: ConsoleState) -> str:
             lines.append(f"  Mismatch: {task.mismatch}")
         if task.closure_stop_reason:
             lines.append(f"  Closure stop: {task.closure_stop_reason}")
+        if task.cleanup_pending:
+            lines.append("  Cleanup pending")
         if task.closure_resume:
             lines.append(f"  Resume: {task.closure_resume}")
         if task.shows_progress:
@@ -1016,6 +1026,8 @@ FILTERS = ("Ready", "Working", "Blocked", "Unknown", "Review", "Mismatch", "Clos
 
 
 def _state_label(task: Task) -> tuple[str, str]:
+    if task.cleanup_pending:
+        return "Done", "muted"
     if task.readiness == "MISMATCH":
         return "Mismatch", "blocked"
     if task.lifecycle == "closing":
@@ -1035,7 +1047,8 @@ def _state_label(task: Task) -> tuple[str, str]:
 def _filter_counts(snapshot: Snapshot | None) -> dict[str, int]:
     counts = {name: 0 for name in FILTERS}
     for task in snapshot.tasks if snapshot else ():
-        counts[_state_label(task)[0]] += 1
+        if not task.cleanup_pending:
+            counts[_state_label(task)[0]] += 1
     return counts
 
 
@@ -1054,7 +1067,7 @@ def _tab_at(snapshot: Snapshot | None, x: int, y: int) -> str | None:
     if y != 1:
         return None
     counts = _filter_counts(snapshot)
-    tabs = (("All", sum(counts.values())), *counts.items())
+    tabs = (("All", len(snapshot.tasks) if snapshot else 0), *counts.items())
     left = 1
     for name, count in tabs:
         right = left + len(f" {name} {count} ")
@@ -1180,6 +1193,8 @@ def _detail_lines(task: Task, width: int, palette: dict[str, int],
         add(task.record_problem[:1].upper() + task.record_problem[1:], "blocked")
     if task.closure_stop_reason:
         add(f"Closure stop: {task.closure_stop_reason}", "blocked")
+    if task.cleanup_pending:
+        add("Cleanup pending", "muted")
     if task.closure_resume:
         add(f"Resume: {task.closure_resume}", "action")
     if task.shows_progress:
@@ -1253,7 +1268,7 @@ def _draw_header(screen, state: ConsoleState, palette: dict[str, int],
     if state.error:
         _put(screen, 1, max(1, width - 9), "STALE", 7, palette["stale"])
     counts = _filter_counts(snapshot)
-    tabs = (("All", sum(counts.values())), *((name, count) for name, count in counts.items()))
+    tabs = (("All", len(snapshot.tasks) if snapshot else 0), *((name, count) for name, count in counts.items()))
     x = 1
     for name, count in tabs:
         label = f" {name} {count} "

@@ -1645,7 +1645,7 @@ class RefreshCostTest(RepoCase):
 
 
 class ClosingTaskMixin:
-    """Tasks stay listed as CLOSING from `integrate stage` until cleanup, in both workflows."""
+    """Terminal rows distinguish pending integration from cleanup in both workflows."""
 
     done_id: str
     open_id: str
@@ -1690,13 +1690,74 @@ class ClosingTaskMixin:
         self.assertEqual(task.closure_stop_reason, "PUSH_PENDING")
         self.assertEqual(task.next_action, "PUSH_PENDING: git push origin main")
 
-    def test_task_is_hidden_once_cleanup_has_completed(self) -> None:
-        self.closing_project()
-        tasks, _status = self.load_closing(self.report("C10", None, "meridian worktree cleanup 1"))
-        self.assertEqual(tasks[self.done_id].progress_phase, "cleanup pending")
+    def check_cleanup_only(self, archived: bool) -> None:
+        self.closing_project(archived=archived)
+        before = self.refs_and_status()
+        resume = f"meridian worktree cleanup {self.done_id} --project /exact/project"
+        state = console.ConsoleState(self.project)
+        with mock.patch.object(console, "closure_status", return_value=self.report(
+                "C10", None, resume)) as status:
+            state.refresh()
+        self.assertEqual(self.refs_and_status(), before)
+        snapshot = state.snapshot
+        task = next(item for item in snapshot.tasks if item.task_id == self.done_id)
+        self.assertEqual(status.call_count, 1)
+        self.assertEqual(snapshot.done_count, 1)
+        self.assertEqual(console._filter_counts(snapshot)["Closing"], 0)
+        self.assertEqual(console._visible_tasks(snapshot, "Closing", ""), [])
+        self.assertIn(task, console._visible_tasks(snapshot, "All", self.done_id))
+        self.assertEqual(console._state_label(task), ("Done", "muted"))
+        self.assertEqual((task.readiness, task.lifecycle), ("DONE", "done"))
+        self.assertTrue(task.cleanup_pending)
+        self.assertFalse(task.shows_progress)
+        self.assertIsNone(task.launch_command)
+        self.assertEqual(task.next_action, resume)
+        self.assertEqual(task.closure_resume, resume)
+        self.assertEqual(task.progress_phase, "cleanup pending")
+        self.assertEqual(console._filter_counts(snapshot)["Working"], 0)
+        palette = {name: 0 for name in (
+            "base", "text", "title", "ready", "working", "muted", "line", "action", "blocked")}
+        lines = [value for value, _ in console._detail_lines(task, 200, palette)]
+        self.assertIn("○ Done", lines)
+        self.assertIn("Cleanup pending", lines)
+        self.assertIn(f"Resume: {resume}", lines)
+        text = console.one_shot(state)
+        self.assertIn("Open: 1 | Done: 1", text)
+        self.assertIn(f"{self.done_id} [DONE]", text)
+        self.assertIn("  Cleanup pending", text)
+        self.assertIn(f"  Resume: {resume}", text)
+        self.assertNotIn("  Elapsed:", text)
         tasks, _status = self.load_closing(self.report("C10"))
         self.assertNotIn(self.done_id, tasks)
         self.assertIn(self.open_id, tasks)
+
+    def test_cleanup_only_counts_as_done_with_accessible_hint_and_resume(self) -> None:
+        self.check_cleanup_only(archived=False)
+
+    def test_archived_cleanup_only_counts_as_done_with_accessible_hint_and_resume(self) -> None:
+        self.check_cleanup_only(archived=True)
+
+    def test_preceding_closure_steps_remain_closing(self) -> None:
+        self.closing_project()
+        for step in ("C6", "C7", "C9"):
+            with self.subTest(step=step), mock.patch.object(
+                    console, "closure_status", return_value=self.report(step)):
+                snapshot = console.load_snapshot(self.project)
+                task = next(item for item in snapshot.tasks if item.task_id == self.done_id)
+                self.assertEqual(console._state_label(task), ("Closing", "working"))
+                self.assertEqual(snapshot.done_count, 0)
+                self.assertEqual(console._filter_counts(snapshot)["Closing"], 1)
+
+    def test_missing_closure_fields_are_not_proof_of_completion(self) -> None:
+        self.closing_project()
+        for report in (None, {}, {"step": "C10"}, {"step": "C10", "resume": "cleanup"}):
+            with self.subTest(report=report), mock.patch.object(
+                    console, "closure_status", return_value=(report, False)):
+                snapshot = console.load_snapshot(self.project)
+                task = next(item for item in snapshot.tasks if item.task_id == self.done_id)
+                self.assertEqual(console._state_label(task), ("Closing", "working"))
+                self.assertEqual(snapshot.done_count, 0)
+                self.assertEqual(task.progress_phase, "unavailable")
 
     def test_completed_task_without_closure_work_is_hidden_without_reading_closure(self) -> None:
         self.closing_project(worktree=False)
