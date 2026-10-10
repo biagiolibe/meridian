@@ -158,7 +158,7 @@
 - `[x]` 189 — Keep worktree resume independent of Git metadata writes.
 - `[x]` 190 — Make agent evaluations an optional tool, not a release gate.
 - `[x]` 191 — Prevent archival of open queue sections.
-- `[ ]` 192 — Allow SPIKE execution evidence at integration.
+- `[x]` 192 — Allow SPIKE execution evidence at integration.
 - `[ ]` 193 — Align the SPIKE blueprint with worktree closure.
 - `[ ]` 194 — Detect and repair stale worktree base records.
 - `[ ]` 195 — Count cleanup-pending tasks as done in the console.

@@ -16,17 +16,17 @@ Authority: `docs/ADR_STOPS_AND_DENIALS.md`, the satisfiable gate contract.
 
 ## Acceptance Criteria
 
-- [ ] A regression reproduces a SPIKE running its declared validation through
+- [x] A regression reproduces a SPIKE running its declared validation through
   `meridian execution validate` and integrating its durable evidence.
-- [ ] The canonical execution-evidence ledger is allowed by the SPIKE path
+- [x] The canonical execution-evidence ledger is allowed by the SPIKE path
   check, without weakening validation evidence checks or allowing arbitrary
   `.meridian/` paths, production code, or undeclared deliverables.
-- [ ] Integration retains the evidence bytes and accepts the valid SPIKE
+- [x] Integration retains the evidence bytes and accepts the valid SPIKE
   candidate without restoring or removing the ledger as a workaround.
-- [ ] Tests cover allowed evidence, a disallowed neighboring path, declared
+- [x] Tests cover allowed evidence, a disallowed neighboring path, declared
   deliverables, and existing non-SPIKE behavior.
-- [ ] Document the allowed evidence path and add a changelog fragment.
-- [ ] Repository checks, the full unit suite, and `git diff --check` pass.
+- [x] Document the allowed evidence path and add a changelog fragment.
+- [x] Repository checks, the full unit suite, and `git diff --check` pass.
 
 ## Relevant Files
 
