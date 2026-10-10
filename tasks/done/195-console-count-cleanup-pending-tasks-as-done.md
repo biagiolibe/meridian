@@ -15,20 +15,20 @@ hint and its resume command.
 
 ## Acceptance Criteria
 
-- [ ] A terminal queue row with a registered canonical worktree and C10 cleanup
+- [x] A terminal queue row with a registered canonical worktree and C10 cleanup
   resume is counted as done and excluded from the `Closing` filter.
-- [ ] The task's cleanup-pending hint and exact resume command remain accessible
+- [x] The task's cleanup-pending hint and exact resume command remain accessible
   in the console detail view without pretending the task is active work.
-- [ ] C6, C7, and C9 retain their current Closing behavior. Missing or unreadable
+- [x] C6, C7, and C9 retain their current Closing behavior. Missing or unreadable
   lifecycle state is not treated as proof of completion.
-- [ ] Tests cover both workflow modes, active and archived terminal rows,
+- [x] Tests cover both workflow modes, active and archived terminal rows,
   cleanup-only C10, C10 without a resume, and the preceding Closing phases.
-- [ ] Done rows without registered worktrees incur no additional subprocess
+- [x] Done rows without registered worktrees incur no additional subprocess
   cost. Console refresh remains within its existing latency constraints.
-- [ ] Interactive and `--once` summaries agree. The console stays read-only
+- [x] Interactive and `--once` summaries agree. The console stays read-only
   and never performs cleanup itself.
-- [ ] Document the display distinction and add a changelog fragment.
-- [ ] Repository checks, the full unit suite, and `git diff --check` pass.
+- [x] Document the display distinction and add a changelog fragment.
+- [x] Repository checks, the full unit suite, and `git diff --check` pass.
 
 ## Relevant Files
 
@@ -50,3 +50,9 @@ historical worktrees.
 
 - **Depends on**: 124, 186
 - **Blocks**: none
+
+## Completion
+
+Implemented at `78b16cd16217aef25ed10c044f60108f047f1b23`. Required repository
+checks, the full 898-test parallel suite (no failures, errors, or skips), and
+`git diff --check` passed. See [completion report](../handoffs/195.md).
