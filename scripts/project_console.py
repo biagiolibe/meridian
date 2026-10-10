@@ -395,6 +395,20 @@ class RecordResolver:
             return None, f"task record is unavailable within the project: {matches[0]}"
         return path, None
 
+    def find_by_name(self, basename: str) -> tuple[Path | None, str | None]:
+        """Resolve an exact linked filename using the cached task-root scan."""
+        matches = [relative for relative in self._scan()
+                   if Path(relative).name == basename
+                   and is_task_record_path(relative, self.excluded)]
+        if not matches:
+            return None, "task record not found"
+        if len(matches) > 1:
+            return None, "ambiguous task record: " + ", ".join(matches)
+        path = (self.project / matches[0]).resolve()
+        if not path.is_relative_to(self.project) or not path.is_file():
+            return None, f"task record is unavailable within the project: {matches[0]}"
+        return path, None
+
     def find_on_ref(self, ref: str, task_id: str) -> str | None:
         """Apply the same rules to a task branch tree; None unless exactly one match."""
         listing = _git_optional(self.project, "ls-tree", "-r", "--name-only", ref, "--", *self.roots)
@@ -416,9 +430,16 @@ def _task_path(project: Path, queue: Path, row: QueueRow,
         in_task_root = any(relative.startswith(root.rstrip("/") + "/")
                            for root in resolver.roots)
         if in_task_root and is_task_record_path(relative, resolver.excluded):
-            archived, problem = resolver.find(row.task_id)
+            archived, problem = resolver.find_by_name(Path(target).name)
             if archived is not None and problem is None:
-                return archived, None
+                try:
+                    text = _read_text(archived)
+                except ConsoleError:
+                    text = ""
+                heading = text.splitlines()[0] if text else ""
+                if re.match(rf"^#\s+(?:Task\s+)?`?{re.escape(row.task_id)}`?(?:\s|$)",
+                            heading):
+                    return archived, None
     if not path.is_relative_to(project) or not path.is_file():
         raise ConsoleError(f"Task {row.task_id} file is unavailable within the project: {path}")
     return path, None
@@ -540,7 +561,8 @@ class IdentityCache:
 
 def _branch_facts(project: Path, profile: Profile, task_id: str, queue: str,
                   worktrees: dict[str, str], identities: IdentityCache | None = None,
-                  resolver: RecordResolver | None = None, main_record: str | None = None
+                  resolver: RecordResolver | None = None, main_record: str | None = None,
+                  archived_link: bool = False
                   ) -> tuple[BranchFacts | None, str | None, str | None, str | None]:
     """Read one task branch without touching its worktree.
 
@@ -548,7 +570,11 @@ def _branch_facts(project: Path, profile: Profile, task_id: str, queue: str,
     registered worktree path (known even when the branch ref is unreadable).
     """
     try:
-        identity = (identities or IdentityCache()).resolve(project, task_id)
+        if archived_link:
+            # _task_path already verified the uniquely moved record and its heading.
+            identity = resolve_task_identity(project, task_id, "existing", check_queue_links=False)
+        else:
+            identity = (identities or IdentityCache()).resolve(project, task_id)
     except MeridianError as error:
         raise ConsoleError(f"Cannot resolve task identity for {task_id}: {error}") from error
     branch = identity.branch_name
@@ -745,7 +771,9 @@ def load_snapshot(project: Path, identities: IdentityCache | None = None) -> Sna
         else:
             facts, branch_text, branch_path, worktree = _branch_facts(
                 project, profile, row.task_id, queue_relative, worktrees, identities, resolver,
-                _relative(project, path) if path and not has_link(row.link) else None)
+                _relative(project, path) if path and not has_link(row.link) else None,
+                archived_link=bool(path and has_link(row.link) and
+                                   path != (project / link_target(queue_relative, row.link)).resolve()))
         branch_policy_text = (branch_text if facts and facts.row
                               and facts.row.status != row.status else primary_text)
         review = row.review if row.review is not None else record_review(branch_policy_text)

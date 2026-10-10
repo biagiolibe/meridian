@@ -157,7 +157,7 @@ class ProjectConsoleTest(unittest.TestCase):
         archived.parent.mkdir()
         (self.project / "tasks/002-second.md").rename(archived)
         after = self.snapshot()
-        self.assertEqual(before.tasks[0].path, self.project / "tasks/002-second.md")
+        self.assertEqual(before.tasks[0].path, (self.project / "tasks/002-second.md").resolve())
         self.assertEqual(after.tasks[0].path, archived.resolve())
         self.assertIsNone(after.tasks[0].record_problem)
         self.assertEqual(after.tasks[0].objective, before.tasks[0].objective)
@@ -181,6 +181,57 @@ class ProjectConsoleTest(unittest.TestCase):
         record.unlink()
         with self.assertRaisesRegex(console.ConsoleError, "Task 002 file is unavailable"):
             self.snapshot()
+
+    def test_same_linked_filename_in_two_task_roots_is_rejected(self) -> None:
+        self.write_queue()
+        (self.project / "PROJECT_WORKFLOW.md").write_text(
+            "# LEAN_DELIVERY\n"
+            "<!-- MERIDIAN:BEGIN capability=execution-assets v1 -->\n"
+            "Task files live under `docs/tasks/`\n"
+            "<!-- MERIDIAN:END -->\n", encoding="utf-8")
+        record = self.project / "tasks/002-second.md"
+        for root in ("tasks/done", "docs/tasks"):
+            target = self.project / root
+            target.mkdir(parents=True)
+            (target / record.name).write_text(record.read_text(), encoding="utf-8")
+        record.unlink()
+        with self.assertRaisesRegex(console.ConsoleError, "Task 002 file is unavailable"):
+            self.snapshot()
+        resolver = console.RecordResolver(self.project.resolve(),
+                                          console.resolve_project_locations(self.project))
+        path, problem = resolver.find_by_name(record.name)
+        self.assertIsNone(path)
+        self.assertIn("ambiguous task record:", problem)
+
+    def test_archived_filename_with_wrong_heading_is_rejected(self) -> None:
+        self.write_queue()
+        record = self.project / "tasks/002-second.md"
+        archived = self.project / "tasks/done" / record.name
+        archived.parent.mkdir()
+        record.rename(archived)
+        for heading in ("# Task 003", "# Task 002-other", "# Unrelated"):
+            with self.subTest(heading=heading):
+                archived.write_text(heading + "\n\n> **ID**: `003`\n", encoding="utf-8")
+                with self.assertRaisesRegex(console.ConsoleError, "Task 002 file is unavailable"):
+                    self.snapshot()
+
+    def test_filename_lookup_reuses_scan_and_excludes_non_records(self) -> None:
+        self.write_queue()
+        record = self.project / "tasks/002-second.md"
+        archived = self.project / "tasks/done" / record.name
+        archived.parent.mkdir()
+        record.rename(archived)
+        for directory in ("handoffs", "reviews"):
+            target = self.project / "tasks" / directory
+            target.mkdir()
+            (target / record.name).write_text("# Task 002\n", encoding="utf-8")
+        resolver = console.RecordResolver(self.project.resolve(),
+                                          console.resolve_project_locations(self.project))
+        with mock.patch.object(console.os, "walk", wraps=os.walk) as walk:
+            self.assertEqual(resolver.find_by_name(record.name), (archived.resolve(), None))
+            self.assertEqual(resolver.find("002"), (None, "task record not found"))
+            self.assertEqual(resolver.find_by_name(record.name), (archived.resolve(), None))
+        self.assertEqual(walk.call_count, len(resolver.roots))
 
     def test_unsafe_link_does_not_fall_back_to_matching_record(self) -> None:
         self.write_queue()

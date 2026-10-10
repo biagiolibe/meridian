@@ -26,11 +26,11 @@ independent of the live repository's governance state.
 
 ## Acceptance Criteria
 
-- [ ] When a queue row has a link whose target lies in a task root but does
-  not exist, `_task_path` looks up the record with the resolution already used
-  for rows without a link (`RecordResolver.find`). It uses the result only when
-  there is exactly one match, for example the same file name under
-  `tasks/done/`. With zero or several matches, the existing error stays.
+- [ ] When a queue row has a link whose target lies in a task root but does not exist,
+  `_task_path` searches the task roots for a record with the same file name as the link
+  target, using the scan and exclusions of `RecordResolver`. It uses the result only when
+  there is exactly one match whose heading names the same task. With zero or several
+  matches, the existing error stays.
 - [ ] A link that leaves the project, or a link that is not unambiguous,
   remains an error as today.
 - [ ] A fixture whose record was moved to `tasks/done/`, with a queue row that
@@ -51,7 +51,7 @@ independent of the live repository's governance state.
 
 | File | Role |
 |------|------|
-| `scripts/project_console.py` | `_task_path` (around line 404) and `RecordResolver.find`. |
+| `scripts/project_console.py` | `_task_path` (around line 404) and `RecordResolver.find_by_name`. |
 | `tests/test_project_console.py` | `test_one_shot_against_repository` and the new fixture tests. |
 
 ## Technical Context
@@ -59,9 +59,9 @@ independent of the live repository's governance state.
 - Evidence: after the archival rename in `05fad02`, task 194 stopped with
   `BLOCKED VALIDATION_FAILED`, exit 1, and empty stderr. Tasks 192 and 193 did
   not hit it only because they validated before archiving.
-- `RecordResolver.find` already reports `task record not found`, `ambiguous
-  task record: …`, or an unavailable path. Reuse its rules rather than adding
-  a second search.
+- `RecordResolver.find` matches only exact `<ID>.md` names. Linked-record
+  fallback uses `find_by_name` with the existing cached scan and exclusions;
+  ID-based and branch-ref resolution remain unchanged.
 - Task 195 changes the same file, so this task is serialized after it.
 
 ## Validation
