@@ -161,7 +161,7 @@
 - `[x]` 192 — Allow SPIKE execution evidence at integration.
 - `[x]` 193 — Align the SPIKE blueprint with worktree closure.
 - `[x]` 194 — Detect and repair stale worktree base records.
-- `[ ]` 195 — Count cleanup-pending tasks as done in the console.
+- `[x]` 195 — Count cleanup-pending tasks as done in the console.
 - `[ ]` 196 — Tolerate archived task records in the console before integration.
 - `[x]` 140 — Let `integrate stage` complete rows of project-shaped Governed queues.
 - `[x]` 069 — Document Codex install from a tagged checkout.
