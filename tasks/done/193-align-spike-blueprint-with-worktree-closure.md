@@ -14,20 +14,20 @@ its branch, contradicting dedicated task worktrees and governed integration.
 
 ## Acceptance Criteria
 
-- [ ] The SPIKE shape distinguishes the separate local throwaway probe branch
+- [x] The SPIKE shape distinguishes the separate local throwaway probe branch
   from the canonical task branch. Probe code is never merged or pushed; the
   task branch carries the deliverable and permitted lifecycle/evidence records
   and completes through the ordinary governed closure.
-- [ ] Replace every direct-to-main instruction for SPIKE deliverables in the
+- [x] Replace every direct-to-main instruction for SPIKE deliverables in the
   affected managed blueprint and keep corresponding skill assets in parity.
-- [ ] Ship the correction through a bumped `task-blueprint` capability and a
+- [x] Ship the correction through a bumped `task-blueprint` capability and a
   migration following the current release procedure. Consumer-owned text is
   preserved; no historical task record is rewritten automatically.
-- [ ] Upgrade tests cover an existing baseline and prove that the corrected
+- [x] Upgrade tests cover an existing baseline and prove that the corrected
   blueprint arrives without contradictory managed instructions or drift.
-- [ ] Add a template-changing changelog fragment with Upgrade notes that tell
+- [x] Add a template-changing changelog fragment with Upgrade notes that tell
   consumers to inspect copied instructions in non-terminal SPIKE records.
-- [ ] Repository checks, the full unit suite, and `git diff --check` pass.
+- [x] Repository checks, the full unit suite, and `git diff --check` pass.
 
 ## Relevant Files
 
@@ -48,3 +48,7 @@ Changing SPIKE outcomes, production-code permissions, or consumer task records.
 
 - **Depends on**: 192
 - **Blocks**: none
+
+## Completion
+
+Implemented in `37a7a58507a18dcab204539cad6108363155331c`. All acceptance criteria are met; validation and the single named sandbox skip are recorded in `tasks/handoffs/193.md`.
