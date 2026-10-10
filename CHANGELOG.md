@@ -18,15 +18,36 @@ records which release moved it.
 
 ## [1.2.12]
 
-Template-changing release: migration `065-spike-blueprint-worktree-closure` advances `workflowBaselineVersion` to `1.2.12` and aligns `task-blueprint` v16 with governed worktree closure. The manifest shape and `protocolVersion` 2 are unchanged.
+Template-changing release: migration `065-spike-blueprint-worktree-closure` advances `workflowBaselineVersion` to `1.2.12`. It aligns `task-blueprint` v16 with governed worktree closure and adds stale-base recovery, conservative queue archival, and the SPIKE validation-ledger exception to the managed lifecycle guides (`worktree-lifecycle` v3). The CLI adds `meridian worktree repair-base`, safer queue archival, SPIKE ledger integration, and console fixes. The manifest shape and `protocolVersion` 2 are unchanged.
 
 ### Fixed
 
+- Retain open queue phases during archival by respecting heading levels and checking every nested task table. Report ambiguous sections and avoid assuming a fixed consumer queue path.
+- Allow SPIKE tasks to integrate the canonical `.meridian/execution-evidence.json` ledger written by declared execution validation, preserving its bytes while continuing to reject neighboring paths, production code, and undeclared deliverables.
 - Align the SPIKE blueprint and governed skills with dedicated task worktrees: a separate local throwaway probe branch is never merged or pushed, while the canonical task branch carries the deliverable and permitted lifecycle/evidence records through ordinary governed closure.
+- Detect stale task bases after a proven commit-less fast-forward from `main`.
+  Read-only worktree checks report `STALE_WORKTREE_BASE`; the explicit
+  `meridian worktree repair-base` command preserves identity and timing,
+  requires renewed validation evidence, and rejects unproven or unsafe cases.
+- Count terminal console tasks with only C10 cleanup pending as Done, excluding
+  them from Closing and Open while preserving the cleanup hint and exact resume
+  command in the detail pane and `--once` output.
+- Resolve uniquely matching task records after archival while queue links still
+  point to their original task-root paths, preserving invalid-link errors.
+
+### Documentation
+
+- Document stale worktree base recovery and conservative queue-section archival
+  in both managed lifecycle guides, and the canonical SPIKE validation ledger
+  exception in the Governed SDD guide.
 
 ### Upgrade notes
 
-- Run `meridian upgrade --apply` to install `task-blueprint` v16 in `tasks/TASK_BLUEPRINT.md` (migration `065-spike-blueprint-worktree-closure`). Adapted text inside the managed block may require conflict review; consumer-owned text outside it is preserved. Inspect copied branch and closure instructions in non-terminal SPIKE records and align them manually; upgrade does not rewrite historical task records. No minimum framework or `protocolVersion` change is required.
+- Affected capabilities: `task-blueprint` v16 (Governed SDD) and `worktree-lifecycle` v3 (both workflows). Managed paths: `tasks/TASK_BLUEPRINT.md` (Governed SDD) and `docs/WORKTREE_LIFECYCLE.md`.
+- Required action: run `meridian upgrade --check`, then `meridian upgrade --apply` to receive migration `065-spike-blueprint-worktree-closure`.
+- Likely conflict areas for adapted projects: adapted text inside the managed blocks of `tasks/TASK_BLUEPRINT.md` and `docs/WORKTREE_LIFECYCLE.md`; resolve in place and keep protected markers intact. Consumer-owned text outside the blocks is preserved. Upgrade does not rewrite historical task records, so align branch and closure instructions copied into non-terminal SPIKE records by hand.
+- After `meridian worktree repair-base`, renew validation and record new evidence before closure.
+- No minimum framework or `protocolVersion` change; Python 3.12 remains the minimum since 1.2.11.
 
 ## [1.2.11]
 
