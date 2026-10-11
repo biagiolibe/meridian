@@ -38,6 +38,8 @@ REQUIRED_FILES = (
     "scripts/meridian.py",
     "capabilities/catalog-v1.json",
     "capabilities/stop-codes-v1.json",
+    "capabilities/retired-text-v1.json",
+    "schemas/retired-text-v1.schema.json",
     "schemas/capability-catalog-v1.schema.json",
     "schemas/stop-codes-v1.schema.json",
     "schemas/manifest-v2.schema.json",
@@ -973,6 +975,7 @@ def main() -> None:
     check_json()
     check_stop_code_registry()
     check_plugin_version()
+    meridian.load_retired_text_registry(ROOT)
     check_capability_catalog()
     check_migrations()
     check_catalog_surface_migrations()

@@ -27,7 +27,7 @@ them itself.
 
 ## Acceptance Criteria
 
-- [ ] A registry `capabilities/retired-text-v1.json` lists, for each retired
+- [x] A registry `capabilities/retired-text-v1.json` lists, for each retired
   capability, the version that retired it, a small set of distinctive phrases,
   the files where they were seeded, and a one-line remedy. The first entry
   covers `reasoning-budget-contract` (retired in 1.2.9) with at least these
@@ -38,7 +38,7 @@ them itself.
   - `reasoning cap`;
   - `## Reasoning profile`.
   A schema in `schemas/` validates the file.
-- [ ] `meridian upgrade --check` and `meridian audit` scan only the
+- [x] `meridian upgrade --check` and `meridian audit` scan only the
   project-owned text of the listed files, outside `MERIDIAN:BEGIN/END`
   regions, and only in projects whose framework version is at or after the
   retiring version.
@@ -47,23 +47,23 @@ them itself.
     state.
   - A match never blocks, never changes the exit status of an otherwise
     passing run, and never modifies a file.
-- [ ] Task records, handoffs, review records, and archives are not scanned,
+- [x] Task records, handoffs, review records, and archives are not scanned,
   so historical `Reasoning` fields in tasks produce no advisory.
-- [ ] Phrase matching is case-insensitive and literal, not a regular
+- [x] Phrase matching is case-insensitive and literal, not a regular
   expression, and text inside managed regions never matches.
-- [ ] `CONTRIBUTING.md` requires every future retirement migration to register
+- [x] `CONTRIBUTING.md` requires every future retirement migration to register
   its distinctive phrases in the registry, in the same task.
-- [ ] Tests cover:
+- [x] Tests cover:
   - a project-owned match in each listed file;
   - the same phrase inside a managed region, which is not reported;
   - a matching phrase in a task record, which is not reported;
   - a project older than the retiring version;
   - a clean project;
   - that the exit status and files are unchanged.
-- [ ] One changelog fragment states the advisory under `Added`. Its `Upgrade
+- [x] One changelog fragment states the advisory under `Added`. Its `Upgrade
   notes` tell 1.2.9+ adopters to remove the reported reasoning text from
   project-owned sections by hand.
-- [ ] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
+- [x] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
   --parallel`, and `git diff --check` pass.
 
 ## Relevant Files
@@ -103,3 +103,9 @@ scanning task records, and agent-evaluation scenarios.
 
 - **Depends on**: none
 - **Blocks**: none
+
+## Completion
+
+Implemented and validated on `task-198`; see `tasks/handoffs/198.md`.
+Registry-backed retired-text advisories preserve project files and command exit
+status. Queue and project-plan closure are owned by integration stage.

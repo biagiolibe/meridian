@@ -729,3 +729,11 @@ Authority: release readiness review of 2026-10-10; lifecycle documentation for t
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
 | `[x]` | 197 | Ship the 1.2.12 lifecycle documentation through migration 065 | 🟡 P2 | 191, 192, 194 | [197](done/197-ship-lifecycle-doc-updates-with-migration-065.md) |
+
+### Phase 61 — Retired text in adopted projects
+
+Authority: Fusa TASK-046 reasoning stop of 2026-10-11 after the upgrade to 1.2.12.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 198 | Report retired framework text left outside managed markers | 🟡 P2 | — | [198](done/198-report-retired-unmarked-text-at-upgrade.md) |

@@ -37,14 +37,6 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, 25, 26, 27, 28, 31, 32, 34, 35, 36, 42, 44, 45, 46, and 47
 are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 
-### Phase 61 — Retired text in adopted projects
-
-Authority: Fusa TASK-046 reasoning stop of 2026-10-11 after the upgrade to 1.2.12.
-
-| Status | ID | Title | Priority | Depends on | File |
-|--------|----|-------|----------|------------|------|
-| `[ ]` | 198 | Report retired framework text left outside managed markers | 🟡 P2 | — | [198](198-report-retired-unmarked-text-at-upgrade.md) |
-
 ### Phase 62 — Machine task state
 
 Authority: [docs/ADR_MACHINE_TASK_STATE.md](../docs/ADR_MACHINE_TASK_STATE.md). 199–202 change only the CLI; 203 is template-changing.
