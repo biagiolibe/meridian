@@ -2109,7 +2109,13 @@ def _integration_task_state(
                     task_id=identity.canonical_id, project=project_root,
                 )
         return None
-    shown = _run_git(project_root, "show", f"{task_commit}:{relative.as_posix()}")
+    try:
+        shown = _run_git(project_root, "show", f"{task_commit}:{relative.as_posix()}")
+    except UnicodeError as error:
+        raise stop_error(
+            "TASK_STATE_INVALID", f"{relative}: expected readable UTF-8 JSON; found {error}",
+            task_id=identity.canonical_id, project=project_root,
+        ) from error
     if shown.returncode != 0:
         raise stop_error(
             "TASK_STATE_MISSING", f"{relative}: expected tracked state at {task_commit}; found missing",

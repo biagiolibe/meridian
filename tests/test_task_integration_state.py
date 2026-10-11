@@ -150,6 +150,13 @@ class TaskIntegrationStateTest(unittest.TestCase):
         self.commit()
         self.assert_stop("TASK_STATE_INVALID", ".meridian/tasks/056.json")
 
+    def test_non_utf8_state_stop(self):
+        self.start()
+        self.write_state()
+        self.state_file.write_bytes(b"\xff")
+        self.commit()
+        self.assert_stop("TASK_STATE_INVALID", "expected readable UTF-8 JSON")
+
     def test_nonterminal_state_stop(self):
         self.start()
         self.write_state(status="READY_FOR_REVIEW")
