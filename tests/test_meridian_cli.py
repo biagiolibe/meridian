@@ -285,6 +285,26 @@ class MeridianCliTest(unittest.TestCase):
             check=False,
         )
 
+    def test_upgrade_check_reports_retired_text_without_writes_or_exit_change(self) -> None:
+        (self.framework / "VERSION").write_text(meridian.read_version(ROOT) + "\n", encoding="utf-8")
+        locked = self.run_cli("lock", "--mode", "governed-sdd")
+        self.assertEqual(locked.returncode, 0, locked.stdout + locked.stderr)
+        baseline = self.run_cli("upgrade", "--check")
+        self.assertEqual(baseline.returncode, 0, baseline.stdout + baseline.stderr)
+        self.assertNotIn("retired-text", baseline.stdout)
+        for relative_path in meridian.load_retired_text_registry(ROOT)[0]["files"]:
+            path = self.project / relative_path
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with path.open("a", encoding="utf-8") as stream:
+                stream.write("\nFresh SESSION at the declared VALUE\n")
+        before = {path.relative_to(self.project): path.read_bytes() for path in self.project.rglob("*") if path.is_file()}
+        checked = self.run_cli("upgrade", "--check")
+        self.assertEqual(checked.returncode, baseline.returncode, checked.stdout + checked.stderr)
+        self.assertEqual(checked.stdout.count("ADVISORY       retired-text"), 2)
+        self.assertIn("retired capability=reasoning-budget-contract", checked.stdout)
+        after = {path.relative_to(self.project): path.read_bytes() for path in self.project.rglob("*") if path.is_file()}
+        self.assertEqual(after, before)
+
     def configure_1_1_40_to_1_1_41_upgrade(self) -> None:
         """Lock the entry points immediately before migration 044."""
         workflow = self.framework / "templates/workflows/governed-sdd"
@@ -3462,6 +3482,74 @@ class MarkerSupersessionTest(unittest.TestCase):
         )
         result = meridian.append_only_new_markers(local, self.BASE, template)
         self.assertIsNone(result)
+
+
+class RetiredTextAdvisoryTest(unittest.TestCase):
+    def test_scanner_limits_version_paths_and_managed_regions(self) -> None:
+        entry = meridian.load_retired_text_registry(ROOT)[0]
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            for relative_path in entry["files"]:
+                path = project / relative_path
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(
+                    "intro\n<!-- MERIDIAN:BEGIN capability=example v1 -->\n"
+                    + "\n".join(entry["phrases"])
+                    + "\n<!-- MERIDIAN:END -->\n"
+                    + "\n".join(phrase.upper() for phrase in entry["phrases"]) + "\n",
+                    encoding="utf-8",
+                )
+            for relative_path in ("tasks/001.md", "tasks/handoffs/001.md", "tasks/reviews/001.md", "tasks/done/001.md", "tasks/QUEUE_ARCHIVE.md"):
+                path = project / relative_path
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("\n".join(entry["phrases"]), encoding="utf-8")
+            self.assertEqual(meridian.retired_text_advisories(project, ROOT, {"frameworkVersion": "1.2.8"}), [])
+            for version in ("1.2.9", "1.2.12"):
+                rows = meridian.retired_text_advisories(project, ROOT, {"frameworkVersion": version})
+                self.assertEqual(len(rows), len(entry["files"]) * len(entry["phrases"]))
+                for row in rows:
+                    self.assertEqual(row.status, "ADVISORY")
+                    self.assertIn("retired capability=reasoning-budget-contract", row.detail)
+                    self.assertIn(entry["remedy"], row.detail)
+                    self.assertRegex(row.detail, r"docs/[^:]+:(?:9|10|11|12|13):")
+            for relative_path in entry["files"]:
+                (project / relative_path).write_text("clean project text\n", encoding="utf-8")
+            self.assertEqual(meridian.retired_text_advisories(project, ROOT, {"frameworkVersion": "1.2.9"}), [])
+
+    def test_phrase_matching_is_literal_and_preserves_inline_line_numbers(self) -> None:
+        entry = {"capability": "example", "retiredIn": "1.2.9", "phrases": ["cap [a-z].*"], "files": ["docs/example.md"], "remedy": "Remove by hand."}
+        with tempfile.TemporaryDirectory() as directory, mock.patch.object(meridian, "load_retired_text_registry", return_value=[entry]):
+            project = Path(directory)
+            path = project / "docs/example.md"
+            path.parent.mkdir()
+            path.write_text("cap abc\n<!-- MERIDIAN:BEGIN capability=example v1 -->cap [a-z].*<!-- MERIDIAN:END --> CAP [A-Z].*\n", encoding="utf-8")
+            rows = meridian.retired_text_advisories(project, ROOT, {"frameworkVersion": "1.2.9"})
+            self.assertEqual(len(rows), 1)
+            self.assertIn("docs/example.md:2:", rows[0].detail)
+
+    def test_registry_matches_published_schema(self) -> None:
+        schema = json.loads((ROOT / "schemas/retired-text-v1.schema.json").read_text(encoding="utf-8"))
+        data = json.loads((ROOT / "capabilities/retired-text-v1.json").read_text(encoding="utf-8"))
+        self.assertEqual(set(data), set(schema["required"]))
+        self.assertEqual(data["version"], schema["properties"]["version"]["const"])
+        item = schema["properties"]["retirements"]["items"]
+        for entry in meridian.load_retired_text_registry(ROOT):
+            self.assertEqual(set(entry), set(item["required"]))
+            for key, value in entry.items():
+                rule = item["properties"][key]
+                if rule["type"] == "string":
+                    self.assertIsInstance(value, str)
+                    if "pattern" in rule:
+                        self.assertRegex(value, rule["pattern"])
+                else:
+                    self.assertIsInstance(value, list)
+                    self.assertGreaterEqual(len(value), rule["minItems"])
+                    self.assertEqual(len(value), len(set(value)))
+                    for text in value:
+                        self.assertIsInstance(text, str)
+                        self.assertGreaterEqual(len(text), rule["items"]["minLength"])
+                        if "pattern" in rule["items"]:
+                            self.assertRegex(text, rule["items"]["pattern"])
 
 
 class CapabilityRetirementTest(unittest.TestCase):
@@ -7521,6 +7609,32 @@ class CapabilityProfileManifestTest(unittest.TestCase):
             persisted = json.loads(manifest_path.read_text(encoding="utf-8"))
             installation = persisted["capabilityProfiles"]["meridian-self-hosting"]["capabilities"]["language-policy"]["installation"]
             self.assertEqual(installation["state"], "MISSING")
+
+    def test_retired_text_audit_advisories_preserve_exit_status_and_files(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            self.installed_project(project)
+            (project / ".meridian/candidate-validation.json").write_text('{"version": 1, "state": "none"}\n', encoding="utf-8")
+            baseline_code, _ = self.audit(project)
+            self.assertEqual(baseline_code, 0)
+            for relative_path in meridian.load_retired_text_registry(ROOT)[0]["files"]:
+                path = project / relative_path
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(relative_path + "\n## Reasoning profile\n", encoding="utf-8")
+            manifest = self.installed_project(project)
+            manifest["frameworkVersion"] = meridian.read_version(ROOT)
+            meridian.write_manifest(project, manifest, ROOT)
+            with mock.patch.object(meridian, "retired_text_advisories", return_value=[]):
+                baseline_code, _ = self.audit(project)
+            self.assertEqual(baseline_code, 0)
+            before = {path.relative_to(project): path.read_bytes() for path in project.rglob("*") if path.is_file()}
+            code, output = self.audit(project)
+            self.assertEqual(code, baseline_code, output)
+            self.assertIn("SUMMARY worst=ADVISORY", output)
+            self.assertEqual(output.count("ADVISORY       retired-text"), 2)
+            self.assertIn("docs/CONTEXT_BUDGET_POLICY.md:2:", output)
+            after = {path.relative_to(project): path.read_bytes() for path in project.rglob("*") if path.is_file()}
+            self.assertEqual(after, before)
 
     def test_cross_mode_audit_accepts_complete_declarations_and_reports_counts(self) -> None:
         for mode in meridian.WORKFLOW_MODES:

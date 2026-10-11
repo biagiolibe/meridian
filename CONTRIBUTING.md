@@ -283,6 +283,11 @@ paths, the required action (`upgrade --apply`), likely conflict areas for
 adapted projects, and any minimum framework or `protocolVersion` change. The
 release script enforces both rules.
 
+Every retirement migration must register its distinctive seeded phrases, affected
+files, retirement version, and manual remedy in `capabilities/retired-text-v1.json`
+in the same task. Keep the registry valid against
+`schemas/retired-text-v1.schema.json`; only project-owned text is advisory.
+
 The last migration may lag behind `VERSION` but must never target a version
 ahead of it.
 

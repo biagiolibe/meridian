@@ -6584,6 +6584,89 @@ def audit_declared_capabilities(
     return results, workflow_mode
 
 
+def load_retired_text_registry(framework_root: Path) -> list[dict[str, object]]:
+    """Read the versioned advisory registry; older framework fixtures lack it."""
+    path = framework_root / "capabilities/retired-text-v1.json"
+    if not path.is_file():
+        return []
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if (
+            not isinstance(data, dict)
+            or set(data) != {"version", "retirements"}
+            or type(data["version"]) is not int
+            or data["version"] != 1
+        ):
+            raise ValueError("expected version 1 and retirements")
+        entries = data["retirements"]
+        if not isinstance(entries, list):
+            raise ValueError("retirements must be an array")
+        for entry in entries:
+            if not isinstance(entry, dict) or set(entry) != {
+                "capability", "retiredIn", "phrases", "files", "remedy"
+            }:
+                raise ValueError("invalid retirement fields")
+            for field, pattern in (
+                ("capability", r"[a-z0-9]+(?:-[a-z0-9]+)*"),
+                ("retiredIn", r"[0-9]+\.[0-9]+\.[0-9]+"),
+            ):
+                if not isinstance(entry[field], str) or not re.fullmatch(pattern, entry[field]):
+                    raise ValueError(f"invalid {field}")
+            if not isinstance(entry["remedy"], str) or not entry["remedy"].strip():
+                raise ValueError("missing remedy")
+            for field in ("phrases", "files"):
+                values = entry[field]
+                if (
+                    not isinstance(values, list) or not values
+                    or any(not isinstance(value, str) or not value for value in values)
+                    or len(set(values)) != len(values)
+                ):
+                    raise ValueError(f"invalid {field}")
+            for value in entry["files"]:
+                path_value = Path(value)
+                if (
+                    not path_value.parts or path_value.is_absolute()
+                    or ".." in path_value.parts or path_value.parts[0] == "tasks"
+                    or "\\" in value
+                ):
+                    raise ValueError("retired text files must be safe project paths outside tasks")
+        return entries
+    except (OSError, ValueError) as error:
+        raise MeridianError(f"invalid retired-text registry: {error}") from error
+
+
+def retired_text_advisories(
+    project_root: Path, framework_root: Path, manifest: dict[str, object]
+) -> list[AuditResult]:
+    """Match literal phrases only in explicitly listed, project-owned text."""
+    results = []
+    installed = version_key(str(manifest["frameworkVersion"]))
+    for entry in load_retired_text_registry(framework_root):
+        if installed < version_key(entry["retiredIn"]):
+            continue
+        for relative_path in entry["files"]:
+            path = project_root / relative_path
+            if not path.is_file():
+                continue
+            text = path.read_text(encoding="utf-8")
+            # Blank managed regions without changing line numbers. An unfinished
+            # region remains managed through EOF; marker audit handles corruption.
+            text = re.sub(
+                r"<!-- MERIDIAN:BEGIN\b.*?(?:<!-- MERIDIAN:END -->|\Z)",
+                lambda match: "".join("\n" if char == "\n" else " " for char in match.group()),
+                text, flags=re.DOTALL,
+            )
+            for line_number, line in enumerate(text.splitlines(), 1):
+                for phrase in entry["phrases"]:
+                    if phrase.casefold() in line.casefold():
+                        results.append(AuditResult(
+                            "ADVISORY", "retired-text",
+                            f"{relative_path}:{line_number}: retired capability={entry['capability']}; "
+                            f"phrase={phrase!r}; {entry['remedy']}",
+                        ))
+    return results
+
+
 def run_audit(
     project_root: Path,
     framework_root: Path,
@@ -6609,6 +6692,7 @@ def run_audit(
         results.append(AuditResult(status, "entry-router", detail))
     try:
         digest_manifest = load_manifest(project_root, framework_root)
+        results.extend(retired_text_advisories(project_root, framework_root, digest_manifest))
         recorded_digests = digest_manifest.get("managedFiles", {})
         declared_copy_paths = declared_managed_copy_paths(digest_manifest, framework_root)
         if isinstance(recorded_digests, dict):
@@ -6665,7 +6749,10 @@ def run_audit(
         exit_code = 2
     elif counts["ADVISORY"] or counts["UNVERIFIED"]:
         aggregate = "UNVERIFIED" if counts["UNVERIFIED"] else "ADVISORY"
-        exit_code = 1
+        exit_code = int(bool(counts["UNVERIFIED"] or any(
+            result.status == "ADVISORY" and result.identity != "retired-text"
+            for result in results
+        )))
     else:
         aggregate = "PASS"
         exit_code = 0
@@ -11392,6 +11479,8 @@ def _run_cli(journal: LifecycleJournalEntry) -> int:
                 capability_profiles=base_manifest.get("capabilityProfiles"),
             )
             print_plan(project_root, manifest, framework_root, plan, target_version_override=target_override)
+            for advisory in retired_text_advisories(project_root, framework_root, base_manifest):
+                print(f"{advisory.status:14} {advisory.identity} — {advisory.detail}")
             if plan_has_blockers(plan):
                 return 2
         else:
