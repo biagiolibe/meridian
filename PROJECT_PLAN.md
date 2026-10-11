@@ -165,6 +165,11 @@
 - `[x]` 196 — Tolerate archived task records in the console before integration.
 - `[x]` 197 — Ship the 1.2.12 lifecycle documentation through migration 065.
 - `[ ]` 198 — Report retired framework text left outside managed markers.
+- `[ ]` 199 — Add the task state file, its state machines, and `meridian task transition`.
+- `[ ]` 200 — Add `meridian review verdict` bound to the reviewed commit.
+- `[ ]` 201 — Gate `integrate stage` on task state and the approved commit.
+- `[ ]` 202 — Read task state in the console and in `meridian audit`.
+- `[ ]` 203 — Import task state and ship the managed review, closure, and Accept text.
 - `[x]` 140 — Let `integrate stage` complete rows of project-shaped Governed queues.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.

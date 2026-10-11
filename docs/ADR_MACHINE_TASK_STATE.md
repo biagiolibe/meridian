@@ -1,6 +1,6 @@
 # ADR: Machine Task State
 
-Status: Proposed
+Status: Accepted
 
 ## Context
 
