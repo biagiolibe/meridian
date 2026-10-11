@@ -167,7 +167,7 @@
 - `[x]` 198 — Report retired framework text left outside managed markers.
 - `[x]` 199 — Add the task state file, its state machines, and `meridian task transition`.
 - `[x]` 200 — Add `meridian review verdict` bound to the reviewed commit.
-- `[ ]` 201 — Gate `integrate stage` on task state and the approved commit.
+- `[x]` 201 — Gate `integrate stage` on task state and the approved commit.
 - `[ ]` 202 — Read task state in the console and in `meridian audit`.
 - `[ ]` 203 — Import task state and ship the managed review, closure, and Accept text.
 - `[x]` 140 — Let `integrate stage` complete rows of project-shaped Governed queues.

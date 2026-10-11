@@ -1905,7 +1905,8 @@ class GovernedCompletionRowsTest(unittest.TestCase):
         original = queue.read_text(encoding="utf-8").replace("NOT_REQUIRED", "REQUIRED")
         queue.write_text(original, encoding="utf-8")
         identity = meridian.resolve_task_identity(self.primary, "056", "existing")
-        meridian._apply_task_completion_rows(self.primary, identity)
+        with self.assertRaisesRegex(meridian.MeridianStop, "BLOCKED REVIEW_NOT_APPROVED:"):
+            meridian._apply_task_completion_rows(self.primary, identity)
         self.assertEqual(queue.read_text(encoding="utf-8"), original)
 
     def test_governed_required_review_uses_the_latest_attempt(self) -> None:
@@ -1933,14 +1934,18 @@ class GovernedCompletionRowsTest(unittest.TestCase):
                     review.unlink(missing_ok=True)
                 else:
                     review.write_text(record, encoding="utf-8")
-                result = meridian._apply_task_completion_rows(self.primary, identity)
+                if label == "approve":
+                    result = meridian._apply_task_completion_rows(self.primary, identity)
+                else:
+                    with self.assertRaisesRegex(meridian.MeridianStop, "BLOCKED REVIEW_NOT_APPROVED:"):
+                        meridian._apply_task_completion_rows(self.primary, identity)
                 row = next(line for line in queue.read_text(encoding="utf-8").splitlines() if "| 056 |" in line)
                 if label == "approve":
                     self.assertIn("| ACCEPTED | REQUIRED |", row)
                     self.assertEqual(result["status"], "COMPLETED")
                 else:
                     self.assertIn("| QUEUED | REQUIRED |", row)
-                    self.assertEqual(result["status"], "REVIEW_PENDING")
+                    self.assertFalse((self.primary / "tasks/QUEUE_ARCHIVE.md").exists())
 
     def test_owner_accept_text_and_stage_agree_on_the_approve_attempt(self) -> None:
         workflow = (ROOT / "templates/workflows/governed-sdd/docs/workflows/LIFECYCLE.md").read_text(encoding="utf-8")
@@ -1983,11 +1988,11 @@ class GovernedCompletionRowsTest(unittest.TestCase):
         archived = self.primary / "tasks/done/056-lifecycle.md"
         archived.parent.mkdir(exist_ok=True)
         identity.task_path.rename(archived)
-        result = meridian._apply_task_completion_rows(self.primary, identity)
+        with self.assertRaisesRegex(meridian.MeridianStop, "BLOCKED REVIEW_NOT_APPROVED:"):
+            meridian._apply_task_completion_rows(self.primary, identity)
         row = next(line for line in queue.read_text(encoding="utf-8").splitlines() if "| 056 |" in line)
         self.assertIn("| QUEUED | REQUIRED |", row)
-        self.assertIn("[056](done/056-lifecycle.md)", row)
-        self.assertEqual(result["status"], "REVIEW_PENDING")
+        self.assertIn("[056](056-lifecycle.md)", row)
         self.assertFalse((self.primary / "tasks/QUEUE_ARCHIVE.md").exists())
 
     def test_governed_archive_requires_every_row_accepted(self) -> None:
@@ -2042,8 +2047,8 @@ class GovernedCompletionRowsTest(unittest.TestCase):
         )
         queue.write_text(original, encoding="utf-8")
         identity = meridian.resolve_task_identity(self.primary, "056", "existing", check_queue_links=False)
-        pending = meridian._apply_task_completion_rows(self.primary, identity)
-        self.assertEqual(pending["status"], "REVIEW_PENDING")
+        with self.assertRaisesRegex(meridian.MeridianStop, "BLOCKED REVIEW_NOT_APPROVED:"):
+            meridian._apply_task_completion_rows(self.primary, identity)
         self.assertEqual(queue.read_text(encoding="utf-8"), original)
         identity.review_path.parent.mkdir(exist_ok=True)
         identity.review_path.write_text("## Attempt 1 — APPROVE\n", encoding="utf-8")

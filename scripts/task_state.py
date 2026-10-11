@@ -94,8 +94,12 @@ def machine(workflow, spike=False, review_required=True):
 
 
 def validate_task_state(state, task_id, workflow, *, spike=False, review_required=True):
+    """Validate history; review_required=None selects the snapshot's review policy."""
     schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
     _validate_schema(state, schema)
+    # Integration reads policy from the snapshot, without consulting prose.
+    if review_required is None:
+        review_required = state.get("review", {}).get("required", workflow == "governed-sdd")
     for field, expected in (("task_id", task_id), ("workflow", workflow)):
         if state[field] != expected:
             _invalid(field, [expected], state[field])

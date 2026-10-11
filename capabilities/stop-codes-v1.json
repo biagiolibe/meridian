@@ -630,6 +630,36 @@
       "kind": "stop",
       "summary": "a task state field or transition history is invalid",
       "test": "tests.test_machine_task_state.MachineTaskStateTest.test_invalid_stop"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "class": "tool",
+      "workflows": [
+        "lean-delivery",
+        "governed-sdd"
+      ],
+      "emitter": "meridian worktree integrate stage",
+      "human_decision": false,
+      "resume": "meridian review verdict {task_id} APPROVE --project {project} --format json",
+      "tool_hint": "meridian review verdict",
+      "kind": "stop",
+      "summary": "a required review verdict is absent or not APPROVE",
+      "test": "tests.test_task_integration_state.TaskIntegrationStateTest.test_missing_verdict_stop"
+    },
+    {
+      "code": "REVIEW_STALE",
+      "class": "tool",
+      "workflows": [
+        "lean-delivery",
+        "governed-sdd"
+      ],
+      "emitter": "meridian worktree integrate stage",
+      "human_decision": false,
+      "resume": "review the current task commit, then meridian review verdict {task_id} APPROVE --project {project} --format json",
+      "tool_hint": "meridian review verdict",
+      "kind": "stop",
+      "summary": "the reviewed commit is not an ancestor or code changed after approval",
+      "test": "tests.test_task_integration_state.TaskIntegrationStateTest.test_stale_review_stop"
     }
   ]
 }
