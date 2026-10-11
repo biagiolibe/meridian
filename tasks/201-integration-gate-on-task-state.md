@@ -17,14 +17,14 @@ is not proven, and it never integrates with a non-blocking `REVIEW_PENDING`.
 
 ## Acceptance Criteria
 
-- [ ] For a project that has adopted task state (a `.meridian/tasks/`
+- [x] For a project that has adopted task state (a `.meridian/tasks/`
   directory exists), `integrate stage` reads the candidate's state file through
   the shared reader, before the lease and the merge.
   - A missing file is `TASK_STATE_MISSING`.
   - An invalid file is `TASK_STATE_INVALID`.
   - A status that is not the terminal value the workflow requires is
     `TASK_STATE_INVALID`.
-- [ ] For a required review, stage also requires `review.verdict ==
+- [x] For a required review, stage also requires `review.verdict ==
   "APPROVE"` (else `REVIEW_NOT_APPROVED`) and `review.reviewed_commit` to be
   an ancestor of the task branch `HEAD`. It also requires `git diff
   --name-only <reviewed_commit> <HEAD>` to name only these paths, else
@@ -35,18 +35,18 @@ is not proven, and it never integrates with a non-blocking `REVIEW_PENDING`.
   - the canonical `.meridian/execution-evidence.json`.
   Each detail names the file, the expected value, and the value found, or the
   offending paths.
-- [ ] `REVIEW_NOT_APPROVED` and `REVIEW_STALE` are registered with tests that
+- [x] `REVIEW_NOT_APPROVED` and `REVIEW_STALE` are registered with tests that
   assert their output lines.
-- [ ] The state file of the task is added to the paths a task branch may change
+- [x] The state file of the task is added to the paths a task branch may change
   and that stage accepts in the task diff, including under the `REUSE` proof.
-- [ ] Stage writes the queue `Status` cell from the state file on the
+- [x] Stage writes the queue `Status` cell from the state file on the
   candidate tree. `REVIEW_PENDING` is removed as a result: stage completes the
   row or stops. `meridian worktree advance` reports the new stops through the
   registry.
-- [ ] A project without `.meridian/tasks/` keeps today's behavior until it
+- [x] A project without `.meridian/tasks/` keeps today's behavior until it
   adopts task state (task 203). The prose verdict path stays only for that
   legacy case, and the result labels it `legacy`.
-- [ ] Tests cover:
+- [x] Tests cover:
   - an approved task integrates;
   - a code change after approval gives `REVIEW_STALE`;
   - a missing verdict gives `REVIEW_NOT_APPROVED`;
@@ -57,9 +57,9 @@ is not proven, and it never integrates with a non-blocking `REVIEW_PENDING`.
   Include a regression for Palimpsest's dated heading
   (`## Attempt 1 — 2026-10-11 — APPROVE`), which no longer affects the
   decision.
-- [ ] One changelog fragment states the gate under `Changed`; this is a
+- [x] One changelog fragment states the gate under `Changed`; this is a
   CLI-only change.
-- [ ] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
+- [x] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
   --parallel`, and `git diff --check` pass.
 
 ## Relevant Files
@@ -91,3 +91,27 @@ The console, import, and managed text.
 
 - **Depends on**: 200
 - **Blocks**: 203
+
+## Completion
+
+Implemented the pre-lease task-state gate, commit-bound review checks, registered
+review stops, and state-driven queue projection. Legacy prose decisions are
+labeled and missing approval blocks integration. The task state is allowed in
+task-local lifecycle changes, SPIKE diffs, and the documented REUSE proof.
+The committed record supplies SPIKE classification only; status and verdict
+come from the shared state reader. No console, import, or managed procedure
+text changed. The lifecycle contract and its managed-copy digest were updated.
+
+Validation on `6ef2580b298b509df71cdf769275af27cdd060d6`:
+- `python3 scripts/check_repository.py` — exit 0.
+- `python3 scripts/run_tests.py --parallel` — exit 0; 951 tests, no failures,
+  errors, or skips, eight shards, complete coverage.
+- `git diff --check` — exit 0.
+
+The 20 integration-state tests cover approved finalization, dated review
+headings, missing/rejected verdicts, missing/malformed/non-UTF-8 state,
+impossible history, nonterminal state, stale code, ancestor proof, task-local
+governance paths, other-task state, SPIKE classification, both SPIKE terminal
+values, review-not-required and Lean tasks, queue projection, legacy behavior,
+and advance stop propagation. Gate failures preserve HEAD, tree, queue, lease,
+merge, and integration state.
