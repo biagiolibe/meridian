@@ -16,15 +16,18 @@ import textwrap
 import threading
 import time
 import tomllib
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Callable
 
 sys.dont_write_bytecode = True
 from meridian import (
-    TASK_IDENTITY_PATH, MeridianError, ResolvedTaskIdentity, detect_mode,
+    TASK_IDENTITY_PATH, MeridianError, MeridianStop, ResolvedTaskIdentity, detect_mode,
+    read_task_field, stop_error,
     closure_status, lifecycle_started_at, resolve_project_locations, resolve_task_identity,
 )
+from task_state import read_task_state, state_path
 from console_workflow import (
     ID_PATTERN, PROFILES, BranchFacts, ConsoleError, QueueRow, Profile, effective_state,
     handoff_status, has_link, heading_title, is_task_record_path, latest_review_verdict,
@@ -140,6 +143,9 @@ class Task:
     started_at: str | None = None
     progress_phase: str = "unavailable"
     remaining_gates: tuple[str, ...] = ()
+    legacy: bool = True
+    review_verdict: str | None = None
+    state_error: str | None = None
 
     @property
     def is_resume(self) -> bool:
@@ -154,7 +160,7 @@ class Task:
 
     @property
     def launch_command(self) -> str | None:
-        if self.record_problem or self.readiness == "MISMATCH":
+        if self.state_error or self.record_problem or self.readiness == "MISMATCH":
             return None
         if self.is_resume:
             if self.active_writer:
@@ -193,6 +199,8 @@ class Task:
 
     @property
     def next_action(self) -> str:
+        if self.state_error:
+            return self.state_error
         if self.is_resume and self.launch_command:
             return f"If assigned: {self.launch_command}"
         if self.closure_stop_reason:
@@ -559,12 +567,34 @@ class IdentityCache:
         return identity
 
 
+def _read_console_state(project: Path, profile: Profile, task_id: str,
+                        record_loader: Callable[[], str | None], *, text: str | None = None
+                        ) -> tuple[dict | None, str | None]:
+    """Read only the addressed task; missing state alone enables legacy prose."""
+    # Class is metadata for choosing the SPIKE machine, never a status projection.
+    try:
+        record = record_loader() if text is not None or state_path(project, task_id).exists() else ""
+        state = read_task_state(
+            project, task_id, profile.name, review_required=None,
+            spike=read_task_field(record or "", "Class") == "SPIKE",
+            text=text, stop_factory=stop_error,
+        )
+        return state, None
+    except MeridianStop as error:
+        if error.code == "TASK_STATE_MISSING":
+            return None, None
+        return None, str(error)
+    except ConsoleError as error:
+        return None, str(stop_error("TASK_STATE_INVALID", f"state metadata: {error}",
+                                    task_id=task_id, project=project))
+
+
 def _branch_facts(project: Path, profile: Profile, task_id: str, queue: str,
                   worktrees: dict[str, str], identities: IdentityCache | None = None,
                   resolver: RecordResolver | None = None, main_record: str | None = None,
-                  archived_link: bool = False
+                  archived_link: bool = False, main_state: dict | None = None
                   ) -> tuple[BranchFacts | None, str | None, str | None, str | None]:
-    """Read one task branch without touching its worktree.
+    """Read one task branch and its worktree state without modifying either.
 
     Returns the branch facts, the branch task record text and path, and the
     registered worktree path (known even when the branch ref is unreadable).
@@ -586,8 +616,37 @@ def _branch_facts(project: Path, profile: Profile, task_id: str, queue: str,
     def show(relative: str) -> str | None:
         return _git_optional(project, "show", f"{ref}:{relative}")
 
+    record_relative = _relative(project, identity.task_path)
+    archived_relative = str(Path(record_relative).parent / "done" / Path(record_relative).name)
+
+    def record_loader():
+        for relative in (record_relative, archived_relative):
+            if worktree and (Path(worktree) / relative).is_file():
+                return _read_text(Path(worktree) / relative)
+            text = show(relative)
+            if text is not None:
+                return text
+        return None
+
+    branch_state = branch_error = None
+    state_source = f"task state on branch {branch}"
+    if worktree and Path(worktree).is_dir():
+        state_source = f"task state in worktree {branch}"
+        branch_state, branch_error = _read_console_state(Path(worktree), profile, task_id, record_loader)
+    else:
+        state_text = show(_relative(project, state_path(project, task_id)))
+        if state_text is not None:
+            branch_state, branch_error = _read_console_state(
+                project, profile, task_id, record_loader, text=state_text)
+
+    def status_reader(row_id: str, _cells: dict[str, str]) -> str | None:
+        if row_id != task_id:
+            return None
+        state = branch_state if branch_state is not None else main_state
+        return "STATE_ERROR" if branch_error else state["status"] if state else None
+
     queue_text = show(queue)
-    row = next((item for item in parse_queue(queue_text, f"{branch}:{queue}", profile)
+    row = next((item for item in parse_queue(queue_text, f"{branch}:{queue}", profile, status_reader)
                 if item.task_id == task_id), None) if queue_text is not None else None
     if row is None:
         record_path = None
@@ -600,14 +659,15 @@ def _branch_facts(project: Path, profile: Profile, task_id: str, queue: str,
         # The branch moved the record: resolve it in the branch tree by the same rules.
         record_path = resolver.find_on_ref(ref, task_id)
         record = show(record_path) if record_path else None
+    legacy = branch_state is None and main_state is None and branch_error is None
     review = (show(_relative(project, identity.review_path))
-              if profile.name == "governed-sdd" else None)
+              if profile.name == "governed-sdd" and legacy else None)
     base = "refs/heads/main" if _git_optional(
         project, "rev-parse", "--verify", "--quiet", "refs/heads/main") is not None else "HEAD"
     ahead = (_git_optional(project, "rev-list", "--count", f"{base}..{ref}") or "0").strip() != "0"
     dirty = bool(worktree and (_git_optional(worktree, "status", "--porcelain") or "").strip())
     working_row = None
-    if dirty and worktree:
+    if dirty and worktree and legacy:
         try:
             working_text = _read_text(Path(worktree) / queue)
             working_row = next(
@@ -620,12 +680,13 @@ def _branch_facts(project: Path, profile: Profile, task_id: str, queue: str,
             # committed branch state.
             pass
     facts = BranchFacts(
-        branch=branch, row=row, record=record_status(record),
+        branch=branch, row=row, record=record_status(record) if legacy else None,
         handoff=handoff_status(show(_relative(project, identity.handoff_path))),
-        review_verdict=latest_review_verdict(review), ahead=ahead,
+        review_verdict=latest_review_verdict(review) if legacy else None, ahead=ahead,
         worktree=worktree, dirty=dirty, working_row=working_row,
         record_path=record_path,
         worktree_available=bool(worktree and Path(worktree).is_dir()),
+        state=branch_state, state_error=branch_error, state_source=state_source,
     )
     return facts, record, record_path, worktree
 
@@ -729,7 +790,24 @@ def load_snapshot(project: Path, identities: IdentityCache | None = None) -> Sna
         raise ConsoleError(f"Cannot resolve canonical queue: {error}") from error
     queue = project / locations.queue
     archive = queue.with_name("QUEUE_ARCHIVE.md")
-    active_rows = parse_queue(_read_text(queue), str(queue), profile)
+    resolver = RecordResolver(project, locations)
+    states: dict[str, dict | None] = {}
+    state_errors: dict[str, str | None] = {}
+
+    def status_reader(task_id: str, cells: dict[str, str]) -> str | None:
+        provisional = QueueRow(
+            task_id, "", "", (), "", cells.get("File", cells.get("Task file", "")), None)
+
+        def record_loader():
+            path, _problem = _task_path(project, queue, provisional, resolver)
+            return _read_text(path) if path else None
+        states[task_id], state_errors[task_id] = _read_console_state(
+            project, profile, task_id, record_loader)
+        if state_errors[task_id]:
+            return "STATE_ERROR"
+        return states[task_id]["status"] if states[task_id] else None
+
+    active_rows = parse_queue(_read_text(queue), str(queue), profile, status_reader)
     archived_rows = parse_queue(_read_text(archive), str(archive), profile) if archive.is_file() else []
     by_id: dict[str, str] = {}
     for row in (*active_rows, *archived_rows):
@@ -743,7 +821,6 @@ def load_snapshot(project: Path, identities: IdentityCache | None = None) -> Sna
     branch = branch_line.split("...", 1)[0].split(" [", 1)[0]
     worktrees = _worktrees(project)
     queue_relative = _relative(project, queue)
-    resolver = RecordResolver(project, locations)
     tasks: list[Task] = []
     closing_count = 0
     # A phase archived by `integrate stage` leaves the active queue while its
@@ -755,10 +832,20 @@ def load_snapshot(project: Path, identities: IdentityCache | None = None) -> Sna
             tasks.append(closing)
             closing_count += int(not closing.cleanup_pending)
     for row in active_rows:
+        if state_errors[row.task_id]:
+            tasks.append(Task(
+                row.task_id, row.title or row.task_id, "STATE_ERROR", row.section, (), None, (), (),
+                lifecycle="in_progress", readiness="STATE ERROR", legacy=False,
+                source="task state on main", state_error=state_errors[row.task_id], workflow=profile.name,
+            ))
+            continue
         if profile.phases[row.status] == "done":
             closing = _closing_task(project, profile, row, queue, worktrees, identities,
                                     resolver, by_id)
             if closing:
+                state = states[row.task_id]
+                closing = replace(closing, legacy=state is None,
+                                  review_verdict=state.get("review", {}).get("verdict") if state else None)
                 tasks.append(closing)
                 closing_count += int(not closing.cleanup_pending)
             continue
@@ -772,12 +859,18 @@ def load_snapshot(project: Path, identities: IdentityCache | None = None) -> Sna
             facts, branch_text, branch_path, worktree = _branch_facts(
                 project, profile, row.task_id, queue_relative, worktrees, identities, resolver,
                 _relative(project, path) if path and not has_link(row.link) else None,
+                main_state=states[row.task_id],
                 archived_link=bool(path and has_link(row.link) and
                                    path != (project / link_target(queue_relative, row.link)).resolve()))
         branch_policy_text = (branch_text if facts and facts.row
                               and facts.row.status != row.status else primary_text)
-        review = row.review if row.review is not None else record_review(branch_policy_text)
-        effective = effective_state(profile, row, record_status(primary_text), facts, review)
+        state = facts.state if facts and facts.state is not None else states[row.task_id]
+        state_error = facts.state_error if facts else None
+        review = ("REQUIRED" if state.get("review", {}).get("required", profile.name == "governed-sdd")
+                  else "NOT REQUIRED") if state else (
+                      row.review if row.review is not None else record_review(branch_policy_text))
+        effective = effective_state(profile, row, None if state or state_error else record_status(primary_text),
+                                    facts, review, states[row.task_id], state_error)
         closure_reason = closure_resume = None
         started_at = None
         progress_phase = "unavailable"
@@ -818,7 +911,9 @@ def load_snapshot(project: Path, identities: IdentityCache | None = None) -> Sna
         missing = [item for item in dependencies if item not in by_id]
         waiting = [item for item in dependencies
                    if item in by_id and by_id[item] not in profile.satisfying]
-        if effective.mismatch:
+        if state_error:
+            readiness = "STATE ERROR"
+        elif effective.mismatch:
             readiness = "MISMATCH"
         elif problem:
             readiness = "UNKNOWN: " + problem.split(":", 1)[0]
@@ -856,6 +951,9 @@ def load_snapshot(project: Path, identities: IdentityCache | None = None) -> Sna
             progress_phase=progress_phase,
             remaining_gates=remaining_gates,
             dependency_states=_dependency_states(profile, by_id, dependencies),
+            legacy=state is None and state_error is None,
+            review_verdict=state.get("review", {}).get("verdict") if state else (facts.review_verdict if facts else None),
+            state_error=state_error,
         ))
     return Snapshot(
         project=project, queue=queue, branch=branch_line,
@@ -952,6 +1050,10 @@ def one_shot(state: ConsoleState) -> str:
         if objective:
             lines.append(f"  {objective}")
         lines.append(f"  Dependencies: {', '.join(task.dependencies) or 'none'}")
+        lines.append(f"  Status: {task.status} | Verdict: {task.review_verdict or 'none'}"
+                     + (" | legacy" if task.legacy else ""))
+        if task.state_error:
+            lines.append(f"  State error: {task.state_error}")
         if task.source != "main":
             lines.append(f"  State from: {task.source}")
         if task.mismatch:
@@ -1062,6 +1164,8 @@ FILTERS = ("Ready", "Working", "Blocked", "Unknown", "Review", "Mismatch", "Clos
 
 
 def _state_label(task: Task) -> tuple[str, str]:
+    if task.state_error:
+        return "Unknown", "blocked"
     if task.cleanup_pending:
         return "Done", "muted"
     if task.readiness == "MISMATCH":
@@ -1219,6 +1323,11 @@ def _detail_lines(task: Task, width: int, palette: dict[str, int],
     add(task.title, "title")
     add(f"Task {task.task_id}", "muted")
     add(f"○ {label}", color)
+    add(f"Status: {task.status}; verdict: {task.review_verdict or 'none'}", "muted")
+    if task.legacy:
+        add("legacy", "muted")
+    if task.state_error:
+        add(f"State error: {task.state_error}", "blocked")
     if task.source != "main":
         add(f"State from {task.source}", "muted")
     if task.mismatch:

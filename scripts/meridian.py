@@ -6774,6 +6774,71 @@ def retired_text_advisories(
     return results
 
 
+def audit_task_state_projections(project_root: Path, workflow: str) -> list[AuditResult]:
+    """Explicit full check: enumerate state files and report prose drift without repairs."""
+    project_root = project_root.resolve()
+    directory = project_root / ".meridian/tasks"
+    paths = sorted(directory.glob("*.json"))
+    if not paths:
+        return []
+    locations = resolve_project_locations(project_root)
+    authorities = _task_authorities(project_root, locations)
+    projections: dict[str, list[tuple[str, str]]] = {}
+    queue = project_root / locations.queue
+    for path in (queue, queue.with_name("QUEUE_ARCHIVE.md")):
+        if not path.is_file():
+            continue
+        headers: list[str] = []
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if not line.startswith("|"):
+                headers = []
+                continue
+            cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+            if "ID" in cells and "Status" in cells:
+                headers = cells
+                continue
+            if not headers or len(cells) != len(headers) or set("".join(cells)) <= {"-", ":"}:
+                continue
+            row = dict(zip(headers, cells))
+            task_id, _link = _clean_queue_id(row["ID"])
+            value = row["Status"].strip("`")
+            if workflow == "lean-delivery":
+                value = {"[ ]": "QUEUED", "[/]": "IN_PROGRESS", "[x]": "DONE"}.get(value, value)
+            projections.setdefault(task_id, []).append((path.relative_to(project_root).as_posix(), value))
+    results = []
+    for path in paths:
+        task_id = path.stem
+        relative = path.relative_to(project_root).as_posix()
+        authority = authorities.get(task_id)
+        records = authority.task_paths if authority else ()
+        record = records[0] if len(records) == 1 else None
+        try:
+            record_text = record.read_text(encoding="utf-8") if record else ""
+            state = read_task_state(
+                project_root, task_id, workflow, review_required=None,
+                spike=read_task_field(record_text, "Class") == "SPIKE", stop_factory=stop_error,
+            )
+        except (MeridianError, OSError, UnicodeError) as error:
+            results.append(AuditResult("FAIL", "task-state", f"{relative}: {error}"))
+            continue
+        expected = state["status"]
+        drift = []
+        queue_values = projections.get(task_id, [(locations.queue, "missing")])
+        for label, value in queue_values:
+            if value != expected:
+                drift.append(f"{label} queue Status: state={expected}, projection={value}")
+        value = read_task_field(record_text, "Status")
+        value = value.strip("`") if value else "missing"
+        label = record.relative_to(project_root).as_posix() if record else "task record (missing or ambiguous)"
+        if value != expected:
+            drift.append(f"{label} record Status: state={expected}, projection={value}")
+        results.append(AuditResult(
+            "ADVISORY" if drift else "PASS", "task-state",
+            f"{relative}: " + ("; ".join(drift) if drift else f"queue Status and record Status match {expected}"),
+        ))
+    return results
+
+
 def run_audit(
     project_root: Path,
     framework_root: Path,
@@ -6781,6 +6846,10 @@ def run_audit(
     ci_profile: str | None = None,
 ) -> int:
     results, locked_mode = audit_declared_capabilities(project_root, framework_root, mode)
+    try:
+        results.extend(audit_task_state_projections(project_root, locked_mode))
+    except (MeridianError, OSError, UnicodeError) as error:
+        results.append(AuditResult("FAIL", "task-state", str(error)))
     legacy_checks = (
         ("marker-integrity", audit_capability_markers),
         ("duplicate-heading", audit_duplicate_headings),

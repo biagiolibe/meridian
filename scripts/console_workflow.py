@@ -5,6 +5,7 @@ from __future__ import annotations
 import posixpath
 import re
 from dataclasses import dataclass
+from typing import Callable
 
 
 PHASES = ("todo", "in_progress", "ready_for_review", "done")
@@ -42,7 +43,8 @@ PROFILES = {
     "lean-delivery": Profile(
         name="lean-delivery",
         tokens={"[ ]": "TODO", "[/]": "IN_PROGRESS", "[x]": "DONE"},
-        phases={"TODO": "todo", "IN_PROGRESS": "in_progress", "DONE": "done"},
+        phases={"TODO": "todo", "QUEUED": "todo", "IN_PROGRESS": "in_progress",
+                "STATE_ERROR": "in_progress", "DONE": "done"},
         satisfying=frozenset({"DONE"}),
         closing_status="DONE",
     ),
@@ -54,6 +56,7 @@ PROFILES = {
         )},
         phases={
             "QUEUED": "todo", "IN_PROGRESS": "in_progress",
+            "CHANGES_REQUESTED": "in_progress", "STATE_ERROR": "in_progress",
             "READY_FOR_REVIEW": "ready_for_review", "ACCEPTED": "done",
             "ANSWERED": "done", "INCONCLUSIVE": "done",
         },
@@ -82,7 +85,9 @@ def _cell(row: dict[str, str], *names: str) -> str:
     return ""
 
 
-def parse_queue(text: str, label: str, profile: Profile) -> list[QueueRow]:
+def parse_queue(text: str, label: str, profile: Profile,
+                status_reader: Callable[[str, dict[str, str]], str | None] | None = None
+                ) -> list[QueueRow]:
     rows: list[QueueRow] = []
     headers: list[str] = []
     headings: list[tuple[int, str]] = []
@@ -107,14 +112,17 @@ def parse_queue(text: str, label: str, profile: Profile) -> list[QueueRow]:
             continue
         row = dict(zip(headers, cells))
         folded_headers = {header.casefold() for header in headers}
-        token = row.get("Status", "").strip("`")
-        if token not in profile.tokens:
-            raise ConsoleError(f"Unknown task status in {label}:{line_number}: {row.get('Status')}")
         task_id = row["ID"].strip("`")
         if not ID_PATTERN.fullmatch(task_id):
             raise ConsoleError(f"Invalid task ID in {label}:{line_number}")
+        status = status_reader(task_id, row) if status_reader else None
+        if status is None:
+            token = row.get("Status", "").strip("`")
+            if token not in profile.tokens:
+                raise ConsoleError(f"Unknown task status in {label}:{line_number}: {row.get('Status')}")
+            status = profile.tokens[token]
         rows.append(QueueRow(
-            task_id=task_id, status=profile.tokens[token], title=_cell(row, "Title"),
+            task_id=task_id, status=status, title=_cell(row, "Title"),
             section=tuple(title for _, title in headings),
             dependencies=_cell(row, "Depends on", "Dependencies"),
             link=_cell(row, "File", "Task file"),
@@ -204,6 +212,9 @@ class BranchFacts:
     working_row: QueueRow | None = None
     record_path: str | None = None
     worktree_available: bool = False
+    state: dict | None = None
+    state_error: str | None = None
+    state_source: str = ""
 
 
 @dataclass(frozen=True)
@@ -217,8 +228,24 @@ class Effective:
 
 
 def effective_state(profile: Profile, primary: QueueRow, primary_record: str | None,
-                    facts: BranchFacts | None, review: str | None = None) -> Effective:
+                    facts: BranchFacts | None, review: str | None = None,
+                    state: dict | None = None, state_error: str | None = None) -> Effective:
     """Combine the primary queue row with the task branch state, never writing either."""
+    error = state_error or (facts.state_error if facts else None)
+    if error:
+        return Effective("in_progress", "STATE_ERROR", "task state", mismatch=error)
+    snapshot = facts.state if facts and facts.state is not None else state
+    if snapshot is not None:
+        status = snapshot["status"]
+        source = facts.state_source if facts and facts.state is not None else "task state on main"
+        lifecycle = profile.phases[status]
+        writer = bool(facts and facts.dirty)
+        if (profile.name == "lean-delivery" and status == "QUEUED" and facts
+                and facts.worktree_available and facts.record_path
+                and not facts.record_path.startswith("tasks/done/")):
+            lifecycle = "in_progress"
+        return Effective(lifecycle, status, source, active_writer=writer,
+                         changes_requested=snapshot.get("review", {}).get("verdict") == "CHANGES_REQUESTED")
     if facts is None:
         row, record, source, writer = primary, primary_record, "main", False
     else:
