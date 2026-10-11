@@ -2116,12 +2116,21 @@ def _integration_task_state(
             task_id=identity.canonical_id, project=project_root,
         )
     workflow = detect_mode(project_root)
+    record = identity.task_path.relative_to(project_root)
+    if record.parent.name == "done":
+        record = record.parent.parent / record.name
+    record_text = ""
+    for candidate in (record, record.parent / "done" / record.name):
+        snapshot = _run_git(project_root, "show", f"{task_commit}:{candidate.as_posix()}")
+        if snapshot.returncode == 0:
+            record_text = snapshot.stdout
+            break
+    spike = workflow == "governed-sdd" and read_task_field(record_text, "Class") == "SPIKE"
     state = read_task_state(
-        project_root, identity.canonical_id, workflow, spike=None, review_required=None,
+        project_root, identity.canonical_id, workflow, spike=spike, review_required=None,
         stop_factory=lambda code, detail, **context: stop_error(code, f"{relative}: {detail}", **context),
         text=shown.stdout,
     )
-    spike = workflow == "governed-sdd" and state["status"] in ("ANSWERED", "INCONCLUSIVE")
     review = state.get("review", {})
     required = not spike and review.get("required", workflow == "governed-sdd")
     terminal = ("ANSWERED", "INCONCLUSIVE") if spike else ("ACCEPTED",) if workflow == "governed-sdd" else ("DONE",)
@@ -2142,9 +2151,6 @@ def _integration_task_state(
                 "REVIEW_STALE", f"{relative}: review.reviewed_commit expected ancestor of {task_commit}; found {reviewed!r}",
                 task_id=identity.canonical_id, project=project_root,
             )
-        record = identity.task_path.relative_to(project_root)
-        if record.parent.name == "done":
-            record = record.parent.parent / record.name
         allowed = {
             record.as_posix(), (record.parent / "done" / record.name).as_posix(),
             identity.handoff_path.relative_to(project_root).as_posix(),

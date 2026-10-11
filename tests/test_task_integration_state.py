@@ -215,6 +215,16 @@ class TaskIntegrationStateTest(unittest.TestCase):
     def test_inconclusive_spike_projection(self):
         self.check_spike_projection("INCONCLUSIVE")
 
+    def test_ordinary_task_cannot_use_spike_state_to_skip_review(self):
+        self.start()
+        self.write_state(spike=True, verdict=None)
+        self.assert_stop("TASK_STATE_INVALID", "transitions[1].to")
+
+    def test_spike_cannot_integrate_with_accepted_status(self):
+        self.start(spike=True)
+        self.write_state(required=False)
+        self.assert_stop("TASK_STATE_INVALID", "transitions[1].to")
+
     def test_lean_done_projection(self):
         self.start(workflow="lean-delivery")
         self.write_state(required=False)
