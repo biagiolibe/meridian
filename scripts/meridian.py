@@ -36,6 +36,7 @@ SCRIPTS_ROOT = Path(__file__).resolve().parent
 if str(SCRIPTS_ROOT) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_ROOT))
 
+from task_state import TaskStateInvalid, machine, read_task_state, state_path, validate_task_state  # noqa: E402
 from console_workflow import latest_review_verdict, record_review  # noqa: E402 (needs SCRIPTS_ROOT on sys.path)
 
 
@@ -8513,6 +8514,42 @@ def write_budget_state(project_root: Path, state: dict[str, object]) -> None:
     path.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
+def transition_task_state(project_root: Path, task_id: str, status: str) -> dict[str, object]:
+    """Apply one validated machine transition and update the record projection."""
+    identity = resolve_task_identity(project_root, task_id, "existing")
+    task_id = identity.canonical_id
+    workflow = detect_mode(project_root)
+    record = identity.task_path.read_text(encoding="utf-8")
+    spike = read_task_field(record, "Class") == "SPIKE"
+    review_required = read_task_field(record, "Review") != "NOT_REQUIRED"
+    try:
+        path = state_path(project_root, task_id)
+        try:
+            state = read_task_state(project_root, task_id, workflow, spike=spike, review_required=review_required, stop_factory=stop_error)
+        except MeridianStop as error:
+            if error.code != "TASK_STATE_MISSING":
+                raise
+            state = {"version": 1, "task_id": task_id, "workflow": workflow,
+                     "status": "QUEUED", "transitions": []}
+        allowed = machine(workflow, spike, review_required)[state["status"]]
+        if status not in allowed:
+            raise TaskStateInvalid(f"transition from {state['status']}: allowed {list(allowed)}; found {status!r}")
+        state["transitions"].append({
+            "from": state["status"], "to": status,
+            "commit": git_output(project_root, "rev-parse", "HEAD"),
+            "at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        })
+        state["status"] = status
+        validate_task_state(state, task_id, workflow, spike=spike, review_required=review_required)
+    except TaskStateInvalid as error:
+        raise stop_error("TASK_STATE_INVALID", str(error), task_id=task_id, project=project_root) from error
+    projection = re.sub(r"^Status:[^\n]*", f"Status: {status}", record, flags=re.MULTILINE)
+    _write_json_atomic(path, state)
+    if projection != record:
+        identity.task_path.write_text(projection, encoding="utf-8")
+    return state
+
+
 def task_identity_json(project_root: Path, identity: ResolvedTaskIdentity) -> dict[str, object]:
     """Render the diagnostic with the same effective attempt used by budgets,
     without persisting the transition that a mutating budget command records.
@@ -9226,7 +9263,7 @@ def _context_relative_references(path: Path, text: str) -> list[Path]:
         resolved = candidate if candidate.parts and candidate.parts[0] in {"docs", "tasks", ".meridian"} else path.parent / candidate
         if resolved not in references:
             references.append(resolved)
-    return references
+    return [item for item in references if item.parts[:2] != (".meridian", "tasks")]
 
 
 def _context_phase_reads(path: Path, text: str) -> dict[Path, str]:
@@ -9337,7 +9374,7 @@ def context_router_files(project_root: Path, workflow_mode: str | None = None) -
             files.add(_context_routed_workflow(project_root, mode, role, router))
         except MeridianError:
             continue
-    return sorted(files, key=lambda item: item.as_posix())
+    return sorted((item for item in files if item.parts[:2] != (".meridian", "tasks")), key=lambda item: item.as_posix())
 
 
 def context_size_report(project_root: Path, role: str, task_id: str | None = None, threshold: int | None = None,
@@ -9363,7 +9400,7 @@ def context_size_report(project_root: Path, role: str, task_id: str | None = Non
     pending = roots[:]
     while pending:
         path, category = pending.pop(0)
-        if path in seen:
+        if path in seen or path.parts[:2] == (".meridian", "tasks"):
             continue
         seen.add(path)
         record = _context_file_record(project_root, path, category)
@@ -9386,6 +9423,9 @@ def context_size_report(project_root: Path, role: str, task_id: str | None = Non
         task = find_task_file(project_root, task_id)
         records.append(_context_file_record(project_root, task.relative_to(project_root), "task-record"))
         for entry in authority_entries(task.read_text(encoding="utf-8")):
+            citation = SPEC_HEADING_CITATION.match(entry.strip())
+            if citation and Path(citation.group(1)).parts[:2] == (".meridian", "tasks"):
+                continue
             resolved, unresolved = resolve_authority_entry(project_root, entry)
             for source, heading, excerpt in resolved:
                 records.append(_context_file_record(project_root, Path(source).relative_to(project_root) if Path(source).is_absolute() else Path(source), "authority-excerpt", f"{source} — {heading}", excerpt))
@@ -10923,6 +10963,11 @@ def _run_cli(journal: LifecycleJournalEntry) -> int:
 
     task = subparsers.add_parser("task", help="inspect task records and identities")
     task_sub = task.add_subparsers(dest="task_command", required=True)
+    transition = task_sub.add_parser("transition", help="apply a tracked task-state transition")
+    transition.add_argument("task_id")
+    transition.add_argument("status")
+    transition.add_argument("--project", type=Path, default=Path.cwd())
+    transition.add_argument("--format", choices=("json",), default="json")
     identity = task_sub.add_parser("identity", help="resolve the project-selected task identity policy")
     identity_sub = identity.add_subparsers(dest="identity_command", required=True)
     identity_check = identity_sub.add_parser("check", help="validate and print one resolved task identity")
@@ -11360,7 +11405,9 @@ def _run_cli(journal: LifecycleJournalEntry) -> int:
                 journal.observe(cleaned)
                 print(json.dumps(cleaned, sort_keys=True))
         elif arguments.command == "task":
-            if arguments.identity_command == "check":
+            if arguments.task_command == "transition":
+                print(json.dumps(transition_task_state(project_root, arguments.task_id, arguments.status), sort_keys=True))
+            elif arguments.identity_command == "check":
                 resolved = resolve_task_identity(project_root, arguments.task_id, "existing")
                 print(json.dumps(task_identity_json(project_root, resolved), sort_keys=True))
             else:

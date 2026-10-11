@@ -600,6 +600,36 @@
       "resume": "report the review-record path and unresolved findings; the developer resolves the scope or authority issue and restarts the lifecycle",
       "kind": "stop",
       "summary": "two consecutive CHANGES_REQUESTED verdicts leave findings unresolved"
+    },
+    {
+      "code": "TASK_STATE_MISSING",
+      "class": "tool",
+      "workflows": [
+        "lean-delivery",
+        "governed-sdd"
+      ],
+      "emitter": "shared task-state reader; `meridian task transition`",
+      "human_decision": false,
+      "resume": "meridian task state import {task_id} --project {project}",
+      "tool_hint": "meridian task transition",
+      "kind": "stop",
+      "summary": "a task has no tracked state file",
+      "test": "tests.test_machine_task_state.MachineTaskStateTest.test_missing_stop"
+    },
+    {
+      "code": "TASK_STATE_INVALID",
+      "class": "tool",
+      "workflows": [
+        "lean-delivery",
+        "governed-sdd"
+      ],
+      "emitter": "shared task-state reader; `meridian task transition`",
+      "human_decision": false,
+      "resume": "fix the named state field, then meridian task transition {task_id} <STATUS> --project {project} --format json",
+      "tool_hint": "meridian task transition",
+      "kind": "stop",
+      "summary": "a task state field or transition history is invalid",
+      "test": "tests.test_machine_task_state.MachineTaskStateTest.test_invalid_stop"
     }
   ]
 }

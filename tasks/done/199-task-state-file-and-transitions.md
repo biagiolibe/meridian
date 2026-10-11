@@ -16,18 +16,18 @@ a command that changes its status only through the workflow's state machine.
 
 ## Acceptance Criteria
 
-- [ ] A schema in `schemas/` defines version 1 of the state file:
+- [x] A schema in `schemas/` defines version 1 of the state file:
   - top-level `version`, `task_id`, `workflow`, `status`, `transitions`;
   - an optional `review` object with `required`, `verdict`, `attempt`,
     `reviewed_commit`, and `approved_by`.
   Commits are full 40-character SHAs, and times are ISO-8601 UTC.
-- [ ] One module defines the two state machines and validates a whole
+- [x] One module defines the two state machines and validates a whole
   transition history against them:
   - Governed SDD: `QUEUED`, `IN_PROGRESS`, `CHANGES_REQUESTED`,
     `READY_FOR_REVIEW`, and `ACCEPTED`, plus `ANSWERED` and `INCONCLUSIVE` for
     SPIKE tasks;
   - Lean Delivery: `QUEUED` and `DONE`.
-- [ ] `meridian task transition <TASK-ID> <STATUS> --project <path> --format
+- [x] `meridian task transition <TASK-ID> <STATUS> --project <path> --format
   json`:
   - creates the file on the first transition;
   - appends one transition with the current `HEAD` and time, and writes the
@@ -38,21 +38,21 @@ a command that changes its status only through the workflow's state machine.
   invalid existing file with `TASK_STATE_INVALID`. The detail names the field
   or transition, the allowed values, and the value found, and nothing is
   written.
-- [ ] `TASK_STATE_MISSING` and `TASK_STATE_INVALID` are registered in
+- [x] `TASK_STATE_MISSING` and `TASK_STATE_INVALID` are registered in
   `capabilities/stop-codes-v1.json` with tests that assert their output lines.
-- [ ] A shared reader returns the parsed state or a coded stop, and every
+- [x] A shared reader returns the parsed state or a coded stop, and every
   later consumer uses it. No other code parses the file.
-- [ ] The shared reader opens a state file by task ID and never scans the
+- [x] The shared reader opens a state file by task ID and never scans the
   `.meridian/tasks/` directory. State files are excluded from every startup
   read set that `meridian context size` reports and from the read guard's
   routed reads. A test proves that `context size` does not count them.
-- [ ] Tests cover:
+- [x] Tests cover:
   - every allowed transition and a refused one in each workflow;
   - first-file creation, atomic write, and projection of the record field;
   - a schema failure, an impossible history, and an unknown status.
-- [ ] One changelog fragment states the command under `Added`; this is a
+- [x] One changelog fragment states the command under `Added`; this is a
   CLI-only change.
-- [ ] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
+- [x] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
   --parallel`, and `git diff --check` pass.
 
 ## Relevant Files
@@ -85,3 +85,7 @@ Review verdicts (task 200), the integration gate (task 201), the console
 
 - **Depends on**: —
 - **Blocks**: 200, 202
+
+## Completion
+
+Implemented and validated on `task-199`. See `tasks/handoffs/199.md` for acceptance and validation evidence.
