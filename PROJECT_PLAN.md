@@ -166,7 +166,7 @@
 - `[x]` 197 — Ship the 1.2.12 lifecycle documentation through migration 065.
 - `[x]` 198 — Report retired framework text left outside managed markers.
 - `[x]` 199 — Add the task state file, its state machines, and `meridian task transition`.
-- `[ ]` 200 — Add `meridian review verdict` bound to the reviewed commit.
+- `[x]` 200 — Add `meridian review verdict` bound to the reviewed commit.
 - `[ ]` 201 — Gate `integrate stage` on task state and the approved commit.
 - `[ ]` 202 — Read task state in the console and in `meridian audit`.
 - `[ ]` 203 — Import task state and ship the managed review, closure, and Accept text.

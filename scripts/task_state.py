@@ -120,15 +120,17 @@ def state_path(project_root, task_id):
     return Path(project_root) / ".meridian" / "tasks" / f"{task_id}.json"
 
 
-def read_task_state(project_root, task_id, workflow, *, spike=False, review_required=True, stop_factory):
-    """Read exactly one state file, returning validated state or a registered stop."""
+def read_task_state(project_root, task_id, workflow, *, spike=False, review_required=True, stop_factory,
+                    text=None):
+    """Read one state file (or its Git snapshot), returning state or a registered stop."""
     try:
         path = state_path(project_root, task_id)
-        try:
-            text = path.read_text(encoding="utf-8")
-        except FileNotFoundError:
-            raise stop_factory("TASK_STATE_MISSING", f"state file: allowed existing {path}; found missing",
-                               task_id=task_id, project=project_root)
+        if text is None:
+            try:
+                text = path.read_text(encoding="utf-8")
+            except FileNotFoundError:
+                raise stop_factory("TASK_STATE_MISSING", f"state file: allowed existing {path}; found missing",
+                                   task_id=task_id, project=project_root)
         try:
             state = json.loads(text)
         except json.JSONDecodeError as error:
