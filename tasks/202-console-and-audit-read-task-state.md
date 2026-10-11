@@ -23,6 +23,9 @@ reports where prose projections differ from it.
   `--once` output.
 - [ ] An invalid state file is shown as an explicit per-task error with its
   coded detail. It never silently falls back to prose.
+- [ ] The console opens only the state files of rows in the active queue, by
+  task ID, and never scans the `.meridian/tasks/` directory. A test with many
+  state files for archived tasks proves that they are not read.
 - [ ] `meridian audit` adds one row per task state file:
   - `PASS` when the queue `Status` cell and the record `Status:` field equal
     the state;
@@ -48,7 +51,7 @@ reports where prose projections differ from it.
 
 ## Technical Context
 
-- Authority: `docs/ADR_MACHINE_TASK_STATE.md`, Decision 4.
+- Authority: `docs/ADR_MACHINE_TASK_STATE.md`, Decisions 4 and 7.
 - `latest_review_verdict` remains only for legacy tasks.
 
 ## Validation

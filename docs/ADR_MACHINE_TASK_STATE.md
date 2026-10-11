@@ -147,6 +147,30 @@ stops. `meridian worktree advance` reports these stops like any other.
 - After a project adopts this change, a task without a state file stops with
   `TASK_STATE_MISSING`. It is never integrated from text.
 
+### 7. Growth and read cost
+
+A project gains one state file of about 1 KB per task created after adoption.
+Terminal tasks from before adoption get none. Palimpsest, measured on
+2026-10-11, has 333 task records, 146 review records, 159 handoffs, and a
+97 KB queue, so a state file adds one small file to the three that each task
+already has. The file count is not the cost to control. Agent context and
+full-directory scans are, so:
+
+- State files are never part of an agent's startup read set and are excluded
+  from `meridian context size` and from any document an agent is told to
+  read. Only Meridian commands read them.
+- Gates and the console open a state file by task ID. The console reads only
+  the files of rows in the active queue, never the whole `.meridian/tasks/`
+  directory, so its cost grows with open tasks, not with project history.
+  Only `meridian audit`, an explicit full check, enumerates the directory.
+- Compaction is deferred. If measurement shows it is needed, `integrate
+  stage` may later fold the state files of a closed queue phase into one
+  schema-valid `.meridian/tasks/archive/<phase>.json` at the same moment that
+  it archives the phase. That is safe because integration is serialized and
+  no gate reads terminal state to decide. It is adopted only through a
+  separate decision, based on a measured threshold such as more than 500
+  active state files, not built in advance.
+
 ## Consequences
 
 - A task is accepted because its state says `ACCEPTED` and Git proves that

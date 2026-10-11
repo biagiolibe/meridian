@@ -42,6 +42,10 @@ a command that changes its status only through the workflow's state machine.
   `capabilities/stop-codes-v1.json` with tests that assert their output lines.
 - [ ] A shared reader returns the parsed state or a coded stop, and every
   later consumer uses it. No other code parses the file.
+- [ ] The shared reader opens a state file by task ID and never scans the
+  `.meridian/tasks/` directory. State files are excluded from every startup
+  read set that `meridian context size` reports and from the read guard's
+  routed reads. A test proves that `context size` does not count them.
 - [ ] Tests cover:
   - every allowed transition and a refused one in each workflow;
   - first-file creation, atomic write, and projection of the record field;
@@ -62,7 +66,7 @@ a command that changes its status only through the workflow's state machine.
 
 ## Technical Context
 
-- Authority: `docs/ADR_MACHINE_TASK_STATE.md`, Decisions 1, 2, and 5.
+- Authority: `docs/ADR_MACHINE_TASK_STATE.md`, Decisions 1, 2, 5, and 7.
 - Status vocabulary matches `_GOVERNED_QUEUE_STATUSES`. Lean in-progress state
   stays derived from the worktree, so Lean has only `QUEUED` and `DONE`.
 
