@@ -1291,7 +1291,8 @@ def active_worktree_task(directory: Path) -> dict[str, object] | None:
         if state_path.name != f"{identity.artifact_stem}.json" or identity.branch_name != branch or state.get("task_id") != identity.canonical_id:
             continue
         archived = identity.task_path.parent / "done" / identity.task_path.name
-        exempt = [identity.task_path, archived, identity.handoff_path, identity.review_path]
+        exempt = [identity.task_path, archived, identity.handoff_path, identity.review_path,
+                  primary / ".meridian/tasks" / f"{identity.canonical_id}.json"]
         return {
             "task_id": identity.canonical_id,
             "branch": branch,
@@ -1643,6 +1644,8 @@ def _lifecycle_changes_after_validation(
         str(identity.queue_path.relative_to(project_root)),
         str(identity.handoff_path.relative_to(project_root)),
         str(identity.review_path.relative_to(project_root)),
+        str(state_path(project_root, identity.canonical_id).relative_to(project_root)),
+        EXECUTION_EVIDENCE_PATH.as_posix(),
         str(plan_path),
         "tasks/QUEUE_ARCHIVE.md",
     }
@@ -1729,7 +1732,8 @@ def _governed_completion_error(path: Path, section: str, reason: str) -> Meridia
 
 
 def _governed_completion_row(
-    contents: str, identity: ResolvedTaskIdentity, path: Path
+    contents: str, identity: ResolvedTaskIdentity, path: Path,
+    task_state: dict[str, object] | None = None,
 ) -> tuple[str, bool, str]:
     """Accept one Governed row found by its section table's named columns."""
     lines = contents.splitlines(keepends=True)
@@ -1785,6 +1789,18 @@ def _governed_completion_row(
     status = cells[status_index].strip("`")
     if status not in _GOVERNED_QUEUE_STATUSES:
         raise _governed_completion_error(path, section, f"unknown Governed status {cells[status_index]!r}")
+
+    if task_state is not None:
+        terminal = str(task_state["status"])
+        parts = lines[row_index].split("|")
+        parts[status_index + 1] = re.sub(
+            r"(?<!\S)(?:`)?[^`\s|]+(?:`)?(?!\S)", terminal,
+            parts[status_index + 1], count=1,
+        )
+        return (
+            f"{contents[:start]}{'|'.join(parts)}{contents[start + len(lines[row_index]):]}",
+            True, f"task state is {terminal}",
+        )
 
     review_index = next((i for i, cell in enumerate(header) if cell.casefold() == "review"), None)
     record_path = identity.task_path
@@ -1985,7 +2001,10 @@ def _relink_archived_task_row(contents: str, queue_path: Path, identity: Resolve
     return f"{contents[:row.start()]}{relinked}{contents[row.end():]}"
 
 
-def _apply_task_completion_rows(project_root: Path, identity: ResolvedTaskIdentity) -> dict[str, str]:
+def _apply_task_completion_rows(
+    project_root: Path, identity: ResolvedTaskIdentity,
+    task_state: dict[str, object] | None = None,
+) -> dict[str, str]:
     """Set known completion rows and archive fully complete queue sections."""
     queue_path = identity.queue_path
     archive_path = queue_path.with_name("QUEUE_ARCHIVE.md")
@@ -1993,12 +2012,11 @@ def _apply_task_completion_rows(project_root: Path, identity: ResolvedTaskIdenti
     queue_contents = queue_path.read_text(encoding="utf-8")
     mode = detect_mode(project_root)
     if mode == "governed-sdd":
-        queue_completed, accepted, reason = _governed_completion_row(queue_contents, identity, queue_path)
+        queue_completed, accepted, reason = _governed_completion_row(queue_contents, identity, queue_path, task_state)
         queue_completed = _relink_archived_task_row(queue_completed, queue_path, identity)
         if not accepted:
-            if queue_completed != queue_contents:
-                queue_path.write_text(queue_completed, encoding="utf-8")
-            return {"status": "REVIEW_PENDING", "reason": reason}
+            raise stop_error("REVIEW_NOT_APPROVED", f"{identity.review_path}: expected APPROVE; found {reason}",
+                             task_id=task_id, project=project_root)
         archived_queue, archive_contents = _archive_completed_queue_sections(
             queue_completed, queue_path, archive_path, mode
         )
@@ -2006,7 +2024,7 @@ def _apply_task_completion_rows(project_root: Path, identity: ResolvedTaskIdenti
             queue_path.write_text(archived_queue, encoding="utf-8")
         if archive_contents is not None:
             archive_path.write_text(archive_contents, encoding="utf-8")
-        return {"status": "COMPLETED", "reason": reason}
+        return {"status": "COMPLETED", "reason": reason, "source": "machine" if task_state else "legacy"}
     plan_path = project_root / resolve_project_locations(project_root).plan
     plan_contents = plan_path.read_text(encoding="utf-8") if plan_path.is_file() else ""
     queue_completed = _completed_task_row(
@@ -2031,7 +2049,7 @@ def _apply_task_completion_rows(project_root: Path, identity: ResolvedTaskIdenti
         plan_path.write_text(plan_completed, encoding="utf-8")
     if archive_contents is not None:
         archive_path.write_text(archive_contents, encoding="utf-8")
-    return {"status": "COMPLETED", "reason": "lean completion rows updated"}
+    return {"status": "COMPLETED", "reason": "lean completion rows updated", "source": "machine" if task_state else "legacy"}
 
 
 def _spike_disallowed_paths(
@@ -2055,6 +2073,7 @@ def _spike_disallowed_paths(
         str(identity.handoff_path.relative_to(project_root)),
         str(find_adr_log(project_root).relative_to(project_root)),
         EXECUTION_EVIDENCE_PATH.as_posix(),
+        str(state_path(project_root, identity.canonical_id).relative_to(project_root)),
     }
     deliverable = read_task_field(task_record, "Deliverable") or ""
     allowed.update(
@@ -2066,6 +2085,80 @@ def _spike_disallowed_paths(
         project_root, "diff", "--name-only", validated_base, validated_task
     ).splitlines()))
     return tuple(path for path in changed if path not in allowed and not re.fullmatch(r"changelog\.d/[^/]+\.md", path))
+
+
+def _integration_task_state(
+    project_root: Path, identity: ResolvedTaskIdentity, task_commit: str, worktree: Path,
+) -> dict[str, object] | None:
+    """Prove terminal state and commit-bound approval before any lease or merge."""
+    relative = state_path(project_root, identity.canonical_id).relative_to(project_root)
+    adopted = (
+        (project_root / relative.parent).is_dir()
+        or (worktree / relative.parent).is_dir()
+        or bool(git_output(project_root, "ls-tree", "-d", task_commit, "--", str(relative.parent)))
+    )
+    if not adopted:
+        if detect_mode(project_root) == "governed-sdd":
+            candidate_identity = resolve_task_identity(worktree, identity.canonical_id, "existing", check_queue_links=False)
+            _row, accepted, reason = _governed_completion_row(
+                candidate_identity.queue_path.read_text(encoding="utf-8"), candidate_identity, candidate_identity.queue_path,
+            )
+            if not accepted:
+                raise stop_error(
+                    "REVIEW_NOT_APPROVED", f"{identity.review_path}: expected APPROVE; found {reason} (legacy)",
+                    task_id=identity.canonical_id, project=project_root,
+                )
+        return None
+    shown = _run_git(project_root, "show", f"{task_commit}:{relative.as_posix()}")
+    if shown.returncode != 0:
+        raise stop_error(
+            "TASK_STATE_MISSING", f"{relative}: expected tracked state at {task_commit}; found missing",
+            task_id=identity.canonical_id, project=project_root,
+        )
+    workflow = detect_mode(project_root)
+    state = read_task_state(
+        project_root, identity.canonical_id, workflow, spike=None, review_required=None,
+        stop_factory=lambda code, detail, **context: stop_error(code, f"{relative}: {detail}", **context),
+        text=shown.stdout,
+    )
+    spike = workflow == "governed-sdd" and state["status"] in ("ANSWERED", "INCONCLUSIVE")
+    review = state.get("review", {})
+    required = not spike and review.get("required", workflow == "governed-sdd")
+    terminal = ("ANSWERED", "INCONCLUSIVE") if spike else ("ACCEPTED",) if workflow == "governed-sdd" else ("DONE",)
+    if state["status"] not in terminal:
+        raise stop_error(
+            "TASK_STATE_INVALID", f"{relative}: status expected {terminal}; found {state['status']!r}",
+            task_id=identity.canonical_id, project=project_root,
+        )
+    if required:
+        if review.get("verdict") != "APPROVE":
+            raise stop_error(
+                "REVIEW_NOT_APPROVED", f"{relative}: review.verdict expected APPROVE; found {review.get('verdict')!r}",
+                task_id=identity.canonical_id, project=project_root,
+            )
+        reviewed = review.get("reviewed_commit")
+        if not reviewed or _run_git(project_root, "merge-base", "--is-ancestor", str(reviewed), task_commit).returncode != 0:
+            raise stop_error(
+                "REVIEW_STALE", f"{relative}: review.reviewed_commit expected ancestor of {task_commit}; found {reviewed!r}",
+                task_id=identity.canonical_id, project=project_root,
+            )
+        record = identity.task_path.relative_to(project_root)
+        if record.parent.name == "done":
+            record = record.parent.parent / record.name
+        allowed = {
+            record.as_posix(), (record.parent / "done" / record.name).as_posix(),
+            identity.handoff_path.relative_to(project_root).as_posix(),
+            identity.review_path.relative_to(project_root).as_posix(),
+            relative.as_posix(), EXECUTION_EVIDENCE_PATH.as_posix(),
+        }
+        changed = git_output(project_root, "diff", "--name-only", str(reviewed), task_commit).splitlines()
+        offending = sorted(set(changed) - allowed)
+        if offending:
+            raise stop_error(
+                "REVIEW_STALE", f"{relative}: expected only task governance paths after {reviewed}; offending paths: {', '.join(offending)}",
+                task_id=identity.canonical_id, project=project_root,
+            )
+    return state
 
 
 def stage_task_integration(
@@ -2142,6 +2235,7 @@ def stage_task_integration(
     if not evidence["accepted"] or not evidence["validation_passed"]:
         raise MeridianError("accepted, successful task validation evidence is required")
     task_commit = str(inspection["task_commit"])
+    task_state = _integration_task_state(project_root, identity, task_commit, Path(str(inspection["worktree"])))
     validated_task = str(evidence["validated_task_commit"])
     validated_base = str(evidence["validated_base_commit"])
     if validated_base != inspection["base_commit"]:
@@ -2224,7 +2318,7 @@ def stage_task_integration(
             task_id=identity.canonical_id, project=project_root, evidence=evidence_path,
         )
     try:
-        completion = _apply_task_completion_rows(project_root, identity)
+        completion = _apply_task_completion_rows(project_root, identity, task_state)
         queue_warnings = _queue_archival_warnings(
             identity.queue_path.read_text(encoding="utf-8"), detect_mode(project_root)
         )

@@ -79,7 +79,8 @@ For every `REUSE`, `BOUNDED`, or `FULL` outcome, run the project's declared repo
 `git diff --check` against the staged candidate tree. A `REUSE` outcome also
 requires a deterministic proof that every non-governance path is unchanged:
 run `git diff --name-only "$VALIDATED_TASK_COMMIT" "$CANDIDATE_TREE"` and allow
-only the task record or its exact archive rename, that task's handoff, queue,
+only the task record or its exact archive rename, that task's handoff, review
+record, `.meridian/tasks/<TASK-ID>.json`, the canonical execution-evidence ledger, queue,
 plan, queue archive, and changelog fragment. `BOUNDED` adds the tests for
 modules changed by the task and advanced `main`; `FULL` adds the full test
 suite. A project may always run the full suite for any outcome. Configure
@@ -238,8 +239,8 @@ those cases is outside this contract.
   `main` is behind the fetched `origin/main`.
 - `meridian worktree integrate stage <TASK-ID> --project <primary>
   --evidence <handoff.json> --format json` atomically
-  acquires the repository integration lease, verifies the task and accepted
-  validation evidence, performs `git merge --no-ff --no-commit`, then
+  verifies the task and accepted validation evidence before acquiring the
+  repository integration lease and performing `git merge --no-ff --no-commit`, then
   reads the project's `PROJECT_WORKFLOW.md` mode lock, then deterministically
   completes its known queue rows. Lean Delivery also completes the matching
   `PROJECT_PLAN.md` row; Governed SDD has no plan requirement and changes a
@@ -248,13 +249,26 @@ those cases is outside this contract.
   changes only that status cell. If it has no `Review` column, the task record
   supplies `REQUIRED` or `NOT REQUIRED`. Missing required columns, duplicate or
   missing IDs, mismatched row cells, and unknown statuses remain blocked without
-  changing lifecycle records. A `REQUIRED` row becomes `ACCEPTED` only when its
-  merged review record's latest attempt is `APPROVE`; otherwise stage reports
-  `REVIEW_PENDING`, retains its status, and still relinks an archived task
-  record. A task record with `Class: SPIKE` needs no review record: stage sets its
+  changing lifecycle records. For adopted projects (a `.meridian/tasks/`
+  directory exists), stage reads the task branch's tracked state through the
+  shared reader before the lease and merge. Missing state stops with
+  `TASK_STATE_MISSING`; invalid or nonterminal state stops with
+  `TASK_STATE_INVALID`. Terminal state is `DONE` for Lean Delivery, `ACCEPTED`
+  for Governed SDD, or `ANSWERED`/`INCONCLUSIVE` for SPIKE tasks. Required
+  reviews need `review.verdict == "APPROVE"`, otherwise `REVIEW_NOT_APPROVED`.
+  The reviewed commit must be an ancestor of task HEAD and its diff to HEAD
+  may name only the task record or exact archive, handoff, review record,
+  state file, and canonical execution-evidence ledger; otherwise `REVIEW_STALE`.
+  SPIKE and review-not-required tasks skip that approval check. Stage projects
+  the state status into the candidate queue cell. Projects without task state
+  use the prose verdict path, labeled `legacy` in the completion result;
+  missing approval stops before lease and merge with `REVIEW_NOT_APPROVED`.
+  Stage never returns a non-blocking `REVIEW_PENDING` result.
+  In legacy projects, a task record with `Class: SPIKE` needs no review record: stage sets its
   row to its terminal `ANSWERED` or `INCONCLUSIVE` status. A spike may integrate
   only its task record or exact archive rename, handoff, ADR log, documentation
   paths named in its deliverable, changelog fragments, and the canonical
+  task's `.meridian/tasks/<TASK-ID>.json` state and the
   `.meridian/execution-evidence.json` ledger produced by `meridian execution
   validate`. This exact ledger path does not permit other `.meridian/` paths
   or relax validation evidence checks; any other task diff
@@ -474,7 +488,8 @@ consumer-owned file. This repository's own fragments live only in its
   from the validated task commit only in governance paths. Use the deterministic
   command `git diff --name-only "$VALIDATED_TASK_COMMIT" "$CANDIDATE_TREE"` and
   verify that every emitted path is the task record (active or its exact archive
-  rename), that task's handoff, `tasks/QUEUE.md`, `PROJECT_PLAN.md`,
+  rename), that task's handoff, review record, `.meridian/tasks/<TASK-ID>.json`,
+  `.meridian/execution-evidence.json`, `tasks/QUEUE.md`, `PROJECT_PLAN.md`,
   `tasks/QUEUE_ARCHIVE.md`, or that task's changelog fragment. Any other path
   requires a `BOUNDED` or `FULL` outcome; it is not a valid `REUSE` proof.
 - `BOUNDED` runs the `REUSE` gate and the tests for modules changed by both the
@@ -501,7 +516,8 @@ When integration reports `PRIMARY_DIRTY`, it lists the staged or modified paths
 legacy budget file; commit its deletion before rerunning stage.
 
 After validation, `integrate stage` permits lifecycle changes only to the task
-record, its queue row, handoff, review record, `PROJECT_PLAN.md`, and
+record, its queue row, handoff, review record, its state file,
+the canonical execution-evidence ledger, `PROJECT_PLAN.md`, and
 `tasks/QUEUE_ARCHIVE.md`. A task record may be archived only as an exact
 100%-similarity Git rename from its active path to `tasks/done/` with the same
 file name. A task already archived at validation needs no rename; an active
