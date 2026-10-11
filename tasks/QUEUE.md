@@ -46,5 +46,5 @@ Authority: [docs/ADR_MACHINE_TASK_STATE.md](../docs/ADR_MACHINE_TASK_STATE.md). 
 | `[x]` | 199 | Add the task state file, its state machines, and `meridian task transition` | 🔴 P1 | — | [199](done/199-task-state-file-and-transitions.md) |
 | `[x]` | 200 | Add `meridian review verdict` bound to the reviewed commit | 🔴 P1 | 199 | [200](done/200-review-verdict-command.md) |
 | `[x]` | 201 | Gate `integrate stage` on task state and the approved commit | 🔴 P1 | 200 | [201](done/201-integration-gate-on-task-state.md) |
-| `[ ]` | 202 | Read task state in the console and in `meridian audit` | 🟡 P2 | 199 | [202](202-console-and-audit-read-task-state.md) |
+| `[x]` | 202 | Read task state in the console and in `meridian audit` | 🟡 P2 | 199 | [202](done/202-console-and-audit-read-task-state.md) |
 | `[ ]` | 203 | Import task state and ship the managed review, closure, and Accept text | 🔴 P1 | 201, 202 | [203](203-import-task-state-and-ship-managed-text.md) |

@@ -2104,5 +2104,142 @@ class WorkflowModeLockTest(RepoCase):
             console.load_snapshot(self.project)
 
 
+class MachineStateConsoleTest(RepoCase):
+    lock = "GOVERNED_SDD"
+    header = GovernedEffectiveStateTest.header
+    setup_project = GovernedEffectiveStateTest.setup_project
+    write_record = GovernedEffectiveStateTest.write_record
+
+    def state(self, root: Path, task_id: str, status: str, *, workflow="governed-sdd",
+              verdict=None, required=True) -> None:
+        route = (["QUEUED", "DONE"] if workflow == "lean-delivery" else
+                 ["QUEUED", "IN_PROGRESS", "READY_FOR_REVIEW", status])
+        route = route[:route.index(status) + 1]
+        snapshot = {
+            "version": 1, "task_id": task_id, "workflow": workflow, "status": status,
+            "transitions": [{"from": before, "to": after, "commit": "a" * 40,
+                             "at": "2026-10-11T12:00:00Z"}
+                            for before, after in zip(route, route[1:])],
+        }
+        if verdict:
+            snapshot["review"] = {"required": required, "verdict": verdict, "attempt": 1,
+                                  "reviewed_commit": "a" * 40, "approved_by": "reviewer"}
+        self.write(root, f".meridian/tasks/{task_id}.json", json.dumps(snapshot))
+
+    def test_state_wins_over_queue_record_and_review_prose(self) -> None:
+        self.setup_project([("TASK-001", "QUEUED", "REQUIRED", "—")])
+        wt = self.worktree("task-001")
+        self.state(wt, "TASK-001", "CHANGES_REQUESTED", verdict="CHANGES_REQUESTED")
+        self.write_record(wt, "TASK-001", "ACCEPTED")
+        self.write(wt, "tasks/reviews/TASK-001.md", "## Attempt 9 — APPROVE\n")
+        self.commit(wt)
+        before = self.refs_and_status()
+        task = self.load()["TASK-001"]
+        self.assertEqual(self.refs_and_status(), before)
+        self.assertEqual(task.status, "CHANGES_REQUESTED")
+        self.assertEqual(task.review_verdict, "CHANGES_REQUESTED")
+        self.assertTrue(task.changes_requested)
+        self.assertFalse(task.legacy)
+        self.assertIsNone(task.mismatch)
+        self.assertEqual(task.launch_command, "Address review TASK-001")
+
+    def test_state_is_read_before_even_an_unknown_queue_status(self) -> None:
+        self.setup_project([("TASK-001", "BROKEN_PROJECTION", "NOT REQUIRED", "—")])
+        self.state(self.project, "TASK-001", "READY_FOR_REVIEW")
+        task = self.load()["TASK-001"]
+        self.assertEqual(task.status, "READY_FOR_REVIEW")
+        self.assertEqual(task.review, "REQUIRED")
+        self.assertEqual(task.launch_command, "Review TASK-001")
+
+    def test_invalid_state_is_per_task_and_never_falls_back(self) -> None:
+        self.setup_project([("TASK-001", "QUEUED", "REQUIRED", "—"),
+                            ("TASK-002", "QUEUED", "REQUIRED", "—")])
+        self.write(self.project, ".meridian/tasks/TASK-001.json", '{"version": 99}')
+        tasks = self.load()
+        invalid, legacy = tasks["TASK-001"], tasks["TASK-002"]
+        self.assertIn("TASK_STATE_INVALID", invalid.state_error)
+        self.assertIn("state.task_id", invalid.state_error)
+        self.assertIsNone(invalid.launch_command)
+        self.assertFalse(invalid.legacy)
+        self.assertTrue(legacy.legacy)
+        self.assertEqual(legacy.launch_command, "Proceed with TASK-002")
+        state = console.ConsoleState(self.project)
+        state.snapshot = console.load_snapshot(self.project)
+        output = console.one_shot(state)
+        self.assertIn("State error: BLOCKED TASK_STATE_INVALID", output)
+        self.assertIn("Status: QUEUED | Verdict: none | legacy", output)
+        palette = dict.fromkeys(("base", "text", "title", "muted", "blocked", "action", "working", "ready", "unknown", "line"), 0)
+        self.assertIn("legacy", [text for text, _style in console._detail_lines(legacy, 100, palette)])
+
+    def test_uncommitted_invalid_worktree_state_blocks_only_that_task(self) -> None:
+        self.setup_project([("TASK-001", "QUEUED", "REQUIRED", "—")])
+        wt = self.worktree("task-001")
+        self.state(wt, "TASK-001", "IN_PROGRESS")
+        self.commit(wt)
+        self.write(wt, ".meridian/tasks/TASK-001.json", "invalid JSON")
+        task = self.load()["TASK-001"]
+        self.assertIn("TASK_STATE_INVALID", task.state_error)
+        self.assertIsNone(task.launch_command)
+
+    def test_archived_state_files_are_never_opened_or_enumerated(self) -> None:
+        self.setup_project([("TASK-001", "QUEUED", "REQUIRED", "—")])
+        self.state(self.project, "TASK-001", "IN_PROGRESS")
+        archived = self.header + "".join(
+            f"| {n} | OLD-{n} | P1 | ACCEPTED | REQUIRED | — | — |\n" for n in range(150))
+        self.write(self.project, "tasks/QUEUE_ARCHIVE.md", archived)
+        for n in range(150):
+            self.write(self.project, f".meridian/tasks/OLD-{n}.json", "invalid archived state")
+        original = Path.read_text
+        opened = []
+        def observe(path, *args, **kwargs):
+            if path.parent.name == "tasks" and path.suffix == ".json":
+                opened.append(path.name)
+            return original(path, *args, **kwargs)
+        original_glob = Path.glob
+        def observe_glob(path, *args, **kwargs):
+            if path == self.project / ".meridian/tasks":
+                raise AssertionError("state directory scan")
+            return original_glob(path, *args, **kwargs)
+        with mock.patch.object(Path, "read_text", observe), mock.patch.object(Path, "glob", observe_glob):
+            snapshot = console.load_snapshot(self.project)
+        self.assertEqual(opened, ["TASK-001.json"])
+        self.assertEqual(snapshot.done_count, 150)
+        self.assertEqual(snapshot.tasks[0].status, "IN_PROGRESS")
+
+    def test_state_on_branch_without_worktree_and_spike_terminal_state(self) -> None:
+        self.setup_project([("TASK-001", "QUEUED", "REQUIRED", "—")])
+        wt = self.worktree("task-001")
+        self.state(wt, "TASK-001", "ACCEPTED", verdict="APPROVE")
+        self.commit(wt)
+        self.git(self.project, "worktree", "remove", str(wt))
+        task = self.load()["TASK-001"]
+        self.assertEqual(task.status, "ACCEPTED")
+        self.assertEqual(task.review_verdict, "APPROVE")
+        self.assertFalse(task.legacy)
+        self.assertIn("branch task-001", task.source)
+        self.write(self.project, "tasks/TASK-001.md", "# Task TASK-001 — Spike\nClass: SPIKE\nStatus: QUEUED\n")
+        self.write(self.project, ".meridian/tasks/TASK-001.json", json.dumps({
+            "version": 1, "task_id": "TASK-001", "workflow": "governed-sdd", "status": "ANSWERED",
+            "transitions": [{"from": before, "to": after, "commit": "a" * 40,
+                             "at": "2026-10-11T12:00:00Z"}
+                            for before, after in [("QUEUED", "IN_PROGRESS"), ("IN_PROGRESS", "ANSWERED")]],
+        }))
+        snapshot = console.load_snapshot(self.project)
+        self.assertEqual(snapshot.done_count, 1)
+        self.assertEqual(snapshot.tasks, ())
+
+    def test_lean_machine_state_keeps_worktree_derived_progress(self) -> None:
+        self.write(self.project, "PROJECT_WORKFLOW.md", "# LEAN_DELIVERY\n")
+        LeanEffectiveStateTest.setup_project(self, {"001": " "})
+        self.state(self.project, "001", "QUEUED", workflow="lean-delivery")
+        self.commit(self.project)
+        self.worktree("task-001")
+        task = self.load()["001"]
+        self.assertEqual((task.status, task.lifecycle), ("QUEUED", "in_progress"))
+        self.assertFalse(task.legacy)
+
+    queue = LeanEffectiveStateTest.queue
+
+
 if __name__ == "__main__":
     unittest.main()
