@@ -431,3 +431,5 @@ workflow modes. The lifecycle documents add proven commit-less fast-forward
 base recovery with renewed validation, conservative `###` queue-section
 archival, and, in Governed SDD only, the canonical SPIKE execution-evidence
 ledger exception. Other lifecycle template text is unchanged.
+
+**Migration 066 — 1.2.13 machine task state adoption.** The per-mode capability versions and managed paths in `066-machine-task-state-adoption.json` deliver command-owned review, remediation, closure, and owner acceptance. Status and verdict headings are projections only. Task branches own their state file. Run `meridian task state import --project <path> --format json`, inspect the evidence, then repeat with `--apply`; terminal tasks and existing state files are skipped.

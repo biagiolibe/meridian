@@ -2,7 +2,7 @@
 
 Task context loading, task shape, and completion handoffs are governed by `docs/CONTEXT_BUDGET_POLICY.md`, `tasks/TASK_BLUEPRINT.md`, and `docs/COMPLETION_REPORT_TEMPLATE.md`; this document defines review and forge integration only.
 
-<!-- MERIDIAN:BEGIN capability=task-worktree-integration v5 -->
+<!-- MERIDIAN:BEGIN capability=task-worktree-integration v6 -->
 For `Review: REQUIRED`, the implementer pushes the task branch only to obtain `T1_CI` for that commit, at most once per review attempt, and not at all when the project has no CI, and records its deterministic branch,
 machine-independent dedicated-worktree value (relative to the worktree root, never an absolute path), implementation commit, validated task and
 base `main` commits, exact successful validation evidence, declared integration
@@ -11,20 +11,12 @@ uses that same task worktree in a fresh session after the implementer stops. It
 verifies the registered mapping and cleanliness, never switches the primary
 checkout to the task branch, and never pushes the task branch.
 
-On `CHANGES_REQUESTED`, the reviewer creates or appends
-the review record following `docs/REVIEW_RECORD_TEMPLATE.md`, then
-updates only the task record's status to `IN_PROGRESS`. Commit exactly those
-review-handoff artifacts locally; do not push them. The implementer uses that
-record to resolve every unchecked finding, returns the task record to
-`READY_FOR_REVIEW`, and makes the next permitted task-branch push (`Address
-review` authorizes it, under the same `T1_CI`-only rule). This
-preserves the evidence across chats without granting the reviewer authority to
-repair implementation artifacts.
+On `CHANGES_REQUESTED`, run `meridian review verdict <TASK-ID> CHANGES_REQUESTED --body <review-evidence>` on the clean reviewed HEAD. Commit only the task state and task/review projections locally; do not push them. The implementer runs `meridian task transition <TASK-ID> IN_PROGRESS`, resolves every unchecked finding, validates, then runs `meridian task transition <TASK-ID> READY_FOR_REVIEW` before the next permitted task-branch push (`Address review` authorizes it under the same `T1_CI`-only rule). Never edit a status or verdict by hand.
 
 Before accepting, verify that the validated base is an ancestor of the
 validated task commit, that the validated commit is an ancestor of current
 task HEAD, and that the intervening diff contains only permitted
-task-record, review-record, and handoff lifecycle records:
+task-record, review-record, task-state, and handoff lifecycle records:
 
 ```bash
 git merge-base --is-ancestor <validated-base-main> <validated-task-commit>
@@ -35,9 +27,7 @@ git diff --name-only <validated-task-commit>..<current-task-commit>
 Current `main` need not be an ancestor of the branch. Missing evidence, a
 failed ancestry check, or any task-relevant change after validation is
 `BLOCKED EVIDENCE_MISMATCH`; do not mark the task `ACCEPTED`. Do not fetch,
-rebase, amend, cherry-pick, or force-push as recovery. After `APPROVE`, append
-the verdict and evidence to the review record and create only the local
-review-and-status commit that records `ACCEPTED` in the task record.
+rebase, amend, cherry-pick, or force-push as recovery. On the clean reviewed HEAD use `meridian review verdict <TASK-ID> APPROVE --body <review-evidence>`, then commit only the state file and task/review projections. Never edit a status or verdict by hand.
 
 Final integration is serialized in the primary checkout under one exclusive
 integration lease, acquired by atomically creating
@@ -67,10 +57,8 @@ commit and push `main` exactly once. Remove the linked
 worktree and then the local branch only after success. Release the lease after
 success or a clean abort.
 
-For `Review: NOT_REQUIRED`, the implementer records the same `ACCEPTED` status
-in the task record and runs the integration transaction after validation.
-`Accept <TASK-ID>` appends an owner `APPROVE` attempt to the review record, sets
-the task record to `ACCEPTED`, and continues at C6 under the `Proceed with`
+For `Review: NOT_REQUIRED`, the implementer runs `meridian task transition <TASK-ID> ACCEPTED` after validation, commits the state and task projection, and runs the integration transaction.
+`Accept <TASK-ID>` runs `meridian review verdict <TASK-ID> APPROVE --owner --body <owner-evidence>` on clean HEAD, commits the state and projections, and continues at C6 under the `Proceed with`
 authority; a manual merge is never permitted.
 
 Task reservation, completion, review, and archive mutations stay on the task

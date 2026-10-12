@@ -8689,6 +8689,155 @@ def write_budget_state(project_root: Path, state: dict[str, object]) -> None:
     path.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
+def import_task_states(project_root: Path, task_ids: list[str], *, apply: bool = False) -> dict[str, object]:
+    """Explicitly bootstrap open tasks; validate the entire proposal before writing.
+
+    Imported transitions describe the bootstrap at HEAD, not historical events.
+    Existing machine files and terminal legacy tasks are never rewritten.
+    """
+    project_root = project_root.resolve()
+    workflow = detect_mode(project_root)
+    context = task_identity_context(project_root)
+    queue_path = project_root / context.locations.queue
+    rows: dict[str, list[dict[str, object]]] = {}
+    headers = []
+    for number, line in enumerate(queue_path.read_text(encoding="utf-8").splitlines(), 1):
+        if not line.lstrip().startswith("|"):
+            headers = []
+            continue
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if "ID" in cells and "Status" in cells:
+            headers = cells
+            continue
+        if not headers or len(cells) != len(headers) or set("".join(cells)) <= {"-", ":"}:
+            continue
+        row = dict(zip(headers, cells))
+        task_id, _link = _clean_queue_id(row["ID"])
+        rows.setdefault(task_id, []).append({"path": context.locations.queue.as_posix(), "line": number,
+                                            "status": row["Status"].strip("`"),
+                                            "review": row.get("Review", "").strip("`")})
+    selected = task_ids or list(rows)
+    proposals = []
+    seen = set()
+    head = None
+    at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    terminal = {"DONE", "ACCEPTED", "ANSWERED", "INCONCLUSIVE"}
+
+    def normalize(value):
+        if workflow == "lean-delivery":
+            return {"[ ]": "QUEUED", "TODO": "QUEUED", "[/]": "QUEUED", "IN_PROGRESS": "QUEUED",
+                    "[x]": "DONE"}.get(value, value)
+        return value
+
+    for supplied in selected:
+        matches = _authority_matches(context.authorities, supplied)
+        task_id = matches[0] if len(matches) == 1 else supplied
+
+        def invalid(message):
+            raise stop_error("TASK_STATE_INVALID", message, task_id=task_id, project=project_root)
+
+        if task_id in seen:
+            continue
+        seen.add(task_id)
+        entries = rows.get(task_id, [])
+        if len(entries) != 1:
+            invalid(f"queue evidence: allowed one row for {task_id}; found {len(entries)}")
+        queue = entries[0]
+        status = normalize(queue["status"])
+        path = state_path(project_root, task_id)
+        proposal = {"task_id": task_id, "path": path.relative_to(project_root).as_posix(),
+                    "evidence": {"queue": queue}}
+        proposals.append(proposal)
+        if path.exists():
+            proposal["action"] = "skip-existing"
+            continue
+        if status in terminal:
+            proposal["action"] = "skip-terminal"
+            continue
+        try:
+            identity = resolve_task_identity(project_root, task_id, "existing", context=context)
+        except MeridianError as error:
+            invalid(str(error))
+        record = identity.task_path.read_text(encoding="utf-8")
+        record_status = read_task_field(record, "Status")
+        record_status = record_status.strip("`") if record_status else None
+        proposal["evidence"]["record"] = {"path": identity.task_path.relative_to(project_root).as_posix(),
+                                             "status": record_status}
+        # Lean records may have no Status field; progress is derived from worktrees.
+        if (record_status is None and workflow == "governed-sdd") or (record_status is not None and normalize(record_status) != status):
+            invalid(f"queue Status={queue['status']!r}; record Status={record_status!r}")
+        spike = read_task_field(record, "Class") == "SPIKE"
+        review_policy = read_task_field(record, "Review")
+        review_policy = review_policy.strip("`") if review_policy else None
+        required = workflow == "governed-sdd" and not spike and review_policy != "NOT_REQUIRED"
+        if workflow == "governed-sdd" and queue["review"] and queue["review"] != review_policy:
+            invalid(f"queue Review={queue['review']!r}; record Review={review_policy!r}")
+        review_path = identity.review_path
+        review_text = review_path.read_text(encoding="utf-8") if review_path.is_file() else ""
+        attempts = []
+        for heading in re.finditer(r"^## Attempt (\d+)[^\n]*", review_text, re.MULTILINE):
+            verdicts = re.findall(r"\b(APPROVE|CHANGES_REQUESTED|BLOCKED)\b", heading.group())
+            if len(verdicts) != 1:
+                invalid(f"review heading: allowed one verdict; found {heading.group()!r}")
+            attempts.append((int(heading.group(1)), verdicts[0], heading.start(), heading.group()))
+        if len({item[0] for item in attempts}) != len(attempts):
+            invalid("review evidence: allowed unique attempt numbers; found duplicate attempts")
+        latest = max(attempts, default=None, key=lambda item: item[0])
+        proposal["evidence"]["review"] = {"path": review_path.relative_to(project_root).as_posix(),
+                                             "exists": review_path.is_file(),
+                                             "heading": latest[3] if latest else None,
+                                             "verdict": latest[1] if latest else None}
+        if latest and (latest[1] == "APPROVE" or status == "QUEUED" or (latest[1] == "BLOCKED" and status != "READY_FOR_REVIEW")):
+            invalid(f"queue/record Status={status!r}; review verdict={latest[1]!r}")
+        if status == "CHANGES_REQUESTED" and (not latest or latest[1] != "CHANGES_REQUESTED"):
+            invalid(f"queue/record Status={status!r}; review verdict={latest[1] if latest else None!r}")
+        states = machine(workflow, spike, required)
+        # A shortest legal path bootstraps current state without inventing old reviews.
+        routes = [("QUEUED", [])]
+        visited = set()
+        route = None
+        while routes:
+            current, steps = routes.pop(0)
+            if current == status:
+                route = steps
+                break
+            if current in visited:
+                continue
+            visited.add(current)
+            routes.extend((target, steps + [target]) for target in states[current])
+        if route is None:
+            invalid(f"queue Status: allowed {list(states)}; found {status!r}")
+        state = {"version": 1, "task_id": task_id, "workflow": workflow, "status": status, "transitions": []}
+        current = "QUEUED"
+        for target in route:
+            head = head or git_output(project_root, "rev-parse", "HEAD")
+            state["transitions"].append({"from": current, "to": target, "commit": head, "at": at})
+            current = target
+        if workflow == "governed-sdd" and not required:
+            state["review"] = {"required": False, "verdict": None, "attempt": 1,
+                               "reviewed_commit": None, "approved_by": None}
+        if latest:
+            if not required:
+                invalid(f"record Review={review_policy!r}, Class={read_task_field(record, 'Class')!r}; review verdict={latest[1]!r}")
+            state["review"] = {"required": True, "verdict": latest[1], "attempt": latest[0],
+                               "reviewed_commit": None, "approved_by": None}
+        try:
+            validate_task_state(state, task_id, workflow, spike=spike, review_required=required)
+        except TaskStateInvalid as error:
+            invalid(str(error))
+        proposal.update(action="write", state=state)
+    if apply:
+        for proposal in proposals:
+            if proposal["action"] != "write":
+                continue
+            path = project_root / proposal["path"]
+            path.parent.mkdir(parents=True, exist_ok=True)
+            # Exclusive creation also refuses a file created since the preview.
+            with path.open("x", encoding="utf-8") as stream:
+                stream.write(json.dumps(proposal["state"], indent=2, sort_keys=True) + "\n")
+    return {"version": 1, "workflow": workflow, "applied": apply, "tasks": proposals}
+
+
 def transition_task_state(project_root: Path, task_id: str, status: str) -> dict[str, object]:
     """Apply one validated machine transition and update the record projection."""
     identity = resolve_task_identity(project_root, task_id, "existing")
@@ -11252,6 +11401,13 @@ def _run_cli(journal: LifecycleJournalEntry) -> int:
     transition.add_argument("status")
     transition.add_argument("--project", type=Path, default=Path.cwd())
     transition.add_argument("--format", choices=("json",), default="json")
+    state = task_sub.add_parser("state", help="explicit task-state adoption")
+    state_sub = state.add_subparsers(dest="state_command", required=True)
+    state_import = state_sub.add_parser("import", help="preview or create state for open legacy tasks")
+    state_import.add_argument("task_ids", nargs="*")
+    state_import.add_argument("--apply", action="store_true")
+    state_import.add_argument("--project", type=Path, default=Path.cwd())
+    state_import.add_argument("--format", choices=("json",), default="json")
     identity = task_sub.add_parser("identity", help="resolve the project-selected task identity policy")
     identity_sub = identity.add_subparsers(dest="identity_command", required=True)
     identity_check = identity_sub.add_parser("check", help="validate and print one resolved task identity")
@@ -11694,6 +11850,8 @@ def _run_cli(journal: LifecycleJournalEntry) -> int:
         elif arguments.command == "task":
             if arguments.task_command == "transition":
                 print(json.dumps(transition_task_state(project_root, arguments.task_id, arguments.status), sort_keys=True))
+            elif arguments.task_command == "state":
+                print(json.dumps(import_task_states(project_root, arguments.task_ids, apply=arguments.apply), sort_keys=True))
             elif arguments.identity_command == "check":
                 resolved = resolve_task_identity(project_root, arguments.task_id, "existing")
                 print(json.dumps(task_identity_json(project_root, resolved), sort_keys=True))

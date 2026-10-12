@@ -12,18 +12,18 @@ in the primary checkout, create a replacement worktree, or run concurrently
 with a reviewer. A mismatch is `BLOCKED WRONG_WORKTREE` and preserves the existing state.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=review-remediation-record v4 -->
+<!-- MERIDIAN:BEGIN capability=review-remediation-record v5 -->
 ### Review-remediation workflow
 
 For `Address review <TASK-ID>`, read the assigned task, its cited authority,
 the current review record at the location `PROJECT_WORKFLOW.md` declares for
 it, and `git status --short`. Confirm the
-task record says `IN_PROGRESS`, that the review record has unchecked
+machine status is `CHANGES_REQUESTED` (consult command results, never read or edit the state file directly), that the review record has unchecked
 findings, and that its local review-handoff commit is present. Do not implement
-new work, reinterpret a finding, or erase prior reviewer evidence. Resolve
+new work, reinterpret a finding, or erase prior reviewer evidence. Run `meridian task transition <TASK-ID> IN_PROGRESS` before remediation. Never edit a status or verdict by hand. Resolve
 every unchecked finding, mark each with implementation evidence in a new
-attempt in the review record, rerun the task and baseline validation, and set
-the task record to `READY_FOR_REVIEW`. Commit the remediation and
+resolution section in the review record without editing verdict headings, rerun the task and baseline validation, and run
+`meridian task transition <TASK-ID> READY_FOR_REVIEW`. Commit the remediation and
 updated review record, then push the task branch only to obtain `T1_CI` for that commit, at most once per review attempt, and not at all when the project has no CI; `Address review` authorizes
 that one push. Report the review-record path, resolved findings, commit, and
 validation. If a finding needs an authority or scope change, leave it

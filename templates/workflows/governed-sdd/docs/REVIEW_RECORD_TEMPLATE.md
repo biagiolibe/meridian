@@ -1,18 +1,12 @@
 # Review Record
 
-<!-- MERIDIAN:BEGIN capability=review-remediation-record v4 -->
+<!-- MERIDIAN:BEGIN capability=review-remediation-record v5 -->
 Use one durable review record per required-review task at the location
 `meridian locations` resolves for it. It is the canonical handoff from reviewer to
 implementer; chat output may summarize it but must not be the only location of
 findings. Create the directory when the first record is needed.
 
-The reviewer creates or appends an attempt for every `CHANGES_REQUESTED` and
-`APPROVE` verdict. `Accept <TASK-ID>` appends an `APPROVE` attempt whose first
-line is `- Approved by: owner`; `integrate stage` accepts it as the latest
-verdict like any other `APPROVE`. Findings must be actionable, prioritized, and tied to
-evidence. The implementer marks each requested change as resolved in the next
-attempt before returning the task to review. Do not edit a prior reviewer's
-findings or evidence; append a new attempt instead.
+Record every verdict with `meridian review verdict <TASK-ID> APPROVE|CHANGES_REQUESTED|BLOCKED --body <review-evidence>` on the clean reviewed HEAD; owner acceptance adds `--owner`. Never edit a status or verdict by hand. The command owns attempt headings and Status projections. Headings are human-readable only; gates read the task's machine state and Git. Prepare evidence as a command argument before mutating tracked files. Findings must be actionable, prioritized, and tied to evidence. During remediation append a resolution section without changing prior findings, evidence, or verdict headings; return to review with `meridian task transition <TASK-ID> READY_FOR_REVIEW`.
 
 ```md
 # Review Record — <TASK-ID>

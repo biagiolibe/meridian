@@ -160,7 +160,7 @@ Use this only after personally reviewing a `Review: REQUIRED` task whose task re
 Accept <TASK-ID>.
 ```
 
-The trigger appends an owner `APPROVE` attempt to the review record, sets the task record to `ACCEPTED`, and continues at C6 under the `Proceed with` authority, as defined in `docs/workflows/LIFECYCLE.md`; it does not authorize a review, a source change, or a manual merge.
+The trigger runs `meridian review verdict <TASK-ID> APPROVE --owner --body <owner-evidence>` on the clean task HEAD, commits the state and projections, and continues at C6 under the `Proceed with` authority, as defined in `docs/workflows/LIFECYCLE.md`; it does not authorize a review, a source change, or a manual merge.
 
 ## 6a. Address requested review changes
 
@@ -173,7 +173,7 @@ Address review <TASK-ID>.
 ```
 
 The trigger limits implementation to the unchecked findings in the durable
-review record, validates them, returns the task record to `READY_FOR_REVIEW`, and
+review record, validates them, runs `meridian task transition <TASK-ID> IN_PROGRESS` before remediation and `meridian task transition <TASK-ID> READY_FOR_REVIEW` after validation, and
 pushes the next review attempt only to obtain `T1_CI`. It does not authorize unrelated work or a
 reinterpretation of a finding.
 
@@ -247,3 +247,5 @@ Report the current SDD handoff state; do not modify files.
 - A required-review task needs a separate reviewer-integrator chat unless the owner uses the explicit `Accept <TASK-ID>` path.
 - `Run lifecycle <TASK-ID>` may coordinate the required-review loop only through distinct implementer and reviewer sessions, as defined by `docs/LIFECYCLE_ORCHESTRATION.md`.
 - A task, review, audit, or analysis does not authorize unrelated code, future milestones, destructive Git recovery, or external publication.
+
+Never edit a status or verdict by hand; use `meridian task transition` and `meridian review verdict` for task state and verdicts.

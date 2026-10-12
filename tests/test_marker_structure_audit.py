@@ -95,16 +95,16 @@ class StandaloneBlockTemplateTest(unittest.TestCase):
 
     def test_review_prompt_is_one_block_and_applies_the_project_checklist(self) -> None:
         text = self.read("governed-sdd" + "/" + REVIEW_PROMPT)
-        self.assertEqual(meridian.marker_pairs(text), [("code-review-prompt", 2)])
-        block = meridian.extract_marker_block(text, "code-review-prompt", 2)
+        self.assertEqual(meridian.marker_pairs(text), [("code-review-prompt", 3)])
+        block = meridian.extract_marker_block(text, "code-review-prompt", 3)
         self.assertIn("## Project review checklist", block)
         self.assertNotRegex(block, r"(?m)^#+ Project review checklist")
         self.assertTrue(text.rstrip().endswith("<!-- MERIDIAN:END -->"))
 
     def test_audit_prompt_runs_the_project_specific_checks_section(self) -> None:
         text = self.read("governed-sdd/docs/AUDIT_PROMPT_READ_ONLY.md")
-        self.assertEqual(meridian.marker_pairs(text), [("audit-prompt", 3)])
-        block = meridian.extract_marker_block(text, "audit-prompt", 3)
+        self.assertEqual(meridian.marker_pairs(text), [("audit-prompt", 4)])
+        block = meridian.extract_marker_block(text, "audit-prompt", 4)
         self.assertIn("## Project-specific checks", block)
         self.assertIn("cite an accepted ADR", block)
 
@@ -122,7 +122,7 @@ class StandaloneBlockTemplateTest(unittest.TestCase):
     def test_lifecycle_and_remote_cleanup_are_managed_capabilities(self) -> None:
         for mode in ("governed-sdd", "lean-delivery"):
             text = self.read(f"{mode}/docs/WORKTREE_LIFECYCLE.md")
-            self.assertEqual(meridian.marker_pairs(text), [("worktree-lifecycle", 3)])
+            self.assertEqual(meridian.marker_pairs(text), [("worktree-lifecycle", 4)])
         policy = self.read("governed-sdd/docs/PULL_REQUEST_POLICY.md")
         self.assertIn(("remote-branch-cleanup", 1), meridian.marker_pairs(policy))
         self.assertNotIn("distinct authorized reviewer identity", policy)
@@ -186,7 +186,7 @@ class RetiredInlineMarkerUpgradeTest(FrameworkFixture):
         self.assertTrue(upgraded.startswith(current.rstrip("\n")))
         self.assertIn("## Project review checklist\n\n- Check the migration note.", upgraded)
         self.assertEqual(
-            meridian.marker_pairs(upgraded), [("code-review-prompt", 2)]
+            meridian.marker_pairs(upgraded), [("code-review-prompt", 3)]
         )
         self.assertNotIn("project rule", upgraded)
         self.assertIn("project rule", backup.read_text(encoding="utf-8"))
@@ -219,7 +219,7 @@ class RetiredInlineMarkerUpgradeTest(FrameworkFixture):
         self.assertIn("ci-verified-validation", requirements)
         self.assertNotIn("task-worktree-review", requirements)
         self.assertNotIn("manual-verification-review-check", requirements)
-        self.assertEqual(requirements["code-review-prompt"][0], 2)
+        self.assertEqual(requirements["code-review-prompt"][0], 3)
 
     def test_restructure_removes_retired_blocks_from_a_carried_checklist(self) -> None:
         current = self.locked_at_legacy_prompt(
@@ -237,7 +237,7 @@ class RetiredInlineMarkerUpgradeTest(FrameworkFixture):
         upgraded = (self.project / REVIEW_PROMPT).read_text(encoding="utf-8")
         self.assertTrue(upgraded.startswith(current.rstrip("\n")))
         self.assertTrue(upgraded.endswith("## Project review checklist\n\n- Keep this checklist item.\n"))
-        self.assertEqual(meridian.marker_pairs(upgraded), [("code-review-prompt", 2)])
+        self.assertEqual(meridian.marker_pairs(upgraded), [("code-review-prompt", 3)])
         code, output = self.audit()
         self.assertNotRegex(output, r"(?m)^FAIL\\s")
 

@@ -1,6 +1,6 @@
 # Task [ID] — [Title]
 
-<!-- MERIDIAN:BEGIN capability=task-blueprint v16 -->
+<!-- MERIDIAN:BEGIN capability=task-blueprint v17 -->
 Priority: [P0 / P1 / P2]
 Status: QUEUED
 Review: REQUIRED
@@ -169,7 +169,7 @@ transcript.
 
 ## Completion
 
-- For `Review: REQUIRED`, save the completion report at the resolved handoff location (`meridian locations`), then run `meridian execution ready-check <TASK-ID> --project .` after validation and before setting this task record to `READY_FOR_REVIEW`. The gate requires a complete handoff and declared budget use.
-- For `Review: NOT_REQUIRED`, set this task record to `ACCEPTED` only after validation passes.
-- For `Class: SPIKE`, once `Budget` is exhausted or `Question` is answered, whichever comes first, self-administer `PROJECT_WORKFLOW.md`'s spike close-out gate and set this task record to `ANSWERED` or `INCONCLUSIVE`.
+- For `Review: REQUIRED`, save the completion report at the resolved handoff location (`meridian locations`), then run `meridian execution ready-check <TASK-ID> --project .` after validation and before running `meridian task transition <TASK-ID> READY_FOR_REVIEW`. Never edit a status or verdict by hand. The gate requires a complete handoff and declared budget use.
+- For `Review: NOT_REQUIRED`, run `meridian task transition <TASK-ID> ACCEPTED` only after validation passes.
+- For `Class: SPIKE`, once `Budget` is exhausted or `Question` is answered, whichever comes first, self-administer `PROJECT_WORKFLOW.md`'s spike close-out gate and run `meridian task transition <TASK-ID> ANSWERED` or `meridian task transition <TASK-ID> INCONCLUSIVE`.
 <!-- MERIDIAN:END -->

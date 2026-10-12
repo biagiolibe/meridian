@@ -37,7 +37,7 @@ discard, or commit them; report the conflict and stop.
   fix. Report actionable findings; do not silently correct implementation code
   during review.
 
-<!-- MERIDIAN:BEGIN capability=git-workflow v12 -->
+<!-- MERIDIAN:BEGIN capability=git-workflow v13 -->
 ## Authority of `Proceed with`
 
 `Proceed with <TASK-ID>` authorizes that task's whole lifecycle when every gate
@@ -80,12 +80,12 @@ stop that a command printed.
 
 Task branches do not edit `tasks/QUEUE.md`, `tasks/QUEUE_ARCHIVE.md`, or
 `PROJECT_PLAN.md`. They edit only their own task record, its exact archive under
-`tasks/done/`, and its handoff. `integrate stage` applies queue and plan status
+`tasks/done/`, its handoff, and its own `.meridian/tasks/<TASK-ID>.json` state file. `integrate stage` applies queue and plan status
 and phase archival once on the merged candidate tree. The queue retains `[ ]`
 until then; in-progress state is derived from the canonical branch, registered
 worktree, and unarchived record.
 
-Close a validated task with `meridian worktree advance`. After verifying the
+Close a validated task with `meridian worktree advance`. When closure requires machine task state, run `meridian task transition <TASK-ID> DONE` in the task worktree after validation and before archiving the record, then commit the state file with the completion records. Never edit status or verdict fields by hand. After verifying the
 acceptance criteria, running validation, and committing the completion record
 and handoff, run `meridian worktree advance <TASK-ID> --project
 <primary-checkout> --format json` from the primary checkout, giving each result

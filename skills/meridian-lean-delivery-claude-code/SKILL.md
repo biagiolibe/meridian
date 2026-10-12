@@ -31,3 +31,5 @@ identity. `opaque` keeps task IDs as labels; `milestone` uses
 `M<milestone>-<WORKSTREAM>-<ordinal>` for new IDs. Never choose by default;
 pass the answer to `meridian setup --apply --task-identity <choice>` and note
 that the project can later change it by editing the declaration.
+
+When closure requires machine task state, run `meridian task transition <TASK-ID> DONE` after validation and before archiving the record; commit the task state with the completion records. Never edit a status or verdict by hand. Task branches own their own `.meridian/tasks/<TASK-ID>.json` in addition to their task record, exact archive, and handoff.
