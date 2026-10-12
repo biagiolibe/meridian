@@ -33,3 +33,13 @@ pass the answer to `meridian setup --apply --task-identity <choice>` and note
 that the project can later change it by editing the declaration.
 
 When closure requires machine task state, run `meridian task transition <TASK-ID> DONE` after validation and before archiving the record; commit the task state with the completion records. Never edit a status or verdict by hand. Task branches own their own `.meridian/tasks/<TASK-ID>.json` in addition to their task record, exact archive, and handoff.
+
+<!-- MERIDIAN:BEGIN capability=execution-boundaries v1 -->
+After prepare and worktree check, run `meridian execution start <TASK-ID>
+--project .` before substantive authority/source analysis, advisor consultation,
+or implementation. Lean start verifies the worktree and preserves its existing
+worktree-derived progress without adding IN_PROGRESS to machine state. Only
+explicit Resume adds --resume after status/diff inspection and sole-writer
+confirmation. Console, manual, and orchestrated workers use this same ordering;
+read-only review/status requests never start work.
+<!-- MERIDIAN:END -->

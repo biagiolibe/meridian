@@ -366,14 +366,14 @@ class MeridianCliTest(unittest.TestCase):
             "",
         ))
         previous_implementation = re.sub(
-            r"<!-- MERIDIAN:BEGIN capability=task-worktree-boundary v9 -->.*?<!-- MERIDIAN:END -->\n",
+            r"<!-- MERIDIAN:BEGIN capability=task-worktree-boundary v10 -->.*?<!-- MERIDIAN:END -->\n",
             legacy_implementation,
             current_implementation,
             count=1,
             flags=re.DOTALL,
         )
         previous_workflow = re.sub(
-            r"<!-- MERIDIAN:BEGIN capability=bounded-worktree-lifecycle v4 -->.*?<!-- MERIDIAN:END -->\n",
+            r"<!-- MERIDIAN:BEGIN capability=bounded-worktree-lifecycle v5 -->.*?<!-- MERIDIAN:END -->\n",
             legacy_workflow,
             current_workflow,
             count=1,
@@ -1126,7 +1126,7 @@ class MeridianCliTest(unittest.TestCase):
         audit = self.run_cli("audit")
         # This legacy lock fixture has no capabilityProfiles; audit reports
         # UNVERIFIED for that declaration independently of marker integrity.
-        self.assertIn("tasks/TASK_BLUEPRINT.md: capability=task-blueprint v17 matches the released text", audit.stdout)
+        self.assertIn("tasks/TASK_BLUEPRINT.md: capability=task-blueprint v18 matches the released text", audit.stdout)
         self.assertNotIn("FAIL           marker-integrity", audit.stdout)
         self.assertNotIn("DRIFT", audit.stdout)
         repeated = self.run_cli("upgrade", "--check")
@@ -1142,7 +1142,7 @@ class MeridianCliTest(unittest.TestCase):
         blueprint = self.framework / "templates/workflows/governed-sdd/tasks/TASK_BLUEPRINT.md"
         current = blueprint.read_text(encoding="utf-8")
         declaration = current.split("\n## Host impact\n", 1)[1].split("\n## Goal\n", 1)[0]
-        previous = current.replace("capability=task-blueprint v17", "capability=task-blueprint v11", 1)
+        previous = current.replace("capability=task-blueprint v18", "capability=task-blueprint v11", 1)
         previous = previous.replace("\n## Host impact\n" + declaration, "", 1)
 
         installed_baseline = self.project / ".meridian/baselines/1.1.39"
@@ -1175,7 +1175,7 @@ class MeridianCliTest(unittest.TestCase):
         applied = self.run_cli("upgrade", "--apply")
         self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
         upgraded_blueprint = (self.project / "tasks/TASK_BLUEPRINT.md").read_text(encoding="utf-8")
-        self.assertIn("capability=task-blueprint v17", upgraded_blueprint)
+        self.assertIn("capability=task-blueprint v18", upgraded_blueprint)
         self.assertIn("Classification: NOT_APPLICABLE", upgraded_blueprint)
         self.assertIn("Classification: REQUIRED", upgraded_blueprint)
         self.assertIn("Project-owned task note.", upgraded_blueprint)
@@ -1263,7 +1263,7 @@ class MeridianCliTest(unittest.TestCase):
         self.assertIn("capability=git-workflow v14", project_workflow.read_text(encoding="utf-8"))
         self.assertIn("Consumer-owned note.", project_workflow.read_text(encoding="utf-8"))
         self.assertIn(
-            "capability=task-worktree-boundary v9",
+            "capability=task-worktree-boundary v10",
             (self.project / "docs/workflows/IMPLEMENTATION.md").read_text(encoding="utf-8"),
         )
         report = (self.project / "docs/COMPLETION_REPORT_TEMPLATE.md").read_text(encoding="utf-8")
@@ -1444,7 +1444,7 @@ worktree before the branch only after validated integration succeeds.
 
         upgraded = review.read_text(encoding="utf-8")
         self.assertIn("capability=implementer-reviewer-handoff v5", upgraded)
-        self.assertIn("capability=task-worktree-review-procedure v12", upgraded)
+        self.assertIn("capability=task-worktree-review-procedure v13", upgraded)
         self.assertIn("Consumer-owned review note.", upgraded)
         self.assertNotIn("uses that same primary checkout", upgraded)
         self.assertNotIn("git switch <task-branch>", upgraded)
@@ -1517,10 +1517,10 @@ worktree before the branch only after validated integration succeeds.
         applied = self.run_cli("upgrade", "--apply")
         self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
 
-        self.assertIn("capability=task-worktree-boundary v9", implementation.read_text(encoding="utf-8"))
+        self.assertIn("capability=task-worktree-boundary v10", implementation.read_text(encoding="utf-8"))
         self.assertIn("**Manually triggered.**", implementation.read_text(encoding="utf-8"))
         upgraded_workflow = project_workflow.read_text(encoding="utf-8")
-        self.assertIn("capability=bounded-worktree-lifecycle v4", upgraded_workflow)
+        self.assertIn("capability=bounded-worktree-lifecycle v5", upgraded_workflow)
         self.assertIn("Consumer-owned worktree note.", upgraded_workflow)
         manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
         self.assertEqual(manifest["workflowBaselineVersion"], "1.1.54")
@@ -1577,7 +1577,7 @@ worktree before the branch only after validated integration succeeds.
         self.assertIn("created after this report", upgraded_report)
         self.assertIn("Consumer-owned handoff note.", upgraded_report)
         upgraded_review = (self.project / "docs/workflows/REVIEW.md").read_text(encoding="utf-8")
-        self.assertIn("capability=task-worktree-review-procedure v12", upgraded_review)
+        self.assertIn("capability=task-worktree-review-procedure v13", upgraded_review)
         self.assertIn("resolve it to the registered task branch `HEAD`", upgraded_review)
         manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
         self.assertEqual(manifest["workflowBaselineVersion"], "1.1.55")
@@ -1645,7 +1645,7 @@ worktree before the branch only after validated integration succeeds.
                 flags=re.DOTALL,
             ),
             "docs/workflows/IMPLEMENTATION.md": re.sub(
-                r"\n<!-- MERIDIAN:BEGIN capability=task-worktree-boundary v9 -->.*?<!-- MERIDIAN:END -->\n",
+                r"\n<!-- MERIDIAN:BEGIN capability=task-worktree-boundary v10 -->.*?<!-- MERIDIAN:END -->\n",
                 "\n",
                 current["docs/workflows/IMPLEMENTATION.md"],
                 flags=re.DOTALL,
@@ -1687,9 +1687,9 @@ worktree before the branch only after validated integration succeeds.
         upgraded_review = (self.project / "docs/workflows/REVIEW.md").read_text(encoding="utf-8")
         self.assertIn("capability=git-workflow v14", upgraded_workflow)
         self.assertIn("Review: REQUIRED` is a gate, not a request for authorization", upgraded_workflow)
-        self.assertIn("capability=task-worktree-boundary v9", upgraded_implementation)
+        self.assertIn("capability=task-worktree-boundary v10", upgraded_implementation)
         self.assertIn("REVIEW_REQUIRED`; it is a gate", upgraded_implementation)
-        self.assertIn("capability=task-worktree-review-procedure v12", upgraded_review)
+        self.assertIn("capability=task-worktree-review-procedure v13", upgraded_review)
         self.assertIn("reviewer-integrator performs C6 through C10", upgraded_review)
         self.assertIn("Consumer-owned closure note.", upgraded_implementation)
         manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
@@ -1822,7 +1822,7 @@ worktree before the branch only after validated integration succeeds.
         previous = {
             "PROJECT_WORKFLOW.md": resume_paragraph.sub(
                 "\n", current["PROJECT_WORKFLOW.md"].replace(
-                    "capability=bounded-worktree-lifecycle v5", "capability=bounded-worktree-lifecycle v3"
+                    "capability=bounded-worktree-lifecycle v6", "capability=bounded-worktree-lifecycle v3"
                 ), count=1,
             ),
             "docs/WORKTREE_LIFECYCLE.md": resume_bullet.sub(
@@ -1830,12 +1830,15 @@ worktree before the branch only after validated integration succeeds.
                     r"## Commit-less fast-forward recovery.*?(?=## Candidate validation)",
                     "", current["docs/WORKTREE_LIFECYCLE.md"], flags=re.DOTALL,
                 ).replace(
-                    "capability=worktree-lifecycle v4", "capability=worktree-lifecycle v1"
+                    "capability=worktree-lifecycle v5", "capability=worktree-lifecycle v1"
                 ), count=1,
             ),
         }
         for relative in paths:
             self.assertNotEqual(previous[relative], current[relative], relative)
+            previous[relative] = previous[relative].replace(
+                "Only explicit Resume passes `--resume` after status/diff inspection and sole\nwriter confirmation.", ""
+            ).replace("Only explicit Resume adds `--resume` after\n  status/diff inspection.", "")
             self.assertNotIn("--resume", previous[relative])
             (workflow / relative).write_text(previous[relative], encoding="utf-8")
         for path in workflow.rglob("*"):
@@ -1860,11 +1863,11 @@ worktree before the branch only after validated integration succeeds.
         self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
 
         upgraded = project_workflow.read_text(encoding="utf-8")
-        self.assertIn("capability=bounded-worktree-lifecycle v5", upgraded)
+        self.assertIn("capability=bounded-worktree-lifecycle v6", upgraded)
         self.assertIn("`--resume` is allowed only for that directive", upgraded)
         self.assertIn("Consumer-owned resume note.", upgraded)
         lifecycle = (self.project / "docs/WORKTREE_LIFECYCLE.md").read_text(encoding="utf-8")
-        self.assertIn("capability=worktree-lifecycle v4", lifecycle)
+        self.assertIn("capability=worktree-lifecycle v5", lifecycle)
         self.assertIn("Only a Resume directive adds `--resume`", lifecycle)
 
     def test_upgrade_installs_closure_command_policy_for_lean_and_keeps_local_rules(self) -> None:
@@ -3132,13 +3135,13 @@ worktree before the branch only after validated integration succeeds.
         # The evidence text proves the legacy fallback did its job (v1 found),
         # distinct from "no marker found" — it's the v1->v2 gap that's real.
         self.assertIn(
-            "CAPABILITY MISSING 066-machine-task-state-adoption — no marker found; "
-            "legacy pre-marker evidence only confirms v1, but v5 is required",
+            "CAPABILITY MISSING 067-execution-boundaries — no marker found; "
+            "legacy pre-marker evidence only confirms v1, but v6 is required",
             planned.stdout,
         )
         self.assertIn(
-            "CAPABILITY MISSING 066-machine-task-state-adoption — no marker found; "
-            "legacy pre-marker evidence only confirms v1, but v11 is required",
+            "CAPABILITY MISSING 067-execution-boundaries — no marker found; "
+            "legacy pre-marker evidence only confirms v1, but v12 is required",
             planned.stdout,
         )
         self.assertIn("\nNEXT_ACTION IMPLEMENT_MIGRATION\n", planned.stdout)
@@ -5045,10 +5048,10 @@ class CapabilityMarkerTest(unittest.TestCase):
     def test_agents_and_claude_carry_expected_marker_versions(self) -> None:
         for name in ("AGENTS.md", "CLAUDE.md"):
             self.assertEqual(self.marker_pairs((self.WORKFLOW / name).read_text(encoding="utf-8")), [("command-triggers", "3")])
-        self.assertIn(("review-remediation-record", "5"), self.marker_pairs((self.WORKFLOW / "docs/workflows/REMEDIATION.md").read_text(encoding="utf-8")))
+        self.assertIn(("review-remediation-record", "6"), self.marker_pairs((self.WORKFLOW / "docs/workflows/REMEDIATION.md").read_text(encoding="utf-8")))
         self.assertIn(("lifecycle-orchestration", "3"), self.marker_pairs((self.WORKFLOW / "docs/workflows/LIFECYCLE.md").read_text(encoding="utf-8")))
         implementation = self.marker_pairs((self.WORKFLOW / "docs/workflows/IMPLEMENTATION.md").read_text(encoding="utf-8"))
-        for pair in (("execution-command-gate", "3"), ("validation-scoping", "2"), ("spike-routing", "2"), ("host-impact-routing", "2")):
+        for pair in (("execution-command-gate", "4"), ("validation-scoping", "2"), ("spike-routing", "2"), ("host-impact-routing", "2")):
             self.assertIn(pair, implementation)
 
     def test_manual_proceed_migration_does_not_declare_remediation_changes(self) -> None:
@@ -5060,7 +5063,7 @@ class CapabilityMarkerTest(unittest.TestCase):
     def test_host_impact_declaration_has_both_governed_shapes_and_evidence_routing(self) -> None:
         blueprint = (self.WORKFLOW / "tasks/TASK_BLUEPRINT.md").read_text(encoding="utf-8")
         implementation = (self.WORKFLOW / "docs/workflows/IMPLEMENTATION.md").read_text(encoding="utf-8")
-        self.assertIn(("task-blueprint", "17"), self.marker_pairs(blueprint))
+        self.assertIn(("task-blueprint", "18"), self.marker_pairs(blueprint))
         self.assertIn("Classification: NOT_APPLICABLE", blueprint)
         self.assertIn("Rationale:", blueprint)
         self.assertIn("Classification: REQUIRED", blueprint)
@@ -5077,14 +5080,14 @@ class CapabilityMarkerTest(unittest.TestCase):
         text = (self.WORKFLOW / "docs/REVIEW_RECORD_TEMPLATE.md").read_text(encoding="utf-8")
         self.assertEqual(
             self.marker_pairs(text),
-            [("review-remediation-record", "5"), ("manual-verification-record", "1")],
+            [("review-remediation-record", "6"), ("manual-verification-record", "1")],
         )
 
     def test_lifecycle_orchestration_carries_its_own_marker(self) -> None:
         text = (self.WORKFLOW / "docs/LIFECYCLE_ORCHESTRATION.md").read_text(encoding="utf-8")
         self.assertEqual(
             self.marker_pairs(text),
-            [("lifecycle-orchestration", "11"), ("rejected-attempt-restart", "5")],
+            [("lifecycle-orchestration", "12"), ("rejected-attempt-restart", "5")],
         )
 
     def test_context_budget_policy_carries_its_capability_markers(self) -> None:
@@ -5129,9 +5132,9 @@ class CapabilityMarkerTest(unittest.TestCase):
         ]
         texts = {path: (self.WORKFLOW / path).read_text(encoding="utf-8") for path in paths}
 
-        self.assertIn(("task-blueprint", "17"), self.marker_pairs(texts["tasks/TASK_BLUEPRINT.md"]))
+        self.assertIn(("task-blueprint", "18"), self.marker_pairs(texts["tasks/TASK_BLUEPRINT.md"]))
         self.assertIn(
-            ("lifecycle-orchestration", "11"), self.marker_pairs(texts["docs/LIFECYCLE_ORCHESTRATION.md"])
+            ("lifecycle-orchestration", "12"), self.marker_pairs(texts["docs/LIFECYCLE_ORCHESTRATION.md"])
         )
         self.assertNotIn(
             "reasoning-budget-contract", dict(self.marker_pairs(texts["docs/CONTEXT_BUDGET_POLICY.md"]))
@@ -5189,7 +5192,7 @@ class CapabilityMarkerTest(unittest.TestCase):
         self.assertEqual(
             self.marker_pairs(pull_request_policy),
             [
-                ("task-worktree-integration", "6"),
+                ("task-worktree-integration", "7"),
                 ("ci-verified-validation", "1"),
                 ("remote-branch-cleanup", "1"),
             ],
@@ -5257,7 +5260,7 @@ class CapabilityMarkerTest(unittest.TestCase):
         expected["execution-assets"] = "4"
         expected["roles"] = "4"
         expected["git-workflow"] = "14"
-        expected["bounded-worktree-lifecycle"] = "4"
+        expected["bounded-worktree-lifecycle"] = "5"
         expected["codex-worktree-access"] = "4"
         expected["task-identity-policy"] = "1"
         expected["task-lifecycle"] = "4"
@@ -5282,7 +5285,7 @@ class CapabilityMarkerTest(unittest.TestCase):
     def test_whole_file_baseline_capabilities_each_carry_one_marker(self) -> None:
         expectations = {
             "LANGUAGE_POLICY.md": ("language-policy", "2"),
-            "tasks/TASK_BLUEPRINT.md": ("task-blueprint", "17"),
+            "tasks/TASK_BLUEPRINT.md": ("task-blueprint", "18"),
             "docs/CODE_ORGANIZATION.md": ("code-organization", "2"),
             "docs/AUDIT_PROMPT_READ_ONLY.md": ("audit-prompt", "4"),
         }
@@ -5311,7 +5314,7 @@ class CapabilityMarkerTest(unittest.TestCase):
         self.assertIn(("review-mode-boundary", "3"), review)
         self.assertIn(("implementer-reviewer-handoff", "5"), review)
         self.assertIn(("reviewer-integrator-identity", "3"), review)
-        self.assertIn(("task-worktree-review-procedure", "12"), review)
+        self.assertIn(("task-worktree-review-procedure", "13"), review)
 
     def test_review_preflight_fails_closed_before_substantive_inspection(self) -> None:
         review = (self.WORKFLOW / "docs/workflows/REVIEW.md").read_text(encoding="utf-8")

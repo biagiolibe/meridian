@@ -2,7 +2,7 @@
 
 Use this procedure only for `Review <TASK-ID>` after the entry-point router has applied its always-loaded invariants.
 
-<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v12 -->
+<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v13 -->
 ## Mandatory task-worktree preflight
 
 After `APPROVE`, `Review <TASK-ID>` has the `Proceed with` authority for C6 through C10, including the single plain `git push origin main` and cleanup, with the same prohibitions.
@@ -26,7 +26,9 @@ implementation files, or any implementation diff:
    absolute path equals the `handoff_worktree` value resolved against the
    worktree root at runtime. The entry must record the handoff branch
    as `refs/heads/<task-branch>` and its `HEAD`. A full-SHA current task commit
-   field must equal that `HEAD`. For a descriptive current task commit field,
+   field must equal that `HEAD`. The handoff may describe the final delivery commit by its known subject
+   `Deliver <TASK-ID> for review`, rather than a not-yet-existent SHA.
+   For a descriptive current task commit field,
    resolve it to the registered task branch `HEAD` and confirm its stated
    subject matches `git log -1 --format=%s <task-branch>`; treat that resolved
    value as `HEAD` for this comparison. Do not infer the task worktree from
@@ -40,6 +42,11 @@ implementation files, or any implementation diff:
    the validated task commit and the validated task commit is an ancestor of
    current task `HEAD`. A missing commit, detached or mismatched branch,
    mismatched `HEAD`, dirty worktree, or failed ancestry check is `BLOCKED WRONG_WORKTREE`.
+
+5. Run read-only `meridian execution ready-check <TASK-ID> --project .`
+   in the verified worktree. Require a committed READY_FOR_REVIEW delivery
+   and clean worktree before review. Pending delivery/changes cannot launch
+   review. Never run execution start for a review or status request.
 
 Every failure above stops before substantive review and preserves the task,
 branch, primary checkout, and linked worktree exactly as found. Never switch,

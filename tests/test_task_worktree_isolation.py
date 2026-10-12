@@ -1769,9 +1769,11 @@ class GovernedCompletionRowsTest(unittest.TestCase):
         self.assertEqual(validated.returncode, 0, validated.stderr)
         ledger = worktree / meridian.EXECUTION_EVIDENCE_PATH
         evidence_bytes = ledger.read_bytes()
-        self.assertEqual(json.loads(evidence_bytes)["056"], [
-            {"id": "probe", "command": "test -f docs/answer.md", "exitStatus": 0},
-        ])
+        entry = json.loads(evidence_bytes)["056"][0]
+        self.assertEqual({key: entry[key] for key in ("id", "command", "exitStatus")},
+                         {"id": "probe", "command": "test -f docs/answer.md", "exitStatus": 0})
+        self.assertEqual(entry["commit"], self.git("rev-parse", "HEAD", cwd=worktree).stdout.strip())
+        self.assertEqual(entry["sourceDigest"], meridian.execution_source_digest(worktree, "056"))
         task = worktree / "tasks/056-lifecycle.md"
         task.write_text(task.read_text(encoding="utf-8").replace("Status: QUEUED", "Status: ANSWERED"), encoding="utf-8")
         self.git("add", "-A", cwd=worktree)

@@ -1170,8 +1170,10 @@ def inspect_task_worktree(
     supplied_project: Path | None = None,
     *,
     require_effective_worktree: bool = True,
+    inspection_directory: Path | None = None,
 ) -> tuple[dict[str, object], bool]:
-    project_root = _verified_lifecycle_project(supplied_project)
+    project_root = (_verified_lifecycle_project(supplied_project) if inspection_directory is None
+                    else canonical_project_root(inspection_directory))
     root = _effective_worktree_root(worktree_root)
     identity = resolve_task_identity(project_root, task_id, "existing")
     expected = _task_worktree_path_for_identity(project_root, root, identity)
@@ -3207,6 +3209,8 @@ CLAUDE_PROJECT_ALLOWLIST = (
     "Bash(meridian worktree integrate stage:*)",
     "Bash(meridian worktree integrate finalize:*)",
     "Bash(meridian worktree integrate abort:*)",
+    "Bash(meridian execution start:*)",
+    "Bash(meridian execution deliver:*)",
     "Bash(meridian execution validate:*)",
     "Bash(meridian execution ready-check:*)",
     "Bash(meridian execution handoff-check:*)",
@@ -3224,6 +3228,8 @@ CLAUDE_PROJECT_ALLOWLIST = (
     "Bash(python3 scripts/meridian.py worktree integrate stage:*)",
     "Bash(python3 scripts/meridian.py worktree integrate finalize:*)",
     "Bash(python3 scripts/meridian.py worktree integrate abort:*)",
+    "Bash(python3 scripts/meridian.py execution start:*)",
+    "Bash(python3 scripts/meridian.py execution deliver:*)",
     "Bash(python3 scripts/meridian.py execution validate:*)",
     "Bash(python3 scripts/meridian.py execution ready-check:*)",
     "Bash(python3 scripts/meridian.py execution handoff-check:*)",
@@ -8867,6 +8873,8 @@ def transition_task_state(project_root: Path, task_id: str, status: str) -> dict
         validate_task_state(state, task_id, workflow, spike=spike, review_required=review_required)
     except TaskStateInvalid as error:
         raise stop_error("TASK_STATE_INVALID", str(error), task_id=task_id, project=project_root) from error
+    if status == "READY_FOR_REVIEW":
+        delivery_readiness(project_root, task_id)
     projection = re.sub(r"^Status:[^\n]*", f"Status: {status}", record, flags=re.MULTILINE)
     _write_json_atomic(path, state)
     if projection != record:
@@ -10890,6 +10898,183 @@ def readiness_check(project_root: Path, task_id: str, report: Path) -> str:
     return f"READY_FOR_REVIEW gate passed for {task_id}"
 
 
+def _execution_worktree(project_root: Path, task_id: str, *, resume: bool = False,
+                        repeated_start: bool = False) -> dict[str, object]:
+    """Reuse canonical worktree verification; Resume is explicit, never inferred."""
+    project_root = project_root.resolve()
+    if project_root != Path.cwd().resolve():
+        raise stop_error("WRONG_WORKTREE", "execution --project must name the caller's task worktree",
+                         task_id=task_id, project=canonical_project_root(project_root))
+    primary = canonical_project_root(project_root)
+    result, valid = inspect_task_worktree(task_id, None, primary)
+    errors = list(result["errors"])
+    if errors == ["dirty-worktree"] and (resume or repeated_start):
+        if repeated_start and not resume:
+            identity = resolve_task_identity(project_root, task_id, "existing")
+            owned = {state_path(project_root, identity.canonical_id).relative_to(project_root).as_posix(),
+                     identity.task_path.relative_to(project_root).as_posix()}
+            changed = set(git_output(project_root, "diff", "HEAD", "--name-only").splitlines())
+            untracked = set(git_output(project_root, "ls-files", "--others", "--exclude-standard").splitlines())
+            prior_record = _run_git(project_root, "show", f"HEAD:{identity.task_path.relative_to(project_root)}")
+            expected_record = re.sub(r"^Status:[^\n]*", "Status: IN_PROGRESS", prior_record.stdout, flags=re.MULTILINE)
+            state = _execution_state(project_root, task_id)
+            previous = _run_git(project_root, "show", f"HEAD:{state_path(project_root, task_id).relative_to(project_root)}")
+            if previous.returncode:
+                original = {"version": 1, "task_id": task_id, "workflow": "governed-sdd", "status": "QUEUED", "transitions": []}
+            else:
+                original = json.loads(previous.stdout)
+            expected_state = dict(original)
+            if original["status"] == "QUEUED" and state["transitions"]:
+                expected_state.update(status="IN_PROGRESS", transitions=original["transitions"] + [state["transitions"][-1]])
+            # A repeated start tolerates only the exact command-owned projection.
+            if (changed | untracked <= owned and prior_record.returncode == 0
+                    and identity.task_path.read_text(encoding="utf-8") == expected_record
+                    and state == expected_state):
+                errors = []
+        else:
+            errors = []
+    if errors or result["integration_active"]:
+        raise stop_error("WRONG_WORKTREE", "execution worktree verification: "
+                         + ", ".join(errors or ["integration-active"]), task_id=task_id, project=canonical_project_root(project_root))
+    return result
+
+
+def _execution_state(project_root: Path, task_id: str) -> dict[str, object]:
+    record = find_task_file(project_root, task_id).read_text(encoding="utf-8")
+    return read_task_state(project_root, task_id, detect_mode(project_root),
+                           spike=read_task_field(record, "Class") == "SPIKE",
+                           review_required=read_task_field(record, "Review") != "NOT_REQUIRED",
+                           stop_factory=stop_error)
+
+
+def execution_start(project_root: Path, task_id: str, *, resume: bool = False) -> dict[str, object]:
+    """Record the first legal start only after worktree and contract preflight."""
+    identity = resolve_task_identity(project_root, task_id, "existing")
+    task_id = identity.canonical_id
+    workflow = detect_mode(project_root)
+    state = _execution_state(project_root, task_id) if state_path(project_root, task_id).exists() else None
+    _execution_worktree(project_root, task_id, resume=resume,
+                        repeated_start=bool(state and state["status"] == "IN_PROGRESS"))
+    status = state["status"] if state else "QUEUED"
+    eligible = ("QUEUED",) if workflow == "lean-delivery" else ("QUEUED", "IN_PROGRESS")
+    if status not in eligible:
+        raise stop_error("TASK_STATUS_REJECTED", f"execution start allows {eligible}; found {status}", task_id=task_id, project=canonical_project_root(project_root))
+    if workflow == "governed-sdd":
+        execution_preflight(project_root, task_id)
+        if status == "QUEUED":
+            state = transition_task_state(project_root, task_id, "IN_PROGRESS")
+    # Lean has no execution-contract requirement or IN_PROGRESS machine state.
+    return {"task_id": task_id, "workflow": workflow, "status": state["status"] if state else status,
+            "started": workflow == "governed-sdd", "state": state,
+            "commit": git_output(project_root, "rev-parse", "HEAD")}
+
+
+def _execution_owned_paths(project_root: Path, task_id: str) -> set[str]:
+    identity = resolve_task_identity(project_root, task_id, "existing")
+    return {path.relative_to(project_root).as_posix() for path in
+            (identity.task_path, identity.handoff_path, state_path(project_root, task_id))} | {EXECUTION_EVIDENCE_PATH.as_posix()}
+
+
+def execution_source_digest(project_root: Path, task_id: str) -> str:
+    """Bind validation to source contents and modes, including unstaged files.
+
+    Only the task's delivery-owned paths are excluded. Queue, plan, and other
+    tasks remain part of the fingerprint. No index or Git object is written.
+    """
+    owned = _execution_owned_paths(project_root, task_id)
+    paths = set(git_output(project_root, "ls-files", "--cached", "--others", "--exclude-standard", "-z").split("\0"))
+    entries = []
+    for relative in sorted(paths - owned - {""}):
+        path = project_root / relative
+        if path.is_symlink():
+            entries.append((relative, "symlink", os.readlink(path)))
+        elif path.is_file():
+            entries.append((relative, bool(path.stat().st_mode & 0o111), hashlib.sha256(path.read_bytes()).hexdigest()))
+        elif path.is_dir():
+            # Gitlinks carry a commit identity; dirty nested trees cannot be delivered.
+            entries.append((relative, "gitlink", git_output(path, "rev-parse", "HEAD"),
+                            git_output(path, "status", "--porcelain")))
+    return hashlib.sha256(json.dumps(entries).encode()).hexdigest()
+
+
+def delivery_readiness(project_root: Path, task_id: str, *, verify_worktree: bool = True) -> dict[str, object]:
+    """Read-only delivery gate, also used by direct READY_FOR_REVIEW transitions."""
+    identity = resolve_task_identity(project_root, task_id, "existing")
+    task_id = identity.canonical_id
+    state = _execution_state(project_root, task_id)
+    record = identity.task_path.read_text(encoding="utf-8")
+    if (state["workflow"] != "governed-sdd" or read_task_field(record, "Class") == "SPIKE"
+            or not state.get("review", {}).get("required", True)
+            or state["status"] not in ("IN_PROGRESS", "READY_FOR_REVIEW")):
+        raise stop_error("TASK_STATUS_REJECTED", f"delivery requires a review-required Governed task; found {state['status']}", task_id=task_id, project=canonical_project_root(project_root))
+    if verify_worktree:
+        worktree = _execution_worktree(project_root, task_id)
+    else:
+        if git_output(project_root, "status", "--porcelain"):
+            raise stop_error("WRONG_WORKTREE", "delivery requires a clean worktree", task_id=task_id, project=canonical_project_root(project_root))
+        primary = canonical_project_root(project_root)
+        worktree, valid = inspect_task_worktree(task_id, None, primary, require_effective_worktree=False,
+                                                  inspection_directory=primary)
+        if not valid or worktree["integration_active"] or Path(worktree["worktree"]).resolve() != project_root.resolve():
+            raise stop_error("WRONG_WORKTREE", "delivery requires the clean canonical worktree", task_id=task_id, project=canonical_project_root(project_root))
+    readiness_check(project_root, task_id, identity.handoff_path)
+    head = git_output(project_root, "rev-parse", "HEAD")
+    base = str(worktree["base_commit"])
+    owned = _execution_owned_paths(project_root, task_id)
+    changed = set(git_output(project_root, "diff", "--name-only", base, head).splitlines())
+    if not changed - owned:
+        raise stop_error("EVIDENCE_INCOMPLETE", "delivery needs a committed implementation change after the prepared base", task_id=task_id, project=canonical_project_root(project_root))
+    report_path = identity.handoff_path.relative_to(project_root).as_posix()
+    if _run_git(project_root, "cat-file", "-e", f"HEAD:{report_path}").returncode:
+        raise stop_error("EVIDENCE_INCOMPLETE", "final handoff must be committed", task_id=task_id, project=canonical_project_root(project_root))
+    digest = execution_source_digest(project_root, task_id)
+    entries = execution_entries(project_root, task_id)
+    commands = validation_commands(record)
+    if not commands:
+        raise stop_error("EVIDENCE_INCOMPLETE", "delivery needs declared completed validation evidence", task_id=task_id, project=canonical_project_root(project_root))
+    for command_id, command in commands.items():
+        matching = [entry for entry in entries if entry.get("id") == command_id]
+        entry = matching[-1] if matching else {}
+        commit = entry.get("commit", "")
+        if (entry.get("command") != command or entry.get("exitStatus") != 0
+                or entry.get("sourceDigest") != digest or not re.fullmatch(r"[0-9a-f]{40}", str(commit))
+                or _run_git(project_root, "merge-base", "--is-ancestor", str(commit), head).returncode):
+            raise stop_error("EVIDENCE_INCOMPLETE", f"validation {command_id} is missing, failing, or stale; rerun execution validate and commit evidence/handoff", task_id=task_id, project=canonical_project_root(project_root))
+    if state["status"] == "READY_FOR_REVIEW":
+        persisted = _run_git(project_root, "show", f"HEAD:{state_path(project_root, task_id).relative_to(project_root)}")
+        if persisted.returncode or json.loads(persisted.stdout) != state:
+            raise stop_error("EVIDENCE_INCOMPLETE", "READY_FOR_REVIEW state must be committed", task_id=task_id, project=canonical_project_root(project_root))
+        transition_head = state["transitions"][-1]["commit"]
+        if _run_git(project_root, "merge-base", "--is-ancestor", transition_head, head).returncode:
+            raise stop_error("EVIDENCE_INCOMPLETE", "delivery transition HEAD is not an ancestor", task_id=task_id, project=canonical_project_root(project_root))
+        later = set(git_output(project_root, "diff", "--name-only", transition_head, head).splitlines())
+        delivery_paths = owned - {EXECUTION_EVIDENCE_PATH.as_posix(), report_path}
+        if later - delivery_paths:
+            raise stop_error("EVIDENCE_INCOMPLETE", "changes after delivery require renewed implementation and delivery", task_id=task_id, project=canonical_project_root(project_root))
+    return {"task_id": task_id, "commit": head, "clean": True, "status": state["status"]}
+
+
+def execution_deliver(project_root: Path, task_id: str) -> dict[str, object]:
+    result = delivery_readiness(project_root, task_id)
+    task_id = str(result["task_id"])
+    if result["status"] == "READY_FOR_REVIEW":
+        return result
+    try:
+        transition_task_state(project_root, task_id, "READY_FOR_REVIEW")
+    except (OSError, MeridianError) as error:
+        actual = _execution_state(project_root, task_id)["status"]
+        raise stop_error("EVIDENCE_INCOMPLETE", f"delivery transition failed: {error}; actual state {actual}; inspect git status and repair command-owned state/projection before retrying delivery",
+                         task_id=task_id, project=canonical_project_root(project_root)) from error
+    identity = resolve_task_identity(project_root, task_id, "existing")
+    paths = [state_path(project_root, task_id).relative_to(project_root).as_posix(),
+             identity.task_path.relative_to(project_root).as_posix()]
+    for args in (("add", "--", *paths), ("commit", "-m", f"Deliver {task_id} for review", "--", *paths)):
+        completed = _run_git(project_root, *args)
+        if completed.returncode:
+            raise stop_error("EVIDENCE_INCOMPLETE", f"delivery {args[0]} failed: {completed.stderr.strip()}; actual state READY_FOR_REVIEW, pending delivery; inspect git status, commit only state/projection, then rerun execution deliver", task_id=task_id, project=canonical_project_root(project_root))
+    return delivery_readiness(project_root, task_id)
+
+
 def validation_commands(text: str) -> dict[str, str]:
     """Read named, literal validation commands from one task's Validation block."""
     section = re.search(r"^## Validation\s*$\n(.*?)(?=^## |\Z)", text, re.MULTILINE | re.DOTALL)
@@ -10919,7 +11104,8 @@ def require_named_validation_commands(text: str) -> None:
         )
 
 
-def record_validation(project_root: Path, task_id: str, command_id: str, command: str, status: int) -> None:
+def record_validation(project_root: Path, task_id: str, command_id: str, command: str, status: int,
+                      binding: dict[str, str] | None = None) -> None:
     path = project_root / EXECUTION_EVIDENCE_PATH
     state: dict[str, object] = {}
     if path.is_file():
@@ -10929,7 +11115,7 @@ def record_validation(project_root: Path, task_id: str, command_id: str, command
             raise MeridianError(f"invalid execution evidence state: {path}") from error
     canonical_id = resolve_task_identity(project_root, task_id, "existing").canonical_id
     entries = list(state.get(canonical_id, []))
-    entries.append({"id": command_id, "command": command, "exitStatus": status})
+    entries.append({"id": command_id, "command": command, "exitStatus": status, **(binding or {})})
     state[canonical_id] = entries
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -10948,8 +11134,11 @@ def run_validation(project_root: Path, task_id: str, command_id: str) -> int:
             f"accepted: {available}; found: {command_id!r}",
         )
     command = commands[command_id]
+    head = _run_git(project_root, "rev-parse", "HEAD")
+    binding = ({"commit": head.stdout.strip(), "sourceDigest": execution_source_digest(project_root, task_id)}
+               if head.returncode == 0 else None)
     completed = subprocess.run(command, shell=True, executable="/bin/bash", cwd=project_root, check=False)
-    record_validation(project_root, task_id, command_id, command, completed.returncode)
+    record_validation(project_root, task_id, command_id, command, completed.returncode, binding)
     print(f"Validation {task_id}/{command_id}: exit {completed.returncode}")
     return completed.returncode
 
@@ -11478,6 +11667,13 @@ def _run_cli(journal: LifecycleJournalEntry) -> int:
 
     execution = subparsers.add_parser("execution", help="validate a governed task's durable execution evidence")
     execution_sub = execution.add_subparsers(dest="execution_command", required=True)
+    for operation in ("start", "deliver"):
+        boundary = execution_sub.add_parser(operation, help=f"verified execution {operation} boundary")
+        boundary.add_argument("task_id")
+        boundary.add_argument("--project", type=Path, default=Path.cwd())
+        boundary.add_argument("--format", choices=("json",), default="json")
+        if operation == "start":
+            boundary.add_argument("--resume", action="store_true", help="only after explicit Resume and dirty-diff inspection")
     preflight = execution_sub.add_parser("preflight", help="check the task contract before implementation")
     preflight.add_argument("task_id")
     preflight.add_argument("--project", type=Path, default=Path.cwd())
@@ -11892,7 +12088,11 @@ def _run_cli(journal: LifecycleJournalEntry) -> int:
                 count, cap = budget_spend(project_root, arguments.task_id, arguments.kind)
                 print(f"{arguments.task_id}: {arguments.kind} {count}/{cap}")
         elif arguments.command == "execution":
-            if arguments.execution_command == "contract":
+            if arguments.execution_command == "start":
+                print(json.dumps(execution_start(project_root, arguments.task_id, resume=arguments.resume), sort_keys=True))
+            elif arguments.execution_command == "deliver":
+                print(json.dumps(execution_deliver(project_root, arguments.task_id), sort_keys=True))
+            elif arguments.execution_command == "contract":
                 print(execution_contract(project_root, arguments.task_id))
             elif arguments.execution_command == "reconcile":
                 print(reconcile_execution_contract(project_root, arguments.task_id, arguments.apply))
@@ -11911,7 +12111,11 @@ def _run_cli(journal: LifecycleJournalEntry) -> int:
                     arguments.source, arguments.finding,
                 ))
             elif arguments.execution_command == "ready-check":
-                print(readiness_check(project_root, arguments.task_id, arguments.report or default_handoff_path(project_root, arguments.task_id)))
+                if state_path(project_root, arguments.task_id).exists():
+                    result = delivery_readiness(project_root, arguments.task_id)
+                    print(json.dumps(result, sort_keys=True))
+                else:
+                    print(readiness_check(project_root, arguments.task_id, arguments.report or default_handoff_path(project_root, arguments.task_id)))
             else:
                 print(check_handoff(project_root, arguments.task_id, arguments.report or default_handoff_path(project_root, arguments.task_id)))
         elif arguments.command == "generate-claude-md":

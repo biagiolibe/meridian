@@ -2,7 +2,7 @@
 
 Task context loading, task shape, and completion handoffs are governed by `docs/CONTEXT_BUDGET_POLICY.md`, `tasks/TASK_BLUEPRINT.md`, and `docs/COMPLETION_REPORT_TEMPLATE.md`; this document defines review and forge integration only.
 
-<!-- MERIDIAN:BEGIN capability=task-worktree-integration v6 -->
+<!-- MERIDIAN:BEGIN capability=task-worktree-integration v7 -->
 For `Review: REQUIRED`, the implementer pushes the task branch only to obtain `T1_CI` for that commit, at most once per review attempt, and not at all when the project has no CI, and records its deterministic branch,
 machine-independent dedicated-worktree value (relative to the worktree root, never an absolute path), implementation commit, validated task and
 base `main` commits, exact successful validation evidence, declared integration
@@ -11,7 +11,7 @@ uses that same task worktree in a fresh session after the implementer stops. It
 verifies the registered mapping and cleanliness, never switches the primary
 checkout to the task branch, and never pushes the task branch.
 
-On `CHANGES_REQUESTED`, run `meridian review verdict <TASK-ID> CHANGES_REQUESTED --body <review-evidence>` on the clean reviewed HEAD. Commit only the task state and task/review projections locally; do not push them. The implementer runs `meridian task transition <TASK-ID> IN_PROGRESS`, resolves every unchecked finding, validates, then runs `meridian task transition <TASK-ID> READY_FOR_REVIEW` before the next permitted task-branch push (`Address review` authorizes it under the same `T1_CI`-only rule). Never edit a status or verdict by hand.
+On `CHANGES_REQUESTED`, run `meridian review verdict <TASK-ID> CHANGES_REQUESTED --body <review-evidence>` on the clean reviewed HEAD. Commit only the task state and task/review projections locally; do not push them. The implementer runs `meridian task transition <TASK-ID> IN_PROGRESS`, resolves every unchecked finding, validates, commits implementation and the final handoff, then runs `meridian execution deliver <TASK-ID> --project .` last and stops writing. Any authorized T1_CI-only task-branch push precedes final handoff and delivery. Never edit a status or verdict by hand.
 
 Before accepting, verify that the validated base is an ancestor of the
 validated task commit, that the validated commit is an ancestor of current

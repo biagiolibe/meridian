@@ -1,6 +1,6 @@
 # Bounded Worktree Lifecycle
 
-<!-- MERIDIAN:BEGIN capability=worktree-lifecycle v4 -->
+<!-- MERIDIAN:BEGIN capability=worktree-lifecycle v5 -->
 Use the host-neutral `meridian worktree` namespace for task checkout lifecycle
 operations. Commands exit `0` on success, `2` when blocked, and `64` on usage
 errors. The root resolves from an explicit option, the environment, user
@@ -17,6 +17,19 @@ configuration, or `~/.meridian/worktrees`, in that order.
 - `check <TASK-ID> --project <primary> --format json`
   is read-only and must be the implementer, reviewer, or remediation worker's
   first action in that same prepared directory.
+- After check and minimal contract resolution, run `meridian execution start
+  <TASK-ID> --project <task-worktree>` before substantive analysis, advisor
+  consultation, or implementation. Only explicit Resume adds `--resume` after
+  status/diff inspection. Governed start records IN_PROGRESS once; Lean start
+  verifies the worktree without adding a machine state or requiring a Governed
+  contract. Preparation/launch alone is not execution start.
+- Review-required Governed workers commit implementation and final handoff,
+  check readiness, then run `meridian execution deliver <TASK-ID> --project
+  <task-worktree>` last. The command commits only state/projection and reports
+  clean HEAD. Stop implementer writes; review requires committed valid delivery.
+  An uncommitted ready state or later dirt is pending delivery/changes; status
+  remains authoritative. Review/status requests never start work. SPIKE and
+  review-not-required closure keep their existing terminal transitions.
 - `integrate stage <TASK-ID> --project <primary>
   --evidence <handoff.json> --format json` owns the lease and no-commit merge
   and returns `REUSE`, `BOUNDED`, or `FULL` plus the candidate tree.

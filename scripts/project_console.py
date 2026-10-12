@@ -24,7 +24,7 @@ from typing import Callable
 sys.dont_write_bytecode = True
 from meridian import (
     TASK_IDENTITY_PATH, MeridianError, MeridianStop, ResolvedTaskIdentity, detect_mode,
-    read_task_field, stop_error,
+    read_task_field, stop_error, delivery_readiness,
     closure_status, lifecycle_started_at, resolve_project_locations, resolve_task_identity,
 )
 from task_state import read_task_state, state_path
@@ -146,6 +146,7 @@ class Task:
     legacy: bool = True
     review_verdict: str | None = None
     state_error: str | None = None
+    delivery_pending: str | None = None
 
     @property
     def is_resume(self) -> bool:
@@ -160,7 +161,7 @@ class Task:
 
     @property
     def launch_command(self) -> str | None:
-        if self.state_error or self.record_problem or self.readiness == "MISMATCH":
+        if self.state_error or self.record_problem or self.delivery_pending or self.readiness == "MISMATCH":
             return None
         if self.is_resume:
             if self.active_writer:
@@ -903,6 +904,9 @@ def load_snapshot(project: Path, identities: IdentityCache | None = None) -> Sna
             except (MeridianError, OSError, ValueError):
                 # Legacy or unreadable timing data is intentionally non-fatal.
                 pass
+        if state and profile.name == "governed-sdd":
+            started_at = next((item["at"] for item in state["transitions"]
+                               if item["to"] == "IN_PROGRESS"), None)
         from_branch = facts is not None and branch_text is not None and effective.source != "main"
         task_text = branch_text if from_branch else primary_text
         problem = None if task_text is not None else (main_problem or "task record not found")
@@ -926,6 +930,15 @@ def load_snapshot(project: Path, identities: IdentityCache | None = None) -> Sna
                 "todo": "READY", "in_progress": "IN PROGRESS",
                 "ready_for_review": "READY FOR REVIEW", "done": "DONE ON BRANCH",
             }[effective.lifecycle]
+        delivery_pending = None
+        if state and profile.name == "governed-sdd" and state["status"] == "READY_FOR_REVIEW":
+            try:
+                if not worktree:
+                    raise MeridianError("canonical worktree unavailable")
+                delivery_readiness(Path(worktree), row.task_id, verify_worktree=False)
+            except (MeridianError, OSError, ValueError) as error:
+                delivery_pending = str(error)
+                readiness = "PENDING DELIVERY/CHANGES"
         updated_path = branch_path if from_branch else (_relative(project, path) if path else None)
         updated_ref = ("refs/heads/" + facts.branch) if from_branch else "HEAD"
         title = row.title or heading_title(task_text or "") or row.task_id
@@ -953,7 +966,7 @@ def load_snapshot(project: Path, identities: IdentityCache | None = None) -> Sna
             dependency_states=_dependency_states(profile, by_id, dependencies),
             legacy=state is None and state_error is None,
             review_verdict=state.get("review", {}).get("verdict") if state else (facts.review_verdict if facts else None),
-            state_error=state_error,
+            state_error=state_error, delivery_pending=delivery_pending,
         ))
     return Snapshot(
         project=project, queue=queue, branch=branch_line,

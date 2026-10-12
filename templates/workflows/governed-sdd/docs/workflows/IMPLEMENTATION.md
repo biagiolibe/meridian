@@ -2,7 +2,7 @@
 
 Use this procedure only for `Proceed with <TASK-ID>` after the entry-point router has applied its always-loaded invariants.
 
-<!-- MERIDIAN:BEGIN capability=task-worktree-boundary v9 -->
+<!-- MERIDIAN:BEGIN capability=task-worktree-boundary v10 -->
 Order of operations: before `prepare`, read only the router read set
 (`AGENTS.md` or `CLAUDE.md`, `PROJECT_WORKFLOW.md`, `LANGUAGE_POLICY.md`, and
 this procedure); read no task material and mutate nothing. Apart from the
@@ -38,6 +38,17 @@ continuing. After a
 successful `prepare`, change to its returned worktree and run `meridian
 worktree check <TASK-ID> --project <primary-checkout> --format json` there.
 
+After successful worktree verification, resolve only the task metadata and
+execution contract needed for `meridian execution start <TASK-ID> --project .`.
+For a nonterminal legacy Governed task, reconcile its contract first with
+`meridian execution reconcile <TASK-ID> --apply --project .`; commit that
+reconciliation before start. Run start before substantive authority/source
+analysis, advisor consultation, or implementation. A repeated IN_PROGRESS
+start preserves the first transition and its UTC timestamp. Only an explicitly
+authorized Resume may pass `--resume`, after inspecting status and diff and
+confirming the assigned task's changes and sole writer. Review/status requests
+never start work. Meridian does not intercept advisor or host tool calls.
+
 For either mode, a blocked `check` result stops all task work and preserves both
 checkouts, except the `dirty-worktree` result tolerated after a resumed `dirty:
 true` prepare. If the host cannot run commands or write in the prepared directory,
@@ -58,8 +69,11 @@ mirroring pushes; history rewrites; forced worktree removal; bypassing a
 required independent review; textual conflict resolution; or another task.
 Do not ask for confirmation within that boundary.
 
-After acceptance criteria and required validation pass, commit the completion
-and exact archive records. `Review: REQUIRED` then stops at
+After acceptance criteria and required validation pass, commit implementation,
+then finalize and commit the completion handoff. For Review: REQUIRED, run
+`meridian execution deliver <TASK-ID> --project .` as the final delivery step.
+It commits only state and owned projections and reports the clean committed
+HEAD. Stop writing immediately after successful delivery. `Review: REQUIRED` then stops at
 `REVIEW_REQUIRED`; it is a gate, not a request for authorization. Leave the
 clean worktree for the fresh reviewer-integrator, who resumes C4 through C10
 after approval. `Review: NOT_REQUIRED` proceeds through C10. The remaining
@@ -82,15 +96,18 @@ the handoff.
 Scope validation to the diff's actual surface, following the validation-scope rule in `docs/CONTEXT_BUDGET_POLICY.md`. Skip a full build, test, or lint suite for a documentation or policy-only change, and state the skip explicitly in the completion report.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=execution-command-gate v3 -->
+<!-- MERIDIAN:BEGIN capability=execution-command-gate v4 -->
 For a normal task, execute every named `Validation` entry only through
 `meridian execution validate <TASK-ID> <validation-id> --project .`; running
 the literal command directly is not completion evidence. Before a budgeted
 diagnostic, capture, or context expansion, use `meridian execution evidence`.
 Before broad or uncertain-yield research outside the initial task authority,
-use `meridian execution investigate`. For `Review: REQUIRED`, write the
-completion handoff and run `meridian execution ready-check <TASK-ID> --project
-.` before running `meridian task transition <TASK-ID> READY_FOR_REVIEW`. Never edit a status or verdict by hand. Use `meridian task transition <TASK-ID> IN_PROGRESS` at implementation start and `meridian task transition <TASK-ID> ACCEPTED` after validation for `Review: NOT_REQUIRED`. If a nonterminal
+use `meridian execution investigate`. For `Review: REQUIRED`, commit implementation, finalize and commit the
+handoff, use read-only `meridian execution ready-check <TASK-ID> --project .`,
+then run `meridian execution deliver <TASK-ID> --project .` last and stop
+writing. Direct READY_FOR_REVIEW transitions enforce the same prerequisites
+but remain pending until committed. Never edit a status or verdict by hand.
+Use `meridian execution start <TASK-ID> --project .` at implementation start and `meridian task transition <TASK-ID> ACCEPTED` after validation for `Review: NOT_REQUIRED`. If a nonterminal
 legacy task lacks the current generated execution contract, run `meridian
 execution reconcile <TASK-ID> --apply --project .` before substantive work.
 <!-- MERIDIAN:END -->
