@@ -26,35 +26,35 @@ that the implementer has merely begun preparing its completion report.
 
 ## Acceptance Criteria
 
-- [ ] `meridian execution start <TASK-ID> --project <task-worktree>` verifies
+- [x] `meridian execution start <TASK-ID> --project <task-worktree>` verifies
   that the caller is in the assigned canonical worktree and validates the
   current execution contract before changing task state. Reuse existing
   worktree, contract, and state readers and coded stops, not a new authority.
-- [ ] For a Governed SDD task in `QUEUED`, successful start records the legal
+- [x] For a Governed SDD task in `QUEUED`, successful start records the legal
   `IN_PROGRESS` transition, current HEAD, and UTC timestamp through the
   existing command-owned transition mechanism and updates the task-record
   projection. Do not edit the primary queue, plan, review verdict, or another
   task's state.
-- [ ] Repeated start or Resume of an `IN_PROGRESS` task is idempotent:
+- [x] Repeated start or Resume of an `IN_PROGRESS` task is idempotent:
   preserve transitions and the original start timestamp. Retain existing
   explicit Resume authorization and dirty-worktree rules; never silently
   tolerate unrelated changes or another writer. Remediation and review
   states follow their existing lifecycle, not an automatic reset caused by
   launching a session.
-- [ ] Wrong worktree, unresolved contract, invalid state, or ineligible
+- [x] Wrong worktree, unresolved contract, invalid state, or ineligible
   lifecycle state stops before start writes. Failed preflight creates no
   start transition. Terminal tasks cannot be restarted.
-- [ ] Preserve Lean Delivery's existing state machine and worktree-derived
+- [x] Preserve Lean Delivery's existing state machine and worktree-derived
   in-progress behavior. Do not add `IN_PROGRESS` to the Lean machine as a
   side effect; document the command's compatible behavior for that workflow.
-- [ ] Managed worker instructions place start immediately after successful
+- [x] Managed worker instructions place start immediately after successful
   worktree verification and contract resolution, before substantive
   authority/source analysis, advisor consultation, or implementation.
   Minimal metadata and contract reconciliation needed to pass start remain
   allowed. Checkout creation or agent-pane launch alone never records start.
   Console directives, manual `Proceed with`, and orchestrator worker prompts
   use this same ordering. Read-only review/status requests never start work.
-- [ ] Add an explicit delivery operation, proposed as
+- [x] Add an explicit delivery operation, proposed as
   `meridian execution deliver <TASK-ID> --project <task-worktree>`, for
   Review-required Governed tasks. It checks the canonical worktree, legal
   state, completed validation evidence bound to the implementation commit,
@@ -62,7 +62,7 @@ that the implementer has merely begun preparing its completion report.
   before publishing `READY_FOR_REVIEW`. A dirty worktree, incomplete handoff,
   missing implementation commit, or stale evidence cannot publish review
   availability. `execution ready-check` remains read-only.
-- [ ] Delivery uses the existing transition authority and makes the final
+- [x] Delivery uses the existing transition authority and makes the final
   task-local delivery commit containing state and owned projections only;
   it neither commits implementation changes opportunistically nor pushes,
   merges, reviews, or accepts the task. Report the final committed HEAD and
@@ -70,40 +70,40 @@ that the implementer has merely begun preparing its completion report.
   self-referential handoff commits: do not require the handoff to name a
   commit that does not yet exist. No new evidence schema is needed merely
   to accommodate the delivery commit.
-- [ ] An ordinary `task transition ... READY_FOR_REVIEW` cannot bypass the
+- [x] An ordinary `task transition ... READY_FOR_REVIEW` cannot bypass the
   same delivery-readiness prerequisites. If transition writes or its final
   commit fails, report the actual remaining state and recovery action, not
   successful delivery. Repeating delivery on the already clean, committed,
   valid delivery is idempotent and preserves timestamps and history.
-- [ ] The console reads machine state, not prose or agent-activity guesses.
+- [x] The console reads machine state, not prose or agent-activity guesses.
   `IN_PROGRESS` remains visible from task-local uncommitted state immediately.
   Review is offered only for a valid committed `READY_FOR_REVIEW` delivery
   and a clean canonical worktree. An uncommitted ready transition or later
   dirty worktree is labeled as pending delivery/changes and cannot launch
   review; distinguish this availability condition from the authoritative
   lifecycle status rather than silently rewriting or downgrading it.
-- [ ] Managed instructions for manual, console-launched, and orchestrated
+- [x] Managed instructions for manual, console-launched, and orchestrated
   implementations use the final delivery step only after code, validation,
   and handoff are complete; no later implementer writes are prescribed.
   The reviewer still performs its existing independent preflight. This
   boundary does not detect process exit or prevent an agent from ignoring
   instructions. Subsequent code changes must still invalidate stale evidence
   through the existing review/integration rules.
-- [ ] Ship managed instructions through versioned capabilities, marker
+- [x] Ship managed instructions through versioned capabilities, marker
   baselines, a migration, skill parity, and next-release metadata according
   to `CONTRIBUTING.md`. Upgrade notes explain start, Resume, final delivery,
   pending-delivery display, and session restart. Prepare the
   template-changing release; do not publish it.
-- [ ] Focused tests cover first/repeated start, Resume, worktree and contract
+- [x] Focused tests cover first/repeated start, Resume, worktree and contract
   failure without writes, terminal/ineligible states, Lean compatibility,
   console refresh from uncommitted task-local state, and instruction ordering
   across worker entry paths without relying on advisor implementation.
-- [ ] Delivery tests cover incomplete/uncommitted handoffs, dirty worktrees,
+- [x] Delivery tests cover incomplete/uncommitted handoffs, dirty worktrees,
   stale validation, direct-transition bypass attempts, final commit failure,
   successful lifecycle-only commit, repeated delivery, and the console's
   pending-versus-reviewable distinction. Preserve SPIKE and review-not-required
   closure; do not route them through a fabricated review state.
-- [ ] Repository checks, full parallel tests, self-hosting CI audit, and
+- [x] Repository checks, full parallel tests, self-hosting CI audit, and
   `git diff --check` pass. Add one changelog fragment with upgrade notes.
 
 ## Relevant Files
@@ -165,4 +165,4 @@ observability subsystem to solve the delivery boundary.
 
 ## Completion
 
-Not started. Registration does not authorize implementation.
+Completed on 2026-10-12. Verified canonical execution start, source-bound validation and committed final delivery, pending-versus-reviewable console availability, and managed worker ordering. Lean, SPIKE, and review-not-required lifecycle behavior is preserved. Prepared version 1.2.14 and migration 067 without publishing a release. All required checks passed; see `tasks/handoffs/204.md` for evidence and the named environmental skip.
