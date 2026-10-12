@@ -16,6 +16,32 @@ records which release moved it.
 ## [Unreleased]
 
 
+## [1.2.13]
+
+Template-changing release: migration `066-machine-task-state-adoption` advances `workflowBaselineVersion` to `1.2.13` and delivers command-owned task transitions and commit-bound review verdicts in managed procedures. Open legacy tasks can explicitly import tracked machine state. The manifest shape and `protocolVersion` 2 are unchanged.
+
+### Added
+
+- `upgrade --check` and `audit` report advisory locations and manual remedies for retired framework text left outside managed markers.
+- `meridian task transition` creates schema-validated tracked task state and enforces Lean Delivery, Governed SDD, and SPIKE transition histories.
+- `meridian review verdict` records commit-bound review verdicts and atomic task-state transitions, with owner approvals and free-form review bodies through `--body`.
+
+### Changed
+
+- `meridian worktree integrate stage` gates adopted projects on terminal task state and commit-bound approval before leasing or merging, projects queue status from that state, and blocks missing or stale reviews. Legacy projects retain the labeled prose fallback.
+- The project console reads authoritative task status and review verdict from machine state, labels prose-only tasks as legacy, and shows invalid state as a per-task coded error. `meridian audit` reports queue and record status drift without modifying files.
+- Open legacy tasks can explicitly import tracked machine state with queue, record, and review evidence. Managed procedures use `meridian task transition` and `meridian review verdict` for status and commit-bound verdicts; review headings are human-readable only. Migration 066 delivers the updated capabilities in 1.2.13.
+
+### Upgrade notes
+
+- Update the installed framework to v1.2.13, preview `meridian upgrade --check`, then run `meridian upgrade --apply` on a dedicated project upgrade branch. Validate and integrate the upgrade, then restart agent sessions. Prefer completing existing task worktrees before upgrading; they retain their previous workflow text.
+- Affected capabilities: Governed SDD `audit-prompt` v4, `code-review-prompt` v3, `execution-command-gate` v3, `git-workflow` v14, `implementer-reviewer-handoff` v5, `lifecycle-orchestration` v11, `owner-acceptance-workflow` v4, `review-mode-boundary` v3, `review-remediation-record` v5, `roles` v4, `task-blueprint` v17, `task-lifecycle` v4, `task-worktree-integration` v6, and `task-worktree-review-procedure` v12; Lean Delivery `git-workflow` v13; and `worktree-lifecycle` v4 in both modes.
+- Managed paths: `AGENTS.md`, `CLAUDE.md`, `PROJECT_WORKFLOW.md`, `docs/AUDIT_PROMPT_READ_ONLY.md`, `docs/CODE_REVIEW_PROMPT.md`, `docs/LIFECYCLE_ORCHESTRATION.md`, `docs/PULL_REQUEST_POLICY.md`, `docs/REVIEW_RECORD_TEMPLATE.md`, `docs/WORKTREE_LIFECYCLE.md`, `docs/workflows/IMPLEMENTATION.md`, `docs/workflows/LIFECYCLE.md`, `docs/workflows/REMEDIATION.md`, `docs/workflows/REVIEW.md`, and `tasks/TASK_BLUEPRINT.md`, as applicable to the selected workflow. Adapted status, verdict, review, and closure instructions inside managed regions are likely conflict areas; resolve reported upgrade conflicts without overwriting project-owned policy.
+- Run `meridian task state import --project <path> --format json`, inspect the proposed files and their queue, record, and review evidence, then repeat with `--apply`. Resolve reported text disagreements through the workflow before applying. Existing state files and terminal legacy tasks are skipped; import does not invent historical transitions or past approvals. Commit the generated `.meridian/tasks/<TASK-ID>.json` files. If all legacy tasks are terminal, no import is required.
+- Adopters on 1.2.9 or later should remove reported reasoning contract text from project-owned sections of `docs/EXECUTION_EVIDENCE_PROFILE.md` and `docs/CONTEXT_BUDGET_POLICY.md` by hand. Meridian preserves that text.
+- No manifest protocol upgrade is required: `protocolVersion` remains 2. Use the v1.2.13 CLI for the new task-state and verdict commands; existing task IDs and historical records are not renamed or converted automatically.
+
+
 ## [1.2.12]
 
 Template-changing release: migration `065-spike-blueprint-worktree-closure` advances `workflowBaselineVersion` to `1.2.12`. It aligns `task-blueprint` v16 with governed worktree closure and adds stale-base recovery, conservative queue archival, and the SPIKE validation-ledger exception to the managed lifecycle guides (`worktree-lifecycle` v3). The CLI adds `meridian worktree repair-base`, safer queue archival, SPIKE ledger integration, and console fixes. The manifest shape and `protocolVersion` 2 are unchanged.
