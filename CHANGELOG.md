@@ -18,11 +18,26 @@ records which release moved it.
 
 ## [1.2.14]
 
-Template-changing release: migration `067-execution-boundaries` advances the workflow baseline to `1.2.14`.
+Template-changing release: migration `067-execution-boundaries` advances `workflowBaselineVersion` to `1.2.14` and delivers explicit execution-start and final review-delivery boundaries. The manifest shape and `protocolVersion` 2 are unchanged.
+
+### Added
+
+- `meridian execution start` verifies the canonical worktree and execution contract before recording Governed SDD `IN_PROGRESS`; repeated starts and explicit Resume preserve the first start event. Lean Delivery retains worktree-derived progress without adding a new machine state.
+- `meridian execution deliver` checks committed implementation, source-bound validation evidence, and the final committed handoff, then commits only task state and its owned projection as the final review-delivery step.
+
+### Changed
+
+- The console offers review only for clean, committed, valid delivery. Uncommitted `READY_FOR_REVIEW` or later changes display pending delivery/changes without rewriting the authoritative lifecycle status.
+- Manual, console-launched, and orchestrated workers follow the same start and delivery ordering. Read-only review/status requests do not start implementation; no advisor-call interception or agent-process monitoring is introduced.
 
 ### Upgrade notes
 
-- Run `upgrade --apply` to install the execution start and final delivery boundaries in PROJECT_WORKFLOW.md and managed workflow procedures; adapted start/delivery text may conflict. Restart agent sessions after upgrade. Explicit Resume preserves start history, and pending delivery/changes cannot launch review. No protocolVersion change.
+- Update the installed framework to v1.2.14, preview `meridian upgrade --check`, then run `meridian upgrade --apply` on a dedicated project upgrade branch. Resolve reported conflicts in adapted start/delivery text, validate and integrate the upgrade, then restart agent sessions.
+- Affected capabilities: Governed SDD `bounded-worktree-lifecycle` v5, `execution-command-gate` v4, `lifecycle-orchestration` v12, `review-remediation-record` v6, `task-worktree-boundary` v10, `task-worktree-integration` v7, `task-worktree-review-procedure` v13, and `task-blueprint` v18; Lean Delivery `bounded-worktree-lifecycle` v6; and `worktree-lifecycle` v5 in both modes. Workflow skills also carry the execution-boundary instructions.
+- Managed paths: `PROJECT_WORKFLOW.md`, `docs/WORKTREE_LIFECYCLE.md`, `docs/LIFECYCLE_ORCHESTRATION.md`, `docs/PULL_REQUEST_POLICY.md`, `docs/REVIEW_RECORD_TEMPLATE.md`, `tasks/TASK_BLUEPRINT.md`, `docs/workflows/IMPLEMENTATION.md`, `docs/workflows/REVIEW.md`, `docs/workflows/REMEDIATION.md`, and `.codex/rules/meridian.rules`, as applicable to the selected workflow. Project-owned policy remains outside the managed changes.
+- After prepare and worktree check, run `meridian execution start <TASK-ID> --project <task-worktree>` before substantive analysis, advisor consultation, or implementation. Only explicitly authorized Resume adds `--resume`, after status/diff inspection and sole-writer confirmation; it preserves the original start event.
+- For Review-required Governed tasks, finish and commit implementation, validation evidence, and the final handoff before `meridian execution deliver <TASK-ID> --project <task-worktree>`. Delivery must be the last implementer write. Pending delivery/changes cannot launch review; the reviewer still performs its independent preflight. SPIKE and review-not-required closure retain their existing lifecycles.
+- No manifest protocol upgrade or new historical-state import is required by this migration. `protocolVersion` remains 2; use Meridian 1.2.14 for the new commands. Existing task-state adoption requirements still apply to open legacy tasks without state.
 
 ## [1.2.13]
 
