@@ -16,6 +16,14 @@ records which release moved it.
 ## [Unreleased]
 
 
+## [1.2.14]
+
+Template-changing release: migration `067-execution-boundaries` advances the workflow baseline to `1.2.14`.
+
+### Upgrade notes
+
+- Run `upgrade --apply` to install the execution start and final delivery boundaries in PROJECT_WORKFLOW.md and managed workflow procedures; adapted start/delivery text may conflict. Restart agent sessions after upgrade. Explicit Resume preserves start history, and pending delivery/changes cannot launch review. No protocolVersion change.
+
 ## [1.2.13]
 
 Template-changing release: migration `066-machine-task-state-adoption` advances `workflowBaselineVersion` to `1.2.13` and delivers command-owned task transitions and commit-bound review verdicts in managed procedures. Open legacy tasks can explicitly import tracked machine state. The manifest shape and `protocolVersion` 2 are unchanged.

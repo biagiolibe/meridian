@@ -34,6 +34,9 @@ prefix_rule(pattern=["python3", "-m", "unittest", "discover", "-s", "tests"], de
 prefix_rule(pattern=["set", "-o", "pipefail"], decision="allow")
 prefix_rule(pattern=[["ls", "cat", "head", "tail", "wc", "pwd", "grep"]], decision="allow")
 
+# Verified Lean execution start; delivery remains a Governed operation.
+prefix_rule(pattern=["meridian", "execution", "start"], decision="allow")
+
 prefix_rule(pattern=["git", "push", ["--force", "-f", "--force-with-lease", "--delete", "--mirror"]], decision="forbidden")
 prefix_rule(pattern=["git", "branch", ["-D", "--delete", "--force", "-f"]], decision="prompt")
 prefix_rule(pattern=["git", ["reset", "rebase", "cherry-pick"]], decision="forbidden")

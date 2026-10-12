@@ -159,7 +159,7 @@ requires manual reconciliation. Repair never proves that a running session
 loaded the profile; start a fresh session and probe it.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=bounded-worktree-lifecycle v4 -->
+<!-- MERIDIAN:BEGIN capability=bounded-worktree-lifecycle v5 -->
 For coordinator-launched implementation, review, or remediation work, the
 coordinator runs `meridian worktree prepare` before creating the worker and
 passes the returned existing path, branch, primary checkout, and worktree root
@@ -173,6 +173,12 @@ create a substitute checkout. Integration uses `meridian worktree integrate
 stage`, separately recorded candidate validation, and `integrate finalize` or
 `integrate abort`; verified post-push cleanup uses `meridian worktree cleanup`.
 See `docs/WORKTREE_LIFECYCLE.md`.
+After check and minimal metadata/contract resolution, run
+`meridian execution start <TASK-ID> --project <task-worktree>` before
+substantive authority/source analysis, advisor consultation, or implementation.
+Only explicit Resume passes `--resume` after status/diff inspection and sole
+writer confirmation. Lean start adds no machine state; Governed start records
+the first IN_PROGRESS transition once. Read-only review/status never starts.
 Absolute paths are runtime launch inputs only. A handoff or other tracked
 record that names the worktree uses the `handoff_worktree` value returned by
 `meridian worktree prepare`, the path relative to the worktree root, never an

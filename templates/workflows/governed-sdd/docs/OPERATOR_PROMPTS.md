@@ -173,8 +173,9 @@ Address review <TASK-ID>.
 ```
 
 The trigger limits implementation to the unchecked findings in the durable
-review record, validates them, runs `meridian task transition <TASK-ID> IN_PROGRESS` before remediation and `meridian task transition <TASK-ID> READY_FOR_REVIEW` after validation, and
-pushes the next review attempt only to obtain `T1_CI`. It does not authorize unrelated work or a
+review record, validates them, runs `meridian task transition <TASK-ID> IN_PROGRESS` before remediation and any authorized T1_CI-only push before finalizing delivery. It commits remediation,
+validation evidence, and the final handoff, then runs `meridian execution deliver
+<TASK-ID> --project .` last and stops writing. It does not authorize unrelated work or a
 reinterpretation of a finding.
 
 ## 7. Run the established read-only audit

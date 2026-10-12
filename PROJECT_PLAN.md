@@ -170,7 +170,7 @@
 - `[x]` 201 — Gate `integrate stage` on task state and the approved commit.
 - `[x]` 202 — Read task state in the console and in `meridian audit`.
 - `[x]` 203 — Import task state and ship the managed review, closure, and Accept text.
-- `[ ]` 204 — Record execution start and verified review delivery, without advisor/tool-call gates.
+- `[x]` 204 — Record execution start and verified review delivery, without advisor/tool-call gates.
 - `[x]` 140 — Let `integrate stage` complete rows of project-shaped Governed queues.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.

@@ -42,3 +42,21 @@ local throwaway probe branch is separate and is never merged or pushed; probe
 code never ships. Do not commit SPIKE deliverables directly to `main`.
 
 Use `meridian task transition <TASK-ID> <STATUS>` for lifecycle state changes and `meridian review verdict` for verdicts. Never edit a status or verdict by hand. Review commits include the task state file and its task/review projections. Adopt open legacy tasks with `meridian task state import --project <path> --format json`, inspect the evidence, then repeat with `--apply`. Review headings are human-readable only.
+
+<!-- MERIDIAN:BEGIN capability=execution-boundaries v1 -->
+After successful worktree verification, resolve only the task metadata and
+execution contract needed for `meridian execution start <TASK-ID> --project .`.
+For a nonterminal legacy Governed task, reconcile its contract first with
+`meridian execution reconcile <TASK-ID> --apply --project .`; commit that
+reconciliation before start. Run start before substantive authority/source
+analysis, advisor consultation, or implementation. A repeated IN_PROGRESS
+start preserves the first transition and its UTC timestamp. Only an explicitly
+authorized Resume may pass `--resume`, after inspecting status and diff and
+confirming the assigned task's changes and sole writer. Review/status requests
+never start work. Meridian does not intercept advisor or host tool calls.
+For Review: REQUIRED, commit implementation and validation evidence, then
+finalize and commit the handoff, run read-only ready-check, and run
+`meridian execution deliver <TASK-ID> --project .` last. Stop writing after
+its clean committed result. Console-launched/manual/orchestrated workers use
+this same sequence. SPIKE and review-not-required tasks retain existing closure.
+<!-- MERIDIAN:END -->

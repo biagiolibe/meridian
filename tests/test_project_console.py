@@ -2149,7 +2149,8 @@ class MachineStateConsoleTest(RepoCase):
         task = self.load()["TASK-001"]
         self.assertEqual(task.status, "READY_FOR_REVIEW")
         self.assertEqual(task.review, "REQUIRED")
-        self.assertEqual(task.launch_command, "Review TASK-001")
+        self.assertIsNone(task.launch_command)
+        self.assertEqual(task.readiness, "PENDING DELIVERY/CHANGES")
 
     def test_invalid_state_is_per_task_and_never_falls_back(self) -> None:
         self.setup_project([("TASK-001", "QUEUED", "REQUIRED", "—"),

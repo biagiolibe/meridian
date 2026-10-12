@@ -92,12 +92,14 @@ class MachineTaskStateTest(unittest.TestCase):
         self.assertIn("Status: DONE\n", self.record.read_text())
         self.assertEqual(len(state["transitions"]), 1)
 
-    def test_governed_cli_retry_and_spike(self):
+    def test_governed_cli_requires_delivery_and_preserves_spike(self):
         (self.root / "PROJECT_WORKFLOW.md").write_text("GOVERNED_SDD\n")
-        for status in ("IN_PROGRESS", "READY_FOR_REVIEW", "CHANGES_REQUESTED", "IN_PROGRESS", "READY_FOR_REVIEW", "ACCEPTED"):
-            result = self.cli(status)
-            self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(len(self.read("governed-sdd")["transitions"]), 6)
+        self.assertEqual(self.cli("IN_PROGRESS").returncode, 0)
+        before = self.path.read_bytes()
+        refused = self.cli("READY_FOR_REVIEW")
+        self.assertEqual(refused.returncode, 2)
+        self.assertIn("BLOCKED WRONG_WORKTREE", refused.stderr)
+        self.assertEqual(self.path.read_bytes(), before)
         self.path.unlink()
         self.record.write_text(self.record.read_text() + "Class: SPIKE\n")
         for status in ("IN_PROGRESS", "ANSWERED"):

@@ -19,8 +19,8 @@
   },
   "templates/workflows/governed-sdd/PROJECT_WORKFLOW.md": {
     "bounded-worktree-lifecycle": {
-      "sha256": "d02362560d411f1a63e8eed6d58f7163d136f26e1fac7d5fcfdca92b58a89f4d",
-      "version": 4
+      "sha256": "d797c30c13e1cca26effa5259adb7a8ab87f4d776675149c1be491e175c38f98",
+      "version": 5
     },
     "codex-worktree-access": {
       "sha256": "1f5397dce445667ab7d6621065f3df138e3f8ca559f338c58157e994c2cbc0c3",
@@ -145,8 +145,8 @@
   },
   "templates/workflows/governed-sdd/docs/LIFECYCLE_ORCHESTRATION.md": {
     "lifecycle-orchestration": {
-      "sha256": "895d4c94dace505d58543afe52151844318e89ddb3593aa679190ab39c6c19d3",
-      "version": 11
+      "sha256": "d3e9e6d5e1d882f9ee63bd916b3280790fae7355ecad8348401543821e4604b6",
+      "version": 12
     },
     "rejected-attempt-restart": {
       "sha256": "ba82461f5a67057585d8b2bd57a9486d7b3a739d99f7b43a40ad665a0984c9e4",
@@ -163,8 +163,8 @@
       "version": 1
     },
     "task-worktree-integration": {
-      "sha256": "991cd4419119089e9a3255838834fc2fab5631e29aa22f920bc1623c63de6b63",
-      "version": 6
+      "sha256": "c23d3e61027e4ee15f18039d1fbeefe55c2d7f71ebed5be7549b2c8ef344c1fd",
+      "version": 7
     }
   },
   "templates/workflows/governed-sdd/docs/REVIEW_RECORD_TEMPLATE.md": {
@@ -173,14 +173,14 @@
       "version": 1
     },
     "review-remediation-record": {
-      "sha256": "1ef356aa0720449cdf8b370b77644e059c24d6f9646c8f15f33549245fd19584",
-      "version": 5
+      "sha256": "172da4f998884cd808d1b5455961bd5875aadce12015c963d30e1a51e8a0d670",
+      "version": 6
     }
   },
   "templates/workflows/governed-sdd/docs/WORKTREE_LIFECYCLE.md": {
     "worktree-lifecycle": {
-      "sha256": "593aa639cf964c4d1c703e0372caeb7a2b9ebfba06001e72d02a268531e0ead4",
-      "version": 4
+      "sha256": "5fd00c77678e764288eb77c81de256292c6950d0e7130e993f249645a8b8d3de",
+      "version": 5
     }
   },
   "templates/workflows/governed-sdd/docs/workflows/IMPLEMENTATION.md": {
@@ -189,8 +189,8 @@
       "version": 1
     },
     "execution-command-gate": {
-      "sha256": "f454f7bd5a3d248a7dfab19ca937c814747fa810d8a7137742809529c6d680a2",
-      "version": 3
+      "sha256": "fe58c91b6ea1562b43936754ef3ca8f142c021cd0ab52d3069a73c63f58b3bb3",
+      "version": 4
     },
     "host-impact-routing": {
       "sha256": "cf52d83970d2711f2b818dbbf5017344c1afd38c6714d524900f6c847d98dfc9",
@@ -209,8 +209,8 @@
       "version": 2
     },
     "task-worktree-boundary": {
-      "sha256": "b7d12b0c3f44f61f9f30f9759f427eba418b4ff1251957cd3a3d8861b62b0e4f",
-      "version": 9
+      "sha256": "787346ab1eebcd31d4018589900ce94421df9513fb61c26f634964b029188318",
+      "version": 10
     },
     "validation-scoping": {
       "sha256": "100a0d27e15610af351b9446cb66a3afa1e270f8498fd26181995cccf42918ab",
@@ -249,8 +249,8 @@
       "version": 5
     },
     "review-remediation-record": {
-      "sha256": "706990b22931b426bed24b11d47c19898dc231b58c642dacf3985f3dd760b323",
-      "version": 5
+      "sha256": "46de0081247d1908224f2d9a0d9a1337a7ab332aa5df2eab513cbc6eae9c0f6a",
+      "version": 6
     },
     "task-worktree-remediation": {
       "sha256": "4fae73d91f79af76987632611a900824c695be552ab7a895328289e88cd223ca",
@@ -279,14 +279,14 @@
       "version": 3
     },
     "task-worktree-review-procedure": {
-      "sha256": "3238c1235b0252d94228cdeacc7fa1fcf078ddc031d22c2c022f7130a3d87122",
-      "version": 12
+      "sha256": "e22c136ea4188224d63850bb3b5efec064236d9a2c276f5892871d4fdc13486e",
+      "version": 13
     }
   },
   "templates/workflows/governed-sdd/tasks/TASK_BLUEPRINT.md": {
     "task-blueprint": {
-      "sha256": "4a881acf72f3476fe05d2417753647b53bb2f2d846e81607ec4f35928042bcd7",
-      "version": 17
+      "sha256": "1349619763ed2381d9345ad3031ba054411854316b65c171d113fec5d2b391d2",
+      "version": 18
     }
   },
   "templates/workflows/lean-delivery/AGENTS.md": {
@@ -309,8 +309,8 @@
   },
   "templates/workflows/lean-delivery/PROJECT_WORKFLOW.md": {
     "bounded-worktree-lifecycle": {
-      "sha256": "b885c6ed7c420185bb3039e909e97bc593b3ed663bd1edd0006efef1ecbab958",
-      "version": 5
+      "sha256": "cf8fbb5f61aed9f4cc7d8c30361c4238948e08ace66a6091e4858bf6a51dba24",
+      "version": 6
     },
     "codex-worktree-access": {
       "sha256": "5db5c51499c52a6227ca4a4b797f98b8ced5caafcffb37db24508469297187c8",
@@ -363,8 +363,8 @@
   },
   "templates/workflows/lean-delivery/docs/WORKTREE_LIFECYCLE.md": {
     "worktree-lifecycle": {
-      "sha256": "dead9f880e828943d843100ce2f4ea958f4207bd386490baf33044ac0bf49fdc",
-      "version": 4
+      "sha256": "b7ca01401904cb0a7789af6b01382fd835b57b93fb20328d18be587877515900",
+      "version": 5
     }
   }
 }

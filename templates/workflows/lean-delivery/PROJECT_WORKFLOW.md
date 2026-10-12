@@ -79,7 +79,7 @@ requires manual reconciliation. Repair never proves that a running session
 loaded the profile; start a fresh session and probe it.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=bounded-worktree-lifecycle v5 -->
+<!-- MERIDIAN:BEGIN capability=bounded-worktree-lifecycle v6 -->
 `Proceed with <TASK-ID>` runs `meridian worktree prepare <task-id> --project
 <primary-checkout> --format json` before
 starting a worker. The coordinator passes the returned branch and absolute
@@ -88,6 +88,12 @@ second checkout. The worker starts in that exact directory and, before any task
 read or write, runs `meridian worktree check <task-id> --project
 <primary-checkout> --format json`. Any path,
 branch, HEAD, root, state, or cleanliness mismatch is `BLOCKED WRONG_WORKTREE`.
+After check and minimal metadata/contract resolution, run
+`meridian execution start <TASK-ID> --project <task-worktree>` before
+substantive authority/source analysis, advisor consultation, or implementation.
+Only explicit Resume passes `--resume` after status/diff inspection and sole
+writer confirmation. Lean start adds no machine state; Governed start records
+the first IN_PROGRESS transition once. Read-only review/status never starts.
 Absolute paths are runtime launch inputs only. A handoff or other tracked
 record that names the worktree uses the `handoff_worktree` value returned by
 `meridian worktree prepare`, the path relative to the worktree root, never an

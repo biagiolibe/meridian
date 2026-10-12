@@ -749,3 +749,12 @@ Authority: [docs/ADR_MACHINE_TASK_STATE.md](../docs/ADR_MACHINE_TASK_STATE.md). 
 | `[x]` | 201 | Gate `integrate stage` on task state and the approved commit | 🔴 P1 | 200 | [201](done/201-integration-gate-on-task-state.md) |
 | `[x]` | 202 | Read task state in the console and in `meridian audit` | 🟡 P2 | 199 | [202](done/202-console-and-audit-read-task-state.md) |
 | `[x]` | 203 | Import task state and ship the managed review, closure, and Accept text | 🔴 P1 | 201, 202 | [203](done/203-import-task-state-and-ship-managed-text.md) |
+
+### Phase 63 — Explicit worker execution boundaries
+
+Record execution start before substantive work and verified delivery only
+after implementation and handoff are committed, without host-specific gates.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 204 | Record execution start and verified review delivery | 🟡 P2 | 199, 202, 203 | [204](done/204-execution-start-command.md) |

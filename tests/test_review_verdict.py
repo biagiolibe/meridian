@@ -30,7 +30,9 @@ class ReviewVerdictTest(unittest.TestCase):
         self.commit()
         self.git("switch", "-qc", "task-001")
         for status in ("IN_PROGRESS", "READY_FOR_REVIEW"):
-            meridian.transition_task_state(self.root, "001", status)
+            # This fixture isolates verdict authority; delivery gates have real-Git coverage elsewhere.
+            with mock.patch.object(meridian, "delivery_readiness"):
+                meridian.transition_task_state(self.root, "001", status)
         self.commit()
 
     def git(self, *args):
@@ -77,7 +79,9 @@ class ReviewVerdictTest(unittest.TestCase):
         self.assertEqual(self.cli("CHANGES_REQUESTED", "--body", "First findings").returncode, 0)
         self.commit()
         for status in ("IN_PROGRESS", "READY_FOR_REVIEW"):
-            meridian.transition_task_state(self.root, "001", status)
+            # This fixture isolates verdict authority; delivery gates have real-Git coverage elsewhere.
+            with mock.patch.object(meridian, "delivery_readiness"):
+                meridian.transition_task_state(self.root, "001", status)
         self.commit()
         result = self.cli("APPROVE", "--body", "Fixed")
         self.assertEqual(result.returncode, 0, result.stderr)
