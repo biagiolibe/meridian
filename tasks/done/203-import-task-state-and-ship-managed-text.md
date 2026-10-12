@@ -17,7 +17,7 @@ agents to change state and record verdicts only through the commands.
 
 ## Acceptance Criteria
 
-- [ ] `meridian task state import [<TASK-ID>…] --project <path> [--apply]
+- [x] `meridian task state import [<TASK-ID>…] --project <path> [--apply]
   --format json`:
   - for each open task, prints the state file it would write and the queue,
     record, and review evidence it read;
@@ -25,7 +25,7 @@ agents to change state and record verdicts only through the commands.
   - stops with `TASK_STATE_INVALID` for a task whose texts disagree, naming
     both values instead of choosing one.
   Terminal tasks need no file and are skipped.
-- [ ] The managed Governed SDD review procedure, remediation, closure text, and
+- [x] The managed Governed SDD review procedure, remediation, closure text, and
   `Accept <TASK-ID>` tell agents to:
   - use `meridian task transition` and `meridian review verdict [--owner]`;
   - never edit a status or verdict by hand.
@@ -33,21 +33,21 @@ agents to change state and record verdicts only through the commands.
   only where closure needs it. The governance-file ownership rule adds the
   task's own state file. The review record template states that its headings
   are human-readable only.
-- [ ] One migration whose `to` is the next release:
+- [x] One migration whose `to` is the next release:
   - delivers the text through the existing capability marker mechanism;
   - lists the affected capabilities and managed paths;
   - has upgrade notes that tell adopters to run `meridian task state import`
     and then `--apply`.
   The marker baselines and `meridian audit` stay consistent.
-- [ ] `meridian upgrade --check` on copies of the Palimpsest and Fusa
+- [x] `meridian upgrade --check` on copies of the Palimpsest and Fusa
   manifests shows the update and no `BLOCKED`. `task state import` on a copy
   of each project lists its open tasks without error. The results go in the
   handoff.
-- [ ] `VERSION`, `.claude-plugin/plugin.json`, and the release ledger are bumped
+- [x] `VERSION`, `.claude-plugin/plugin.json`, and the release ledger are bumped
   only if no earlier unreleased task has done so for the same release.
-- [ ] One changelog fragment states the change under `Changed` and the action
+- [x] One changelog fragment states the change under `Changed` and the action
   under `Upgrade notes`.
-- [ ] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
+- [x] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
   --parallel`, and `git diff --check` pass.
 
 ## Relevant Files
@@ -81,3 +81,7 @@ reviewers.
 
 - **Depends on**: 201, 202
 - **Blocks**: none
+
+## Completion
+
+Implemented explicit preview/apply task-state import, command-owned managed procedures, migration 066, and the next-release 1.2.13 metadata. Required repository validation passed; Palimpsest and Fusa copy checks are recorded in the handoff.
