@@ -1,6 +1,6 @@
 # Code Review and Integration Prompt
 
-<!-- MERIDIAN:BEGIN capability=code-review-prompt v2 -->
+<!-- MERIDIAN:BEGIN capability=code-review-prompt v3 -->
 ```text
 Review and integrate <TASK-ID> as an independent reviewer-integrator.
 
@@ -18,20 +18,9 @@ Review scope, dependencies, non-goals, acceptance criteria, validation evidence,
 
 If `docs/CODE_REVIEW_PROMPT.md` has a `## Project review checklist` section after the managed block, apply every item in it as additional review scope and report an unmet item as a finding with its priority and evidence.
 
-Return APPROVE, CHANGES_REQUESTED, or BLOCKED. Review is read-only until an
-explicit `APPROVE` verdict: do not edit source, tests, manifests, or
-implementation documentation to fix a finding. On `CHANGES_REQUESTED`, create
-or append the review record (`meridian locations`) using
-`docs/REVIEW_RECORD_TEMPLATE.md`, with every actionable finding's priority and
-evidence. Then change only the task record's status to `IN_PROGRESS` and
-create one local review-handoff commit containing exactly those two
-artifacts. Do not push it. The review record is the canonical implementer
-handoff: end the report by naming its path and instruct the developer to use
-`Address review <TASK-ID>`, without copying findings into another chat. End the
-handoff with the fields from `docs/COMPLETION_REPORT_TEMPLATE.md` plus the
-verdict. For `APPROVE`, append the same evidence and verdict to the review
-record before setting the task record to `ACCEPTED`.
-Before changing either status record, verify the recorded base `main` commit is an ancestor of the current task commit. Current `main` may have advanced and need not be an ancestor of the task branch. After APPROVE only, commit the review record and the task record's `ACCEPTED` status with the reviewer author override defined once in `docs/workflows/REVIEW.md` (message `docs: reviewer-integrator pass <TASK-ID>; independently re-verified diff, cited sources, acceptance evidence, and validation`).
+Return APPROVE, CHANGES_REQUESTED, or BLOCKED. Review does not authorize implementation fixes. Prepare actionable findings and evidence outside tracked files, then record the verdict on the clean reviewed HEAD with `meridian review verdict <TASK-ID> APPROVE|CHANGES_REQUESTED|BLOCKED --body <review-evidence>`. Never edit a status or verdict by hand. The command binds the verdict to HEAD and writes the task state, task Status projection, and human-readable review heading. Before the command, verify the recorded base main commit is an ancestor of the reviewed HEAD; current main may have advanced.
+
+Commit only those three governance outputs locally. For CHANGES_REQUESTED, leave machine status CHANGES_REQUESTED and name the review-record path with `Address review <TASK-ID>` as the next action. For a blocking verdict, report the blocker. For APPROVE only, use the reviewer author override defined in `docs/workflows/REVIEW.md` (message `docs: reviewer-integrator pass <TASK-ID>; independently re-verified diff, cited sources, acceptance evidence, and validation`). Approval freshness is checked automatically by integrate stage from state and Git; review headings never decide acceptance.
 
 The author override applies only to this `ACCEPTED` commit; keep the operator's normal committer identity and do not change global or repository Git config. Verify it with `git log --format='%an <%ae>'`. The reviewer must never push the task branch, and never edits the queue, queue archive, or plan. From the primary checkout, use `meridian worktree integrate stage`, run the returned candidate's selected gate separately, then use `integrate finalize` or `integrate abort`; after any required push, use `meridian worktree cleanup`. Never manipulate the lease, merge, branch, or worktree directly. A remote task branch may lack the local review-and-status acceptance commit; remote cleanup is optional and must never block accepted integration. Never modify implementation code, bypass protections, weaken independent acceptance/forge evidence, or approve a PR under the author identity.
 

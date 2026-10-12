@@ -36,15 +36,3 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 
 Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, 25, 26, 27, 28, 31, 32, 34, 35, 36, 42, 44, 45, 46, and 47
 are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
-
-### Phase 62 — Machine task state
-
-Authority: [docs/ADR_MACHINE_TASK_STATE.md](../docs/ADR_MACHINE_TASK_STATE.md). 199–202 change only the CLI; 203 is template-changing.
-
-| Status | ID | Title | Priority | Depends on | File |
-|--------|----|-------|----------|------------|------|
-| `[x]` | 199 | Add the task state file, its state machines, and `meridian task transition` | 🔴 P1 | — | [199](done/199-task-state-file-and-transitions.md) |
-| `[x]` | 200 | Add `meridian review verdict` bound to the reviewed commit | 🔴 P1 | 199 | [200](done/200-review-verdict-command.md) |
-| `[x]` | 201 | Gate `integrate stage` on task state and the approved commit | 🔴 P1 | 200 | [201](done/201-integration-gate-on-task-state.md) |
-| `[x]` | 202 | Read task state in the console and in `meridian audit` | 🟡 P2 | 199 | [202](done/202-console-and-audit-read-task-state.md) |
-| `[ ]` | 203 | Import task state and ship the managed review, closure, and Accept text | 🔴 P1 | 201, 202 | [203](203-import-task-state-and-ship-managed-text.md) |

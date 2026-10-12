@@ -35,3 +35,5 @@ When bootstrapping a project, ask the developer to choose `opaque` or
 choose on the developer's behalf; pass the selected value to `meridian setup
 --apply --task-identity <choice>`, and explain that the file can later be
 edited to change the choice.
+
+When closure requires machine task state, run `meridian task transition <TASK-ID> DONE` after validation and before archiving the record; commit the task state with the completion records. Never edit a status or verdict by hand. Task branches own their own `.meridian/tasks/<TASK-ID>.json` in addition to their task record, exact archive, and handoff.

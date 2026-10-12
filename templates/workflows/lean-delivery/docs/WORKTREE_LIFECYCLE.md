@@ -1,6 +1,6 @@
 # Bounded Worktree Lifecycle
 
-<!-- MERIDIAN:BEGIN capability=worktree-lifecycle v3 -->
+<!-- MERIDIAN:BEGIN capability=worktree-lifecycle v4 -->
 Use the host-neutral `meridian worktree` namespace for task checkout lifecycle
 operations. Commands exit `0` on success, `2` when blocked, and `64` on usage
 errors. The root resolves from an explicit option, the environment, user
@@ -66,6 +66,10 @@ row must be recognized and terminal (`[x]` in Lean Delivery). An open or
 ambiguous table retains the entire section; warnings name the section and
 reason. Ambiguous or project-shaped tables are retained rather than guessed.
 
+## Machine task state adoption
+
+Run `meridian task state import [<TASK-ID>...] --project <path> --format json` to preview state files for open legacy tasks and inspect the queue, record, and review evidence. Repeat with `--apply` only after resolving reported disagreements. Existing state files and terminal legacy tasks are skipped. Imported transition history describes the bootstrap at the current HEAD and timestamp, not past implementation or review events; it never manufactures an approval. For Lean Delivery, progress remains derived from the worktree and imports as `QUEUED`. Use `meridian task transition` and `meridian review verdict` for subsequent changes; never edit statuses or verdicts by hand. Machine state files stay tracked at their original path when task records are archived.
+
 ## Candidate validation by integration outcome
 
 Run candidate validation outside the lifecycle command. `.meridian/candidate-validation.json`
@@ -79,7 +83,8 @@ For every `REUSE`, `BOUNDED`, or `FULL` outcome, run the project's declared repo
 `git diff --check` against the staged candidate tree. A `REUSE` outcome also
 requires a deterministic proof that every non-governance path is unchanged:
 run `git diff --name-only "$VALIDATED_TASK_COMMIT" "$CANDIDATE_TREE"` and allow
-only the task record or its exact archive rename, that task's handoff, queue,
+only the task record or its exact archive rename, that task's handoff, review
+record, `.meridian/tasks/<TASK-ID>.json`, the canonical execution-evidence ledger, queue,
 plan, queue archive, and changelog fragment. `BOUNDED` adds the tests for
 modules changed by the task and advanced `main`; `FULL` adds the full test
 suite. A project may always run the full suite for any outcome. Configure

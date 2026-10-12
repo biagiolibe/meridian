@@ -737,3 +737,15 @@ Authority: Fusa TASK-046 reasoning stop of 2026-10-11 after the upgrade to 1.2.1
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
 | `[x]` | 198 | Report retired framework text left outside managed markers | 🟡 P2 | — | [198](done/198-report-retired-unmarked-text-at-upgrade.md) |
+
+### Phase 62 — Machine task state
+
+Authority: [docs/ADR_MACHINE_TASK_STATE.md](../docs/ADR_MACHINE_TASK_STATE.md). 199–202 change only the CLI; 203 is template-changing.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 199 | Add the task state file, its state machines, and `meridian task transition` | 🔴 P1 | — | [199](done/199-task-state-file-and-transitions.md) |
+| `[x]` | 200 | Add `meridian review verdict` bound to the reviewed commit | 🔴 P1 | 199 | [200](done/200-review-verdict-command.md) |
+| `[x]` | 201 | Gate `integrate stage` on task state and the approved commit | 🔴 P1 | 200 | [201](done/201-integration-gate-on-task-state.md) |
+| `[x]` | 202 | Read task state in the console and in `meridian audit` | 🟡 P2 | 199 | [202](done/202-console-and-audit-read-task-state.md) |
+| `[x]` | 203 | Import task state and ship the managed review, closure, and Accept text | 🔴 P1 | 201, 202 | [203](done/203-import-task-state-and-ship-managed-text.md) |

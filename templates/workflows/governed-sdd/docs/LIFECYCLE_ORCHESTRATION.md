@@ -1,6 +1,6 @@
 # Autonomous Task Lifecycle Orchestration
 
-<!-- MERIDIAN:BEGIN capability=lifecycle-orchestration v10 -->
+<!-- MERIDIAN:BEGIN capability=lifecycle-orchestration v11 -->
 `Run lifecycle <TASK-ID>` authorizes an orchestrator to carry one dependency-ready
 task through implementation, independent review, requested-change remediation,
 acceptance, and `main` integration without further developer prompts. It does
@@ -22,7 +22,7 @@ Run lifecycle <TASK-ID>
        -> stop: report the `BLOCKED <CODE>` line
 ```
 
-The task record, Git commits, completion report, and the declared
+The command-maintained machine state, task record, Git commits, completion report, and the declared
 review record (see `PROJECT_WORKFLOW.md`'s canonical locations) are the only
 handoff interface. Worker messages
 must be concise and structured as: verdict or state, task ID, commit SHA,
@@ -48,7 +48,7 @@ implementer all verify. If launched from the primary checkout, it roots every
 review read and command in the verified task worktree and never switches the
 primary checkout.
 
-Continue automatically only while the current task record state permits the
+Never edit a status or verdict by hand. Workers use `meridian task transition` for lifecycle transitions and `meridian review verdict` (with `--owner` for owner acceptance) for verdicts. Continue automatically only while the command-reported machine state permits the
 next transition. Stop with the `BLOCKED <CODE>` line of the failing gate when validation fails, authority is
 ambiguous, the task branch or required local handoff commit is unavailable,
 the worktree becomes dirty with unrelated changes, its registered branch/path
@@ -88,8 +88,8 @@ approved it.
 
 ## Token discipline
 
-The orchestrator reads only the task record's status, the latest commit, and the latest
-review-record attempt. Workers use task-first context loading. Do not recreate
+The orchestrator uses command-reported state, the latest commit, and the latest
+review-record evidence. It never loads state files as startup context or infers acceptance from headings. Workers use task-first context loading. Do not recreate
 prior chat context, repeat successful validation without a changed relevant
 surface, or add a summarization agent between workers.
 <!-- MERIDIAN:END -->

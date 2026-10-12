@@ -36,7 +36,7 @@ When documents conflict, the first applicable document wins:
 Implementation never resolves a conflict silently: update the lower-precedence document or record an ADR.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=task-lifecycle v3 -->
+<!-- MERIDIAN:BEGIN capability=task-lifecycle v4 -->
 ## Task lifecycle
 
 ```text
@@ -65,8 +65,7 @@ states (for example, the queue-briefing hook) does not recognize
 `ANSWERED`/`INCONCLUSIVE`; a `SPIKE` entry is invisible to those counts by
 design, since it never merges production code for them to track.
 
-The task record is where a task branch records `IN_PROGRESS`,
-`READY_FOR_REVIEW`, and `CHANGES_REQUESTED`. A task branch never edits the
+The tracked `.meridian/tasks/<TASK-ID>.json` file is the only status and review-verdict authority. Use `meridian task transition <TASK-ID> <STATUS>` for lifecycle transitions and `meridian review verdict <TASK-ID> APPROVE|CHANGES_REQUESTED|BLOCKED` for review. Never edit a status or verdict by hand, including the JSON file, record projection, or review attempt heading. Commands update their human-readable projections; agents never load state files as startup context. Adopt open legacy tasks explicitly with `meridian task state import --project <path> --format json`, inspect the evidence, then repeat with `--apply`. Terminal legacy tasks need no file. A task branch never edits the
 queue, the queue archive, or the plan: `meridian worktree integrate stage`
 applies the queue's status on the merged candidate tree, and in-progress state
 is derived from the task branch, its registered worktree, and its unarchived
@@ -107,12 +106,12 @@ queue authorities. Workflow mode, host configuration, and identifier spelling
 do not provide a second identity policy or imply task semantics.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=roles v3 -->
+<!-- MERIDIAN:BEGIN capability=roles v4 -->
 ## Roles
 
 - Tech designer: defines ADRs, specifications, task scope, dependencies, and review policy. Does not implement feature code unless explicitly assigned.
 - Implementer: works on exactly one task in its deterministic linked worktree, validates it, creates the task commit, pushes the task branch only to obtain `T1_CI` (at most once per review attempt, and not at all without CI), and records task status in the task record according to its review policy. It never implements in the primary checkout.
-- Reviewer-integrator: independently reviews `READY_FOR_REVIEW` tasks in a fresh agent session using the same dedicated task worktree after the implementer has stopped. It records review evidence in the task's review record for every verdict and never pushes the task branch. For `CHANGES_REQUESTED`, it also returns the task record to `IN_PROGRESS`; after `APPROVE`, it records `ACCEPTED` in the task record in the local review-and-status commit and integrates from the primary checkout when repository gates allow it.
+- Reviewer-integrator: independently reviews `READY_FOR_REVIEW` tasks in a fresh agent session using the same dedicated task worktree after the implementer has stopped. It records review evidence in the task's review record for every verdict and never pushes the task branch. For `CHANGES_REQUESTED`, it runs `meridian review verdict <TASK-ID> CHANGES_REQUESTED`; after `APPROVE`, it runs `meridian review verdict <TASK-ID> APPROVE` and commits the state and projections in the local review-and-status commit and integrates from the primary checkout when repository gates allow it.
 - Orchestrator: coordinates one explicitly assigned task through distinct implementer and reviewer-integrator sessions. It uses only durable task, review, validation, and Git evidence to select the next permitted action; it never implements or reviews substantively.
 
 The developer drives these roles with five command triggers, defined in `AGENTS.md`/`CLAUDE.md`: `Proceed with <TASK-ID>` starts implementation, `Review <TASK-ID>` starts independent review, `Address review <TASK-ID>` starts the bounded remediation recorded by the reviewer, `Run lifecycle <TASK-ID>` authorizes the orchestrated implementation-to-integration loop, and `Accept <TASK-ID>` records the owner's own review as an `APPROVE` attempt and continues the closure at C6, skipping the agent review without skipping any later gate.
@@ -180,7 +179,7 @@ record that names the worktree uses the `handoff_worktree` value returned by
 absolute path.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=git-workflow v13 -->
+<!-- MERIDIAN:BEGIN capability=git-workflow v14 -->
 ## Git workflow
 
 ### Authority of `Proceed with`
@@ -219,12 +218,12 @@ conflict; or work on another task.
 - Before any task read or mutation, the worker runs `meridian worktree check` from the exact prepared path. A host-created checkout, the primary checkout, or any sibling path is `BLOCKED WRONG_WORKTREE` even when its branch and HEAD appear correct.
 - After validation, the implementer creates the task commit and, only when `T1_CI` validation is needed, pushes the task branch at most once for each review attempt; a project without CI never pushes it. Its completion handoff records the task branch, the machine-independent worktree value (the `handoff_worktree` field returned by `meridian worktree prepare`: the path relative to the worktree root, never an absolute path), implementation commit, validated task commit, validated base `main` commit, exact successful validation commands or CI evidence, the declared integration surface, and whether full combined-tree validation is required. It stops writing before review and leaves the dedicated worktree clean.
 - The reviewer-integrator's first review action in a fresh session is a fail-closed preflight against the completion handoff: before reading the task, implementation files, or diff, resolve the recorded `handoff_worktree` value against the worktree root at runtime, then locate the resulting absolute path and the recorded branch in `git worktree list --porcelain`, confirm the implementer has stopped, and verify the registered path, branch, HEAD, cleanliness, validated task commit, and validated base commit. Any missing or mismatched evidence is `BLOCKED WRONG_WORKTREE` and preserves all state. A session launched from the primary checkout roots every review read and Git command in the verified task worktree; it never switches or treats the primary checkout as the task checkout.
-- For `Review: REQUIRED`, the reviewer-integrator must never push the task branch. On `CHANGES_REQUESTED`, it creates a local review-handoff commit containing only the review record and the task record's transition to `IN_PROGRESS`; it does not edit implementation artifacts. The implementer resolves that record, creates the next implementation commit, and, only to obtain `T1_CI`, pushes the branch once for the next review attempt. After `APPROVE`, create the local review-and-status commit that records `ACCEPTED` in the task record on the task branch.
-- For `Review: NOT_REQUIRED`, the implementer records `ACCEPTED` in the task record in a status commit after validation. Neither path rebases, amends, cherry-picks, or force-pushes reviewed task commits.
+- For `Review: REQUIRED`, the reviewer-integrator must never push the task branch. On `CHANGES_REQUESTED`, it runs `meridian review verdict <TASK-ID> CHANGES_REQUESTED --body <review-evidence>` on the clean reviewed HEAD, then creates a local review-handoff commit containing only the state file, review record, and task record projection; it does not edit implementation artifacts. The implementer resolves that record, creates the next implementation commit, and, only to obtain `T1_CI`, pushes the branch once for the next review attempt. After `APPROVE`, run `meridian review verdict <TASK-ID> APPROVE --body <review-evidence>` on the clean reviewed HEAD and commit its state file and projections on the task branch.
+- For `Review: NOT_REQUIRED`, the implementer runs `meridian task transition <TASK-ID> ACCEPTED` after validation and commits its state file and record projection. Neither path rebases, amends, cherry-picks, or force-pushes reviewed task commits.
 - Final integration is serialized in the primary checkout through `meridian worktree integrate stage`. That command verifies accepted evidence, owns the lease and prescribed no-commit merge, and returns the deterministic decision and candidate tree without running project code. Run the selected bounded or full gate separately in the ordinary sandbox, bind successful evidence to that tree, and call `integrate finalize`; call `integrate abort` after failure. Stale or mismatched evidence is `BLOCKED EVIDENCE_MISMATCH`; missing or incomplete evidence is `BLOCKED EVIDENCE_INCOMPLETE`.
-- Task branches never edit the project's queue, queue archive, or plan (`meridian locations` resolves them). They edit only their own task record, its exact archive, its review record, and its handoff. `integrate stage` applies queue and plan status and phase archival once on the merged candidate tree. A shared-governance conflict aborts integration; never choose one task's state over another.
+- Task branches never edit the project's queue, queue archive, or plan (`meridian locations` resolves them). They edit only their own task record, its exact archive, its review record, its handoff, and its own `.meridian/tasks/<TASK-ID>.json` state file. `integrate stage` applies queue and plan status and phase archival once on the merged candidate tree. A shared-governance conflict aborts integration; never choose one task's state over another.
 - Only after successful validated integration and any required `main` push, use `meridian worktree cleanup`. Failure, requested changes, cancellation, or blocked integration retains both; exceptional cleanup remains explicitly authorized and outside the bounded command.
-- `Accept <TASK-ID>` appends an owner `APPROVE` attempt to the review record, sets the task record to `ACCEPTED`, and continues at C6 under the `Proceed with` authority. A manual merge is never permitted.
+- `Accept <TASK-ID>` runs `meridian review verdict <TASK-ID> APPROVE --owner --body <owner-evidence>` on the clean reviewed HEAD, commits the state file and projections, and continues at C6 under the `Proceed with` authority. A manual merge is never permitted.
 - A forge approval cannot be supplied by the same identity that authored the PR. If an external approval is required but unavailable, leave the PR open and report `BLOCKED REVIEW_REQUIRED`.
 
 ### Stops and denials

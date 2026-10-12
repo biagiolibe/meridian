@@ -82,7 +82,7 @@ the handoff.
 Scope validation to the diff's actual surface, following the validation-scope rule in `docs/CONTEXT_BUDGET_POLICY.md`. Skip a full build, test, or lint suite for a documentation or policy-only change, and state the skip explicitly in the completion report.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=execution-command-gate v2 -->
+<!-- MERIDIAN:BEGIN capability=execution-command-gate v3 -->
 For a normal task, execute every named `Validation` entry only through
 `meridian execution validate <TASK-ID> <validation-id> --project .`; running
 the literal command directly is not completion evidence. Before a budgeted
@@ -90,7 +90,7 @@ diagnostic, capture, or context expansion, use `meridian execution evidence`.
 Before broad or uncertain-yield research outside the initial task authority,
 use `meridian execution investigate`. For `Review: REQUIRED`, write the
 completion handoff and run `meridian execution ready-check <TASK-ID> --project
-.` before setting the task record to `READY_FOR_REVIEW`. If a nonterminal
+.` before running `meridian task transition <TASK-ID> READY_FOR_REVIEW`. Never edit a status or verdict by hand. Use `meridian task transition <TASK-ID> IN_PROGRESS` at implementation start and `meridian task transition <TASK-ID> ACCEPTED` after validation for `Review: NOT_REQUIRED`. If a nonterminal
 legacy task lacks the current generated execution contract, run `meridian
 execution reconcile <TASK-ID> --apply --project .` before substantive work.
 <!-- MERIDIAN:END -->

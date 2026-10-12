@@ -2,7 +2,7 @@
 
 Use this procedure only for `Review <TASK-ID>` after the entry-point router has applied its always-loaded invariants.
 
-<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v11 -->
+<!-- MERIDIAN:BEGIN capability=task-worktree-review-procedure v12 -->
 ## Mandatory task-worktree preflight
 
 After `APPROVE`, `Review <TASK-ID>` has the `Proceed with` authority for C6 through C10, including the single plain `git push origin main` and cleanup, with the same prohibitions.
@@ -54,9 +54,7 @@ task-worktree path and every Git command uses `git -C
 <absolute-task-worktree>`; the initial current directory is never treated as
 the task checkout. Review never runs concurrently with an implementer.
 
-After approval, commit the review record and the task record's `ACCEPTED`
-status on the task branch, then use the serialized integration transaction in
-`PROJECT_WORKFLOW.md`.
+After approval, on the clean reviewed HEAD run `meridian review verdict <TASK-ID> APPROVE --body <review-evidence>`. The command binds approval to HEAD and writes the state file, review heading, and task Status projection. Commit those three artifacts on the task branch, then use the serialized integration transaction in `PROJECT_WORKFLOW.md`. Never edit a status or verdict by hand.
 The validated task commit must remain an ancestor of task `HEAD`, with only
 permitted lifecycle records in the intervening diff. Current `main` may have
 advanced; reuse evidence, run the bounded gate, select full validation, or
@@ -88,27 +86,13 @@ and `FULL` from `.meridian/candidate-validation.json`; `REUSE` also proves only
 governance paths changed. A missing declaration stops before staging rather than silently
 accepting evidence.
 
-<!-- MERIDIAN:BEGIN capability=review-mode-boundary v2 -->
+<!-- MERIDIAN:BEGIN capability=review-mode-boundary v3 -->
 ### Review-mode boundary
 
-For `Review <TASK-ID>`, review is read-only until an explicit `APPROVE` verdict.
-Do not edit source code, tests, manifests, implementation documentation, task
-content, or governance files to remedy a finding. For `CHANGES_REQUESTED`, the
-only allowed mutation is a local review-handoff commit: create or append
-the declared review record (see `PROJECT_WORKFLOW.md`'s canonical locations)
-using `docs/REVIEW_RECORD_TEMPLATE.md`, change
-the task record's status from `READY_FOR_REVIEW` to `IN_PROGRESS`, and commit
-only those two artifacts. The record must contain every actionable finding
-with priority and evidence; its unchecked findings are the implementer's
-bounded remediation scope. Do not push this commit. Only after `APPROVE` and
-the required ancestry check may the reviewer append the approval evidence to
-the review record, set the task record to `ACCEPTED`, and commit those two
-artifacts with the required reviewer-integrator author override. A reviewer
-never edits the queue, queue archive, or plan; `integrate stage` applies the
-status there.
+For `Review <TASK-ID>`, do not edit implementation artifacts to remedy findings. Prepare the evidence as a command argument outside the tracked review record so the reviewed worktree stays clean. Record each verdict with `meridian review verdict <TASK-ID> APPROVE|CHANGES_REQUESTED|BLOCKED --body <review-evidence>` on the clean reviewed HEAD. Never edit a status or verdict by hand. For `CHANGES_REQUESTED`, commit only the state file, task record projection, and review record locally; leave machine status `CHANGES_REQUESTED` for the implementer. For a blocking verdict, record and commit only the same governance outputs and report the blocker. Findings with priority and evidence form the bounded remediation scope. Do not push these commits. For `APPROVE`, commit the same three outputs with the required reviewer-integrator author override after the required ancestry check. A reviewer never edits the queue, queue archive, or plan; `integrate stage` applies their status.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=implementer-reviewer-handoff v4 -->
+<!-- MERIDIAN:BEGIN capability=implementer-reviewer-handoff v5 -->
 ## Implementer-to-reviewer handoff
 
 After validation, create the task commit and, only to obtain `T1_CI` for that commit, at most once per review attempt, and not at all when the project has no CI, push the task branch. The completion handoff must record the branch name,
@@ -120,11 +104,10 @@ handoff transfers sequential ownership of that worktree; implementation and
 review never overlap.
 
 For `Review: REQUIRED`, the reviewer must never push the task branch. On
-`CHANGES_REQUESTED`, it commits only the review record and the task record's
-transition to `IN_PROGRESS`; the implementer then resolves the findings and
+`CHANGES_REQUESTED`, it records the verdict with `meridian review verdict <TASK-ID> CHANGES_REQUESTED` and commits only the state file and record projections; the implementer then resolves the findings and
 makes the next permitted push. For `Review: NOT_REQUIRED`, the implementer
-records acceptance in the task record after validation without creating a
-reviewer session. Owner acceptance records an owner `APPROVE` attempt and
+runs `meridian task transition <TASK-ID> ACCEPTED` after validation without creating a
+reviewer session. Owner acceptance runs `meridian review verdict <TASK-ID> APPROVE --owner` and
 continues at C6. Checkout selection, validation ancestry, integration, and cleanup
 are governed by their current dedicated procedures, not by this handoff.
 <!-- MERIDIAN:END -->

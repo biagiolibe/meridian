@@ -34,10 +34,10 @@ write the governance-only restart handoff, then stop and direct a fresh
 `Proceed with <TASK-ID>`.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=owner-acceptance-workflow v3 -->
+<!-- MERIDIAN:BEGIN capability=owner-acceptance-workflow v4 -->
 ## Owner-acceptance workflow
 
 When the developer says `Accept <TASK-ID>` after personally reviewing a `Review: REQUIRED` task, treat it as explicit authorization to skip the agent review. Confirm that the task record is `READY_FOR_REVIEW`; do not re-review the implementation, change source code, or rerun the task's own validation.
 
-Append an owner `APPROVE` attempt to the review record (`- Approved by: owner`, the reviewed commit, and the base commit), set the task record to `ACCEPTED`, and commit only those two artifacts on the task branch as `docs: accept <TASK-ID>`. Then continue at C6 under the `Proceed with` authority: `worktree check`, machine evidence, `integrate stage`, candidate validation, `finalize`, the one `git push origin main`, and `cleanup`. `integrate stage` accepts the task because the latest review verdict is `APPROVE`. A manual merge is never permitted. If the task record is missing or inconsistent, stop and report `BLOCKED EVIDENCE_INCOMPLETE`.
+On the clean task branch HEAD, run `meridian review verdict <TASK-ID> APPROVE --owner --body <owner-evidence>` with the reviewed/base commit and owner evidence. The command records `approved_by: "owner"`, binds approval to HEAD, and updates the task Status and review heading projections. Never edit a status or verdict by hand. Commit only the task's state file, task record, and review record as `docs: accept <TASK-ID>`. Then continue at C6 under the `Proceed with` authority through `meridian worktree advance`, including candidate validation, the one `git push origin main`, and cleanup. `integrate stage` checks machine acceptance and the approved Git diff automatically; headings are human-readable only. A manual merge is never permitted. If a command stops, report its coded stop and resume command.
 <!-- MERIDIAN:END -->

@@ -1947,13 +1947,13 @@ class GovernedCompletionRowsTest(unittest.TestCase):
                     self.assertIn("| QUEUED | REQUIRED |", row)
                     self.assertFalse((self.primary / "tasks/QUEUE_ARCHIVE.md").exists())
 
-    def test_owner_accept_text_and_stage_agree_on_the_approve_attempt(self) -> None:
+    def test_owner_accept_text_uses_command_and_legacy_approve_attempt_is_supported(self) -> None:
         workflow = (ROOT / "templates/workflows/governed-sdd/docs/workflows/LIFECYCLE.md").read_text(encoding="utf-8")
         record_template = (ROOT / "templates/workflows/governed-sdd/docs/REVIEW_RECORD_TEMPLATE.md").read_text(encoding="utf-8")
-        self.assertIn("Append an owner `APPROVE` attempt to the review record", workflow)
-        self.assertIn("`- Approved by: owner`", workflow)
+        self.assertIn("meridian review verdict <TASK-ID> APPROVE --owner", workflow)
+        self.assertIn('`approved_by: "owner"`', workflow)
         self.assertIn("continue at C6 under the `Proceed with` authority", workflow)
-        self.assertIn("`- Approved by: owner`", record_template)
+        self.assertIn("owner acceptance adds `--owner`", record_template)
         heading = re.search(r"^## Attempt <N> — <(.+?)>$", record_template, re.MULTILINE)
         self.assertIsNotNone(heading)
         self.assertIn("APPROVE", heading.group(1))
