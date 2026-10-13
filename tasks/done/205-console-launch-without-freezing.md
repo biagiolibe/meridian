@@ -23,24 +23,24 @@ The notice appears only after both return.
 
 ## Acceptance Criteria
 
-- [ ] Pressing `1` or `2` redraws a `Launching…` notice for the selected task
+- [x] Pressing `1` or `2` redraws a `Launching…` notice for the selected task
   at once. The key handler returns without calling `load_snapshot` or
   `osascript` synchronously; a test asserts it with a fixture whose snapshot
   takes more than 1 s.
-- [ ] Before launching, the console revalidates only the selected task: its
+- [x] Before launching, the console revalidates only the selected task: its
   launch directive, resume state, and active-writer state. It does not load a
   full project snapshot. The revalidation and `osascript` run off the UI
   thread, with at most one launch in flight. A second key press while a launch
   is pending is refused with a notice.
-- [ ] When the work finishes, the console shows success, or a failure with its
+- [x] When the work finishes, the console shows success, or a failure with its
   reason. A launch is still refused when the directive, resume state, or
   active-writer state changed since it was displayed. The existing
   revalidation tests keep passing.
-- [ ] A failure or timeout of `osascript` or of a Git call during the launch
+- [x] A failure or timeout of `osascript` or of a Git call during the launch
   never freezes or crashes the console.
-- [ ] One changelog fragment states the fix under `Fixed`; this is a CLI-only
+- [x] One changelog fragment states the fix under `Fixed`; this is a CLI-only
   change.
-- [ ] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
+- [x] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
   --parallel`, and `git diff --check` pass.
 
 ## Relevant Files
