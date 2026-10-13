@@ -171,6 +171,36 @@ full-directory scans are, so:
   separate decision, based on a measured threshold such as more than 500
   active state files, not built in advance.
 
+### 8. Queue archival from task state
+
+*Amendment 1, 2026-10-13. Status: Proposed. It answers GitHub issue #2.*
+
+Queue archival still decides from table text. Only `###` sections are
+candidates, and every row's status cell must be a recognized terminal token.
+Palimpsest groups its tasks under `##` sections, so its queue (about 97 KB)
+never shrinks. A section that holds an `INCONCLUSIVE` spike never closes.
+This is the same weakness Decision 1 removed from acceptance, and it is
+removed the same way:
+
+- A queue section is archivable when every task row in it has a state file
+  whose `status` is terminal for its workflow:
+  - Governed SDD: `ACCEPTED`, `ANSWERED`, or `INCONCLUSIVE`;
+  - Lean Delivery: `DONE`.
+  `INCONCLUSIVE` closes its section. Whether it satisfies a dependency is a
+  separate rule, and this amendment does not change it.
+- A section ends at the next heading of the same or a higher level, and
+  nested headings belong to it, as today. Its heading level no longer
+  restricts candidacy. Table shape, column order, and status-cell wording are
+  not read for the decision.
+- A row without a state file uses the existing conservative rule, so legacy
+  sections keep today's behavior. To make legacy sections archivable by state,
+  `meridian task state import --include-terminal` creates state files for
+  terminal tasks from their current text. It is explicit and shows what it
+  would write, like Decision 6, and never runs implicitly during integration.
+- `integrate stage` reports every section it archives and every section it
+  retains, with the reason and the open or legacy rows. It never skips a
+  section silently.
+
 ## Consequences
 
 - A task is accepted because its state says `ACCEPTED` and Git proves that
@@ -213,6 +243,10 @@ full-directory scans are, so:
    text, the governance-file ownership addition, and a migration with upgrade
    notes. Template-changing.
 6. Palimpsest and Fusa adopt through `upgrade` and `task state import`.
+7. Amendment 1 (Decision 8), once accepted: archival from task state and
+   `task state import --include-terminal` in the CLI, plus the archival rule
+   in the managed `docs/WORKTREE_LIFECYCLE.md` copies (`worktree-lifecycle`),
+   which makes it template-changing.
 
 ## Out of Scope
 
