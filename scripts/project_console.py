@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import curses
 import json
 import os
@@ -23,8 +24,10 @@ from typing import Callable
 
 sys.dont_write_bytecode = True
 from meridian import (
-    TASK_IDENTITY_PATH, MeridianError, MeridianStop, ResolvedTaskIdentity, detect_mode,
-    read_task_field, stop_error, delivery_readiness,
+    EXECUTION_EVIDENCE_PATH, INTEGRATION_LEASE_NAME, INTEGRATION_STATE_NAME, TASK_IDENTITY_PATH,
+    WORKTREE_STATE_DIRECTORY, MeridianError, MeridianStop, ResolvedTaskIdentity,
+    canonical_git_common_dir, detect_mode, parse_worktree_records, read_task_field,
+    shared_worktree_records, stop_error, delivery_readiness,
     closure_status, lifecycle_started_at, resolve_project_locations, resolve_task_identity,
 )
 from task_state import read_task_state, state_path
@@ -509,15 +512,75 @@ def _primary_checkout(project: Path) -> tuple[Path | None, str | None]:
     return directory, None
 
 
-def _worktrees(project: Path) -> dict[str, str]:
-    records: dict[str, str] = {}
-    path = ""
-    for line in _git(project, "worktree", "list", "--porcelain").splitlines():
-        if line.startswith("worktree "):
-            path = line[9:]
-        elif line.startswith("branch refs/heads/") and path:
-            records[line.removeprefix("branch refs/heads/")] = path
-    return records
+def _worktrees(records: list[dict[str, str]]) -> tuple[dict[str, str], dict[str, str]]:
+    """Return the registered branch-to-path map and each worktree's HEAD by path."""
+    branches: dict[str, str] = {}
+    heads: dict[str, str] = {}
+    for record in records:
+        path = record.get("worktree")
+        if not path:
+            continue
+        heads[path] = record.get("HEAD", "")
+        if record.get("branch", "").startswith("refs/heads/"):
+            branches[record["branch"].removeprefix("refs/heads/")] = path
+    return branches, heads
+
+
+def _stat_identity(path: Path) -> tuple[int, int] | None:
+    """Return a file's size and modification time, or None when it is unreadable."""
+    try:
+        status = path.stat()
+    except OSError:
+        return None
+    return status.st_size, status.st_mtime_ns
+
+
+class DeliveryCache:
+    """Remember each task's delivery gate outcome until one of its inputs changes.
+
+    `delivery_readiness` is a pure function of the task worktree contents and
+    HEAD, the handoff and state files, the execution evidence, the lifecycle
+    registration files, and whether `main` moved (a stale-base proof). The key
+    holds all of them, so an unchanged review-ready task is not rechecked and
+    any change discards its entry. Failures are cached too: the console shows
+    their text. A dirty worktree is never cached; the gate rejects it cheaply.
+    """
+
+    def __init__(self) -> None:
+        self._items: dict[str, tuple[tuple, str | None]] = {}
+
+    def pending(self, project: Path, worktree: Path, head: str, task_id: str,
+                identity: ResolvedTaskIdentity, main_commit: str | None,
+                common_dir: Path | None) -> str | None:
+        """Return the delivery failure text, or None when delivery is ready."""
+        key = None
+        status = _git_result(worktree, "status", "--porcelain")
+        if not status.returncode and not status.stdout and head and common_dir is not None:
+            lifecycle = common_dir / WORKTREE_STATE_DIRECTORY / f"{identity.artifact_stem}.json"
+            try:
+                handoff = worktree / _relative(project, identity.handoff_path)
+            except ConsoleError:
+                handoff = None
+            if handoff is not None:
+                key = (head, main_commit,
+                       *(_stat_identity(path) for path in (
+                           handoff, state_path(worktree, task_id), worktree / EXECUTION_EVIDENCE_PATH,
+                           lifecycle, common_dir / INTEGRATION_LEASE_NAME,
+                           common_dir / INTEGRATION_STATE_NAME)))
+        if key is not None:
+            cached = self._items.get(str(worktree))
+            if cached is not None and cached[0] == key:
+                return cached[1]
+        try:
+            delivery_readiness(worktree, task_id, verify_worktree=False)
+            outcome = None
+        except (MeridianError, OSError, ValueError) as error:
+            outcome = str(error)
+        if key is None:
+            self._items.pop(str(worktree), None)
+        else:
+            self._items[str(worktree)] = (key, outcome)
+        return outcome
 
 
 def _committed_update(project: Path, relative: str, ref: str = "HEAD") -> int | None:
@@ -743,7 +806,7 @@ def _closing_task(project: Path, profile: Profile, row: QueueRow, queue: Path,
         return None
     closure: dict[str, object] | None = None
     try:
-        report, _ready = closure_status(row.task_id, None, project)
+        report, _ready = closure_status(row.task_id, None, project, identity=identity)
         if (isinstance(report, dict) and report.get("step") in CLOSING_STEPS
                 and "resume" in report and "stop_reason" in report
                 and (report["resume"] is None or isinstance(report["resume"], str))
@@ -757,7 +820,7 @@ def _closing_task(project: Path, profile: Profile, row: QueueRow, queue: Path,
     cleanup_pending = bool(closure and closure["step"] == "C10" and closure["resume"])
     started_at = None
     try:
-        started_at = lifecycle_started_at(row.task_id, project)
+        started_at = lifecycle_started_at(row.task_id, project, identity=identity)
     except (MeridianError, OSError, ValueError):
         pass
     progress_phase, remaining_gates = (
@@ -785,8 +848,43 @@ def _closing_task(project: Path, profile: Profile, row: QueueRow, queue: Path,
     )
 
 
-def load_snapshot(project: Path, identities: IdentityCache | None = None) -> Snapshot:
-    return _load_snapshot(project, identities)
+def _cached_identity(project: Path, task_id: str,
+                     identities: IdentityCache | None) -> ResolvedTaskIdentity | None:
+    """Return the console's resolved identity, or None to let the reader resolve (and report)."""
+    try:
+        return (identities or IdentityCache()).resolve(project, task_id)
+    except MeridianError:
+        return None
+
+
+def _delivery_pending(project: Path, worktree: str | None, task_id: str, heads: dict[str, str],
+                      identities: IdentityCache | None, cache: DeliveryCache,
+                      shared: dict[str, object]) -> str | None:
+    """Return why a review-ready task is not deliverable, or None when it is."""
+    if not worktree:
+        return "canonical worktree unavailable"
+    identity = _cached_identity(project, task_id, identities)
+    if identity is None:
+        # The gate resolves identity itself and reports the failure verbatim.
+        try:
+            delivery_readiness(Path(worktree), task_id, verify_worktree=False)
+            return None
+        except (MeridianError, OSError, ValueError) as error:
+            return str(error)
+    if "main" not in shared:
+        shared["main"] = (_git_optional(project, "rev-parse", "--verify", "--quiet",
+                                        "refs/heads/main") or "").strip() or None
+        try:
+            shared["common"] = canonical_git_common_dir(project)
+        except (MeridianError, OSError):
+            shared["common"] = None
+    return cache.pending(project, Path(worktree), heads.get(worktree, ""), task_id, identity,
+                         shared["main"], shared["common"])
+
+
+def load_snapshot(project: Path, identities: IdentityCache | None = None,
+                  deliveries: DeliveryCache | None = None) -> Snapshot:
+    return _load_snapshot(project, identities, deliveries=deliveries)
 
 
 def load_task(project: Path, task_id: str,
@@ -797,9 +895,28 @@ def load_task(project: Path, task_id: str,
 
 
 def _load_snapshot(project: Path, identities: IdentityCache | None = None,
-                   only: str | None = None) -> Snapshot:
-    """Build the snapshot; `only` restricts the per-task Git reads to one task."""
+                   only: str | None = None, deliveries: DeliveryCache | None = None) -> Snapshot:
+    """Build the snapshot; `only` restricts the per-task Git reads to one task.
+
+    Git lists the registered worktrees once; every lifecycle reader below
+    shares that read.
+    """
     project = project.expanduser().resolve()
+    with contextlib.ExitStack() as stack:
+        return _build_snapshot(project, identities, only, deliveries, stack)
+
+
+def _build_snapshot(project: Path, identities: IdentityCache | None, only: str | None,
+                    deliveries: DeliveryCache | None, stack: contextlib.ExitStack) -> Snapshot:
+    # Read the registered worktrees first so that profile and location detection
+    # share the one read; a failure surfaces where the read used to happen.
+    records: list[dict[str, str]] = []
+    listing_error: ConsoleError | None = None
+    try:
+        records = parse_worktree_records(_git(project, "worktree", "list", "--porcelain"))
+        stack.enter_context(shared_worktree_records(records))
+    except ConsoleError as error:
+        listing_error = error
     profile = _select_profile(project)
     try:
         locations = resolve_project_locations(project)
@@ -838,7 +955,11 @@ def _load_snapshot(project: Path, identities: IdentityCache | None = None,
         raise ConsoleError("Git status returned no branch line")
     branch_line = status_lines[0].removeprefix("## ")
     branch = branch_line.split("...", 1)[0].split(" [", 1)[0]
-    worktrees = _worktrees(project)
+    if listing_error:
+        raise listing_error
+    worktrees, heads = _worktrees(records)
+    delivery_cache = deliveries or DeliveryCache()
+    deliveries_shared: dict[str, object] = {}
     queue_relative = _relative(project, queue)
     tasks: list[Task] = []
     closing_count = 0
@@ -907,12 +1028,14 @@ def _load_snapshot(project: Path, identities: IdentityCache | None = None,
             # closure-status never reports; keep its timing and gate visible.
             progress_phase, remaining_gates = _lifecycle_progress("C3", True)
             try:
-                started_at = lifecycle_started_at(row.task_id, project)
+                started_at = lifecycle_started_at(
+                    row.task_id, project, identity=_cached_identity(project, row.task_id, identities))
             except (MeridianError, OSError, ValueError):
                 pass
         if facts and facts.worktree and effective.lifecycle == "in_progress":
+            known = _cached_identity(project, row.task_id, identities)
             try:
-                closure, _ready = closure_status(row.task_id, None, project)
+                closure, _ready = closure_status(row.task_id, None, project, identity=known)
                 closure_reason = closure["stop_reason"]
                 closure_resume = closure["resume"]
                 progress_phase, remaining_gates = _lifecycle_progress(
@@ -922,7 +1045,7 @@ def _load_snapshot(project: Path, identities: IdentityCache | None = None,
                 # A transient lifecycle read must not make the entire dashboard stale.
                 pass
             try:
-                started_at = lifecycle_started_at(row.task_id, project)
+                started_at = lifecycle_started_at(row.task_id, project, identity=known)
             except (MeridianError, OSError, ValueError):
                 # Legacy or unreadable timing data is intentionally non-fatal.
                 pass
@@ -954,12 +1077,9 @@ def _load_snapshot(project: Path, identities: IdentityCache | None = None,
             }[effective.lifecycle]
         delivery_pending = None
         if state and profile.name == "governed-sdd" and state["status"] == "READY_FOR_REVIEW":
-            try:
-                if not worktree:
-                    raise MeridianError("canonical worktree unavailable")
-                delivery_readiness(Path(worktree), row.task_id, verify_worktree=False)
-            except (MeridianError, OSError, ValueError) as error:
-                delivery_pending = str(error)
+            delivery_pending = _delivery_pending(
+                project, worktree, row.task_id, heads, identities, delivery_cache, deliveries_shared)
+            if delivery_pending is not None:
                 readiness = "PENDING DELIVERY/CHANGES"
         updated_path = branch_path if from_branch else (_relative(project, path) if path else None)
         updated_ref = ("refs/heads/" + facts.branch) if from_branch else "HEAD"
@@ -1014,6 +1134,7 @@ class ConsoleState:
         self.last_success: datetime | None = None
         self.error: str | None = None
         self.identities = IdentityCache()
+        self.deliveries = DeliveryCache()
         self._lock = threading.Lock()
         self._worker: threading.Thread | None = None
         self._pending: tuple[Snapshot | None, str | None] | None = None
@@ -1023,7 +1144,7 @@ class ConsoleState:
 
     def _load(self) -> tuple[Snapshot | None, str | None]:
         try:
-            return load_snapshot(self.project, self.identities), None
+            return load_snapshot(self.project, self.identities, self.deliveries), None
         except ConsoleError as error:
             return None, str(error)
 

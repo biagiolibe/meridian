@@ -2066,7 +2066,7 @@ class BackgroundRefreshTest(unittest.TestCase):
         started = threading.Event()
         returned = threading.Event()
 
-        def slow(_project, _identities):
+        def slow(_project, _identities, _deliveries=None):
             started.set()
             self.assertTrue(returned.wait(5), "start_refresh must return before loading completes")
             release.wait(5)
@@ -2325,6 +2325,180 @@ class MachineStateConsoleTest(RepoCase):
         self.assertFalse(task.legacy)
 
     queue = LeanEffectiveStateTest.queue
+
+
+class SnapshotCostTest(RepoCase):
+    """One worktree listing, resolved identities, and cached delivery gates."""
+
+    lock = "GOVERNED_SDD"
+    header = GovernedEffectiveStateTest.header
+    setup_project = GovernedEffectiveStateTest.setup_project
+    write_record = GovernedEffectiveStateTest.write_record
+    state = MachineStateConsoleTest.state
+
+    def populate(self) -> dict[str, Path]:
+        """An in-progress, a review-ready, and a closing task, each with a worktree."""
+        self.setup_project([
+            ("TASK-001", "QUEUED", "REQUIRED", "—"),
+            ("TASK-002", "QUEUED", "REQUIRED", "—"),
+            ("TASK-003", "ACCEPTED", "REQUIRED", "—"),
+        ])
+        trees = {task_id: self.worktree(task_id.lower()) for task_id in
+                 ("TASK-001", "TASK-002", "TASK-003")}
+        self.state(trees["TASK-001"], "TASK-001", "IN_PROGRESS")
+        self.state(trees["TASK-002"], "TASK-002", "READY_FOR_REVIEW")
+        self.state(trees["TASK-003"], "TASK-003", "ACCEPTED", verdict="APPROVE")
+        for wt in trees.values():
+            self.commit(wt)
+        return trees
+
+    def run_snapshot(self, *loaders) -> list[list[str]]:
+        real = subprocess.run
+        calls: list[list[str]] = []
+
+        def counting(command, *args, **kwargs):
+            calls.append(list(command))
+            return real(command, *args, **kwargs)
+
+        with mock.patch.object(subprocess, "run", side_effect=counting), \
+             mock.patch.object(Path, "cwd", return_value=self.project):
+            for load in loaders:
+                load()
+        return calls
+
+    @staticmethod
+    def listings(calls: list[list[str]]) -> list[list[str]]:
+        return [call for call in calls if call[-3:] == ["worktree", "list", "--porcelain"]]
+
+    def test_worktrees_are_listed_once_per_snapshot(self) -> None:
+        self.populate()
+        calls = self.run_snapshot(lambda: console.load_snapshot(self.project))
+        self.assertEqual(len(self.listings(calls)), 1)
+        task = console.load_task(self.project, "TASK-003")
+        self.assertIsNotNone(task)
+        self.assertEqual(len(self.listings(self.run_snapshot(
+            lambda: console.load_task(self.project, "TASK-003")))), 1)
+
+    def test_closure_readers_receive_the_cached_identity(self) -> None:
+        self.populate()
+        cache = console.IdentityCache()
+        seen: dict[str, list[object]] = {"closure": [], "started": []}
+        real_closure, real_started = console.closure_status, console.lifecycle_started_at
+
+        def closure(*args, **kwargs):
+            seen["closure"].append(kwargs.get("identity"))
+            return real_closure(*args, **kwargs)
+
+        def started(*args, **kwargs):
+            seen["started"].append(kwargs.get("identity"))
+            return real_started(*args, **kwargs)
+
+        with mock.patch.object(console, "closure_status", side_effect=closure), \
+             mock.patch.object(console, "lifecycle_started_at", side_effect=started), \
+             mock.patch.object(Path, "cwd", return_value=self.project):
+            console.load_snapshot(self.project, cache)
+        for readers in seen.values():
+            self.assertTrue(readers)
+            for identity in readers:
+                self.assertIsNotNone(identity)
+                self.assertIs(identity, cache.resolve(self.project, identity.canonical_id))
+
+    def test_lifecycle_readers_skip_resolution_when_given_an_identity(self) -> None:
+        import meridian
+        self.populate()
+        identity = meridian.resolve_task_identity(self.project, "TASK-001", "existing")
+        with mock.patch.object(Path, "cwd", return_value=self.project), \
+             mock.patch.object(meridian, "resolve_task_identity",
+                               side_effect=AssertionError("resolved again")):
+            report, _ready = meridian.closure_status(
+                "TASK-001", None, self.project, identity=identity)
+            self.assertEqual(report["task_id"], "TASK-001")
+            # No lifecycle state was prepared, so the read ends on that, not on resolution.
+            with self.assertRaisesRegex(meridian.MeridianError, "worktree lifecycle state"):
+                meridian.lifecycle_started_at("TASK-001", self.project, identity=identity)
+
+    def test_snapshot_is_identical_with_and_without_caches(self) -> None:
+        self.populate()
+        with mock.patch.object(Path, "cwd", return_value=self.project):
+            plain = console.load_snapshot(self.project)
+            identities, deliveries = console.IdentityCache(), console.DeliveryCache()
+            cold = console.load_snapshot(self.project, identities, deliveries)
+            warm = console.load_snapshot(self.project, identities, deliveries)
+        self.assertEqual({task.task_id for task in plain.tasks}, {"TASK-001", "TASK-002", "TASK-003"})
+        self.assertEqual(plain, cold)
+        self.assertEqual(plain, warm)
+
+    def review_ready(self) -> tuple[Path, console.DeliveryCache, mock.Mock]:
+        wt = self.populate()["TASK-002"]
+        gate = mock.Mock(side_effect=console.MeridianError("evidence is incomplete"))
+        return wt, console.DeliveryCache(), gate
+
+    def load_with(self, deliveries: console.DeliveryCache, gate: mock.Mock) -> console.Task:
+        with mock.patch.object(console, "delivery_readiness", gate), \
+             mock.patch.object(Path, "cwd", return_value=self.project):
+            snapshot = console.load_snapshot(self.project, console.IdentityCache(), deliveries)
+        return next(task for task in snapshot.tasks if task.task_id == "TASK-002")
+
+    def test_unchanged_review_ready_task_is_not_rechecked(self) -> None:
+        _wt, deliveries, gate = self.review_ready()
+        first = self.load_with(deliveries, gate)
+        second = self.load_with(deliveries, gate)
+        self.assertEqual(gate.call_count, 1)
+        self.assertEqual(first, second)
+        self.assertEqual(second.readiness, "PENDING DELIVERY/CHANGES")
+        self.assertEqual(second.delivery_pending, "evidence is incomplete")
+
+    def test_success_is_cached_and_a_changed_input_discards_it(self) -> None:
+        wt, deliveries, gate = self.review_ready()
+        gate.side_effect = None
+        gate.return_value = {"status": "READY_FOR_REVIEW"}
+        task = self.load_with(deliveries, gate)
+        self.assertIsNone(task.delivery_pending)
+        self.load_with(deliveries, gate)
+        self.assertEqual(gate.call_count, 1)
+        gate.side_effect = console.MeridianError("handoff changed")
+        self.write(wt, "tasks/handoffs/TASK-002.md", "# Handoff\n")
+        self.commit(wt)
+        self.assertEqual(self.load_with(deliveries, gate).delivery_pending, "handoff changed")
+        self.assertEqual(gate.call_count, 2)
+
+    def test_each_cache_input_invalidates_the_entry(self) -> None:
+        wt, deliveries, gate = self.review_ready()
+        self.load_with(deliveries, gate)
+        calls = 1
+
+        def assert_rechecked(label: str) -> None:
+            nonlocal calls
+            self.load_with(deliveries, gate)
+            calls += 1
+            self.assertEqual(gate.call_count, calls, label)
+            self.load_with(deliveries, gate)
+            self.assertEqual(gate.call_count, calls, f"{label}: settled")
+
+        self.load_with(deliveries, gate)
+        self.assertEqual(gate.call_count, 1, "unchanged inputs stay cached")
+        self.write(wt, "src.txt", "next\n")
+        self.commit(wt)
+        assert_rechecked("worktree HEAD")
+        self.write(wt, "tasks/handoffs/TASK-002.md", "# Handoff\n")
+        self.commit(wt)
+        assert_rechecked("handoff added")
+        for relative, label in (("tasks/handoffs/TASK-002.md", "handoff stat"),
+                                (".meridian/tasks/TASK-002.json", "state file stat")):
+            os.utime(wt / relative, ns=(1_000_000_000, 2_000_000_000 + calls))
+            assert_rechecked(label)
+        self.write(self.project, "main.txt", "main moved\n")
+        self.commit(self.project)
+        assert_rechecked("main commit")
+        self.write(self.project, ".git/meridian-integration.lock", "held\n")
+        assert_rechecked("lifecycle file")
+
+    def test_dirty_worktree_is_checked_every_refresh(self) -> None:
+        wt, deliveries, gate = self.review_ready()
+        self.write(wt, "scratch.txt", "uncommitted\n")
+        self.load_with(deliveries, gate)
+        self.load_with(deliveries, gate)
+        self.assertEqual(gate.call_count, 2)
 
 
 if __name__ == "__main__":

@@ -20,25 +20,25 @@ cycle. The issue #13 measurements were taken on 2026-10-13 at `4ca3aa1`, warm:
 
 ## Acceptance Criteria
 
-- [ ] `closure_status` and `lifecycle_started_at` accept an already resolved
+- [x] `closure_status` and `lifecycle_started_at` accept an already resolved
   task identity. The console passes the one from its `IdentityCache`, and
   their command-line behavior is unchanged.
-- [ ] `git worktree list --porcelain` runs at most once per snapshot. Its
+- [x] `git worktree list --porcelain` runs at most once per snapshot. Its
   result is passed to every consumer that needs it, and a test counts the
   subprocess invocations per snapshot.
-- [ ] The result of `delivery_readiness` for a task is cached by the task
+- [x] The result of `delivery_readiness` for a task is cached by the task
   worktree `HEAD`, the handoff file's identity (path, size, and modification
   time), and the task's state file identity. An unchanged review-ready task is
   not rechecked on the next refresh, and any change to one of those inputs
   invalidates the entry.
-- [ ] The snapshot output is identical with and without the caches on the
+- [x] The snapshot output is identical with and without the caches on the
   existing console fixtures, including the behavior of tasks 195, 196, and
   202.
-- [ ] The handoff records the warm `load_snapshot` time before and after, on
+- [x] The handoff records the warm `load_snapshot` time before and after, on
   Meridian and on a copy of Palimpsest, with the same method as the issue.
-- [ ] One changelog fragment states the change under `Changed`; this is a
+- [x] One changelog fragment states the change under `Changed`; this is a
   CLI-only change.
-- [ ] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
+- [x] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
   --parallel`, and `git diff --check` pass.
 
 ## Relevant Files
