@@ -326,13 +326,16 @@ def _start_launch(request: LaunchRequest) -> tuple[bool, str]:
 
 def _launch_selected(state: "ConsoleState", task: Task, agent: str,
                      dirty_confirmed: bool = False) -> tuple[bool, str]:
-    """Reload the task, require an unchanged directive, and launch it."""
+    """Reread only the selected task, require an unchanged directive, and launch it.
+
+    Blocking: run it off the UI thread through `ConsoleState.start_launch`.
+    """
     expected_directive = task.launch_command
     expected_resume = task.is_resume
-    state.refresh()
-    if state.error or state.snapshot is None:
-        return False, f"Launch revalidation failed: {state.error or 'no project snapshot'}"
-    current = next((item for item in state.snapshot.tasks if item.task_id == task.task_id), None)
+    try:
+        current = load_task(state.project, task.task_id, IdentityCache())
+    except ConsoleError as error:
+        return False, f"Launch revalidation failed: {error}"
     if current is None or current.launch_command != expected_directive or current.is_resume != expected_resume:
         return False, "Task state changed; review the refreshed task before launching"
     if current.is_resume and current.active_writer and not dirty_confirmed:
@@ -783,6 +786,19 @@ def _closing_task(project: Path, profile: Profile, row: QueueRow, queue: Path,
 
 
 def load_snapshot(project: Path, identities: IdentityCache | None = None) -> Snapshot:
+    return _load_snapshot(project, identities)
+
+
+def load_task(project: Path, task_id: str,
+              identities: IdentityCache | None = None) -> Task | None:
+    """Read only one queued or closing task, or None when the queues no longer hold it."""
+    snapshot = _load_snapshot(project, identities, only=task_id)
+    return snapshot.tasks[0] if snapshot.tasks else None
+
+
+def _load_snapshot(project: Path, identities: IdentityCache | None = None,
+                   only: str | None = None) -> Snapshot:
+    """Build the snapshot; `only` restricts the per-task Git reads to one task."""
     project = project.expanduser().resolve()
     profile = _select_profile(project)
     try:
@@ -815,7 +831,9 @@ def load_snapshot(project: Path, identities: IdentityCache | None = None) -> Sna
         if row.task_id in by_id:
             raise ConsoleError(f"Duplicate task ID across queues: {row.task_id}")
         by_id[row.task_id] = row.status
-    status_lines = _git(project, "status", "--porcelain=v1", "--branch").splitlines()
+    # A single-task read needs neither the branch line nor the change count.
+    status_lines = ["## "] if only is not None else _git(
+        project, "status", "--porcelain=v1", "--branch").splitlines()
     if not status_lines:
         raise ConsoleError("Git status returned no branch line")
     branch_line = status_lines[0].removeprefix("## ")
@@ -827,12 +845,16 @@ def load_snapshot(project: Path, identities: IdentityCache | None = None) -> Sna
     # A phase archived by `integrate stage` leaves the active queue while its
     # task still has closure work, so archived rows are checked too.
     for row in archived_rows:
+        if only is not None and row.task_id != only:
+            continue
         closing = _closing_task(project, profile, row, queue, worktrees, identities,
                                 resolver, by_id)
         if closing:
             tasks.append(closing)
             closing_count += int(not closing.cleanup_pending)
     for row in active_rows:
+        if only is not None and row.task_id != only:
+            continue
         if state_errors[row.task_id]:
             tasks.append(Task(
                 row.task_id, row.title or row.task_id, "STATE_ERROR", row.section, (), None, (), (),
@@ -995,6 +1017,9 @@ class ConsoleState:
         self._lock = threading.Lock()
         self._worker: threading.Thread | None = None
         self._pending: tuple[Snapshot | None, str | None] | None = None
+        self._launcher: threading.Thread | None = None
+        self.launch_target = ""
+        self._launch_result: tuple[bool, str] | None = None
 
     def _load(self) -> tuple[Snapshot | None, str | None]:
         try:
@@ -1036,6 +1061,37 @@ class ConsoleState:
         with self._lock:
             self._pending = result
             self._worker = None
+
+    @property
+    def launching(self) -> bool:
+        with self._lock:
+            return self._launcher is not None
+
+    def start_launch(self, task: Task, agent: str, dirty_confirmed: bool = False) -> bool:
+        """Revalidate and launch on one background thread; False while one is pending."""
+        with self._lock:
+            if self._launcher is not None:
+                return False
+            self.launch_target = f"{agent} for task {task.task_id}"
+            self._launcher = threading.Thread(
+                target=self._run_launch, args=(task, agent, dirty_confirmed), daemon=True)
+            launcher = self._launcher
+        launcher.start()
+        return True
+
+    def _run_launch(self, task: Task, agent: str, dirty_confirmed: bool) -> None:
+        try:
+            result = _launch_selected(self, task, agent, dirty_confirmed)
+        except Exception as error:  # a worker must never die silently
+            result = (False, f"Launch failed: {error}; [copy] remains available")
+        with self._lock:
+            self._launch_result = result
+            self._launcher = None
+
+    def take_launch_result(self) -> tuple[bool, str] | None:
+        with self._lock:
+            result, self._launch_result = self._launch_result, None
+        return result
 
     def apply_pending(self) -> None:
         with self._lock:
@@ -1660,6 +1716,9 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
     while True:
         now = time.monotonic()
         state.apply_pending()
+        finished = state.take_launch_result()
+        if finished is not None:
+            notice, notice_until = finished[1], time.monotonic() + (3 if finished[0] else 5)
         if now - last_poll >= interval and state.start_refresh():
             last_poll = now
         snapshot = state.snapshot
@@ -1726,6 +1785,8 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
                                 state.agent_defaults, palette)
             if notice and time.monotonic() < notice_until:
                 footer = notice
+            elif state.launching:
+                footer = f"Launching {state.launch_target}…"
             elif state.error:
                 footer = f"STALE: {state.error}"
             elif searching:
@@ -1754,11 +1815,16 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
                 selected = "claude" if key == ord("1") else "codex"
                 task_to_launch = launch_task
                 launch_task = None
-                success, message = _launch_selected(
-                    state, task_to_launch, selected,
+                if state.start_launch(
+                    task_to_launch, selected,
                     dirty_confirmed=task_to_launch.active_writer and launch_confirmation >= 2,
-                )
-                notice, notice_until = message, time.monotonic() + (3 if success else 5)
+                ):
+                    notice, notice_until = (
+                        f"Launching {state.launch_target}…", time.monotonic() + 2)
+                else:
+                    notice, notice_until = (
+                        f"A launch is already pending ({state.launch_target})",
+                        time.monotonic() + 3)
             continue
         if key == curses.KEY_MOUSE:
             try:
@@ -1858,7 +1924,11 @@ def run_terminal(screen, state: ConsoleState, interval: float) -> None:
                       else "No launch command for this task")
             notice_until = time.monotonic() + 2
         elif key in (ord("l"), ord("L")) and selected_task and not help_visible:
-            if selected_task.launch_command:
+            if state.launching:
+                notice, notice_until = (
+                    f"A launch is already pending ({state.launch_target})",
+                    time.monotonic() + 3)
+            elif selected_task.launch_command:
                 launch_task = selected_task
                 launch_confirmation = 0
             else:
