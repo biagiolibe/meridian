@@ -1,7 +1,8 @@
-"""Regression tests for `meridian adr show` and `meridian context authority`."""
+"""Regression tests for `meridian adr show`, `meridian adr list`, and `meridian context authority`."""
 
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 import tempfile
@@ -85,6 +86,67 @@ class AuthorityExcerptTest(unittest.TestCase):
         result = self.run_cli("adr", "show", "ADR-0001")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Custom log", result.stdout)
+
+    # -- adr list -----------------------------------------------------
+
+    def write_log(self, text: str) -> None:
+        (self.project / "docs/ARCHITECTURE_DECISIONS.md").write_text(text, encoding="utf-8")
+
+    def test_adr_list_prints_one_line_per_entry(self) -> None:
+        result = self.run_cli("adr", "list")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            result.stdout.splitlines(),
+            ["ADR-0059\tSuperseded thing\tSuperseded", "ADR-0060\tAdjacent one\tAccepted", "ADR-0063\tLast one\tAccepted"],
+        )
+        self.assertNotIn("Body of", result.stdout)
+        self.assertEqual(result.stderr, "")
+
+    def test_adr_list_json_is_a_list_of_id_title_status(self) -> None:
+        result = self.run_cli("adr", "list", "--format", "json")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            json.loads(result.stdout)[0],
+            {"id": "ADR-0059", "title": "Superseded thing", "status": "Superseded"},
+        )
+        self.assertEqual(len(json.loads(result.stdout)), 3)
+
+    def test_adr_list_status_filter_is_case_insensitive(self) -> None:
+        result = self.run_cli("adr", "list", "--status", "accepted", "--format", "json")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual([entry["id"] for entry in json.loads(result.stdout)], ["ADR-0060", "ADR-0063"])
+
+    def test_adr_list_entry_without_status_is_null_and_filtered_out(self) -> None:
+        self.write_log(ADR_LOG + "\n## ADR-0064 — No status\n\nBody of 64.\n")
+        listed = json.loads(self.run_cli("adr", "list", "--format", "json").stdout)
+        self.assertEqual(listed[-1], {"id": "ADR-0064", "title": "No status", "status": None})
+        filtered = json.loads(self.run_cli("adr", "list", "--status", "Accepted", "--format", "json").stdout)
+        self.assertNotIn("ADR-0064", [entry["id"] for entry in filtered])
+
+    def test_adr_list_warns_about_malformed_and_duplicate_entries(self) -> None:
+        self.write_log(ADR_LOG + "\n## ADR without number\n\n## ADR-0060 — Again\n**Status:** Draft\n")
+        result = self.run_cli("adr", "list", "--format", "json")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(len(json.loads(result.stdout)), 3)
+        self.assertIn("ADR without number", result.stderr)
+        self.assertIn("duplicate ADR-0060", result.stderr)
+
+    def test_adr_list_missing_log_is_a_named_non_zero_error(self) -> None:
+        (self.project / "docs/ARCHITECTURE_DECISIONS.md").unlink()
+        result = self.run_cli("adr", "list")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, "")
+        self.assertIn("BLOCKED COMMAND_REFUSED", result.stderr)
+        self.assertIn("ARCHITECTURE_DECISIONS.md", result.stderr)
+
+    def test_adr_list_and_show_agree_on_which_entries_exist(self) -> None:
+        self.write_log(ADR_LOG + "\n### ADR-0070 \u2014 Nested level\n**Status:** Accepted\n")
+        listed = json.loads(self.run_cli("adr", "list", "--format", "json").stdout)
+        self.assertIn("ADR-0070", [entry["id"] for entry in listed])
+        for entry in listed:
+            shown = self.run_cli("adr", "show", entry["id"])
+            self.assertEqual(shown.returncode, 0, shown.stderr)
+            self.assertIn(entry["id"], shown.stdout)
 
     # -- context authority ---------------------------------------------
 
