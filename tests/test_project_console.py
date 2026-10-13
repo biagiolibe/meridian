@@ -97,6 +97,22 @@ class ProjectConsoleTest(unittest.TestCase):
         self.assertEqual(snapshot.tasks[0].worktree, "/tmp/task-002")
         self.assertEqual(snapshot.tasks[0].next_action, "If assigned: Proceed with 002")
 
+    def test_load_task_reads_only_the_addressed_task(self) -> None:
+        self.write_queue()
+        calls: list[tuple[str, ...]] = []
+
+        def git(_project, *args):
+            calls.append(args)
+            return "worktree /tmp/task-002\nbranch refs/heads/task-002\n"
+
+        with mock.patch.object(console, "_git", side_effect=git):
+            task = console.load_task(self.project, "002")
+            missing = console.load_task(self.project, "999")
+        self.assertEqual((task.task_id, task.readiness, task.launch_command),
+                         ("002", "READY", "Proceed with 002"))
+        self.assertIsNone(missing)
+        self.assertNotIn("status", [args[0] for args in calls])
+
     def test_open_and_missing_dependencies_are_not_ready(self) -> None:
         self.write_queue(done=False)
         snapshot = self.snapshot()
@@ -600,27 +616,31 @@ class AgentLaunchTest(unittest.TestCase):
 
     def test_agent_selection_revalidates_and_launches_without_enter(self) -> None:
         task = self.task()
-        state = mock.Mock(project=Path("/project"), error=None,
-                          snapshot=mock.Mock(tasks=(task,)))
-        with mock.patch.object(console, "_launch_request") as request, \
+        state = mock.Mock(project=Path("/project"))
+        with mock.patch.object(console, "load_task", return_value=task) as reload, \
+             mock.patch.object(console, "load_snapshot") as full, \
+             mock.patch.object(console, "_launch_request") as request, \
              mock.patch.object(console, "_start_launch", return_value=(True, "Started")) as start:
             request.return_value = (
                 console.LaunchRequest("codex", "Proceed with 001", Path("/project"), "001",
                                       "12345678-1234-1234-1234-123456789abc"), None)
             self.assertEqual(console._launch_selected(state, task, "codex"),
                              (True, "Started"))
-        state.refresh.assert_called_once_with()
+        reload.assert_called_once()
+        self.assertEqual(reload.call_args.args[:2], (Path("/project"), task.task_id))
+        full.assert_not_called()
+        state.refresh.assert_not_called()
         request.assert_called_once_with(task, Path("/project"), "codex")
         start.assert_called_once()
 
     def test_agent_selection_stops_on_revalidation_failure(self) -> None:
         task = self.task(readiness="IN PROGRESS", lifecycle="in_progress")
         closing = self.task(readiness="CLOSING", lifecycle="closing")
-        for label, current in (("closing", (closing,)), ("done", ())):
+        for label, current in (("closing", closing), ("done", None)):
             with self.subTest(label=label):
-                state = mock.Mock(project=Path("/project"), error=None,
-                                  snapshot=mock.Mock(tasks=current))
-                with mock.patch.object(console, "_launch_request") as request, \
+                state = mock.Mock(project=Path("/project"))
+                with mock.patch.object(console, "load_task", return_value=current), \
+                     mock.patch.object(console, "_launch_request") as request, \
                      mock.patch.object(console, "_start_launch") as start:
                     success, message = console._launch_selected(state, task, "claude")
                 self.assertFalse(success)
@@ -632,9 +652,9 @@ class AgentLaunchTest(unittest.TestCase):
         selected = self.task(readiness="IN PROGRESS", lifecycle="in_progress")
         current = self.task(readiness="IN PROGRESS", lifecycle="in_progress",
                             active_writer=True)
-        state = mock.Mock(project=Path("/project"), error=None,
-                          snapshot=mock.Mock(tasks=(current,)))
-        with mock.patch.object(console, "_launch_request") as request:
+        state = mock.Mock(project=Path("/project"))
+        with mock.patch.object(console, "load_task", return_value=current), \
+             mock.patch.object(console, "_launch_request") as request:
             success, message = console._launch_selected(state, selected, "codex")
         self.assertFalse(success)
         self.assertIn("state changed", message)  # the directive changed to the resume form
@@ -642,9 +662,9 @@ class AgentLaunchTest(unittest.TestCase):
 
     def test_unconfirmed_dirty_resume_is_refused_before_launch(self) -> None:
         task = self.task(readiness="IN PROGRESS", lifecycle="in_progress", active_writer=True)
-        state = mock.Mock(project=Path("/project"), error=None,
-                          snapshot=mock.Mock(tasks=(task,)))
-        with mock.patch.object(console, "_launch_request") as request:
+        state = mock.Mock(project=Path("/project"))
+        with mock.patch.object(console, "load_task", return_value=task), \
+             mock.patch.object(console, "_launch_request") as request:
             success, message = console._launch_selected(state, task, "codex")
         self.assertFalse(success)
         self.assertIn("became dirty", message)
@@ -2088,6 +2108,71 @@ class BackgroundRefreshTest(unittest.TestCase):
             self.wait_idle(state)
         state.apply_pending()
         self.assertEqual((state.snapshot.branch, state.error), ("fresh", None))
+
+
+    def test_launch_runs_off_the_caller_thread_and_is_single_flight(self) -> None:
+        state = console.ConsoleState(Path("/p"))
+        task = mock.Mock(task_id="001")
+        release = threading.Event()
+        started = threading.Event()
+
+        def slow(_state, _task, _agent, _dirty):
+            started.set()
+            release.wait(5)
+            return True, "Started"
+
+        with mock.patch.object(console, "_launch_selected", side_effect=slow), \
+             mock.patch.object(console, "load_snapshot",
+                               side_effect=AssertionError("full snapshot")) as full:
+            begun = time.monotonic()
+            self.assertTrue(state.start_launch(task, "codex"))
+            self.assertLess(time.monotonic() - begun, 1)
+            self.assertTrue(started.wait(5))
+            self.assertTrue(state.launching)
+            self.assertFalse(state.start_launch(task, "claude"), "one launch in flight")
+            self.assertIsNone(state.take_launch_result())
+            release.set()
+            deadline = time.monotonic() + 5
+            while state.launching and time.monotonic() < deadline:
+                time.sleep(0.01)
+            self.assertEqual(state.take_launch_result(), (True, "Started"))
+            self.assertIsNone(state.take_launch_result())
+            full.assert_not_called()
+
+    def test_launch_failure_or_crash_is_reported_not_raised(self) -> None:
+        state = console.ConsoleState(Path("/p"))
+        task = mock.Mock(task_id="001")
+        for effect in (RuntimeError("boom"), console.ConsoleError("git timed out")):
+            with self.subTest(effect=str(effect)), \
+                 mock.patch.object(console, "load_task", side_effect=effect):
+                self.assertTrue(state.start_launch(task, "codex"))
+                deadline = time.monotonic() + 5
+                while state.launching and time.monotonic() < deadline:
+                    time.sleep(0.01)
+                success, message = state.take_launch_result()
+                self.assertFalse(success)
+                self.assertTrue(message)
+
+    def test_key_handler_returns_while_snapshot_and_osascript_are_slow(self) -> None:
+        state = console.ConsoleState(Path("/p"))
+        task = mock.Mock(task_id="001")
+        gate = threading.Event()
+
+        def blocked(*_args, **_kwargs):
+            gate.wait(5)
+            raise AssertionError("must not run on the caller thread")
+
+        with mock.patch.object(console, "load_task", side_effect=blocked), \
+             mock.patch.object(console.subprocess, "run", side_effect=blocked):
+            begun = time.monotonic()
+            self.assertTrue(state.start_launch(task, "codex"))
+            self.assertLess(time.monotonic() - begun, 1)
+            self.assertTrue(state.launching)
+            gate.set()
+            deadline = time.monotonic() + 5
+            while state.launching and time.monotonic() < deadline:
+                time.sleep(0.01)
+        self.assertFalse(state.take_launch_result()[0])
 
 
 class WorkflowModeLockTest(RepoCase):
