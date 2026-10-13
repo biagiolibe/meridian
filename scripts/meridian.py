@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
+import contextvars
 import copy
 import difflib
 import hashlib
@@ -19,7 +21,7 @@ import sys
 import tempfile
 import tomllib
 import unicodedata
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
@@ -797,8 +799,14 @@ def check_validation_evidence(record_path: Path, project_root: Path, expected_co
     return {"status": report_status, "level": level, "reasons": reasons}, VALIDATION_EXIT_PASSED if not reasons else VALIDATION_EXIT_FAILED
 
 
-def _git_worktrees(project_root: Path) -> list[dict[str, str]]:
-    output = git_output(project_root, "worktree", "list", "--porcelain")
+# `git worktree list` reads identically from any registered worktree, so a
+# read-only scope may share one parse between every lifecycle reader it calls.
+_SHARED_WORKTREES: contextvars.ContextVar[dict[Path, list[dict[str, str]]] | None] = (
+    contextvars.ContextVar("meridian_shared_worktrees", default=None))
+
+
+def parse_worktree_records(output: str) -> list[dict[str, str]]:
+    """Parse `git worktree list --porcelain` output into one mapping per worktree."""
     records: list[dict[str, str]] = []
     current: dict[str, str] = {}
     for line in output.splitlines() + [""]:
@@ -810,6 +818,33 @@ def _git_worktrees(project_root: Path) -> list[dict[str, str]]:
         key, _, value = line.partition(" ")
         current[key] = value
     return records
+
+
+@contextlib.contextmanager
+def shared_worktree_records(records: list[dict[str, str]]) -> Iterator[None]:
+    """Answer worktree-list reads from `records` for a read-only scope.
+
+    Any registered worktree path is answered without running Git; other paths
+    (for example a subdirectory) still run Git once and are remembered. Use
+    only for scopes that change no worktree registration.
+    """
+    known = {Path(item["worktree"]).resolve(): records for item in records if "worktree" in item}
+    token = _SHARED_WORKTREES.set(known)
+    try:
+        yield
+    finally:
+        _SHARED_WORKTREES.reset(token)
+
+
+def _git_worktrees(project_root: Path) -> list[dict[str, str]]:
+    shared = _SHARED_WORKTREES.get()
+    if shared is None:
+        return parse_worktree_records(git_output(project_root, "worktree", "list", "--porcelain"))
+    key = project_root.resolve()
+    if key not in shared:
+        shared[key] = parse_worktree_records(
+            git_output(project_root, "worktree", "list", "--porcelain"))
+    return shared[key]
 
 
 def canonical_project_root(path: Path) -> Path:
@@ -950,10 +985,15 @@ def _branch_commit(project_root: Path, branch: str) -> str | None:
     return result.stdout.strip()
 
 
-def lifecycle_started_at(task_id: str, supplied_project: Path | None = None) -> str | None:
-    """Return a valid preparation timestamp, preserving legacy state as unavailable."""
+def lifecycle_started_at(task_id: str, supplied_project: Path | None = None,
+                         identity: ResolvedTaskIdentity | None = None) -> str | None:
+    """Return a valid preparation timestamp, preserving legacy state as unavailable.
+
+    `identity` is the caller's already resolved identity of `task_id` under the
+    primary checkout; it only saves the resolution.
+    """
     project_root = _verified_lifecycle_project(supplied_project)
-    identity = resolve_task_identity(project_root, task_id, "existing")
+    identity = identity or resolve_task_identity(project_root, task_id, "existing")
     state_path, _lease, _integration = _lifecycle_paths(project_root, identity)
     state = _read_json_object(state_path, "worktree lifecycle state")
     value = state.get("started_at")
@@ -1171,11 +1211,12 @@ def inspect_task_worktree(
     *,
     require_effective_worktree: bool = True,
     inspection_directory: Path | None = None,
+    identity: ResolvedTaskIdentity | None = None,
 ) -> tuple[dict[str, object], bool]:
     project_root = (_verified_lifecycle_project(supplied_project) if inspection_directory is None
                     else canonical_project_root(inspection_directory))
     root = _effective_worktree_root(worktree_root)
-    identity = resolve_task_identity(project_root, task_id, "existing")
+    identity = identity or resolve_task_identity(project_root, task_id, "existing")
     expected = _task_worktree_path_for_identity(project_root, root, identity)
     state_path, lease_path, integration_path = _lifecycle_paths(project_root, identity)
     errors: list[str] = []
@@ -1342,11 +1383,16 @@ def closure_status(
     task_id: str,
     worktree_root: Path | None,
     supplied_project: Path | None = None,
+    identity: ResolvedTaskIdentity | None = None,
 ) -> tuple[dict[str, object], bool]:
-    """Report the next closure step without changing Git or lifecycle state."""
+    """Report the next closure step without changing Git or lifecycle state.
+
+    `identity` is the caller's already resolved identity of `task_id` under the
+    primary checkout; it only saves the resolution.
+    """
     project_root = _verified_lifecycle_project(supplied_project)
     root = _effective_worktree_root(worktree_root)
-    identity = resolve_task_identity(project_root, task_id, "existing")
+    identity = identity or resolve_task_identity(project_root, task_id, "existing")
     expected = _task_worktree_path_for_identity(project_root, root, identity)
     state_path, lease_path, integration_path = _lifecycle_paths(project_root, identity)
     records = _git_worktrees(project_root)
@@ -1384,7 +1430,8 @@ def closure_status(
         return report("C7", None, "run the selected candidate validation")
 
     state = _read_json_object(state_path, "worktree lifecycle state")
-    inspection, _ready = inspect_task_worktree(task_id, root, project_root, require_effective_worktree=False)
+    inspection, _ready = inspect_task_worktree(task_id, root, project_root, require_effective_worktree=False,
+                                               identity=identity)
     if inspection.get("stop_reason") == "STALE_WORKTREE_BASE":
         return report("C4", "STALE_WORKTREE_BASE", str(inspection["resume"]))
     if state.get("base_commit") == branch_commit:
