@@ -39,7 +39,7 @@ are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 
 ### Phase 64 — GitHub issues of 2026-10-13
 
-Authority: GitHub issues #13 (205, 206), #3 (207), and #2 (208). Task 208 starts only after Amendment 1 of [docs/ADR_MACHINE_TASK_STATE.md](../docs/ADR_MACHINE_TASK_STATE.md) is accepted.
+Authority: GitHub issues #13 (205, 206), #3 (207), and #2 (208). Task 208 implements Amendment 1 of [docs/ADR_MACHINE_TASK_STATE.md](../docs/ADR_MACHINE_TASK_STATE.md), accepted on 2026-10-14.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|

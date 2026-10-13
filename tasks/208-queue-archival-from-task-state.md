@@ -18,7 +18,7 @@ archival decides from task state files instead of table text, so that:
 - a project such as Palimpsest, with about 97 KB of queue under `##`
   sections, can shrink its queue.
 
-Do not start this task until Amendment 1 is accepted.
+Amendment 1 was accepted on 2026-10-14.
 
 ## Acceptance Criteria
 
@@ -88,5 +88,5 @@ sections by hand.
 
 ## Dependencies
 
-- **Depends on**: Amendment 1 of `docs/ADR_MACHINE_TASK_STATE.md`, accepted
+- **Depends on**: — (Amendment 1 of `docs/ADR_MACHINE_TASK_STATE.md`, accepted on 2026-10-14)
 - **Blocks**: none

@@ -173,7 +173,7 @@ full-directory scans are, so:
 
 ### 8. Queue archival from task state
 
-*Amendment 1, 2026-10-13. Status: Proposed. It answers GitHub issue #2.*
+*Amendment 1, proposed 2026-10-13, accepted 2026-10-14. It answers GitHub issue #2.*
 
 Queue archival still decides from table text. Only `###` sections are
 candidates, and every row's status cell must be a recognized terminal token.
@@ -243,7 +243,7 @@ removed the same way:
    text, the governance-file ownership addition, and a migration with upgrade
    notes. Template-changing.
 6. Palimpsest and Fusa adopt through `upgrade` and `task state import`.
-7. Amendment 1 (Decision 8), once accepted: archival from task state and
+7. Amendment 1 (Decision 8), accepted on 2026-10-14: archival from task state and
    `task state import --include-terminal` in the CLI, plus the archival rule
    in the managed `docs/WORKTREE_LIFECYCLE.md` copies (`worktree-lifecycle`),
    which makes it template-changing.
