@@ -33,7 +33,15 @@ Adjust these once; every later command uses them.
 ```bash
 export MERIDIAN_DEV_PARENT="$HOME/dev"                  # parent folder for the clone
 export MERIDIAN_DEV_DIR="$MERIDIAN_DEV_PARENT/meridian" # the development clone
+export MERIDIAN_RELEASE_DIR="$HOME/.local/share/meridian" # the released CLI (step 4)
 ```
+
+The machine holds two Meridian checkouts with different jobs:
+
+| Checkout | Follows | Used for |
+|---|---|---|
+| `$MERIDIAN_DEV_DIR` | `main` | Developing Meridian: edits, tests, task worktrees. |
+| `$MERIDIAN_RELEASE_DIR` | `stable` (the latest release tag) | The `meridian` CLI on `PATH`, the Codex skills, and upgrades of every project that uses Meridian, including Meridian's own task lifecycle. |
 
 ---
 
@@ -106,9 +114,11 @@ python3 -c 'import ssl, urllib.request; urllib.request.urlopen("https://api.gith
 ## 2. Git identity and GitHub access
 
 Commits need an explicit author identity. Use the GitHub account you
-contribute with; the GitHub noreply address
-(`<id>+<username>@users.noreply.github.com`, shown in GitHub's email settings)
-keeps a private email out of the public history.
+contribute with and its noreply address
+(`<id>+<username>@users.noreply.github.com`, shown in GitHub's email settings).
+Every commit email becomes public history, and removing one later means
+rewriting the whole history (see `docs/history/HISTORY_REWRITE_2026-10-14.md`
+on `main`). Never commit with a work or personal address.
 
 **Check**
 
@@ -129,6 +139,11 @@ git config --global user.useConfigOnly true
 `user.useConfigOnly` makes Git refuse a commit that has no configured
 identity instead of guessing one from the machine name.
 
+On GitHub, under **Settings → Emails**, enable **Keep my email addresses
+private** and **Block command line pushes that expose my email** **[HUMAN]**.
+GitHub then rejects a push that carries your private address, so a wrong
+identity on one machine cannot reach the repository.
+
 Pushes over HTTPS prompt once for a username and a **personal access token**
 **[HUMAN]**; the macOS keychain (`osxkeychain`) stores it. For SSH, add your key
 to the GitHub account and clone with the `git@github.com:` URL instead.
@@ -136,7 +151,7 @@ to the GitHub account and clone with the `git@github.com:` URL instead.
 **Verify** (after step 3 has created the clone)
 
 ```bash
-git -C "$MERIDIAN_DEV_DIR" config --show-origin user.email
+git -C "$MERIDIAN_DEV_DIR" config --show-origin user.email   # the noreply address
 ```
 
 ### GitHub CLI account
@@ -191,37 +206,60 @@ git -C "$MERIDIAN_DEV_DIR" status --short --branch                 # ## main...o
 
 ---
 
-## 4. Shell environment
+## 4. Released CLI and shell environment
 
-The Meridian CLI is `bin/meridian`. For Meridian development, `MERIDIAN_ROOT`
-points at the development clone, so the CLI and Codex skills follow `main`.
+The `meridian` command on `PATH`, `MERIDIAN_ROOT`, and the Codex skills point
+at a **release checkout** that follows the `stable` branch. Each release's
+`publish` fast-forwards `stable` to the commit of its tag, so this checkout is
+always exactly on the latest release tag. That is what
+`scripts/upgrade_project.sh` requires: it refuses a framework whose `HEAD` is
+not the tag of its `VERSION`. A `MERIDIAN_ROOT` that points at the
+development clone fails there as soon as `main` moves past a tag.
 
-> Adopters of Meridian (people who only *use* it in other projects) point
-> `MERIDIAN_ROOT` at a separate tagged checkout instead
-> (`git clone --branch v<version> ...`). Do not point it at a tag checkout
-> inside `$MERIDIAN_DEV_DIR`; one folder cannot be both.
+Meridian's own tasks use the released CLI too, exactly as an adopter would. A
+broken `main` cannot block the task lifecycle, and Claude Code already runs the
+released plugin (step 7). To run code that exists only on `main`, call it from
+the development clone explicitly: `./bin/meridian` or
+`python3 scripts/meridian.py --framework-root .`. `bin/meridian` resolves the
+framework from its own location, so it needs no `MERIDIAN_ROOT`.
 
 **Check**
 
 ```bash
+git -C "$MERIDIAN_RELEASE_DIR" status --short --branch   # ## stable...origin/stable
 grep -n 'MERIDIAN_ROOT' ~/.zshrc ~/.zprofile 2>/dev/null
 ```
 
-**Do** **[CONSENT]** (append to `~/.zshrc`)
+**Do**
 
 ```bash
-export MERIDIAN_ROOT="$HOME/dev/meridian"   # the value of MERIDIAN_DEV_DIR
+mkdir -p "$(dirname "$MERIDIAN_RELEASE_DIR")"
+git clone --branch stable https://github.com/biagiolibe/meridian.git "$MERIDIAN_RELEASE_DIR"
+```
+
+**[CONSENT]** (append to `~/.zshrc`, or replace an existing `MERIDIAN_ROOT` line)
+
+```bash
+export MERIDIAN_ROOT="$HOME/.local/share/meridian"   # the value of MERIDIAN_RELEASE_DIR
 export PATH="$MERIDIAN_ROOT/bin:$PATH"
 ```
 
-Open a new terminal afterwards.
+Open a new terminal afterwards. Step 6 links the Codex skills to
+`$MERIDIAN_ROOT/skills`.
 
 **Verify**
 
 ```bash
-command -v meridian          # -> $MERIDIAN_ROOT/bin/meridian
-meridian --version           # -> same value as $MERIDIAN_ROOT/VERSION
+command -v meridian                               # -> $MERIDIAN_ROOT/bin/meridian
+meridian --version                                # -> same value as the next line
 cat "$MERIDIAN_ROOT/VERSION"
+git -C "$MERIDIAN_ROOT" describe --tags --exact-match   # -> v<that version>
+```
+
+**After each release**, move the release checkout forward and restart Codex:
+
+```bash
+git -C "$MERIDIAN_RELEASE_DIR" pull --ff-only
 ```
 
 ---
@@ -229,6 +267,7 @@ cat "$MERIDIAN_ROOT/VERSION"
 ## 5. Baseline validation
 
 Run the same checks as CI (`.github/workflows/validate.yml`) from the clone.
+These commands use the development clone's own code, not the released CLI.
 
 ```bash
 cd "$MERIDIAN_DEV_DIR"
@@ -387,7 +426,8 @@ cd "$MERIDIAN_DEV_DIR"
 python3 -c 'import sys; assert sys.version_info >= (3, 12)' && echo "python ok"
 test -n "$(git config user.email)" && echo "identity ok: $(git config user.email)"
 git status --short --branch
-test "$(meridian --version)" = "$(cat VERSION)" && echo "cli ok"
+test "$(meridian --version)" = "$(cat "$MERIDIAN_ROOT/VERSION")" && echo "cli ok"
+git -C "$MERIDIAN_ROOT" describe --tags --exact-match && git -C "$MERIDIAN_ROOT" status --short --branch
 meridian codex doctor
 python3 scripts/check_repository.py
 python3 scripts/run_tests.py --parallel
@@ -418,6 +458,11 @@ Day-to-day directives for an agent:
 - `Review <TASK-ID>`: read-only review.
 - Small, reversible additions may be quick tasks directly on `main`.
 
+The lifecycle commands (`meridian worktree ...`, `meridian task ...`) come
+from the released CLI on `PATH` (step 4). A command that is new on `main` is
+available to tasks only after it is released, unless you run it with
+`./bin/meridian` from the clone.
+
 Never part of a normal task: tags, releases, force pushes, history rewrites,
 deleting unmerged branches. Releases go through
 `python3 scripts/release.py` as described in `CONTRIBUTING.md`, run by the
@@ -435,4 +480,7 @@ maintainer.
 | `Cannot add marketplace "meridian"` | `extraKnownMarketplaces` ref differs | Align or remove that entry (step 7) |
 | `codex doctor` shows `blocked` | Codex profile diverges from Meridian's block | Reconcile `~/.codex/config.toml` by hand; `meridian codex configure --check` explains |
 | `BLOCKED WRONG_WORKTREE` | Agent started outside the task worktree | Start in the path printed by `meridian worktree prepare` |
+| `STOP: framework HEAD is not tag v<version>` from `upgrade_project.sh` | `MERIDIAN_ROOT` points at the development clone, which is past the tag | Point `MERIDIAN_ROOT` at the release checkout on `stable` (step 4) |
+| Push rejected: `GH007: Your push would publish a private email address` | A commit carries your private email | Set the noreply address (step 2) and recreate the unpushed commits with it |
+| `would clobber existing tag` on fetch, or `git pull` merges two unrelated histories | Clone made before the history rewrite of 2026-10-14 | Do not pull. Move the clone aside, clone again, and copy back ignored files such as `.claude/settings.local.json` |
 | Tests fail only for AppleScript/iTerm2 | Sandbox cannot resolve the iTerm2 dictionary | Recorded as a named skip; run the full suite outside the sandbox before a release |
