@@ -51,7 +51,7 @@ Authority: [docs/ADR_PUBLIC_SURFACE_AND_STABILITY.md](../docs/ADR_PUBLIC_SURFACE
 | `[ ]` | 214 | Add security policy, code of conduct, and issue and PR templates | 🟡 P2 | — | [214](214-community-health-files.md) |
 | `[x]` | 215 | Remove private-project references from the distributed tree | 🔴 P1 | — | [215](done/215-remove-private-project-references.md) |
 | `[x]` | 216 | Anonymize private-project references in task records (cancelled) | 🟡 P2 | 215 | [216](done/216-anonymize-task-records.md) |
-| `[ ]` | 217 | Replace the author email in the plugin manifests | 🟢 P3 | — | [217](217-remove-email-from-plugin-manifests.md) |
+| `[x]` | 217 | Replace the author email in the plugin manifests | 🟢 P3 | — | [217](done/217-remove-email-from-plugin-manifests.md) |
 
 ### Phase 66 — Lifecycle closure friction
 
