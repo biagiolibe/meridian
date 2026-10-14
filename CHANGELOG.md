@@ -18,11 +18,29 @@ records which release moved it.
 
 ## [1.2.15]
 
-Template-changing release: migration `068-adr-list-discovery` advances the workflow baseline to `1.2.15`.
+Template-changing release: migration `068-adr-list-discovery` advances `workflowBaselineVersion` to `1.2.15`. Queue archival now decides from task state at any heading level, `meridian adr list` adds ADR discovery, and the project console launches agents without freezing and refreshes faster. The manifest shape and `protocolVersion` 2 are unchanged.
+
+### Added
+
+- `meridian adr list [--project <path>] [--status <value>] [--format text|json]` prints one line per ADR with its ID, title, and status, so an agent can discover the ADR that governs a question without opening the whole log. It resolves entries exactly as `meridian adr show` does and reports a malformed or duplicate entry as a warning on stderr.
+
+### Changed
+
+- The project console refreshes faster: a snapshot reads the registered worktrees once, reuses its resolved task identities for closure and lifecycle lookups, and skips the delivery check of an unchanged review-ready task until its worktree, handoff, or task state changes.
+- Queue archival decides from task state: a section closes when every task row in it has a state file whose status is terminal (`DONE` in Lean Delivery; `ACCEPTED`, `ANSWERED`, or `INCONCLUSIVE` in Governed SDD), at any heading level and whatever the table shape. A row without a state file keeps the `###` table rule, and a mixed section archives only when both rules agree. `INCONCLUSIVE` still does not satisfy a dependency.
+- `integrate stage` reports every section it archives and every section it retains, with the reason and the open or legacy rows.
+- `meridian task state import --include-terminal` previews, and with `--apply` writes, state for terminal legacy tasks from their current texts; it stops with `TASK_STATE_INVALID` when the texts disagree and never creates an approval.
+
+### Fixed
+
+- Pressing `1` or `2` in the project console no longer freezes the interface: the launch is revalidated against the selected task only and started on a background thread, with a `Launching…` notice and a success or failure message when it finishes.
 
 ### Upgrade notes
 
-- Run `upgrade --apply` to install the `meridian adr list` discovery guidance (Governed SDD) and the state-based queue archival rule in docs/WORKTREE_LIFECYCLE.md (worktree-lifecycle); adapted archival text may conflict. Then run `meridian task state import --include-terminal` and repeat with `--apply` so terminal legacy tasks have state and their sections archive. No protocolVersion change.
+- Affected capabilities: `worktree-lifecycle` v6 (both workflows); in Governed SDD also `minimal-read-only-status` v3 and `bounded-context-readers` v2. Managed paths: `docs/WORKTREE_LIFECYCLE.md`, and in Governed SDD `docs/CONTEXT_BUDGET_POLICY.md` and `docs/workflows/{IMPLEMENTATION,REMEDIATION,REVIEW}.md`.
+- Required action: run `meridian upgrade --check`, then `meridian upgrade --apply` to receive migration `068-adr-list-discovery`. To let sections of terminal legacy tasks archive, run `meridian task state import --include-terminal --project <path> --format json`, review the proposal, and repeat with `--apply`. The import never creates an approval and stops with `TASK_STATE_INVALID` when texts disagree.
+- Likely conflict areas for adapted projects: adapted archival text in `docs/WORKTREE_LIFECYCLE.md` and adapted ADR-discovery guidance in the Governed SDD context policy and workflow documents. Resolve them in place and keep protected markers intact.
+- No minimum framework or `protocolVersion` change; Python 3.12 remains the minimum.
 
 ## [1.2.14]
 
