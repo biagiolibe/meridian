@@ -16,7 +16,7 @@ shows nothing. The key handler calls `_launch_selected`
 (`scripts/project_console.py`), which runs two blocking steps on the UI
 thread:
 - a full `state.refresh()`, which takes about 2 s warm on Meridian and 4 s on
-  Palimpsest, and up to 60 s cold;
+  consumer project A, and up to 60 s cold;
 - `osascript`, with a 10 s timeout.
 
 The notice appears only after both return.

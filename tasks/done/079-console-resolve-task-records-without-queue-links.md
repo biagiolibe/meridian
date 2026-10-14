@@ -4,12 +4,12 @@
 > **Category**: Developer tooling
 > **Priority**: 🔴 P1
 > **Assigned to**: unassigned
-> **Session**: Developer report that the console shows STALE on the Palimpsest project
+> **Session**: Developer report that the console shows STALE on the consumer project A project
 
 ## Objective
 
 Make the project console usable on Governed SDD projects whose queue carries no
-file-link column. Launched on Palimpsest, whose queue
+file-link column. Launched on consumer project A, whose queue
 (`docs/TASK_QUEUE.md`) has the columns
 `Order | ID | Priority | Status | Dependencies | Estimate`, the console shows
 `STALE: task M37-CAUSE-001 has no unambiguous file link` and no tasks. The task
@@ -40,12 +40,12 @@ accepts only a queue link, and one unresolved record aborts the whole snapshot.
   `Review` directive for such a task.
 - [x] Lean Delivery projects and Governed SDD projects with link columns behave
   exactly as before.
-- [x] A fixture shaped like Palimpsest passes: a queue without file or review
+- [x] A fixture shaped like consumer project A passes: a queue without file or review
   columns, records under `docs/tasks/<milestone>/`, review records under
   `docs/tasks/reviews/`, handoffs under `tasks/handoffs/`, and statuses
   including `ANSWERED`. The console lists every task and reports no `STALE`
   state.
-- [x] Running the console against a local copy of Palimpsest, or against this
+- [x] Running the console against a local copy of consumer project A, or against this
   repository's equivalent fixture, lists all queue rows and reports no error;
   the exact command and result are recorded in the handoff.
 - [x] Scan time stays within the bound set by Task 078: record resolution does
@@ -57,11 +57,11 @@ accepts only a queue link, and one unresolved record aborts the whole snapshot.
 - `scripts/console_workflow.py`: `QueueRow`, `parse_queue`, `link_target`.
 - `scripts/meridian.py`: `resolve_project_locations`, which returns the queue,
   `task_roots`, `handoff_root`, and `review_root`.
-- Measured before this task on Palimpsest: 300 queue rows; with review and
+- Measured before this task on consumer project A: 300 queue rows; with review and
   handoff directories excluded, every row matches exactly one
   `<ID>.md` under `tasks/` and `docs/tasks/`. Without that exclusion, 148 rows
   match more than one file because review records share the task ID.
-- The 076 and 077 drafts assumed the template's `Task file` column; Palimpsest
+- The 076 and 077 drafts assumed the template's `Task file` column; consumer project A
   shows a real project may omit it.
 
 ## Validation
@@ -69,14 +69,14 @@ accepts only a queue link, and one unresolved record aborts the whole snapshot.
 - `python3 scripts/check_repository.py`
 - `python3 -m unittest discover -s tests`
 - `python3 -m unittest discover -s tests -p 'test_project_console.py'`
-- New tests: the Palimpsest-shaped fixture, a duplicate record, a missing
+- New tests: the consumer-A-shaped fixture, a duplicate record, a missing
   record, a present-but-invalid link, a row without a review column, and a
   record read from a task branch.
-- Interactive PTY smoke check against the Palimpsest-shaped fixture.
+- Interactive PTY smoke check against the consumer-A-shaped fixture.
 
 ## Out of scope
 
-Launching agents (Task 077), editing Palimpsest, changing any project's queue
+Launching agents (Task 077), editing consumer project A, changing any project's queue
 format, and the refresh behavior covered by Task 078.
 
 ## Dependencies

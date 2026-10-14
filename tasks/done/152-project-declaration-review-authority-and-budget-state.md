@@ -5,12 +5,12 @@
 > **Priority**: 🔴 P1
 > **Estimate**: ~2.5h
 > **Assigned to**: unassigned
-> **Session**: Palimpsest review of F1-BEVY-001, 2026-10-04
+> **Session**: Consumer project A review of a consumer project A task, 2026-10-04
 
 ## Objective
 
-A reviewer-integrator in Palimpsest (Meridian 1.2.7) reached `APPROVE` for
-F1-BEVY-001 and stopped before the `ACCEPTED` commit for three framework reasons:
+A reviewer-integrator in consumer project A (Meridian 1.2.7) reached `APPROVE` for
+a consumer project A task and stopped before the `ACCEPTED` commit for three framework reasons:
 
 1. `meridian project show --field reviewer-author` returned
    `BLOCKED: project declaration key 'project' is required`. `meridian setup`
@@ -75,7 +75,7 @@ F1-BEVY-001 and stopped before the `ACCEPTED` commit for three framework reasons
 
 ## Technical Context
 
-- Observed on 2026-10-04 in Palimpsest: the review stopped at the `ACCEPTED`
+- Observed on 2026-10-04 in consumer project A: the review stopped at the `ACCEPTED`
   commit; the developer then declared `project` on `main` (commit `72e176e`) and
   committed the pending `budget.json` entry so the primary checkout was clean.
 - Lean Delivery's `git-workflow` has no reviewer role and is unchanged unless a

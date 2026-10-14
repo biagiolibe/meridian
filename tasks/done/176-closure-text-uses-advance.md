@@ -30,7 +30,7 @@ code and not in prose.
 - [x] `docs/WORKTREE_LIFECYCLE.md` keeps the single-step commands as the
   documented path for diagnosis and manual recovery.
 - [x] The capability marker version is bumped through a migration whose `to` is
-  the next release. `upgrade --check` on copies of the Palimpsest and Fusa
+  the next release. `upgrade --check` on copies of the consumer project A and consumer project B
   manifests shows the update and no `BLOCKED`; the results go in the handoff.
 - [x] The Codex and Claude Code skill assets for both modes stay in parity.
 - [x] The shipped Codex rule templates

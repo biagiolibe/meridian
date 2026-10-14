@@ -44,7 +44,7 @@ follows. This is part 1 of issue #4. The non-blocking preflight hint
   reports no drift.
 - [x] The Governed SDD Codex and Claude Code skill assets that describe task
   validation stay in parity, as `CONTRIBUTING.md` requires.
-- [x] `meridian upgrade --check` on copies of the Palimpsest and Fusa manifests
+- [x] `meridian upgrade --check` on copies of the consumer project A and consumer project B manifests
   shows the blueprint update and no `BLOCKED`; the results go in the handoff.
 - [x] One changelog fragment states the change under `Changed` and the author
   guidance under `Upgrade notes`.

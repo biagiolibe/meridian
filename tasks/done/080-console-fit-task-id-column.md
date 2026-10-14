@@ -12,7 +12,7 @@ Show complete task IDs in the console task list. `_draw_list` in
 `scripts/project_console.py` gives the ID a fixed 5-column field starting at
 column 3 and starts the title at column 9. Lean Delivery IDs such as `075`
 fit, but Governed SDD IDs do not: `TASK-001` has 8 characters, `M37-CAUSE-001`
-has 13, and the longest ID in Palimpsest, `M20-EVENT-002-CORR`, has 18.
+has 13, and the longest ID in consumer project A, `M20-EVENT-002-CORR`, has 18.
 
 ## Acceptance Criteria
 
@@ -43,7 +43,7 @@ has 13, and the longest ID in Palimpsest, `M20-EVENT-002-CORR`, has 18.
 - `scripts/project_console.py`: `_draw_list` (ID at column 3 with width 5,
   title at column 9, `title_width` derived from fixed offsets), `_draw_detail`,
   `_draw_header`, `_tab_at`, and `one_shot`.
-- Evidence: Palimpsest IDs reach 18 characters and most exceed 5.
+- Evidence: consumer project A IDs reach 18 characters and most exceed 5.
 - The status and updated columns are right-aligned from the pane edge and must
   keep their current meaning.
 
@@ -53,7 +53,7 @@ has 13, and the longest ID in Palimpsest, `M20-EVENT-002-CORR`, has 18.
 - `python3 -m unittest discover -s tests`
 - `python3 -m unittest discover -s tests -p 'test_project_console.py'`
 - Interactive PTY smoke check at a wide and a narrow terminal size against a
-  Lean fixture and a Palimpsest-shaped Governed fixture; rendered positions are
+  Lean fixture and a consumer-A-shaped Governed fixture; rendered positions are
   read back from the screen buffer, not judged visually.
 
 ## Out of scope

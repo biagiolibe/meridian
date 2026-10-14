@@ -1,4 +1,4 @@
-# Task 030 — Generate compact Palimpsest entry routers and retire copies
+# Task 030 — Generate compact consumer project A entry routers and retire copies
 
 > **ID**: `030`
 > **Category**: Integration
@@ -8,12 +8,12 @@
 
 ## Objective
 
-After the additive Palimpsest release is accepted, generate compact identical
+After the additive consumer project A release is accepted, generate compact identical
 entry routers and retire only the old copies proven by the route map.
 
 ## Acceptance Criteria
 
-- [x] `AGENTS.md` and `CLAUDE.md` are generated from Palimpsest's canonical
+- [x] `AGENTS.md` and `CLAUDE.md` are generated from consumer project A's canonical
       router, are within 2,048 bytes, and contain no role procedure.
 - [x] Every retired copy has accepted additive evidence; no unmarked
       project-owned text is removed without its mapped destination.
@@ -28,8 +28,8 @@ entry routers and retire only the old copies proven by the route map.
 
 ## Validation
 
-- `meridian audit --project <palimpsest> --mode governed-sdd`
-- Palimpsest route fixtures declared by task 028
+- `meridian audit --project <consumer-a> --mode governed-sdd`
+- Consumer project A route fixtures declared by task 028
 - `git diff --check`
 
 ## Dependencies
@@ -39,7 +39,7 @@ entry routers and retire only the old copies proven by the route map.
 
 ## Execution record
 
-2026-09-21 — Palimpsest's accepted `WFLOW-006` completed the retirement
+2026-09-21 — consumer project A's accepted `WFLOW-006` completed the retirement
 release after `WFLOW-005`'s accepted additive evidence. Its independent review
 records byte-identical generated `AGENTS.md`, `CLAUDE.md`, and
 `docs/workflows/ENTRY_ROUTER.md` at 1,448 bytes; the six-route map; before/after

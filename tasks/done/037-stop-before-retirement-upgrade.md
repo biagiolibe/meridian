@@ -10,7 +10,7 @@
 ## Objective
 
 Task 036 fixed a false conflict so a long-lag consumer can *plan* the full
-1.1.23→1.1.37 upgrade. It does not let the consumer stop partway. Fusa's
+1.1.23→1.1.37 upgrade. It does not let the consumer stop partway. Consumer project B's
 `TASK-029` (governed by its ADR-0017) needs exactly that: apply migration
 037 (additive — creates `docs/workflows/*.md`, keeps both entry-point
 copies) without migration 038 (retirement — deletes the duplicated
@@ -136,25 +136,25 @@ through `capabilityMoves` or `removes`, both of which are properly gated by
 
 ## Constraints and Considerations
 
-- Do not special-case Fusa or any other consumer's path, name, or state.
+- Do not special-case consumer project B or any other consumer's path, name, or state.
 - Do not weaken the exact-marker/exact-move safety proofs `apply_
   additive_move_checks` already performs — capping must only *narrow* what a
   run touches, never bypass a conflict it would otherwise report.
 - Do not attempt to reconstruct or backfill a `release-baselines/1.1.34/`
-  snapshot or renumber any shipped version — Palimpsest is already locked
+  snapshot or renumber any shipped version — consumer project A is already locked
   past `1.1.35` (`1.1.37`), so retroactive version-history changes are out of
   scope and unnecessary given the marker-stripping approach above.
-- This task does not decide, and must not assume, whether Fusa's ADR-0017
+- This task does not decide, and must not assume, whether consumer project B's ADR-0017
   keeps `docs/roles/*.md` or adopts the framework's `docs/workflows/*.md`
-  convention — that is a Fusa-side ADR question for its own task, not
+  convention — that is a consumer-B-side ADR question for its own task, not
   something this framework change resolves.
-- The task unblocks Fusa's separately governed `TASK-029`; it does not
-  modify Fusa or mark any Fusa task complete.
+- The task unblocks consumer project B's separately governed `TASK-029`; it does not
+  modify consumer project B or mark any consumer project B task complete.
 
 ## Dependencies
 
 - **Depends on**: 036
-- **Blocks**: Fusa `TASK-029` externally.
+- **Blocks**: consumer project B `TASK-029` externally.
 
 ## Validation
 
@@ -172,7 +172,7 @@ applicable, then archive this task according to Lean Delivery.
 - `python3 -m unittest discover -s tests -v` — passed (151 tests).
 - `python3 scripts/check_repository.py` — passed.
 - `git diff --check` — passed.
-- Real dry run against a fresh clone of Fusa (locked at `1.1.23`):
+- Real dry run against a fresh clone of consumer project B (locked at `1.1.23`):
   `meridian upgrade --project . --check --stop-before-retirement` plans only
   through `037-additive-role-procedures` (`1.1.23 -> 1.1.34`), with
   `KEEP AGENTS.md`/`KEEP CLAUDE.md — template unchanged` and no
@@ -188,7 +188,7 @@ applicable, then archive this task according to Lean Delivery.
 
 ## Known residual limitation (not fixed by this task)
 
-The real-Fusa dry run above also ran `meridian audit --project . --mode
+The real-consumer-B dry run above also ran `meridian audit --project . --mode
 governed-sdd` after the capped apply, as a forward check against TASK-029's
 own (separate) acceptance criterion. It reported one failure unrelated to
 this task's scope:
@@ -201,10 +201,10 @@ capability=execution-command-gate v1 is missing, modified, or duplicated
 ```
 
 Cause: `execution-command-gate` is established by migration
-`031-execution-command-gate` (`1.1.27`→`1.1.28`, entirely inside Fusa's lag
+`031-execution-command-gate` (`1.1.27`→`1.1.28`, entirely inside consumer project B's lag
 window) as real, literal marker content in `AGENTS.md`/`CLAUDE.md` — unlike
 `manual-verification-precondition` and the other 037-moved capabilities,
-which Fusa's real, pre-`1.1.23` content already carries. `capped_managed_
+which consumer project B's real, pre-`1.1.23` content already carries. `capped_managed_
 files` only reconstructs a capability into the capped template when it can
 read that capability's current marker block out of the *live* (HEAD)
 template; since the live template no longer carries
@@ -215,7 +215,7 @@ though migration 031 is included.
 
 Every other capability this task's fixtures and the real dry run exercise is
 unaffected, because it is either already physically present in the
-consumer's own locked content (Fusa's real markers) or is a purely
+consumer's own locked content (consumer project B's real markers) or is a purely
 transient, declaration-only capability that task 036's existing mechanism
 already handles correctly. This gap is narrow: it only affects a capability
 that is both established *and* additively relocated entirely inside one
@@ -228,7 +228,7 @@ move's marker content from its *target* file (already correctly capped, with
 a verified `markerSha256`) when the source capability is absent from the
 live template, splicing it into the source file's capped copy the same way
 `apply_additive_move_checks` already proves target content today. Until
-then, a consumer hitting this — Fusa's `TASK-029` will — should expect
+then, a consumer hitting this — consumer project B's `TASK-029` will — should expect
 `meridian audit` to report this one specific, known failure after a capped
 apply, and can resolve it by manually adding the `execution-command-gate v1`
 marker (content available verified in `docs/workflows/IMPLEMENTATION.md`) to

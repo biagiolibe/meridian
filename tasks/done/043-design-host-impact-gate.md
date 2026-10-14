@@ -38,7 +38,7 @@ with a compact rationale-only path for ordinary work and a profile/evidence
 matrix only for host-sensitive work. The first implementation validates durable
 declarations rather than attempting unreliable diff inference or automatic
 host probes. On 2026-09-20 the developer completed the external Codex
-activation probe: a trusted Palimpsest session denied `cat` of a 401-line
+activation probe: a trusted consumer project A session denied `cat` of a 401-line
 `/private/tmp` file before execution, so that profile is now `enforced`.
 
 ## Relevant Files

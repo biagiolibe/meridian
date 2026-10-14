@@ -181,12 +181,12 @@ approval while destructive exceptional recovery remains explicit.
   Meridian state machine. Project code and validation continue to run inside
   the ordinary sandbox; only validated Git metadata transitions use the
   allowlisted lifecycle commands.
-- **Observed Claude routing failure**: a Palimpsest `Run lifecycle
+- **Observed Claude routing failure**: a consumer project A `Run lifecycle
   M35-EXEC-001` prepared no bound worker workspace before starting the fresh
   implementation session. Claude Desktop applied its own session isolation and
   registered `<project>/.claude/worktrees/task-m35-exec-001`, while Meridian's
   resolver returned the repository-qualified shared-root path ending in
-  `palimpsest/m35-exec-001`. The alternate checkout was clean and on the
+  `consumer-a/m35-exec-001`. The alternate checkout was clean and on the
   expected branch, but its path and root were non-canonical. This proves that
   instructions to "use the dedicated worktree" are insufficient without a
   prepare-before-spawn contract and worker-side path verification.

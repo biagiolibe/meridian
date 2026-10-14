@@ -47,7 +47,7 @@ State the real rule in the managed text and make the real block self-explanatory
   `main` is ahead after finalization; a test or the existing one covers it.
 - [x] A migration whose `to` is the next release delivers the changed managed
   block to adopted projects, using the existing mechanism for a capability
-  version bump; `upgrade --check` on copies of the Palimpsest and Fusa manifests
+  version bump; `upgrade --check` on copies of the consumer project A and consumer project B manifests
   shows the update and no `BLOCKED`, recorded in the handoff.
 - [x] `VERSION`, `.claude-plugin/plugin.json`, and the release ledger are bumped
   by this task only if no earlier unreleased task has already done so for the

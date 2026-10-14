@@ -10,7 +10,7 @@
 
 Group tasks in the console list by the heading that introduces their queue
 table, whatever its level. `parse_queue` in `scripts/console_workflow.py`
-records a section only for `### ` headings. Palimpsest's queue
+records a section only for `### ` headings. Consumer project A's queue
 (`docs/TASK_QUEUE.md`) introduces each milestone with `## M37 Queue — Reactions,
 First Layer` and has 41 `##` headings and no `###`, so every task has an empty
 section and the list is flat.
@@ -21,7 +21,7 @@ section and the list is flat.
   `##` to `######`. When headings of two levels enclose a table, both are kept
   and shown in file order, outer first.
 - [x] A heading with no queue table beneath it produces no group and no empty
-  heading line (for example `## Rules` and `## Priority` in Palimpsest).
+  heading line (for example `## Rules` and `## Priority` in consumer project A).
 - [x] Group labels are cleaned for display: a trailing `Queue` word and its
   separator are dropped, so `M37 Queue — Reactions, First Layer` shows as
   `M37 — Reactions, First Layer`. The raw heading is kept for matching.
@@ -32,7 +32,7 @@ section and the list is flat.
 - [x] Lean Delivery `### Phase N — …` lists look and behave as before.
 - [x] Tasks read from a task branch use the same grouping as the primary
   checkout, so a task does not jump groups when its effective state changes.
-- [x] A Palimpsest-shaped fixture (many `##` milestone headings, no `###`,
+- [x] A consumer-A-shaped fixture (many `##` milestone headings, no `###`,
   non-table `##` headings, an `F0` track) and a two-level fixture pass, with
   assertions on the rendered list, not only the parsed rows.
 
@@ -42,7 +42,7 @@ section and the list is flat.
   `QueueRow.section`.
 - `scripts/project_console.py`: `Task.phase`, the phase heading rendering in
   `_draw_list`, `_visible_tasks`.
-- Evidence: Palimpsest has milestones `M01`…`M37` and the `F0` and `F1`
+- Evidence: consumer project A has milestones `M01`…`M37` and the `F0` and `F1`
   presentation tracks as `##` sections. Its queue has no column and no heading
   below milestone level, and no `.meridian/task-identity.json`, so a milestone
   cannot be derived from IDs.
@@ -54,7 +54,7 @@ section and the list is flat.
 - `python3 scripts/check_repository.py`
 - `python3 -m unittest discover -s tests`
 - `python3 -m unittest discover -s tests -p 'test_project_console.py'`
-- Run against a local copy of Palimpsest or the equivalent fixture and record
+- Run against a local copy of consumer project A or the equivalent fixture and record
   the command, the group count, and the number of rows per group.
 
 ## Out of scope

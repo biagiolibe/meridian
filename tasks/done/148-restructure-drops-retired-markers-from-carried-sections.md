@@ -5,14 +5,14 @@
 > **Priority**: 🔴 P1
 > **Estimate**: ~1.5h
 > **Assigned to**: unassigned
-> **Session**: Palimpsest upgrade from 1.2.6 to 1.2.7, 2026-10-04
+> **Session**: Consumer project A upgrade from 1.2.6 to 1.2.7, 2026-10-04
 
 ## Objective
 
 A `RESTRUCTURE` upgrade of `docs/CODE_REVIEW_PROMPT.md` installs the standalone
 `code-review-prompt` v1 block and carries the project's own level-2 sections after
 it (`restructured_text` and `project_sections` in `scripts/meridian.py`). In
-Palimpsest the existing `## Project review checklist` section also contained the
+Consumer project A the existing `## Project review checklist` section also contained the
 three inline markers that migration 061 retires (`ci-verified-validation` v1,
 `manual-verification-review-check` v1, `task-worktree-review` v4). The carried
 section kept them, so the upgraded file held the new block plus duplicated
@@ -34,7 +34,7 @@ Make a restructure remove retired marker blocks from the sections it carries.
 - [x] After `upgrade --apply`, `meridian audit` reports no retired-marker `FAIL`
   for the restructured file.
 - [x] Tests cover: a carried section containing the three retired inline markers
-  (the Palimpsest shape) becoming checklist-only; a section without markers
+  (the consumer project A shape) becoming checklist-only; a section without markers
   unchanged; a non-retired marker kept; an edited retired marker reported; and an
   end-to-end upgrade from a 1.2.6 project followed by a clean audit.
 - [x] One changelog fragment is added per `CONTRIBUTING.md`; this is a CLI-only
@@ -51,11 +51,11 @@ Make a restructure remove retired marker blocks from the sections it carries.
 
 ## Technical Context
 
-- Observed on 2026-10-04: the Palimpsest audit after `upgrade --apply` showed
+- Observed on 2026-10-04: the consumer project A audit after `upgrade --apply` showed
   `FAIL marker-integrity` for `manual-verification-review-check` v1 and
   `task-worktree-review` v4 and `UNVERIFIED` for `ci-verified-validation` v1, all
   in the carried checklist section; removing the three blocks gave a clean audit.
-- Reproduced the same day in Fusa (upgrade from 1.2.4): the carried section was
+- Reproduced the same day in consumer project B (upgrade from 1.2.4): the carried section was
   `## Meridian generic baseline (framework compatibility)`, a quoting workaround
   for the old inline markers, and held the same three retired blocks.
 - Reuse the retired-marker list the migration already declares; do not add a

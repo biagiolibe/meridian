@@ -16,7 +16,7 @@ workflow no longer stalls on approval prompts for the workflow's own Git and
 `meridian` commands, and is never silently allowed a command the workflow
 forbids.
 
-Evidence (Palimpsest, milestone M30, sessions of 2026-09-19): 201 escalated
+Evidence (consumer project A, milestone M30, sessions of 2026-09-19): 201 escalated
 tool calls across the recorded Codex sessions. In one implementation session a
 `git switch -c <task-branch>` failed inside the sandbox
 (`Unable to create '.git/refs/heads/<branch>.lock': Operation not permitted`)
@@ -230,7 +230,7 @@ the completion notes.
   procedures. Follow the local Git conventions.
 - Repository text is English-only.
 - Do not write to `~/.codex/`, and do not modify any consumer repository
-  (including Palimpsest) directly. Adoption in a consumer happens through
+  (including consumer project A) directly. Adoption in a consumer happens through
   `meridian upgrade` under that consumer's own workflow.
 - Do not ship rules that allow `git rebase`, `git reset --hard`,
   `git commit --amend`, `git fetch`, or force-push forms: the governed

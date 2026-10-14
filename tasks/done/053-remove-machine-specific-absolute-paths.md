@@ -38,8 +38,8 @@ existing occurrences, and add a repository guard.
       `meridian-integration.lock` is left as is: it is computed at runtime and
       never written to a tracked file. The text says so explicitly.
 - [x] Existing occurrences in live documents are replaced by
-      machine-independent wording (for example `<palimpsest-checkout>` or
-      `--project ../palimpsest`): `docs/PALIMPSEST_ROUTING_EVOLUTION_EVIDENCE.md`
+      machine-independent wording (for example `<consumer-a-checkout>` or
+      `--project ../consumer-a`): a consumer-project routing evidence report (since removed)
       and `tasks/handoffs/051.md`. The task decides and records whether
       archived records in `tasks/done/` are rewritten or listed as a
       documented, frozen exception.
@@ -61,7 +61,7 @@ existing occurrences, and add a repository guard.
 | `templates/workflows/lean-delivery/PROJECT_WORKFLOW.md` | Same rule, distributed to consumers. |
 | `templates/workflows/governed-sdd/PROJECT_WORKFLOW.md`, `docs/PULL_REQUEST_POLICY.md`, `docs/COMPLETION_REPORT_TEMPLATE.md`, `docs/workflows/REVIEW.md` | Governed handoff and review rules. |
 | `migrations/`, `migrations/marker-baselines/` | New migration and baselines for the bumped capabilities. |
-| `docs/PALIMPSEST_ROUTING_EVOLUTION_EVIDENCE.md`, `tasks/handoffs/051.md`, `tasks/done/` | Existing occurrences. |
+| a consumer-project routing evidence report (since removed), `tasks/handoffs/051.md`, `tasks/done/` | Existing occurrences. |
 | `scripts/check_repository.py`, `tests/test_check_repository.py` | New guard and fixtures. |
 
 ## 🧩 Technical Context

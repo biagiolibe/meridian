@@ -54,3 +54,12 @@ Git history and moving `tasks/` out of the distributed tree.
 
 - **Depends on**: 215
 - **Blocks**: none
+
+## Cancellation
+
+Cancelled on 2026-10-15 by the developer. A task branch may edit only its own
+record, archive, handoff, and state file, so it cannot anonymize other tasks'
+records or `tasks/QUEUE_ARCHIVE.md`; task 215 stopped with
+`BLOCKED RULE_CONFLICT` on the same rule. The anonymization of `tasks/` was
+done instead as a coordination commit on `main`, and the name guard's
+extension to the whole tree moved to task 215.

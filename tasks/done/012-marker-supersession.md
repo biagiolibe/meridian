@@ -68,7 +68,7 @@ This path is the fallback taken when the three-way merge conflicts, so it fires
 precisely on heavily customized files, which are the ones whose agent rules
 matter most.
 
-**Observed.** Upgrading Palimpsest to 1.1.19 appended
+**Observed.** Upgrading consumer project A to 1.1.19 appended
 `manual-verification-precondition v2` to the end of `AGENTS.md` and `CLAUDE.md`
 and left v1 inside the implementation-workflow step. v1 carries the unrestricted
 deterministic-test escape hatch that let a failed evidence probe be demoted to a

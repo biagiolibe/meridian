@@ -37,12 +37,12 @@ its evidence probe had already failed.
 |------|------|
 | `templates/workflows/governed-sdd/AGENTS.md` | `manual-verification-precondition` block. |
 | `templates/workflows/governed-sdd/CLAUDE.md` | Same block, second copy. |
-| `<palimpsest-checkout>/AGENTS.md` | Source wording to promote upward (`## Palimpsest manual-evidence extension`). Read-only reference. |
+| `<consumer-a-checkout>/AGENTS.md` | Source wording to promote upward (`## Consumer project A manual-evidence extension`). Read-only reference. |
 | `migrations/023-*.json` | New migration record. |
 
 ## 🧩 Technical Context
 
-- Palimpsest's local extension already requires a probe that *actually succeeds* and
+- Consumer project A's local extension already requires a probe that *actually succeeds* and
   mandates `BLOCKED` if it cannot. The consumer project is ahead of the framework
   here; adopt its wording.
 - The framework's `manual-verification-precondition` says a deterministic test may
@@ -56,7 +56,7 @@ its evidence probe had already failed.
 
 ## 🔨 Suggested Implementation
 
-1. Promote Palimpsest's executable-probe wording into the template capability.
+1. Promote consumer project A's executable-probe wording into the template capability.
 2. Separate the two things the escape hatch conflates, along these lines:
 
    > A probe that has been attempted and failed is positive evidence about the

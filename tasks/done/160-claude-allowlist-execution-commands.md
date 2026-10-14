@@ -5,11 +5,11 @@
 > **Priority**: 🟡 P2
 > **Estimate**: ~1h
 > **Assigned to**: unassigned
-> **Session**: Palimpsest permission prompts during task execution, 2026-10-04
+> **Session**: Consumer project A permission prompts during task execution, 2026-10-04
 
 ## Objective
 
-Agents in Palimpsest are asked to authorize many commands during task
+Agents in consumer project A are asked to authorize many commands during task
 execution. Meridian's consented Claude Code allowlist
 (`CLAUDE_PROJECT_ALLOWLIST`, `scripts/meridian.py` ~2528, written to
 `.claude/settings.local.json` by `meridian setup --apply`) covers `git`,
@@ -73,7 +73,7 @@ Add the same execution commands to the Claude allowlist.
 - Validation commands are literal; a command that contains a random temporary
   path cannot be declared reusably. That is a project concern and not changed
   here.
-- Observed in Palimpsest on 2026-10-04: `.claude/settings.local.json` holds 43
+- Observed in consumer project A on 2026-10-04: `.claude/settings.local.json` holds 43
   entries, none for `meridian execution`, `cargo`, `mktemp`, or `mkdir`.
 - Allowlist content is user-owned once written; this task changes only what
   `setup --apply` proposes.

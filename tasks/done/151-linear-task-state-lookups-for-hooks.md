@@ -5,11 +5,11 @@
 > **Priority**: 🔴 P1
 > **Estimate**: ~2.5h
 > **Assigned to**: unassigned
-> **Session**: Palimpsest defect report D14, 2026-10-04
+> **Session**: Consumer project A defect report D14, 2026-10-04
 
 ## Objective
 
-In a Governed SDD project with about 300 task records (Palimpsest, CLI 1.2.7), the
+In a Governed SDD project with about 300 task records (consumer project A, CLI 1.2.7), the
 `UserPromptSubmit` queue-briefing hook runs 21 to 30 s and exceeds its 5 s
 timeout on every prompt, so Claude Code discards its output, including the
 language-policy reminder. Measured breakdown: `meridian locations` and
@@ -80,7 +80,7 @@ within its timeout, and make the briefing degrade instead of losing its output.
 
 ## Technical Context
 
-- Measured in Palimpsest on 2026-10-04 (four runs, normal load): hook wall time
+- Measured in consumer project A on 2026-10-04 (four runs, normal load): hook wall time
   21.4 s, 29.7 s, 27.4 s; cProfile of `registered_worktree_task_states`: 27.6 s.
 - The duplicate registration observed in one installation was a hand-written
   absolute-path entry in user settings; no Meridian command writes Claude Code

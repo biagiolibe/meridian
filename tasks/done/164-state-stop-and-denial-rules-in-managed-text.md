@@ -38,7 +38,7 @@ of `docs/ADR_STOPS_AND_DENIALS.md` into the managed text of both workflows.
   marker in an unreleased 1.2.9 migration, this task extends that migration and
   marker version and does not add a second bump. Otherwise it adds a migration
   whose `to` is 1.2.9.
-- [x] `meridian upgrade --check` on copies of the Palimpsest and Fusa manifests
+- [x] `meridian upgrade --check` on copies of the consumer project A and consumer project B manifests
   shows the block update and no `BLOCKED`; the results go in the handoff.
 - [x] `VERSION` is not bumped again; it is already the unreleased 1.2.9.
 - [x] One changelog fragment states the rule under `Changed` and the action

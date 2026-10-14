@@ -5,14 +5,14 @@
 > **Priority**: 🟡 P2
 > **Estimate**: ~2h
 > **Assigned to**: unassigned
-> **Session**: Fusa TASK-046 reasoning stop after upgrading to 1.2.12, 2026-10-11
+> **Session**: Consumer project B TASK-046 reasoning stop after upgrading to 1.2.12, 2026-10-11
 > **Origin**: friction
 
 ## Objective
 
 Migration 063 (1.2.9) retired the reasoning budget contract. It removed the
 protected block and the template text, but an upgrade never removes text
-outside managed markers, because that text belongs to the project. Fusa,
+outside managed markers, because that text belongs to the project. Consumer project B,
 upgraded to 1.2.12, still carried the bootstrap-era wording in the
 project-owned parts of two files:
 - in `docs/EXECUTION_EVIDENCE_PROFILE.md`: "confirm the session's effective
@@ -78,10 +78,10 @@ them itself.
 
 ## Technical Context
 
-- Evidence: Fusa `docs/EXECUTION_EVIDENCE_PROFILE.md` lines 171–182 and
+- Evidence: consumer project B `docs/EXECUTION_EVIDENCE_PROFILE.md` lines 171–182 and
   `docs/CONTEXT_BUDGET_POLICY.md` lines 135–160, all outside markers, seeded
   at bootstrap (`9733487`) and kept by every upgrade through 1.2.12.
-  Palimpsest at 1.2.12 carries `Reasoning` fields only in historical task
+  consumer project A at 1.2.12 carries `Reasoning` fields only in historical task
   records.
 - `docs/ADR_STOPS_AND_DENIALS.md` already makes such text advice rather than
   a valid stop. This task removes the source of the confusion. It is not a

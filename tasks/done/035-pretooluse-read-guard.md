@@ -38,8 +38,8 @@ session (the queue-briefing hook). This task generalizes it to reads.
       active task assigns (from the resolved `Authority`/task path, reusing
       034's resolution when present), `LANGUAGE_POLICY.md`, and any file the
       project's entry router declares as always-loaded. Exemptions are
-      project-declared, not hardcoded paths, so a non-Palimpsest project
-      does not inherit Palimpsest-specific exemptions.
+      project-declared, not hardcoded paths, so a non-consumer-A project
+      does not inherit consumer-A-specific exemptions.
 - [x] `docs/EXECUTION_EVIDENCE_PROFILE.md`'s template gains a documented,
       overridable `read-guard threshold` setting (numeric, default 400)
       alongside the existing profile settings.

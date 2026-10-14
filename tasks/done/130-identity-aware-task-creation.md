@@ -55,7 +55,7 @@ to obtain the next valid ID instead of counting by hand.
   invalid grammar refused; ordinal overflow; ambiguity failing closed; JSON
   shape and exit codes; and that nothing is written.
 - [x] A recorded rehearsal on a scratch copy of a project's task records (as in
-  the earlier Palimpsest rehearsal, not touching the real project) shows the
+  the earlier consumer project A rehearsal, not touching the real project) shows the
   proposed ID for an existing and a new milestone.
 - [x] One changelog fragment is added per `CONTRIBUTING.md`.
 - [x] `python3 scripts/check_repository.py` and the unit tests pass.

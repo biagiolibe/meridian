@@ -50,7 +50,7 @@ session meant to obey it. Zero risk, and nothing depends on them.
 
 ### Phase 2b — Found in the field
 
-Not planned from the audit: surfaced while reconciling Palimpsest onto 1.1.19.
+Not planned from the audit: surfaced while reconciling consumer project A onto 1.1.19.
 Ahead of phase 3 because every adopted project that receives an inline
 capability version bump silently accumulates a contradictory pair.
 
@@ -100,7 +100,7 @@ Phase 5 remains active; its open tasks stay in `tasks/QUEUE.md`.
 ### Phase 6 — Agent instruction routing
 
 The framework first made protected capability moves conflict-safe and compacted
-its generic entry points. The phase closed only after Palimpsest applied the
+its generic entry points. The phase closed only after consumer project A applied the
 release, preserved its customized rules, and supplied measured routed-session
 evidence for status/design, implementation, and review.
 
@@ -109,7 +109,7 @@ evidence for status/design, implementation, and review.
 | `[x]` | 023 | Define capability-move and bootstrap-router contract | 🔴 P1 | — | [023](done/023-capability-move-router-contract.md) |
 | `[x]` | 024 | Add managed role procedures and move-aware upgrade support | 🔴 P1 | 023 | [024](done/024-additive-role-procedures.md) |
 | `[x]` | 025 | Compact entry points and retire duplicate role procedures | 🔴 P1 | 024 | [025](done/025-compact-entry-points.md) |
-| `[x]` | 026 | Roll out routing to Palimpsest and measure initial context | 🟡 P2 | 025 | [026](done/026-palimpsest-routing-rollout.md) |
+| `[x]` | 026 | Roll out routing to consumer project A and measure initial context | 🟡 P2 | 025 | [026](done/026-consumer-a-routing-rollout.md) |
 
 ### Phase 7 — Shared consumer entry routers
 
@@ -117,8 +117,8 @@ evidence for status/design, implementation, and review.
 |--------|----|-------|----------|-----------|-----------|
 | `[x]` | 027 | Add generated shared entry-router support | 🔴 P1 | 025 | [027](done/027-generated-entry-router-support.md) |
 | `[x]` | 028 | Add routed-read fixtures and adoption audit | 🟡 P2 | 027 | [028](done/028-router-route-fixtures-and-audit.md) |
-| `[x]` | 029 | Map and additively extract Palimpsest router procedures | 🟡 P2 | 026, 028 | [029](done/029-palimpsest-router-additive-extraction.md) |
-| `[x]` | 030 | Generate compact Palimpsest entry routers and retire copies | 🟡 P2 | 029 | [030](done/030-palimpsest-generated-router-retirement.md) |
+| `[x]` | 029 | Map and additively extract consumer project A router procedures | 🟡 P2 | 026, 028 | [029](done/029-consumer-a-router-additive-extraction.md) |
+| `[x]` | 030 | Generate compact consumer project A entry routers and retire copies | 🟡 P2 | 029 | [030](done/030-consumer-a-generated-router-retirement.md) |
 | `[x]` | 031 | Publish the consumer router-adoption playbook | 🟢 P3 | 030 | [031](done/031-consumer-router-adoption-playbook.md) |
 
 ### Phase 8 — Language-policy salience
@@ -579,7 +579,7 @@ reasons, and creates the implementation follow-ups.
 |--------|----|-------|----------|------------|------|
 | `[x]` | 140 | Let `integrate stage` complete rows of project-shaped Governed queues | 🔴 P1 | — | [140](done/140-governed-project-queue-shapes.md) |
 
-### Phase 52 — Consumer conformance (Palimpsest report)
+### Phase 52 — Consumer conformance (consumer project A report)
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
@@ -732,7 +732,7 @@ Authority: release readiness review of 2026-10-10; lifecycle documentation for t
 
 ### Phase 61 — Retired text in adopted projects
 
-Authority: Fusa TASK-046 reasoning stop of 2026-10-11 after the upgrade to 1.2.12.
+Authority: consumer project B TASK-046 reasoning stop of 2026-10-11 after the upgrade to 1.2.12.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|

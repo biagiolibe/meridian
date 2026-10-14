@@ -8,7 +8,7 @@
 
 ## Objective
 
-Turn the accepted Palimpsest pilot evidence into a repeatable, safe adoption
+Turn the accepted consumer project A pilot evidence into a repeatable, safe adoption
 playbook for other Meridian consumer projects.
 
 ## Acceptance Criteria
@@ -37,7 +37,7 @@ playbook for other Meridian consumer projects.
 ## Execution record
 
 2026-09-21 — Published `docs/CONSUMER_ROUTER_ADOPTION_PLAYBOOK.md`, derived
-from the shared-router ADR and Palimpsest's accepted pilot evidence. The
+from the shared-router ADR and consumer project A's accepted pilot evidence. The
 playbook is indexed from `README.md` and defines the additive/retirement
 boundary, protection for unmarked consumer rules, route fixtures, byte budget,
 audit commands, and forward-only recovery. `git diff --check` and

@@ -67,7 +67,7 @@ audit implementation is authorized.
 
 ## 🧩 Technical Context
 
-Palimpsest's local milestone specifications and queue deliberately use IDs
+Consumer project A's local milestone specifications and queue deliberately use IDs
 such as `M30-INSPECT-001` and a milestone checkpoint named `M30-VERIFY`.
 Those names make its milestone/workstream/slice structure legible, but they
 are not Meridian protocol: the generic task blueprint accepts an arbitrary
@@ -87,7 +87,7 @@ shows mechanical checking is warranted.
 
 ## 🔨 Suggested Approach
 
-1. Compare the generic task blueprint and location resolver with Palimpsest's
+1. Compare the generic task blueprint and location resolver with consumer project A's
    milestone queue/spec structure and one linear-ID consumer.
 2. Write the design note, selecting the opt-in declaration and an intentionally
    narrow structured grammar; record any unresolved compatibility boundary.

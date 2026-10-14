@@ -5,7 +5,7 @@
 > **Priority**: 🟡 P2
 > **Estimate**: ~2h
 > **Assigned to**: unassigned
-> **Session**: Developer report on F1-TREAT-001 in the palimpsest project (third occurrence)
+> **Session**: Developer report on F1-TREAT-001 in the consumer-a project (third occurrence)
 
 ## Objective
 
@@ -100,7 +100,7 @@ to adopters as a migration.
 
 ## Technical Context
 
-- **Observed**: palimpsest is at framework `1.1.49` and carries
+- **Observed**: consumer-a is at framework `1.1.49` and carries
   `task-worktree-boundary` v3 ("The coordinator runs `meridian worktree
   prepare` before starting this worker"). The current template carries v4 with
   the same coordinator wording, so the gap is in the template, not only in an

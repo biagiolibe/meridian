@@ -5,14 +5,14 @@
 > **Priority**: 🟡 P2
 > **Estimate**: ~1.5h
 > **Assigned to**: unassigned
-> **Session**: Fusa upgrade from 1.2.4 to 1.2.7, 2026-10-04
+> **Session**: Consumer project B upgrade from 1.2.4 to 1.2.7, 2026-10-04
 
 ## Objective
 
 Since 1.2.7, `meridian audit` reports `FAIL managed-copy-digest` for a markerless
 managed copy whose content differs from the digest `meridian upgrade` recorded
 (task 146). `upgrade` still three-way merges such a file and, when the merge is
-clean, keeps the project's edits and records the template digest. In Fusa,
+clean, keeps the project's edits and records the template digest. In consumer project B,
 `docs/OPERATOR_PROMPTS.md` had been edited before the upgrade; the plan showed an
 ordinary `MERGE`, the apply succeeded, and the first audit afterwards failed. The
 developer learns about the problem only after applying. Make the upgrade plan
@@ -51,10 +51,10 @@ report it before anything is written.
 
 ## Technical Context
 
-- Observed on 2026-10-04 in Fusa: after `upgrade --apply` from 1.2.4,
+- Observed on 2026-10-04 in consumer project B: after `upgrade --apply` from 1.2.4,
   `meridian audit` reported `FAIL managed-copy-digest — docs/OPERATOR_PROMPTS.md`;
   restoring `.meridian/baselines/1.2.7/docs/OPERATOR_PROMPTS.md` cleared it.
-- Palimpsest hit the same file as a `CONFLICT` and was fixed by hand the same day.
+- Consumer project A hit the same file as a `CONFLICT` and was fixed by hand the same day.
 
 ## Validation
 

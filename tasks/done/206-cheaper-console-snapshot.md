@@ -16,7 +16,7 @@ cycle. The issue #13 measurements were taken on 2026-10-13 at `4ca3aa1`, warm:
 | Project | Snapshot | Main costs |
 |---|---|---|
 | Meridian | about 2.1 s | `_closing_task`: `closure_status` about 0.8 s and `lifecycle_started_at` about 0.2 s per task, both resolving identity without the console's `IdentityCache`; `git worktree list` runs about 26 times. |
-| Palimpsest | about 4 s | `delivery_readiness` for `READY_FOR_REVIEW` rows, 1.5–3.9 s; `_branch_facts` about 2.5 s; about 110 `git` subprocesses. |
+| Consumer project A | about 4 s | `delivery_readiness` for `READY_FOR_REVIEW` rows, 1.5–3.9 s; `_branch_facts` about 2.5 s; about 110 `git` subprocesses. |
 
 ## Acceptance Criteria
 
@@ -35,7 +35,7 @@ cycle. The issue #13 measurements were taken on 2026-10-13 at `4ca3aa1`, warm:
   existing console fixtures, including the behavior of tasks 195, 196, and
   202.
 - [x] The handoff records the warm `load_snapshot` time before and after, on
-  Meridian and on a copy of Palimpsest, with the same method as the issue.
+  Meridian and on a copy of consumer project A, with the same method as the issue.
 - [x] One changelog fragment states the change under `Changed`; this is a
   CLI-only change.
 - [x] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py

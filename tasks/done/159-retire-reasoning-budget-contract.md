@@ -5,7 +5,7 @@
 > **Priority**: 🔴 P1
 > **Estimate**: ~2h
 > **Assigned to**: unassigned
-> **Session**: Palimpsest executions blocked by the reasoning directive, 2026-10-04
+> **Session**: Consumer project A executions blocked by the reasoning directive, 2026-10-04
 
 ## Objective
 
@@ -55,7 +55,7 @@ templates, with a migration that removes it from adopted projects.
   requires; nothing is tagged or published.
 - [x] One changelog fragment states the removal under `Removed` and the required
   action under `Upgrade notes`.
-- [x] `meridian upgrade --check` on copies of the Palimpsest and Fusa manifests
+- [x] `meridian upgrade --check` on copies of the consumer project A and consumer project B manifests
   reports the block removal and no `BLOCKED`; results go in the handoff.
 - [x] `python3 scripts/check_repository.py` and the unit tests pass.
 

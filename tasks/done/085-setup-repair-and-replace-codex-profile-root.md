@@ -21,7 +21,7 @@ unmarked profile for an old root, and who then adopts the unified default root
 from Task 083, must discover and run a two-step sequence by hand. The real
 case that exposed this: only the closing `# MERIDIAN:END worktree-permissions`
 marker was missing, the profile was otherwise identical, and the root was the
-old `…/palimpsest/.claude/worktrees`; `setup` answered "reconcile it manually".
+old `…/consumer-a/.claude/worktrees`; `setup` answered "reconcile it manually".
 
 ## 📋 Acceptance Criteria
 

@@ -5,7 +5,7 @@
 > **Priority**: 🟡 P2
 > **Estimate**: ~3h
 > **Assigned to**: unassigned
-> **Session**: Palimpsest defect report D6/D7, design approved 2026-10-04
+> **Session**: Consumer project A defect report D6/D7, design approved 2026-10-04
 > **Review**: independent review required before integration (new public schema and CLI surface)
 
 ## Objective
@@ -27,7 +27,7 @@ prose.
 ```json
 {
   "version": 1,
-  "project": { "name": "Palimpsest", "slug": "palimpsest" },
+  "project": { "name": "consumer project A", "slug": "consumer-a" },
   "locations": {
     "queue": "docs/TASK_QUEUE.md",
     "taskRoots": ["tasks"],

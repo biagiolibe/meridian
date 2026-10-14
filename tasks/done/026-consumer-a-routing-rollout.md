@@ -1,4 +1,4 @@
-# Task 026 — Roll out routing to Palimpsest and measure initial context
+# Task 026 — Roll out routing to consumer project A and measure initial context
 
 > **ID**: `026`
 > **Category**: Integration
@@ -8,13 +8,13 @@
 
 ## Objective
 
-Upgrade Palimpsest to the compact-routing release and verify that Claude Code
+Upgrade consumer project A to the compact-routing release and verify that Claude Code
 and Codex begin status, tech-design, implementation, and review work without
 loading a universal monolith.
 
 ## Acceptance Criteria
 
-- [x] Palimpsest upgrades from a clean checkout with no lost customized rule
+- [x] consumer project A upgrades from a clean checkout with no lost customized rule
       and a passing `meridian audit`.
 - [x] Its `CLAUDE.md` uses the explicit pointer marker and routes silently,
       mentioning precedence only for a real conflict or blocker.
@@ -29,8 +29,8 @@ loading a universal monolith.
 
 ## Validation
 
-- `meridian upgrade --project <palimpsest> --check`
-- `meridian audit --project <palimpsest> --mode governed-sdd`
+- `meridian upgrade --project <consumer-a> --check`
+- `meridian audit --project <consumer-a> --mode governed-sdd`
 - `git diff --check`
 
 ## Dependencies
@@ -40,13 +40,13 @@ loading a universal monolith.
 
 ## Execution record
 
-2026-09-13 — `meridian upgrade --project <palimpsest-checkout> --check`
+2026-09-13 — `meridian upgrade --project <consumer-a-checkout> --check`
 reported `CONFLICT AGENTS.md — capability move
 038-compact-entry-point-routers source file differs from the installed
 baseline`. The plan also identified a safe `APPEND-MARKERS` action for the
 explicit-pointer `CLAUDE.md`, but no changes were applied because the
 retirement conflict blocks the whole upgrade. Per the task constraint, the
-Palimpsest checkout was left unchanged pending an explicit resolution of its
+Consumer project A checkout was left unchanged pending an explicit resolution of its
 customized `AGENTS.md`.
 
 2026-09-13 — Meridian was corrected before retrying the consumer plan. A
@@ -56,18 +56,18 @@ action prevents a router version bump from retaining duplicate procedures;
 and legacy Claude pointers receive the explicit pointer marker once AGENTS is
 verified or safely planned current. The read-only retry is conflict-free and
 plans `APPEND-RETIRE-MARKERS AGENTS.md`, `POINTER-UPGRADE CLAUDE.md`, and the
-four new role procedures. It was deliberately not applied to Palimpsest per
+four new role procedures. It was deliberately not applied to consumer project A per
 developer instruction. Remaining work: explicitly authorize `upgrade --apply`
-in the Palimpsest checkout, then collect the required audit and measurements.
+in the consumer project A checkout, then collect the required audit and measurements.
 
-2026-09-14 — Palimpsest commit `a76b200` applied the corrected Meridian
+2026-09-14 — consumer project A commit `a76b200` applied the corrected Meridian
 1.1.35 upgrade from a clean checkout. The compatibility checkpoint preserved
 all customized rules, installed the four role procedures, retained the
 explicit `MERIDIAN:CLAUDE-AGENTS-POINTER v1` marker, and changed entry-point
 sizes from 31,619 to 21,777 bytes for `AGENTS.md` and from 1,665 to 1,709
 bytes for `CLAUDE.md`.
 
-Palimpsest then completed the consumer-specific evolution through accepted
+Consumer project A then completed the consumer-specific evolution through accepted
 tasks WFLOW-004 (ADR-0054 route map), WFLOW-005 (additive extraction), and
 WFLOW-006 (generated-router retirement). The final `AGENTS.md`, `CLAUDE.md`,
 and `docs/workflows/ENTRY_ROUTER.md` are byte-identical at 1,448 bytes and
@@ -78,16 +78,16 @@ review candidate that omitted the bootstrap reads was rejected and replaced.
 
 The consolidated evidence, session details, measurements, and evolution
 mapping are recorded in
-[`docs/PALIMPSEST_ROUTING_EVOLUTION_EVIDENCE.md`](../../docs/PALIMPSEST_ROUTING_EVOLUTION_EVIDENCE.md).
+a consumer-project routing evidence report (since removed).
 
 Final validation on 2026-09-14:
 
-- `bin/meridian upgrade --project <palimpsest-checkout> --check`
+- `bin/meridian upgrade --project <consumer-a-checkout> --check`
   — exit 0; version 1.1.35 to 1.1.35, all managed files `KEEP`.
-- `bin/meridian audit --project <palimpsest-checkout> --mode governed-sdd`
+- `bin/meridian audit --project <consumer-a-checkout> --mode governed-sdd`
   — exit 0; all reported checks pass.
-- `bin/meridian generate-entry-routers --project <palimpsest-checkout> --check`
+- `bin/meridian generate-entry-routers --project <consumer-a-checkout> --check`
   — exit 0; generated routers match the canonical source.
-- `git -C <palimpsest-checkout> diff --check` — exit 0.
+- `git -C <consumer-a-checkout> diff --check` — exit 0.
 - `python3 scripts/check_repository.py` — exit 0.
 - `git diff --check` — exit 0.

@@ -11,7 +11,7 @@
 Give a session a way to read exactly the ADR/spec sections a task cites
 instead of opening the whole log. `docs/PROPOSAL_CONTEXT_ENFORCEMENT.md` (M1)
 measured this as the single largest avoidable read in a governed session
-(~8k tokens to read ADR-0059..0063 in Palimpsest when only two of the five
+(~8k tokens to read ADR-0059..0063 in consumer project A when only two of the five
 were cited).
 
 ## Acceptance Criteria
@@ -69,7 +69,7 @@ were cited).
 
 - `python3 -m unittest discover -s tests`
 - `python3 scripts/check_repository.py`
-- Manual: run `meridian context authority M25-SPIKE-001 --project <palimpsest checkout>`
+- Manual: run `meridian context authority M25-SPIKE-001 --project <consumer-a checkout>`
   and confirm it prints only ADR-0060 and ADR-0063, not the full log.
 
 ## Dependencies

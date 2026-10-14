@@ -43,7 +43,7 @@ Shipped bundled with task 013 in migration `024-evidence-tiers-and-routing`
 
 ## 🧩 Technical Context
 
-Surfaced while reconciling Palimpsest onto 1.1.18. Measured there, 40-line bound
+Surfaced while reconciling consumer project A onto 1.1.18. Measured there, 40-line bound
 against a passing suite emitting 111 lines:
 
 | Pipeline | Exit |

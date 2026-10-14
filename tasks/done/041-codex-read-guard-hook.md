@@ -20,7 +20,7 @@ existing hook has never fired in a Codex session, and the read-size discipline
 that `docs/CONTEXT_BUDGET_POLICY.md` states in prose is not mechanically
 enforced there.
 
-Evidence (Palimpsest, milestone M30, Codex sessions of 2026-09-19, measured
+Evidence (consumer project A, milestone M30, Codex sessions of 2026-09-19, measured
 from the recorded session logs):
 
 - `M30-SELECT-001` implementation + remediation: 91 model requests, 9.99M

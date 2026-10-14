@@ -5,7 +5,7 @@
 > **Priority**: 🟡 P2
 > **Estimate**: ~2h
 > **Assigned to**: unassigned
-> **Session**: Context-cost analysis of Palimpsest and Meridian, 2026-10-03
+> **Session**: Context-cost analysis of consumer project A and Meridian, 2026-10-03
 
 ## Objective
 
@@ -59,7 +59,7 @@ over those logs so a developer can see where the cost of a task comes from.
 - Observed 2026-10-03, Codex (cwd Meridian, Lean Delivery): first-call input 18,235
   tokens (13,100 in an empty project, so the Meridian-specific part is about
   5,000); sessions of 29 to 69 calls totalled 1.7 to 5.1 million input tokens with
-  95 to 98 percent cached; output was 14,000 to 27,000. In Palimpsest the first call
+  95 to 98 percent cached; output was 14,000 to 27,000. In consumer project A the first call
   was 29,058.
 - Observed 2026-10-03, Claude Code: first-call context about 38,000 on both
   projects; typical sessions 30 to 55 calls with a per-call context of 65,000 to

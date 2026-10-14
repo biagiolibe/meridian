@@ -10,7 +10,7 @@
 ## 🎯 Objective
 
 A consumer project that generates `AGENTS.md` and `CLAUDE.md` from
-`docs/workflows/ENTRY_ROUTER.md` (for example, Palimpsest) fails
+`docs/workflows/ENTRY_ROUTER.md` (for example, consumer project A) fails
 `meridian audit` after an upgrade whose migration manages those two files.
 Migration `044-rejected-attempt-restart` (1.1.40 -> 1.1.41) lists `AGENTS.md`
 and `CLAUDE.md` in `managedPaths`; `upgrade --apply` merged a
@@ -72,7 +72,7 @@ generated entry routers as derived files so this cannot recur on the next
   editable input; the upgrade either proves the router already covers the
   migration's triggers or stops, and it always leaves the generated files
   byte-identical to generator output.
-- **Consumer evidence**: Palimpsest was repaired manually on 2026-09-26 by
+- **Consumer evidence**: consumer project A was repaired manually on 2026-09-26 by
   adding `Restart rejected <TASK-ID>` to the router's existing
   `LIFECYCLE.md` line and regenerating both files; `audit`,
   `generate-entry-routers --check`, and `upgrade --check` then passed.

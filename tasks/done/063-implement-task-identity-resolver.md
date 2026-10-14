@@ -107,7 +107,7 @@ Task 039 selected a closed, project-owned policy file and a single resolver
 contract. The current CLI instead relies on numeric-only normalization in
 `canonical_task_id()` for worktree paths while task, execution, context, and
 budget operations resolve identifiers through partially separate paths. That
-split prevents consumers such as Palimpsest from using their existing
+split prevents consumers such as consumer project A from using their existing
 milestone IDs consistently and would let Task 056 accidentally preserve a
 host-era parser.
 

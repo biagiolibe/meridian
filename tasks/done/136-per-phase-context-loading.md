@@ -5,7 +5,7 @@
 > **Priority**: 🟡 P2
 > **Estimate**: ~2h
 > **Assigned to**: unassigned
-> **Session**: Context-cost analysis of Palimpsest and Meridian, 2026-10-03
+> **Session**: Context-cost analysis of consumer project A and Meridian, 2026-10-03
 
 ## Objective
 
@@ -55,7 +55,7 @@ needs them begins, and point agents to the bounded readers.
 
 ## Technical Context
 
-- Palimpsest's implementation and workflow documents do not mention
+- Consumer project A's implementation and workflow documents do not mention
   `meridian context` or `meridian adr` (searched on 2026-10-03), although the
   commands exist and produced about 18 KB of excerpts for a real task against a
   921 KB log.

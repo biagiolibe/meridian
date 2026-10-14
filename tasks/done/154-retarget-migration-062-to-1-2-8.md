@@ -14,7 +14,7 @@ Task 152 changed managed template text and added
 `from: 1.2.7` and `to: 1.2.7`, but left `VERSION`, `.claude-plugin/plugin.json`,
 and the release ledger at the already published 1.2.7. As a result two different
 template baselines carry the number 1.2.7: `meridian upgrade --check` on a 1.2.7
-project (Fusa) merges `PROJECT_WORKFLOW.md` and `docs/workflows/REVIEW.md` but
+project (consumer project B) merges `PROJECT_WORKFLOW.md` and `docs/workflows/REVIEW.md` but
 lists no `MIGRATION 062` row and reports `1.2.7 -> 1.2.7`, so the manifest would
 record 1.2.7 for content that differs from the 1.2.7 release.
 `CONTRIBUTING.md` requires the task that adds a migration to bump the version
@@ -53,9 +53,9 @@ make the check catch this class of error.
 
 ## Technical Context
 
-- Observed on 2026-10-04: `meridian upgrade --project ../fusa --check` printed
+- Observed on 2026-10-04: `meridian upgrade --project ../consumer-b --check` printed
   `Meridian 1.2.7 -> 1.2.7` with `MERGE` rows for the two files of migration 062
-  and no migration row; Fusa's `appliedMigrations` ends at `061-governed-phase-reads`.
+  and no migration row; consumer project B's `appliedMigrations` ends at `061-governed-phase-reads`.
 - Release preparation for a template-changing release does not use
   `release.py prepare`; publishing stays the developer's action.
 

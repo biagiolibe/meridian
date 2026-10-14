@@ -18,7 +18,7 @@ write the declaration with the project's consent. Existing projects and upgrades
 are unaffected.
 
 An earlier draft of this task proposed documentation and an activation
-procedure. A rehearsal on a copy of the Palimpsest task records (302 IDs: 141
+procedure. A rehearsal on a copy of the consumer project A task records (302 IDs: 141
 structured, 161 legacy-opaque, no errors) showed the mode already works, so that
 scope was dropped.
 

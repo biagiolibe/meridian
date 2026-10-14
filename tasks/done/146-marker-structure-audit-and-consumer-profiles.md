@@ -5,7 +5,7 @@
 > **Priority**: 🟡 P2
 > **Estimate**: ~3h
 > **Assigned to**: unassigned
-> **Session**: Palimpsest defect report D10, D12, P2, P4, UNVERIFIED row, design approved 2026-10-04
+> **Session**: Consumer project A defect report D10, D12, P2, P4, UNVERIFIED row, design approved 2026-10-04
 
 ## Objective
 

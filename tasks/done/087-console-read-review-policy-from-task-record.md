@@ -5,7 +5,7 @@
 > **Priority**: 🟡 P2
 > **Estimate**: ~1.5h
 > **Assigned to**: unassigned
-> **Session**: Developer report on F1-FIGURE-001 in the palimpsest project
+> **Session**: Developer report on F1-FIGURE-001 in the consumer-a project
 
 ## Objective
 
@@ -59,7 +59,7 @@ cannot see or launch the permitted review directive.
   `None` otherwise, with the comment that no policy is declared). A Governed
   `ready_for_review` task with `review is None` has no `launch_command`, and
   `next_action` returns the fixed text "Awaiting review of the task branch".
-- **Observed case**: palimpsest `F1-FIGURE-001`. Its queue table has the columns
+- **Observed case**: consumer-a `F1-FIGURE-001`. Its queue table has the columns
   `#`, `ID`, `Priority`, `Status`, `Dependencies`, `Estimate`. On the task
   branch its record header reads `Status: READY_FOR_REVIEW` and
   `Review: REQUIRED`. The console computed `review = None`,

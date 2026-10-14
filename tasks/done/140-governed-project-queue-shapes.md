@@ -5,7 +5,7 @@
 > **Priority**: 🔴 P1
 > **Estimate**: ~2h
 > **Assigned to**: unassigned
-> **Session**: Blocked integration of Palimpsest task M37-CAUSE-001, 2026-10-03
+> **Session**: Blocked integration of consumer project A task M37-CAUSE-001, 2026-10-03
 
 ## Objective
 
@@ -14,7 +14,7 @@ integrates (tasks 103 and 117). For Governed SDD it recognizes only rows of the
 exact template shape, seven columns:
 `| Order | ID | Priority | Status | Review | Dependencies | Task file |`
 (`_GOVERNED_QUEUE_TASK_ROW` in `scripts/meridian.py`). A project that keeps its
-own queue with a different, valid shape cannot integrate any task: Palimpsest's
+own queue with a different, valid shape cannot integrate any task: consumer project A's
 queue has six columns (`| Order | ID | Priority | Status | Dependencies | Estimate |`),
 and stage stopped with `BLOCKED: unrecognized completion row for task
 M37-CAUSE-001 in docs/TASK_QUEUE.md`. The previous task of that project had been
@@ -55,13 +55,13 @@ guessing when a shape is truly ambiguous.
   text that says unknown shapes are blocked) states the new rule: recognition is by
   header name, with the exact set of required columns and the conditions that still
   block.
-- [ ] Tests cover: a Palimpsest-shaped queue (six columns, per-milestone sections,
+- [ ] Tests cover: a consumer-A-shaped queue (six columns, per-milestone sections,
   `—`) completing correctly; the same with a `Review` column in another position;
   an `Estimate` column; a missing `Status` column; a duplicate ID across sections; a
   cell-count mismatch; an unknown status value; a `REQUIRED` task with and without an
   approving review record; archival not moving a project-shaped section; and the
   seven-column shape unchanged.
-- [ ] A rehearsal on a scratch copy of the real Palimpsest queue stages M37-CAUSE-001
+- [ ] A rehearsal on a scratch copy of the real consumer project A queue stages M37-CAUSE-001
   through `integrate stage`, shows the one-cell diff, and aborts the staged merge.
   The result and the diff are recorded in the handoff; the real project is not touched.
 - [ ] One changelog fragment is added per `CONTRIBUTING.md`. Because the stage
@@ -81,7 +81,7 @@ guessing when a shape is truly ambiguous.
 
 ## Technical Context
 
-- Observed on 2026-10-03 in Palimpsest: `meridian worktree integrate stage
+- Observed on 2026-10-03 in consumer project A: `meridian worktree integrate stage
   M37-CAUSE-001` blocked with `unrecognized completion row` because its queue row
   is `| 2 | M37-CAUSE-001 | P0 | QUEUED | M37-SPIKE-001 | 60–90m |` (six columns, no
   `Review`, no task-file column). F1-FIGURE-001 was integrated on 2026-10-01 under a
@@ -104,13 +104,13 @@ guessing when a shape is truly ambiguous.
 - `python3 scripts/check_repository.py`
 - `python3 -m unittest discover -s tests`
 - `git diff --check`
-- The recorded scratch rehearsal on the Palimpsest queue.
+- The recorded scratch rehearsal on the consumer project A queue.
 
 ## Out of scope
 
 Rewriting or migrating a project's queue, adding an archival mode for
 project-shaped queues, changing Lean Delivery, changing the review policy, and
-touching the real Palimpsest repository.
+touching the real consumer project A repository.
 
 ## Dependencies
 

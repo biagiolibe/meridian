@@ -15,7 +15,7 @@ answers [issue #2](https://github.com/biagiolibe/meridian/issues/2). Queue
 archival decides from task state files instead of table text, so that:
 - sections at any heading level can close;
 - an `INCONCLUSIVE` spike closes its section;
-- a project such as Palimpsest, with about 97 KB of queue under `##`
+- a project such as consumer project A, with about 97 KB of queue under `##`
   sections, can shrink its queue.
 
 Amendment 1 was accepted on 2026-10-14.
@@ -45,7 +45,7 @@ Amendment 1 was accepted on 2026-10-14.
   (`worktree-lifecycle`), and in this repository's copy, states the
   state-based rule. It ships through the capability marker mechanism, with a
   migration whose `to` is the next release, extending an unreleased migration
-  when one exists. `upgrade --check` on copies of the Palimpsest and Fusa
+  when one exists. `upgrade --check` on copies of the consumer project A and consumer project B
   manifests is recorded in the handoff.
 - [x] Tests cover:
   - a `##` section whose tasks are all terminal by state;

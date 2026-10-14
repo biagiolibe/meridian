@@ -93,7 +93,7 @@ the task branch and directs the reviewer to run `git switch <task-branch>` in
 that checkout. A later `task-worktree-review-procedure v2` block says it
 supersedes those steps and forbids switching the primary checkout.
 
-The same contradiction is already installed in Palimpsest. Claude has twice
+The same contradiction is already installed in consumer project A. Claude has twice
 followed the earlier, concrete primary-checkout instruction and searched
 `main` for task changes instead of reviewing the registered linked worktree.
 An instruction that merely says a later block supersedes an earlier one is not
@@ -125,7 +125,7 @@ managed capability and migration mechanism.
   worktree during review; return `BLOCKED` with the exact discrepancy.
 - Do not weaken independent-review, validation-evidence, review-record,
   acceptance, integration-lease, or forge requirements.
-- Do not modify Palimpsest directly in this task. Deliver the correction via a
+- Do not modify consumer project A directly in this task. Deliver the correction via a
   Meridian release and normal consumer upgrade.
 - Preserve project-owned text outside managed capability markers.
 - Repository artifacts are English-only.

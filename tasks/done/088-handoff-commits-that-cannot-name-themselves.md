@@ -5,7 +5,7 @@
 > **Priority**: 🟡 P2
 > **Estimate**: ~2h
 > **Assigned to**: implementer
-> **Session**: Developer report on the F1-FIGURE-001 review preflight in the palimpsest project
+> **Session**: Developer report on the F1-FIGURE-001 review preflight in the consumer-a project
 
 ## Objective
 
@@ -15,13 +15,13 @@ cannot contain that commit's SHA, and a later lifecycle-only correction
 cannot contain its own SHA either. Today the `task-worktree-handoff` block asks
 for a `<commit SHA>` in every commit field and gives no rule for this case.
 
-In the palimpsest project an implementer wrote the validated base `main`
+In the consumer-a project an implementer wrote the validated base `main`
 commit into `Current task commit`. The reviewer preflight correctly returned
 `BLOCKED`. The implementer then concluded that correcting the record was
 impossible without amend or force-push, because the correction commit would
 immediately make the field stale again, and asked for a workflow amendment.
 In fact the existing contract already permits a lifecycle-only correction
-commit, and accepted palimpsest handoffs already use a descriptive form
+commit, and accepted consumer-a handoffs already use a descriptive form
 ("same as the implementation commit"). The template does not say either
 thing, so agents rediscover or misread it.
 
@@ -81,7 +81,7 @@ thing, so agents rediscover or misread it.
   `Current task commit` placeholder already requires only that the validated
   task commit be an ancestor and the intervening diff contain only permitted
   lifecycle records.
-- **Evidence from an adopter (palimpsest, capability v2)**: accepted
+- **Evidence from an adopter (consumer-a, capability v2)**: accepted
   handoffs for `M36-GATE-001`, `F0-ATLAS-001`, and `F0-VERIFY` used the
   descriptive form and passed the reviewer preflight. `F1-FIGURE-001` wrote
   the base `main` SHA into `Current task commit`; it was repaired by a

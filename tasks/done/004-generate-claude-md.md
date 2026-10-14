@@ -59,7 +59,7 @@ drift.
 ## 🧩 Technical Context
 
 Measured (`docs/AUDIT_TOKEN_EFFICIENCY.md` F4, F10): 99 of `CLAUDE.md`'s 115
-sentences appear verbatim in `AGENTS.md`. In Palimpsest, `CLAUDE.md` declares itself
+sentences appear verbatim in `AGENTS.md`. In consumer project A, `CLAUDE.md` declares itself
 "a thin pointer to AGENTS.md" and then reproduces five capability blocks verbatim —
 5,574 of 9,300 bytes, 59% — which under Claude Code's auto-injection are paid twice
 every session.
@@ -79,7 +79,7 @@ stale.
 - **Direction is the whole design decision, and it is the counter-intuitive one.**
   `AGENTS.md` is the source; `CLAUDE.md` is generated. In a real project `AGENTS.md`
   carries substantial project-specific content with no home in `CLAUDE.md`
-  (Palimpsest: `Truth layers`, `Events`, `Determinism`, `Palimpsest manual-evidence
+  (consumer project A: `Truth layers`, `Events`, `Determinism`, `consumer project A manual-evidence
   extension`). Generating `AGENTS.md` from `CLAUDE.md` would delete it.
 - Framework-internal only — no migration record needed, since this touches templates
   and CLI rather than a rule an adopted project must receive.

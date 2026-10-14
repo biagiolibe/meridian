@@ -29,7 +29,7 @@ agents to return a bare `BLOCKED`. Finish the gate audit in
   163) now fails on an uncoded `BLOCKED` in managed text or in the CLI.
 - [x] If managed text changes, it ships through the existing capability marker
   mechanism with a migration to the next release, and `upgrade --check` on
-  copies of the Palimpsest and Fusa manifests is recorded in the handoff.
+  copies of the consumer project A and consumer project B manifests is recorded in the handoff.
 - [x] One changelog fragment is added per `CONTRIBUTING.md`.
 - [x] `python3 scripts/check_repository.py` and the unit tests pass.
 

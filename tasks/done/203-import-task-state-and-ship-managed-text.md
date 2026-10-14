@@ -39,7 +39,7 @@ agents to change state and record verdicts only through the commands.
   - has upgrade notes that tell adopters to run `meridian task state import`
     and then `--apply`.
   The marker baselines and `meridian audit` stay consistent.
-- [x] `meridian upgrade --check` on copies of the Palimpsest and Fusa
+- [x] `meridian upgrade --check` on copies of the consumer project A and consumer project B
   manifests shows the update and no `BLOCKED`. `task state import` on a copy
   of each project lists its open tasks without error. The results go in the
   handoff.
@@ -63,7 +63,7 @@ agents to change state and record verdicts only through the commands.
 ## Technical Context
 
 - Authority: `docs/ADR_MACHINE_TASK_STATE.md`, Decision 6 and Consequences.
-- Adoption by Palimpsest and Fusa happens in those projects through `upgrade`
+- Adoption by consumer project A and consumer project B happens in those projects through `upgrade`
   and `task state import`, outside this repository.
 
 ## Validation
@@ -84,4 +84,4 @@ reviewers.
 
 ## Completion
 
-Implemented explicit preview/apply task-state import, command-owned managed procedures, migration 066, and the next-release 1.2.13 metadata. Required repository validation passed; Palimpsest and Fusa copy checks are recorded in the handoff.
+Implemented explicit preview/apply task-state import, command-owned managed procedures, migration 066, and the next-release 1.2.13 metadata. Required repository validation passed; consumer project A and consumer project B copy checks are recorded in the handoff.

@@ -15,7 +15,7 @@ audit, and conflict-safe upgrades.
 
 ## Acceptance Criteria
 
-- [ ] Measure the current template and Palimpsest entry-point sizes and identify
+- [ ] Measure the current template and consumer project A entry-point sizes and identify
       the marker-bearing workflow sections that cause unconditional loading.
 - [ ] Define a compact bootstrap contract and an on-demand routing layout for
       implementation, review, remediation, lifecycle, and read-only work.
@@ -46,4 +46,4 @@ audit, and conflict-safe upgrades.
 
 - Moving any capability marker or changing its text.
 - Changing generated project workflow behavior.
-- Editing Palimpsest or any other consumer project.
+- Editing consumer project A or any other consumer project.

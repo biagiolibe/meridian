@@ -5,13 +5,13 @@
 > **Priority**: 🔴 P1
 > **Estimate**: ~2h
 > **Assigned to**: unassigned
-> **Session**: Palimpsest and Fusa upgrade check failures after task 153, 2026-10-04
+> **Session**: Consumer project A and consumer project B upgrade check failures after task 153, 2026-10-04
 
 ## Objective
 
 Task 153 added `docs/COMPLETION_REPORT_TEMPLATE.md` to the `execution-evidence`
 managed surface in `capabilities/catalog-v1.json`. Every project whose manifest
-already declares `capabilityProfiles` (Palimpsest and Fusa observed) now fails
+already declares `capabilityProfiles` (consumer project A and consumer project B observed) now fails
 `meridian upgrade --check` with `BLOCKED: capabilityProfiles.<profile>.capabilities.execution-evidence.managedSurface
 must completely match the catalog surface`.
 
@@ -58,7 +58,7 @@ class of error cannot recur.
   previous release's catalog (`release-baselines` or the latest tag) and no
   migration in the next release lists the added path in `managedPaths`. Tests
   cover the failing and passing cases.
-- [x] `meridian upgrade --check` run against copies of the Palimpsest and Fusa
+- [x] `meridian upgrade --check` run against copies of the consumer project A and consumer project B
   manifests (read-only, outside their repositories) reports the new row and no
   `BLOCKED`; results are recorded in the handoff.
 - [x] One changelog fragment states the fix and, under `Upgrade notes`, that
@@ -77,7 +77,7 @@ class of error cannot recur.
 
 ## Technical Context
 
-- Observed on 2026-10-04: Palimpsest and Fusa both stop at
+- Observed on 2026-10-04: consumer project A and consumer project B both stop at
   `capabilityProfiles.governed-sdd-consumer.capabilities.execution-evidence.managedSurface
   must completely match the catalog surface` (`scripts/meridian.py:4035`).
 - `capabilityProfiles` appears in the upgrade path only as a pass-through
@@ -99,7 +99,7 @@ class of error cannot recur.
 ## Out of scope
 
 Publishing 1.2.8, changing the `execution-evidence` surface itself, repairing
-Palimpsest or Fusa manifests by hand, and reworking profile verification or host
+Consumer project A or consumer project B manifests by hand, and reworking profile verification or host
 activation states.
 
 ## Dependencies

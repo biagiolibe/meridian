@@ -52,7 +52,7 @@ adding a second migration.
   `migrations/CAPABILITY_MARKERS.md`, and this repository's own managed
   baseline under `.meridian/baselines/1.2.12/`, if it carries the file, are
   updated consistently. `meridian audit` reports no drift.
-- [x] `meridian upgrade --check` on copies of the Palimpsest and Fusa manifests
+- [x] `meridian upgrade --check` on copies of the consumer project A and consumer project B manifests
   shows both 065 changes and no `BLOCKED`; the results go in the handoff.
 - [x] `VERSION` stays 1.2.12 and no new migration file is added.
 - [x] One changelog fragment states the documentation under `Documentation`

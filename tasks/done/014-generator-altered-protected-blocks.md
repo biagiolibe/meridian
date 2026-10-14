@@ -44,7 +44,7 @@ Restore the three blocks, then make this class of change impossible to repeat.
 
 ## 🧩 Technical Context
 
-First observed on Palimpsest immediately after upgrading to 1.1.20 (that project
+First observed on consumer project A immediately after upgrading to 1.1.20 (that project
 has since stopped carrying the affected blocks, so it no longer reproduces the
 failure; see Constraints):
 
@@ -85,7 +85,7 @@ recent versions; the guard needs git history or a per-version content digest.
   which is exactly the process this defect bypassed.
 - Deciding "semantically identical" is not automatable. Do not try. The rule is
   mechanical and absolute: generated output never alters marker content.
-- **Do not verify this against a downstream project's audit.** Palimpsest
+- **Do not verify this against a downstream project's audit.** consumer project A
   carried the three failures until it reduced its `CLAUDE.md` to a pointer, which
   removed the blocks the failures applied to. Its audit now reads clean while the
   defect is untouched — a symptom silenced, not a fix. Verify against the
@@ -105,7 +105,7 @@ invites a project to customize it:
 A project that accepts that invitation and edits the block fails `meridian
 audit` as an unauthorized edit. The block asks for something the marker forbids.
 
-Palimpsest resolves it correctly, but by convention rather than by construction:
+Consumer project A resolves it correctly, but by convention rather than by construction:
 it leaves the block untouched and declares its real locations
 (`docs/TASK_QUEUE.md`, `docs/tasks/<milestone>/`,
 `docs/tasks/reviews/<TASK-ID>.md`) in an annotated paragraph immediately after

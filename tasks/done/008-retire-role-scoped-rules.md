@@ -41,7 +41,7 @@ the file enters the session in full before the rule is ever read, so it saves no
 for `CLAUDE.md`.
 
 The rule is not target-less — `AGENTS.md` survives task 004 as the source of truth and
-is 29 KB in Palimpsest, so a harness loading it by explicit read could in principle
+is 29 KB in consumer project A, so a harness loading it by explicit read could in principle
 use it. **The case for retiring it is reliability, not absence of a target**: its own
 closing clause ("if the mapping is otherwise unclear, read the whole file instead")
 means it degrades to the unoptimized behavior under exactly the conditions where a

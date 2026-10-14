@@ -51,7 +51,7 @@ record which host produced each audit line.
   Meridian project or when no journal exists.
 - [x] The managed `.codex/hooks.json` change ships through a migration to the
   next template-changing release, shared with 169 and 176 if they ship
-  together. `upgrade --check` on copies of the Palimpsest and Fusa manifests
+  together. `upgrade --check` on copies of the consumer project A and consumer project B manifests
   is recorded in the handoff.
 - [x] Tests cover a Codex hook input with a backed code, an unbacked code, a
   malformed input, a `host` value on each written line, a pre-181 line

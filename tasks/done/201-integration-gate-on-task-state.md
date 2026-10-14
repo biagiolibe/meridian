@@ -54,7 +54,7 @@ is not proven, and it never integrates with a non-blocking `REVIEW_PENDING`.
   - a SPIKE task and a review-not-required task integrate;
   - the queue projection;
   - nothing is merged or leased on any stop.
-  Include a regression for Palimpsest's dated heading
+  Include a regression for consumer project A's dated heading
   (`## Attempt 1 — 2026-10-11 — APPROVE`), which no longer affects the
   decision.
 - [x] One changelog fragment states the gate under `Changed`; this is a
@@ -74,7 +74,7 @@ is not proven, and it never integrates with a non-blocking `REVIEW_PENDING`.
 ## Technical Context
 
 - Authority: `docs/ADR_MACHINE_TASK_STATE.md`, Decisions 3 to 5.
-- Evidence: Palimpsest `F2-TOKENS-001` (`be74ae7`) and `F2-TILE-001` were
+- Evidence: consumer project A `F2-TOKENS-001` (`be74ae7`) and `F2-TILE-001` were
   integrated with `REVIEW_PENDING`, and their queue rows stayed `QUEUED`.
 
 ## Validation

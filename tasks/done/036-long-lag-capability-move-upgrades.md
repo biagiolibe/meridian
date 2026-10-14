@@ -13,7 +13,7 @@ releases to plan a safe upgrade through those migrations. The current planner
 evaluates retirement migration `038-compact-entry-point-routers` source hashes
 against a much older installed baseline, so it reports a false conflict before
 it can account for intermediate migrations that establish the declared source
-marker version. Fusa at framework version `1.1.23` demonstrates the failure
+marker version. Consumer project B at framework version `1.1.23` demonstrates the failure
 when planning to the current framework release.
 
 ## Acceptance Criteria
@@ -43,9 +43,9 @@ when planning to the current framework release.
 
 ## Technical Context
 
-- Fusa's manifest is locked at `1.1.23`; its entry points carry legitimate
+- Consumer project B's manifest is locked at `1.1.23`; its entry points carry legitimate
   project-owned text and the installed baseline contains older marker forms.
-- A current `meridian upgrade --project <fusa-checkout> --check`
+- A current `meridian upgrade --project <consumer-b-checkout> --check`
   reports `CONFLICT AGENTS.md` and `CONFLICT CLAUDE.md` for migration 038's
   source checks before any write.
 - The safety invariant is not negotiable: a real local protected-marker edit
@@ -55,18 +55,18 @@ when planning to the current framework release.
 
 ## Constraints and Considerations
 
-- Do not special-case Fusa paths, names, hashes, or current checkout state.
+- Do not special-case consumer project B paths, names, hashes, or current checkout state.
 - Do not hand-copy or reconstruct a consumer's router content as an upgrade
   workaround.
 - Preserve existing vanilla, customized-source, and explicit-pointer upgrade
   behavior.
-- The task unblocks Fusa's separately governed `TASK-029`; it does not modify
-  Fusa or mark any Fusa task complete.
+- The task unblocks consumer project B's separately governed `TASK-029`; it does not modify
+  consumer project B or mark any consumer project B task complete.
 
 ## Dependencies
 
 - **Depends on**: none
-- **Blocks**: Fusa `TASK-029` externally.
+- **Blocks**: consumer project B `TASK-029` externally.
 
 ## Validation
 

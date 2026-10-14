@@ -5,11 +5,11 @@
 > **Priority**: 🔴 P1
 > **Estimate**: ~2.5h
 > **Assigned to**: unassigned
-> **Session**: Palimpsest defect report D4/D5, design approved 2026-10-04
+> **Session**: Consumer project A defect report D4/D5, design approved 2026-10-04
 
 ## Objective
 
-Two lifecycle-command defects reported by a Governed SDD consumer (Palimpsest,
+Two lifecycle-command defects reported by a Governed SDD consumer (consumer project A,
 Meridian 1.2.6):
 
 1. `review-policy` v2 tells a project to put `SPIKE` in a queue row's `Review`

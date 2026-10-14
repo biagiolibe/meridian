@@ -30,7 +30,7 @@ accepts only left-button clicks, so the wheel does nothing; the `[`/`]` hint
 appears only in the opened view. The side-pane cut-off after a resize is not
 reproduced; the task must reproduce it first. `_section(text,
 "Objective")` matches only a heading containing "Objective", while Governed SDD
-task records, including Palimpsest's and the template's, use `## Goal`.
+task records, including consumer project A's and the template's, use `## Goal`.
 
 ## Acceptance Criteria
 
@@ -70,7 +70,7 @@ task records, including Palimpsest's and the template's, use `## Goal`.
   `run_terminal` (key and mouse handling, `curses.mousemask`), the footer hints.
 - Governed task headings: `## Goal`, `## Acceptance criteria`,
   `## Validation` in `templates/workflows/governed-sdd/tasks/TASK_BLUEPRINT.md`
-  and in Palimpsest's `docs/tasks/M37/M37-CAUSE-001.md`.
+  and in consumer project A's `docs/tasks/M37/M37-CAUSE-001.md`.
 - The mouse wheel needs additional button masks; terminals that do not report
   them must still scroll by key.
 
@@ -80,7 +80,7 @@ task records, including Palimpsest's and the template's, use `## Goal`.
 - `python3 -m unittest discover -s tests`
 - `python3 -m unittest discover -s tests -p 'test_project_console.py'`
 - Interactive PTY smoke check: open the detail, scroll to the end and back,
-  resize while scrolled, in a Lean fixture and a Palimpsest-shaped fixture.
+  resize while scrolled, in a Lean fixture and a consumer-A-shaped fixture.
 
 ## Out of scope
 

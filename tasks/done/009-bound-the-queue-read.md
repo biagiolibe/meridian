@@ -9,7 +9,7 @@
 ## 🎯 Objective
 
 Make a session normally never open the full task queue. Roughly 7k tokens off the
-fixed prefix in a project of Palimpsest's size.
+fixed prefix in a project of consumer project A's size.
 
 ## 📋 Acceptance Criteria
 
@@ -30,7 +30,7 @@ Migration `026-bound-the-queue-read` (VERSION `1.1.23`). The hardcoded
 immediately after `execution-assets`' `MERIDIAN:END` for a single,
 unambiguous, non-archive `*queue*.md`-shaped path, falling back to the
 default on no match or ambiguity rather than guessing — verified against
-both the Palimpsest-shaped declaration and a deliberately ambiguous zone
+both the consumer-A-shaped declaration and a deliberately ambiguous zone
 (the archiving convention this same task documents mentions
 `*QUEUE*ARCHIVE*.md`, which the resolver must not mistake for the live
 queue). Dependency resolution treats `ANSWERED` as satisfying, per
@@ -53,7 +53,7 @@ Verified with a real `1.1.22` → `1.1.23` upgrade run and 8 new tests in
 
 ## 🧩 Technical Context
 
-`docs/AUDIT_TOKEN_EFFICIENCY.md` F9. Palimpsest's `docs/TASK_QUEUE.md` is 27 KB /
+`docs/AUDIT_TOKEN_EFFICIENCY.md` F9. Consumer project A's `docs/TASK_QUEUE.md` is 27 KB /
 191 rows and is the specific object the incident post-mortem names.
 `CONTEXT_BUDGET_POLICY.md` already says to read "non-terminal entries only" — prose,
 applied after the file is open and already billed.
@@ -65,7 +65,7 @@ still worth documenting.
 ## ⚠️ Constraints and Considerations
 
 - The queue's canonical location is declared per project in `PROJECT_WORKFLOW.md`
-  (`docs/TASK_QUEUE.md` in Palimpsest, `tasks/QUEUE.md` in the template). The hook
+  (`docs/TASK_QUEUE.md` in consumer project A, `tasks/QUEUE.md` in the template). The hook
   currently hardcodes `tasks/QUEUE.md` — handle the declared location or the feature
   silently does nothing in the project that needs it most.
 - If task 006 landed first, extend the same briefing rather than adding a second one.

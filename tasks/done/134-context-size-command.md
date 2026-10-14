@@ -5,14 +5,14 @@
 > **Priority**: 🟡 P2
 > **Estimate**: ~2h
 > **Assigned to**: unassigned
-> **Session**: Context-cost analysis of Palimpsest and Meridian, 2026-10-03
+> **Session**: Context-cost analysis of consumer project A and Meridian, 2026-10-03
 
 ## Objective
 
 Meridian has context-budget rules but nothing measures what its workflow files
 cost an agent at the start of a role. A static estimate on 2026-10-03 put an
 implementer in a Governed SDD project at about 35,000 to 41,000 tokens before any
-code (133 KB across 13 files in Palimpsest), against about 5,000 to 6,000 for a
+code (133 KB across 13 files in consumer project A), against about 5,000 to 6,000 for a
 Lean Delivery project, and no command could have shown growth or reported it.
 Add a read-only command that reports the size of the files a role is instructed
 to read, so growth is visible and can be gated.
@@ -69,7 +69,7 @@ to read, so growth is visible and can be gated.
 ## Technical Context
 
 - Measured on 2026-10-03 from file sizes of the documents a role is told to read
-  (Palimpsest, Governed SDD): implementer 133 KB (13 files), reviewer 134 KB,
+  (consumer project A, Governed SDD): implementer 133 KB (13 files), reviewer 134 KB,
   remediation 107 KB, status 62 KB. Largest items: `PROJECT_WORKFLOW.md` 38 KB,
   the active milestone specification 19 KB, `CODE_ORGANIZATION.md` 15 KB,
   `IMPLEMENTATION.md` 13 KB, `CONTEXT_BUDGET_POLICY.md` 13 KB,

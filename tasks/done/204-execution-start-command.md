@@ -123,7 +123,7 @@ that the implementer has merely begun preparing its completion report.
 - Authority: `docs/ADR_MACHINE_TASK_STATE.md`, Decisions 1, 2, and 4;
   `PROJECT_WORKFLOW.md` worktree boundary and governance-file ownership;
   `CONTRIBUTING.md` release procedure.
-- Observed on Palimpsest `F2-SCENE-001`: imported state remained `QUEUED`
+- Observed on consumer project A `F2-SCENE-001`: imported state remained `QUEUED`
   while the developer reported substantive work, including advisor
   consultation. The console correctly followed the state; the agent
   recorded `IN_PROGRESS` later. Instructions prescribe the transition but

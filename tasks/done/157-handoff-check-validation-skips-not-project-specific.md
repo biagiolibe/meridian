@@ -5,7 +5,7 @@
 > **Priority**: 🟡 P2
 > **Estimate**: ~1h
 > **Assigned to**: unassigned
-> **Session**: Fusa task closure blocked by `Validation skips`, 2026-10-04
+> **Session**: Consumer project B task closure blocked by `Validation skips`, 2026-10-04
 
 ## Objective
 
@@ -15,7 +15,7 @@ reason from a past Meridian task (`TASK_099_SKIP_TEST` and
 `TASK_099_SKIP_REASON`, `scripts/meridian.py` ~line 8922). The test,
 `AgentLaunchTest.test_split_payload_compiles_as_applescript`, belongs to
 Meridian's own suite. A consumer project cannot declare a skip of its own, and
-the error text names Meridian's test, which led a Fusa agent to look for it in a
+the error text names Meridian's test, which led a consumer project B agent to look for it in a
 repository where it does not exist. The workflow documents and
 `docs/COMPLETION_REPORT_TEMPLATE.md` describe a general rule (test name,
 test-reported reason, reporting command), so the code is stricter and narrower
@@ -62,10 +62,10 @@ catch contradictions the code can see.
 
 ## Technical Context
 
-- Observed on Fusa on 2026-10-04: `handoff-check` blocked a handoff with a
+- Observed on consumer project B on 2026-10-04: `handoff-check` blocked a handoff with a
   message naming `AgentLaunchTest.test_split_payload_compiles_as_applescript`;
   the task's own validation had passed with exit 0 and no test was skipped. What
-  Fusa's report contained in the field was not seen.
+  consumer project B's report contained in the field was not seen.
 - The fixed test lives in `tests/test_project_console.py` and is Meridian's own.
 - Decision recorded here: no per-project allow-list and no format check. The name
   of a skipped test was never evidence; the durable execution evidence and the

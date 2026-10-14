@@ -5,7 +5,7 @@
 > **Priority**: 🔴 P1
 > **Estimate**: ~2h
 > **Assigned to**: unassigned
-> **Session**: Palimpsest integration blocked by `PRIMARY_DIRTY`, 2026-10-04
+> **Session**: Consumer project A integration blocked by `PRIMARY_DIRTY`, 2026-10-04
 
 ## Objective
 
@@ -61,16 +61,16 @@ read free of side effects.
 
 ## Technical Context
 
-- Observed in Palimpsest on 2026-10-04: after a prior commit
+- Observed in consumer project A on 2026-10-04: after a prior commit
   (`21253d9` "remove dirty meridian budget") deleted the file, a later task again
   stopped with a staged `D  .meridian/budget.json`. `.git/meridian-budget.json`
   held the state (modified the same day).
-- Palimpsest commit `72e176e` had committed a *modified* tracked `budget.json`
+- Consumer project A commit `72e176e` had committed a *modified* tracked `budget.json`
   "so the primary checkout is clean", i.e. an older CLI still wrote the tracked
   file. Hypothesis, not verified: task branches or worktrees created before the
   upgrade, or an older CLI or hook, keep writing or re-adding the tracked file,
   and the newer CLI then stages its deletion. The test for task-worktree writes
-  covers the part reproducible in this repository; confirm against the Palimpsest
+  covers the part reproducible in this repository; confirm against the consumer project A
   history before closing.
 - Decision recorded here: no automatic commit of the deletion by Meridian; the
   developer or the closing agent commits it, after being told once.
