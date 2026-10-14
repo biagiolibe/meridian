@@ -33,9 +33,6 @@ vulnerabilities and a predictable shape for reports.
   user-visible, as `CONTRIBUTING.md` requires.
 - [ ] `README.md` and `CONTRIBUTING.md` link `SECURITY.md` and
   `CODE_OF_CONDUCT.md`.
-- [ ] The handoff states that enabling private vulnerability reporting in the
-  GitHub repository settings is a developer action. This task does not change
-  repository settings.
 - [ ] `python3 scripts/check_repository.py` and `git diff --check` pass.
 
 ## Relevant Files
@@ -50,6 +47,7 @@ vulnerabilities and a predictable shape for reports.
 
 ## Technical Context
 
+- Private vulnerability reporting was enabled on 2026-10-14.
 - Documentation-only change: the test suite may be skipped, recorded per
   `docs/CONTEXT_BUDGET_POLICY.md`.
 

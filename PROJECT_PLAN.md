@@ -181,6 +181,9 @@
 - `[ ]` 212 — Add a reproducible Lean Delivery walkthrough.
 - `[ ]` 213 — Declare supported platforms and validate on macOS in CI.
 - `[ ]` 214 — Add security policy, code of conduct, and issue and PR templates.
+- `[ ]` 215 — Remove private-project references from the distributed tree.
+- `[ ]` 216 — Anonymize private-project references in task records.
+- `[ ]` 217 — Replace the author email in the plugin manifests.
 - `[x]` 140 — Let `integrate stage` complete rows of project-shaped Governed queues.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.

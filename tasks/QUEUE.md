@@ -39,7 +39,7 @@ are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 
 ### Phase 65 — Public adoption readiness
 
-Authority: [docs/ADR_PUBLIC_SURFACE_AND_STABILITY.md](../docs/ADR_PUBLIC_SURFACE_AND_STABILITY.md) (accepted 2026-10-14; stable line from `1.3.0`) for 210; the 2026-10-14 public-distribution gap review for 209 and 211–214.
+Authority: [docs/ADR_PUBLIC_SURFACE_AND_STABILITY.md](../docs/ADR_PUBLIC_SURFACE_AND_STABILITY.md) (accepted 2026-10-14; stable line from `1.3.0`) for 210; the 2026-10-14 public-distribution gap review for 209 and 211–217.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
@@ -49,3 +49,6 @@ Authority: [docs/ADR_PUBLIC_SURFACE_AND_STABILITY.md](../docs/ADR_PUBLIC_SURFACE
 | `[ ]` | 212 | Add a reproducible Lean Delivery walkthrough | 🟡 P2 | 211 | [212](212-reproducible-lean-walkthrough.md) |
 | `[ ]` | 213 | Declare supported platforms and validate on macOS in CI | 🟡 P2 | — | [213](213-platform-support-matrix.md) |
 | `[ ]` | 214 | Add security policy, code of conduct, and issue and PR templates | 🟡 P2 | — | [214](214-community-health-files.md) |
+| `[ ]` | 215 | Remove private-project references from the distributed tree | 🔴 P1 | — | [215](215-remove-private-project-references.md) |
+| `[ ]` | 216 | Anonymize private-project references in task records | 🟡 P2 | 215 | [216](216-anonymize-task-records.md) |
+| `[ ]` | 217 | Replace the author email in the plugin manifests | 🟢 P3 | — | [217](217-remove-email-from-plugin-manifests.md) |
