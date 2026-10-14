@@ -171,6 +171,28 @@ class StateArchivalTest(unittest.TestCase):
         self.assertEqual((archived or "").count("### Inner"), 1)
         self.assertNotIn("### Inner", report)
 
+    def test_dependency_satisfaction_is_unchanged_by_archival_from_state(self) -> None:
+        from console_workflow import PROFILES, parse_queue
+
+        (self.root / "PROJECT_WORKFLOW.md").write_text("GOVERNED_SDD\n", encoding="utf-8")
+        self.state("056", "INCONCLUSIVE", "governed-sdd", spike=True)
+        self.state("057", "ACCEPTED", "governed-sdd")
+        contents = ("## Closed\n\n" + GOVERNED_HEADER
+                    + "| 1 | 056 | P0 | INCONCLUSIVE | SPIKE | — | [056](056.md) |\n"
+                    + "| 2 | 057 | P0 | ACCEPTED | NOT_REQUIRED | — | [057](057.md) |\n\n"
+                    "## Next\n\n" + GOVERNED_HEADER
+                    + "| 3 | 058 | P1 | QUEUED | NOT_REQUIRED | 056 | [058](058.md) |\n"
+                    + "| 4 | 059 | P1 | QUEUED | NOT_REQUIRED | 057 | [059](059.md) |\n")
+        retained, archived, _report = self.archive_queue(contents, "governed-sdd")
+        self.assertNotIn("| 1 | 056 |", retained)
+        self.assertIn("| 1 | 056 |", archived or "")
+        profile = PROFILES["governed-sdd"]
+        rows = (*parse_queue(retained, "QUEUE.md", profile), *parse_queue(archived or "", "QUEUE_ARCHIVE.md", profile))
+        by_id = {row.task_id: row.status for row in rows}
+        waiting = {row.task_id for row in rows for dependency in row.dependencies.split(",")
+                   if dependency.strip() in by_id and by_id[dependency.strip()] not in profile.satisfying}
+        self.assertEqual(waiting, {"058"})
+
     def test_stage_report_and_warnings_cover_state_sections(self) -> None:
         self.state("A", "DONE")
         self.state("B", "QUEUED")
