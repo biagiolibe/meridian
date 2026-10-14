@@ -36,14 +36,3 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 
 Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, 25, 26, 27, 28, 31, 32, 34, 35, 36, 42, 44, 45, 46, and 47
 are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
-
-### Phase 64 — GitHub issues of 2026-10-13
-
-Authority: GitHub issues #13 (205, 206), #3 (207), and #2 (208). Task 208 implements Amendment 1 of [docs/ADR_MACHINE_TASK_STATE.md](../docs/ADR_MACHINE_TASK_STATE.md), accepted on 2026-10-14.
-
-| Status | ID | Title | Priority | Depends on | File |
-|--------|----|-------|----------|------------|------|
-| `[x]` | 205 | Launch an agent from the console without freezing the interface | 🔴 P1 | — | [205](done/205-console-launch-without-freezing.md) |
-| `[x]` | 206 | Make the console snapshot cheaper | 🟡 P2 | 205 | [206](done/206-cheaper-console-snapshot.md) |
-| `[x]` | 207 | Add a read-only `meridian adr list` | 🟢 P3 | — | [207](done/207-adr-list-command.md) |
-| `[ ]` | 208 | Archive queue sections from task state | 🟡 P2 | — | [208](208-queue-archival-from-task-state.md) |

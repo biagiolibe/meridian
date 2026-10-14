@@ -212,8 +212,8 @@ class TaskIntegrationStateTest(unittest.TestCase):
         self.write_state(spike=True, status=status, verdict=None)
         staged = self.stage(self.reviewed)
         self.assertEqual(staged["decision"], "REUSE")
-        queue = (self.primary / "tasks/QUEUE_ARCHIVE.md") if status == "ANSWERED" else self.primary / "tasks/QUEUE.md"
-        self.assertIn(f"| {status} |", queue.read_text())
+        # Archival reads task state, so a terminal spike closes its section, INCONCLUSIVE included.
+        self.assertIn(f"| {status} |", (self.primary / "tasks/QUEUE_ARCHIVE.md").read_text())
         meridian.abort_task_integration("056", self.primary)
 
     def test_spike_terminal_projection_ignores_record_status(self):

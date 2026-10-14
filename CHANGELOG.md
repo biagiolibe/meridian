@@ -16,6 +16,14 @@ records which release moved it.
 ## [Unreleased]
 
 
+## [1.2.15]
+
+Template-changing release: migration `068-adr-list-discovery` advances the workflow baseline to `1.2.15`.
+
+### Upgrade notes
+
+- Run `upgrade --apply` to install the `meridian adr list` discovery guidance (Governed SDD) and the state-based queue archival rule in docs/WORKTREE_LIFECYCLE.md (worktree-lifecycle); adapted archival text may conflict. Then run `meridian task state import --include-terminal` and repeat with `--apply` so terminal legacy tasks have state and their sections archive. No protocolVersion change.
+
 ## [1.2.14]
 
 Template-changing release: migration `067-execution-boundaries` advances `workflowBaselineVersion` to `1.2.14` and delivers explicit execution-start and final review-delivery boundaries. The manifest shape and `protocolVersion` 2 are unchanged.

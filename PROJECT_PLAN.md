@@ -174,7 +174,7 @@
 - `[x]` 205 — Launch an agent from the console without freezing the interface.
 - `[x]` 206 — Make the console snapshot cheaper.
 - `[x]` 207 — Add a read-only `meridian adr list`.
-- `[ ]` 208 — Archive queue sections from task state.
+- `[x]` 208 — Archive queue sections from task state.
 - `[x]` 140 — Let `integrate stage` complete rows of project-shaped Governed queues.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.

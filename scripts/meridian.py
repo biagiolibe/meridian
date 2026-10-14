@@ -21,7 +21,7 @@ import sys
 import tempfile
 import tomllib
 import unicodedata
-from collections.abc import Iterator, Mapping
+from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
@@ -1750,6 +1750,34 @@ def _completed_task_row(contents: str, task_id: str, path: Path, pattern: str) -
     return f"{contents[:match.start(1)]}[x]{contents[match.end(1):]}"
 
 
+def _queue_task_rows(contents: str) -> list[dict[str, object]]:
+    """Read task rows by the named ID and Status columns of each pipe table.
+
+    Archival and state import share this reader so both find the same rows and
+    IDs. Column order, heading level, and status wording are not interpreted.
+    """
+    rows: list[dict[str, object]] = []
+    headers: list[str] = []
+    offset = 0
+    for number, line in enumerate(contents.splitlines(keepends=True), 1):
+        start, offset = offset, offset + len(line)
+        if not line.lstrip().startswith("|"):
+            headers = []
+            continue
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        folded = [cell.strip("`").casefold() for cell in cells]
+        if "id" in folded and "status" in folded:
+            headers = folded
+            continue
+        if not headers or len(cells) != len(headers) or set("".join(cells)) <= {"-", ":"}:
+            continue
+        row = dict(zip(headers, cells))
+        task_id, _link = _clean_queue_id(row["id"])
+        rows.append({"line": number, "start": start, "id": task_id,
+                     "status": row["status"].strip("`"), "review": row.get("review", "").strip("`")})
+    return rows
+
+
 _QUEUE_TABLE_DIVIDER = re.compile(r"^\|(?:\s*:?-{3,}:?\s*\|)+\s*$")
 _QUEUE_TASK_ROW = re.compile(r"^\| `(?P<status>\[[ /x]\])` \| [^|]+ \|.*$")
 _QUEUE_ARCHIVE_HEADER = (
@@ -1964,19 +1992,159 @@ def _queue_section_completion(section: str, mode: str) -> tuple[list[re.Match[st
     return rows, None
 
 
-def _archive_completed_queue_sections(
-    queue_contents: str, queue_path: Path, archive_path: Path, mode: str = "lean-delivery"
-) -> tuple[str, str | None]:
-    """Move disjoint, fully complete recognized sections to the archive in memory."""
-    completed_sections: list[tuple[int, int, str]] = []
+_STATE_TERMINAL_STATUSES = {
+    "governed-sdd": frozenset({"ACCEPTED", "ANSWERED", "INCONCLUSIVE"}),
+    "lean-delivery": frozenset({"DONE"}),
+}
+# (kind, detail): kind is terminal, open, legacy (no state file), or invalid.
+QueueStateResolver = Callable[[str], tuple[str, str]]
+
+
+def _queue_state_resolver(
+    project_root: Path, mode: str, overrides: dict[str, dict[str, object]] | None = None
+) -> QueueStateResolver:
+    """Resolve each queue row's status from its state file, read by task ID."""
+    context = task_identity_context(project_root)
+    terminal = _STATE_TERMINAL_STATUSES[mode]
+    cache: dict[str, tuple[str, str]] = {}
+
+    def resolve(supplied: str) -> tuple[str, str]:
+        if supplied in cache:
+            return cache[supplied]
+        matches = _authority_matches(context.authorities, supplied)
+        task_id = matches[0] if len(matches) == 1 else supplied
+        override = (overrides or {}).get(task_id)
+        try:
+            path = state_path(project_root, task_id)
+            if override is None and not path.exists():
+                result = ("legacy", "no state file")
+            else:
+                record = ""
+                authority = context.authorities.get(task_id)
+                if mode == "governed-sdd" and authority is not None and len(authority.task_paths) == 1:
+                    record = authority.task_paths[0].read_text(encoding="utf-8")
+                state = override or read_task_state(
+                    project_root, task_id, mode, review_required=None, stop_factory=stop_error,
+                    spike=read_task_field(record, "Class") == "SPIKE",
+                )
+                status = str(state["status"])
+                result = ("terminal" if status in terminal else "open", status)
+        except (MeridianStop, TaskStateInvalid, OSError, UnicodeError) as error:
+            result = ("invalid", str(error))
+        cache[supplied] = result
+        return result
+
+    return resolve
+
+
+def _queue_unidentified_tables(section: str, mode: str) -> bool:
+    """Whether a task-like table lacks the named ID column the state rule reads."""
+    pattern = _GOVERNED_QUEUE_TASK_ROW if mode == "governed-sdd" else _QUEUE_TASK_ROW
+    lines = section.splitlines()
+    index = 0
+    while index < len(lines):
+        if not lines[index].lstrip().startswith("|"):
+            index += 1
+            continue
+        end = index + 1
+        while end < len(lines) and lines[end].lstrip().startswith("|"):
+            end += 1
+        table = lines[index:end]
+        index = end
+        cells = [cell.strip().strip("`").casefold() for cell in table[0].strip().strip("|").split("|")]
+        if "id" in cells and "status" in cells:
+            continue
+        if "status" in cells or any(pattern.fullmatch(line) for line in table):
+            return True
+    return False
+
+
+def _queue_section_decisions(
+    queue_contents: str, mode: str, resolve_state: QueueStateResolver | None
+) -> list[dict[str, object]]:
+    """Decide every section; nested sections of an archived section are covered by it."""
     completed_statuses = {"ACCEPTED", "ANSWERED"} if mode == "governed-sdd" else {"[x]"}
-    for start, end, level, _heading in _queue_section_ranges(queue_contents):
-        if level != 3:
+    ranges = _queue_section_ranges(queue_contents)
+    decisions: list[dict[str, object]] = []
+    covered_until = -1
+    for index, (start, end, level, heading) in enumerate(ranges):
+        if start < covered_until:
             continue
         section = queue_contents[start:end]
-        rows, reason = _queue_section_completion(section, mode)
-        if rows and reason is None and all(row.group("status") in completed_statuses for row in rows):
-            completed_sections.append((start, end, section))
+        next_heading = ranges[index + 1][0] if index + 1 < len(ranges) else len(queue_contents)
+        direct = queue_contents[start:min(end, next_heading)]
+        rows = _queue_task_rows(section)
+        legacy_rows, legacy_reason = _queue_section_completion(section, mode)
+        legacy_ok = (level == 3 and bool(legacy_rows) and legacy_reason is None
+                     and all(row.group("status") in completed_statuses for row in legacy_rows))
+        kinds = {str(row["id"]): resolve_state(str(row["id"])) for row in rows} if resolve_state else {}
+        decision: dict[str, object] = {"section": heading, "level": level, "archive": False,
+                                       "rule": "legacy", "reason": "", "open": [], "legacy": []}
+        if not any(kind != "legacy" for kind, _ in kinds.values()):
+            # No state file anywhere in the section: the conservative table rule decides.
+            if legacy_ok:
+                decision.update(archive=True, reason="every row is terminal in the table")
+            elif legacy_reason is not None:
+                decision["reason"] = legacy_reason
+            elif legacy_rows and level != 3:
+                decision["reason"] = f"heading level {level} is not `###` and no row has a task state file"
+            elif legacy_rows:
+                decision["reason"] = "a row is not terminal in the table"
+            else:
+                decision["reason"] = "no task rows"
+            decision["legacy"] = sorted(kinds)
+        else:
+            decision["rule"] = "state"
+            open_ids = sorted(i for i, (kind, _) in kinds.items() if kind == "open")
+            invalid = sorted(i for i, (kind, _) in kinds.items() if kind == "invalid")
+            legacy_ids = sorted(i for i, (kind, _) in kinds.items() if kind == "legacy")
+            unidentified = _queue_unidentified_tables(section, mode)
+            decision.update({"open": open_ids + invalid, "legacy": legacy_ids})
+            if not any(_queue_task_rows(direct)):
+                decision["reason"] = "container: its task rows belong to nested sections"
+            elif open_ids or invalid:
+                parts = []
+                if open_ids:
+                    parts.append("open by task state: " + ", ".join(open_ids))
+                if invalid:
+                    parts.append("invalid task state: " + ", ".join(
+                        f"{i} ({kinds[i][1]})" for i in invalid))
+                decision["reason"] = "; ".join(parts)
+            elif (legacy_ids or unidentified) and not legacy_ok:
+                decision["reason"] = (
+                    "rows without a state file are retained by the table rule: "
+                    + (", ".join(legacy_ids) or "table without an ID column")
+                    + (f" ({legacy_reason})" if legacy_reason else "")
+                )
+            else:
+                decision.update(archive=True, reason=(
+                    "every row is terminal by task state"
+                    if not (legacy_ids or unidentified) else "terminal by task state and by the table rule"))
+        decisions.append(decision)
+        if decision["archive"]:
+            decision["range"] = (start, end)
+            covered_until = end
+    return decisions
+
+
+def _archive_completed_queue_sections(
+    queue_contents: str, queue_path: Path, archive_path: Path, mode: str = "lean-delivery",
+    *, resolve_state: QueueStateResolver | None = None, report: list[dict[str, object]] | None = None,
+) -> tuple[str, str | None]:
+    """Move disjoint, fully complete sections to the archive in memory.
+
+    A row with a state file is read from it; a row without one keeps the
+    conservative table rule, and a mixed section needs both to agree. `report`
+    receives one entry per section, archived or retained, with its reason.
+    """
+    decisions = _queue_section_decisions(queue_contents, mode, resolve_state)
+    if report is not None:
+        report.extend({key: value for key, value in decision.items() if key != "range"}
+                      for decision in decisions)
+    completed_sections = [
+        (decision["range"][0], decision["range"][1], queue_contents[decision["range"][0]:decision["range"][1]])
+        for decision in decisions if decision["archive"]
+    ]
     if not completed_sections:
         return queue_contents, None
     archived = "".join(section.rstrip("\n") + "\n" for _, _, section in completed_sections)
@@ -1992,7 +2160,9 @@ def _archive_completed_queue_sections(
     return updated_queue, archive_contents.rstrip("\n") + "\n\n" + archived
 
 
-def _queue_archival_warnings(queue_contents: str, mode: str = "lean-delivery") -> list[str]:
+def _queue_archival_warnings(
+    queue_contents: str, mode: str = "lean-delivery", resolve_state: QueueStateResolver | None = None
+) -> list[str]:
     """Use the archival boundaries and completion checks to explain retained input."""
     warnings: list[str] = []
     ranges = _queue_section_ranges(queue_contents)
@@ -2003,6 +2173,10 @@ def _queue_archival_warnings(queue_contents: str, mode: str = "lean-delivery") -
         # Non-archival headings own only their direct content, not child tables.
         if level != 3 and index + 1 < len(ranges):
             end = min(end, ranges[index + 1][0])
+        if resolve_state is not None:
+            ids = [str(row["id"]) for row in _queue_task_rows(queue_contents[start:end])]
+            if ids and all(resolve_state(task_id)[0] != "legacy" for task_id in ids):
+                continue  # the archival report names this section and reason
         rows, reason = _queue_section_completion(queue_contents[start:end], mode)
         if reason is not None:
             warnings.append(f"queue section {heading!r} is not archived: {reason}")
@@ -2017,6 +2191,7 @@ def _queue_archival_warnings(queue_contents: str, mode: str = "lean-delivery") -
                 warnings.append(
                     f"queue section {heading!r} stays open only because of INCONCLUSIVE row(s): "
                     + ", ".join(inconclusive)
+                    + "; run `meridian task state import --include-terminal` so archival reads task state"
                 )
     return warnings
 
@@ -2053,13 +2228,19 @@ def _relink_archived_task_row(contents: str, queue_path: Path, identity: Resolve
 def _apply_task_completion_rows(
     project_root: Path, identity: ResolvedTaskIdentity,
     task_state: dict[str, object] | None = None,
+    report: list[dict[str, object]] | None = None,
 ) -> dict[str, str]:
-    """Set known completion rows and archive fully complete queue sections."""
+    """Set known completion rows and archive fully complete queue sections.
+
+    `report` receives one decision per queue section, archived or retained.
+    """
     queue_path = identity.queue_path
     archive_path = queue_path.with_name("QUEUE_ARCHIVE.md")
     task_id = identity.canonical_id
     queue_contents = queue_path.read_text(encoding="utf-8")
     mode = detect_mode(project_root)
+    # The integrating task's proven state stands in for its file on the candidate tree.
+    overrides = {task_id: task_state} if task_state else None
     if mode == "governed-sdd":
         queue_completed, accepted, reason = _governed_completion_row(queue_contents, identity, queue_path, task_state)
         queue_completed = _relink_archived_task_row(queue_completed, queue_path, identity)
@@ -2067,7 +2248,8 @@ def _apply_task_completion_rows(
             raise stop_error("REVIEW_NOT_APPROVED", f"{identity.review_path}: expected APPROVE; found {reason}",
                              task_id=task_id, project=project_root)
         archived_queue, archive_contents = _archive_completed_queue_sections(
-            queue_completed, queue_path, archive_path, mode
+            queue_completed, queue_path, archive_path, mode, report=report,
+            resolve_state=_queue_state_resolver(project_root, mode, overrides),
         )
         if archived_queue != queue_contents:
             queue_path.write_text(archived_queue, encoding="utf-8")
@@ -2090,7 +2272,8 @@ def _apply_task_completion_rows(
     )
     queue_completed = _relink_archived_task_row(queue_completed, queue_path, identity)
     archived_queue, archive_contents = _archive_completed_queue_sections(
-        queue_completed, queue_path, archive_path, mode
+        queue_completed, queue_path, archive_path, mode, report=report,
+        resolve_state=_queue_state_resolver(project_root, mode, overrides),
     )
     if archived_queue != queue_contents:
         queue_path.write_text(archived_queue, encoding="utf-8")
@@ -2098,7 +2281,8 @@ def _apply_task_completion_rows(
         plan_path.write_text(plan_completed, encoding="utf-8")
     if archive_contents is not None:
         archive_path.write_text(archive_contents, encoding="utf-8")
-    return {"status": "COMPLETED", "reason": "lean completion rows updated", "source": "machine" if task_state else "legacy"}
+    return {"status": "COMPLETED", "reason": "lean completion rows updated",
+            "source": "machine" if task_state else "legacy"}
 
 
 def _spike_disallowed_paths(
@@ -2379,9 +2563,12 @@ def stage_task_integration(
             task_id=identity.canonical_id, project=project_root, evidence=evidence_path,
         )
     try:
-        completion = _apply_task_completion_rows(project_root, identity, task_state)
+        archival: list[dict[str, object]] = []
+        completion = _apply_task_completion_rows(project_root, identity, task_state, archival)
         queue_warnings = _queue_archival_warnings(
-            identity.queue_path.read_text(encoding="utf-8"), detect_mode(project_root)
+            identity.queue_path.read_text(encoding="utf-8"), detect_mode(project_root),
+            _queue_state_resolver(project_root, detect_mode(project_root),
+                                  {identity.canonical_id: task_state} if task_state else None),
         )
         lifecycle_paths = [str(identity.queue_path.relative_to(project_root))]
         if detect_mode(project_root) == "lean-delivery":
@@ -2415,6 +2602,7 @@ def stage_task_integration(
         "candidate_tree": candidate_tree,
         "next_action": "validate-candidate",
         "completion": completion,
+        "archival": archival,
         "warnings": queue_warnings,
     }
     _write_json_atomic(integration_path, staged, exclusive=True)
@@ -6841,23 +7029,11 @@ def audit_task_state_projections(project_root: Path, workflow: str) -> list[Audi
     for path in (queue, queue.with_name("QUEUE_ARCHIVE.md")):
         if not path.is_file():
             continue
-        headers: list[str] = []
-        for line in path.read_text(encoding="utf-8").splitlines():
-            if not line.startswith("|"):
-                headers = []
-                continue
-            cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
-            if "ID" in cells and "Status" in cells:
-                headers = cells
-                continue
-            if not headers or len(cells) != len(headers) or set("".join(cells)) <= {"-", ":"}:
-                continue
-            row = dict(zip(headers, cells))
-            task_id, _link = _clean_queue_id(row["ID"])
-            value = row["Status"].strip("`")
+        for found in _queue_task_rows(path.read_text(encoding="utf-8")):
+            value = str(found["status"])
             if workflow == "lean-delivery":
                 value = {"[ ]": "QUEUED", "[/]": "IN_PROGRESS", "[x]": "DONE"}.get(value, value)
-            projections.setdefault(task_id, []).append((path.relative_to(project_root).as_posix(), value))
+            projections.setdefault(str(found["id"]), []).append((path.relative_to(project_root).as_posix(), value))
     results = []
     for path in paths:
         task_id = path.stem
@@ -8742,33 +8918,27 @@ def write_budget_state(project_root: Path, state: dict[str, object]) -> None:
     path.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
-def import_task_states(project_root: Path, task_ids: list[str], *, apply: bool = False) -> dict[str, object]:
-    """Explicitly bootstrap open tasks; validate the entire proposal before writing.
+def import_task_states(
+    project_root: Path, task_ids: list[str], *, apply: bool = False, include_terminal: bool = False
+) -> dict[str, object]:
+    """Explicitly bootstrap tasks; validate the entire proposal before writing.
+
+    Terminal legacy tasks are skipped unless `include_terminal` asks for their
+    state, which needs consistent texts and, for a reviewed Governed task, a
+    recorded APPROVE verdict.
 
     Imported transitions describe the bootstrap at HEAD, not historical events.
-    Existing machine files and terminal legacy tasks are never rewritten.
+    Existing machine files are never rewritten.
     """
     project_root = project_root.resolve()
     workflow = detect_mode(project_root)
     context = task_identity_context(project_root)
     queue_path = project_root / context.locations.queue
     rows: dict[str, list[dict[str, object]]] = {}
-    headers = []
-    for number, line in enumerate(queue_path.read_text(encoding="utf-8").splitlines(), 1):
-        if not line.lstrip().startswith("|"):
-            headers = []
-            continue
-        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
-        if "ID" in cells and "Status" in cells:
-            headers = cells
-            continue
-        if not headers or len(cells) != len(headers) or set("".join(cells)) <= {"-", ":"}:
-            continue
-        row = dict(zip(headers, cells))
-        task_id, _link = _clean_queue_id(row["ID"])
-        rows.setdefault(task_id, []).append({"path": context.locations.queue.as_posix(), "line": number,
-                                            "status": row["Status"].strip("`"),
-                                            "review": row.get("Review", "").strip("`")})
+    for found in _queue_task_rows(queue_path.read_text(encoding="utf-8")):
+        rows.setdefault(str(found["id"]), []).append({
+            "path": context.locations.queue.as_posix(), "line": found["line"],
+            "status": found["status"], "review": found["review"]})
     selected = task_ids or list(rows)
     proposals = []
     seen = set()
@@ -8804,7 +8974,7 @@ def import_task_states(project_root: Path, task_ids: list[str], *, apply: bool =
         if path.exists():
             proposal["action"] = "skip-existing"
             continue
-        if status in terminal:
+        if status in terminal and not include_terminal:
             proposal["action"] = "skip-terminal"
             continue
         try:
@@ -8823,13 +8993,16 @@ def import_task_states(project_root: Path, task_ids: list[str], *, apply: bool =
         review_policy = read_task_field(record, "Review")
         review_policy = review_policy.strip("`") if review_policy else None
         required = workflow == "governed-sdd" and not spike and review_policy != "NOT_REQUIRED"
-        if workflow == "governed-sdd" and queue["review"] and queue["review"] != review_policy:
+        spike_column = spike and queue["review"] == "SPIKE"  # the queue's own spelling of Class: SPIKE
+        if workflow == "governed-sdd" and queue["review"] and queue["review"] != review_policy and not spike_column:
             invalid(f"queue Review={queue['review']!r}; record Review={review_policy!r}")
         review_path = identity.review_path
         review_text = review_path.read_text(encoding="utf-8") if review_path.is_file() else ""
         attempts = []
         for heading in re.finditer(r"^## Attempt (\d+)[^\n]*", review_text, re.MULTILINE):
             verdicts = re.findall(r"\b(APPROVE|CHANGES_REQUESTED|BLOCKED)\b", heading.group())
+            if not verdicts and status in terminal:
+                continue  # a remediation heading of a closed task carries no verdict
             if len(verdicts) != 1:
                 invalid(f"review heading: allowed one verdict; found {heading.group()!r}")
             attempts.append((int(heading.group(1)), verdicts[0], heading.start(), heading.group()))
@@ -8840,8 +9013,14 @@ def import_task_states(project_root: Path, task_ids: list[str], *, apply: bool =
                                              "exists": review_path.is_file(),
                                              "heading": latest[3] if latest else None,
                                              "verdict": latest[1] if latest else None}
-        if latest and (latest[1] == "APPROVE" or status == "QUEUED" or (latest[1] == "BLOCKED" and status != "READY_FOR_REVIEW")):
+        if latest and status not in terminal and (
+                latest[1] == "APPROVE" or status == "QUEUED"
+                or (latest[1] == "BLOCKED" and status != "READY_FOR_REVIEW")):
             invalid(f"queue/record Status={status!r}; review verdict={latest[1]!r}")
+        if status in terminal and workflow == "governed-sdd" and required and latest and latest[1] != "APPROVE":
+            # A recorded verdict must agree with the terminal text; an absent
+            # record stays absent (verdict null), so an import never invents an approval.
+            invalid(f"queue/record Status={status!r}; review verdict: allowed 'APPROVE'; found {latest[1]!r}")
         if status == "CHANGES_REQUESTED" and (not latest or latest[1] != "CHANGES_REQUESTED"):
             invalid(f"queue/record Status={status!r}; review verdict={latest[1] if latest else None!r}")
         states = machine(workflow, spike, required)
@@ -11699,9 +11878,11 @@ def _run_cli(journal: LifecycleJournalEntry) -> int:
     transition.add_argument("--format", choices=("json",), default="json")
     state = task_sub.add_parser("state", help="explicit task-state adoption")
     state_sub = state.add_subparsers(dest="state_command", required=True)
-    state_import = state_sub.add_parser("import", help="preview or create state for open legacy tasks")
+    state_import = state_sub.add_parser("import", help="preview or create state for legacy tasks")
     state_import.add_argument("task_ids", nargs="*")
     state_import.add_argument("--apply", action="store_true")
+    state_import.add_argument("--include-terminal", action="store_true",
+                              help="also propose state for terminal tasks, so queue archival reads it")
     state_import.add_argument("--project", type=Path, default=Path.cwd())
     state_import.add_argument("--format", choices=("json",), default="json")
     identity = task_sub.add_parser("identity", help="resolve the project-selected task identity policy")
@@ -12158,7 +12339,8 @@ def _run_cli(journal: LifecycleJournalEntry) -> int:
             if arguments.task_command == "transition":
                 print(json.dumps(transition_task_state(project_root, arguments.task_id, arguments.status), sort_keys=True))
             elif arguments.task_command == "state":
-                print(json.dumps(import_task_states(project_root, arguments.task_ids, apply=arguments.apply), sort_keys=True))
+                print(json.dumps(import_task_states(project_root, arguments.task_ids, apply=arguments.apply,
+                                                  include_terminal=arguments.include_terminal), sort_keys=True))
             elif arguments.identity_command == "check":
                 resolved = resolve_task_identity(project_root, arguments.task_id, "existing")
                 print(json.dumps(task_identity_json(project_root, resolved), sort_keys=True))
