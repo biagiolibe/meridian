@@ -154,9 +154,13 @@ class InternalStopError(Exception):
 class MeridianStop(MeridianError):
     """A registered stop; its message is the complete `BLOCKED <CODE>: ...` line."""
 
-    def __init__(self, code: str, line: str) -> None:
+    def __init__(self, code: str, line: str, *, render: Callable[[], str] | None = None) -> None:
         super().__init__(line)
         self.code = code
+        self._render = render
+
+    def __str__(self) -> str:
+        return self._render() if self._render is not None else super().__str__()
 
 
 def load_stop_registry() -> dict[str, dict[str, object]]:
@@ -224,6 +228,10 @@ def format_stop(code: str, detail: str, *, resume: str | None = None, **fields: 
 
 def stop_error(code: str, detail: str, **fields: object) -> MeridianStop:
     """Build the error for a registered stop; the CLI prints it unchanged and exits 2."""
+    if code == "TASK_STATE_MISSING":
+        # Missing state is also a normal legacy probe. Resolve Git recovery paths
+        # only when the stop is displayed, not when a caller catches that probe.
+        return MeridianStop(code, detail, render=lambda: format_stop(code, detail, **fields))
     return MeridianStop(code, format_stop(code, detail, **fields))
 
 
