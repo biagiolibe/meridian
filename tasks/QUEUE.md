@@ -45,5 +45,5 @@ Authority: GitHub issues #13 (205, 206), #3 (207), and #2 (208). Task 208 implem
 |--------|----|-------|----------|------------|------|
 | `[x]` | 205 | Launch an agent from the console without freezing the interface | 🔴 P1 | — | [205](done/205-console-launch-without-freezing.md) |
 | `[x]` | 206 | Make the console snapshot cheaper | 🟡 P2 | 205 | [206](done/206-cheaper-console-snapshot.md) |
-| `[ ]` | 207 | Add a read-only `meridian adr list` | 🟢 P3 | — | [207](207-adr-list-command.md) |
+| `[x]` | 207 | Add a read-only `meridian adr list` | 🟢 P3 | — | [207](done/207-adr-list-command.md) |
 | `[ ]` | 208 | Archive queue sections from task state | 🟡 P2 | — | [208](208-queue-archival-from-task-state.md) |

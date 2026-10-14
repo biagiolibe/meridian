@@ -493,7 +493,9 @@ parse arbitrary shell, scripts, substitutions, heredocs, `awk`, or `python
 Confirm activation in a trusted project by attempting `cat` on a file over the
 threshold: Codex must deny it before execution. Use `rg -n` then ranged
 `sed -n`, or `meridian context authority <TASK-ID>` / `meridian adr show
-<ADR-ID>` for bounded source material. Declare a necessary file in task
+<ADR-ID>` for bounded source material. `meridian adr list [--status <value>]
+[--format text|json]` prints one line per ADR (ID, title, status) to find the
+governing ADR without opening the log. Declare a necessary file in task
 Authority or raise `Read-guard threshold` only when the larger read is needed.
 
 ### Local session token usage
