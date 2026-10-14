@@ -82,6 +82,25 @@ class MachineTaskStateTest(unittest.TestCase):
         with self.assertRaises(task_state.TaskStateInvalid):
             task_state.validate_task_state(self.state("governed-sdd", ("IN_PROGRESS", "ANSWERED")), "001", "governed-sdd")
 
+    def test_archived_record_transition_preserves_location_and_queue(self):
+        queue = self.root / "tasks/QUEUE.md"
+        queue.write_text("| ID | Status | Task file |\n|---|---|---|\n| 001 | QUEUED | [001](001.md) |\n")
+        archived = self.root / "tasks/done/001.md"
+        archived.parent.mkdir()
+        self.record.rename(archived)
+        before = queue.read_bytes()
+        result = self.cli("DONE")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.read()["status"], "DONE")
+        self.assertIn("Status: DONE", archived.read_text())
+        self.assertFalse(self.record.exists())
+        self.assertEqual(queue.read_bytes(), before)
+
+    def test_missing_resume_without_worktree_uses_primary(self):
+        import shlex
+        resume = meridian.stop_resume("TASK_STATE_MISSING", task_id="001", project=self.root)
+        self.assertEqual(shlex.split(resume)[shlex.split(resume).index("--project") + 1], str(self.root))
+
     def test_first_creation_head_timestamp_and_projection(self):
         result = self.cli("DONE")
         self.assertEqual(result.returncode, 0, result.stderr)

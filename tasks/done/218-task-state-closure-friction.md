@@ -28,28 +28,28 @@ as printed.
 
 ## Acceptance Criteria
 
-- [ ] `meridian worktree advance` checks, before it starts `integrate
+- [x] `meridian worktree advance` checks, before it starts `integrate
   stage`, that the task commit tracks `.meridian/tasks/<TASK-ID>.json` with a
   terminal status for its workflow. When the file is missing, advance stops
   with `TASK_STATE_MISSING` and an `action_required` that names the exact
   command to run in the task worktree. When the file is present but not
   terminal, it stops with the existing state stop. Nothing is staged in either
   case.
-- [ ] Every printed `TASK_STATE_MISSING` resume command uses the canonical
+- [x] Every printed `TASK_STATE_MISSING` resume command uses the canonical
   task worktree path as `--project` when a registered worktree exists for the
   task, and the primary checkout only when none exists. The stop-code registry
   documents both forms.
-- [ ] `meridian task transition` and `meridian task state import` accept a
+- [x] `meridian task transition` and `meridian task state import` accept a
   task whose record is already archived at its exact archive path under
   `tasks/done/`. The state file is written in the same project. The record is
   never moved.
-- [ ] Tests cover:
+- [x] Tests cover:
   - advance with a missing state, with a non-terminal state, and with a
     terminal state;
   - the resume path with and without a registered worktree;
   - transition and import on an archived record.
-- [ ] One changelog fragment states the behavior under `Fixed`.
-- [ ] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
+- [x] One changelog fragment states the behavior under `Fixed`.
+- [x] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
   --parallel`, and `git diff --check` pass.
 
 ## Relevant Files
@@ -84,3 +84,7 @@ managed text. Both are decided separately.
 
 - **Depends on**: —
 - **Blocks**: none
+
+## Completion
+
+Implemented and validated on `task-218`. See `tasks/handoffs/218.md` for command results and commit-bound evidence.

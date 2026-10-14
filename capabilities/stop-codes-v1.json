@@ -610,10 +610,10 @@
       ],
       "emitter": "shared task-state reader; `meridian task transition`",
       "human_decision": false,
-      "resume": "meridian task state import {task_id} --project {project}",
+      "resume": "meridian task state import {task_id} --project {project} --apply --include-terminal",
       "tool_hint": "meridian task transition",
       "kind": "stop",
-      "summary": "a task has no tracked state file",
+      "summary": "a task has no tracked state file; resume uses --project <canonical-task-worktree> when registered, otherwise --project <primary-checkout>",
       "test": "tests.test_machine_task_state.MachineTaskStateTest.test_missing_stop"
     },
     {

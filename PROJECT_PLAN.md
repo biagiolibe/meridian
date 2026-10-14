@@ -184,7 +184,7 @@
 - `[x]` 215 — Remove private-project references from the distributed tree.
 - `[x]` 216 — Anonymize private-project references in task records (cancelled, see `tasks/done/216-anonymize-task-records.md`).
 - `[x]` 217 — Replace the author email in the plugin manifests.
-- `[ ]` 218 — Detect missing closure state early and point recovery at the task worktree.
+- `[x]` 218 — Detect missing closure state early and point recovery at the task worktree.
 - `[ ]` 219 — Close a Lean task with one command.
 - `[ ]` 220 — Accept a queue link to a record archived on its task branch.
 - `[ ]` 221 — Manage a Meridian block in the user's Codex rules through setup.

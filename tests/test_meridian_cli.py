@@ -8670,6 +8670,13 @@ class WorktreeLifecycleCliTest(unittest.TestCase):
         subprocess.run(["git", "commit", "-m", "handoff"], cwd=self.project, check=True, capture_output=True)
         evidence_path = self._stage_ready_task_with_origin(local_ahead=True)
         evidence_path.unlink()
+        worktree = Path(json.loads(self.run_cli(
+            "worktree", "path", "056", "--project", str(self.project),
+            "--worktree-root", str(self.worktree_root), "--format", "json",
+        ).stdout)["path"])
+        meridian.transition_task_state(worktree, "056", "DONE")
+        subprocess.run(["git", "add", "."], cwd=worktree, check=True)
+        subprocess.run(["git", "commit", "-m", "record terminal state"], cwd=worktree, check=True, capture_output=True)
         (self.project / ".meridian/candidate-validation.json").write_text(
             json.dumps({"version": 1, "state": "declared", "outcomes": {
                 "REUSE": ["scripts/check_repository.py"],

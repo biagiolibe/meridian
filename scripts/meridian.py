@@ -154,9 +154,13 @@ class InternalStopError(Exception):
 class MeridianStop(MeridianError):
     """A registered stop; its message is the complete `BLOCKED <CODE>: ...` line."""
 
-    def __init__(self, code: str, line: str) -> None:
+    def __init__(self, code: str, line: str, *, render: Callable[[], str] | None = None) -> None:
         super().__init__(line)
         self.code = code
+        self._render = render
+
+    def __str__(self) -> str:
+        return self._render() if self._render is not None else super().__str__()
 
 
 def load_stop_registry() -> dict[str, dict[str, object]]:
@@ -187,11 +191,27 @@ def load_stop_registry() -> dict[str, dict[str, object]]:
     return _stop_registry_cache
 
 
+def _task_state_recovery_project(project: Path, task_id: str) -> Path:
+    """Direct state recovery to the task branch's registered checkout when present."""
+    project = project.expanduser().resolve()
+    try:
+        primary = canonical_project_root(project)
+        identity = resolve_task_identity(primary, task_id, "existing", check_queue_links=False)
+        return next((Path(item["worktree"]).resolve() for item in _git_worktrees(primary)
+                     if item.get("branch") == f"refs/heads/{identity.branch_name}"), primary)
+    except MeridianError:
+        return project
+
+
 def stop_resume(code: str, **fields: object) -> str:
     """Return the registered resume template for `code` with its fields filled in."""
     entry = load_stop_registry().get(code)
     if entry is None:
         raise InternalStopError(f"unregistered stop code: {code}")
+    if code == "TASK_STATE_MISSING" and fields.get("project") and fields.get("task_id"):
+        fields["project"] = shlex.quote(str(_task_state_recovery_project(
+            Path(str(fields["project"])), str(fields["task_id"]),
+        )))
     try:
         return str(entry["resume"]).format(**fields)
     except KeyError as error:
@@ -208,6 +228,10 @@ def format_stop(code: str, detail: str, *, resume: str | None = None, **fields: 
 
 def stop_error(code: str, detail: str, **fields: object) -> MeridianStop:
     """Build the error for a registered stop; the CLI prints it unchanged and exits 2."""
+    if code == "TASK_STATE_MISSING":
+        # Missing state is also a normal legacy probe. Resolve Git recovery paths
+        # only when the stop is displayed, not when a caller catches that probe.
+        return MeridianStop(code, detail, render=lambda: format_stop(code, detail, **fields))
     return MeridianStop(code, format_stop(code, detail, **fields))
 
 
@@ -2322,6 +2346,7 @@ def _spike_disallowed_paths(
 
 def _integration_task_state(
     project_root: Path, identity: ResolvedTaskIdentity, task_commit: str, worktree: Path,
+    *, require_tracked: bool = False,
 ) -> dict[str, object] | None:
     """Prove terminal state and commit-bound approval before any lease or merge."""
     relative = state_path(project_root, identity.canonical_id).relative_to(project_root)
@@ -2330,7 +2355,7 @@ def _integration_task_state(
         or (worktree / relative.parent).is_dir()
         or bool(git_output(project_root, "ls-tree", "-d", task_commit, "--", str(relative.parent)))
     )
-    if not adopted:
+    if not adopted and not require_tracked:
         if detect_mode(project_root) == "governed-sdd":
             candidate_identity = resolve_task_identity(worktree, identity.canonical_id, "existing", check_queue_links=False)
             _row, accepted, reason = _governed_completion_row(
@@ -2882,6 +2907,19 @@ def advance_task_closure(
             performed.append("C5")
             _journal_advance_step(project_root, "evidence", task, "C5")
         elif step == "C6" and code is None:
+            try:
+                inspection, ready = inspect_task_worktree(
+                    task, worktree_root, project_root, require_effective_worktree=False, identity=identity,
+                )
+                if ready:
+                    _integration_task_state(project_root, identity, str(inspection["task_commit"]),
+                                            Path(str(inspection["worktree"])), require_tracked=True)
+            except MeridianStop as error:
+                resume = stop_resume(error.code, task_id=task, project=project_root)
+                if error.code == "TASK_STATE_MISSING" and detect_mode(project_root) == "lean-delivery":
+                    recovery_project = _task_state_recovery_project(project_root, task)
+                    resume = f"meridian task transition {task} DONE --project {shlex.quote(str(recovery_project))}"
+                return result("C6", "resolve", commands=[resume], stop_code=error.code, resume=resume, blocked=True)
             try:
                 staged = stage_task_integration(task, worktree_root, evidence_path, project_root)
             except MeridianStop as error:
@@ -8978,7 +9016,8 @@ def import_task_states(
             proposal["action"] = "skip-terminal"
             continue
         try:
-            identity = resolve_task_identity(project_root, task_id, "existing", context=context)
+            identity = resolve_task_identity(project_root, task_id, "existing", context=context,
+                                             allow_archived_queue_links=True)
         except MeridianError as error:
             invalid(str(error))
         record = identity.task_path.read_text(encoding="utf-8")
@@ -9072,7 +9111,7 @@ def import_task_states(
 
 def transition_task_state(project_root: Path, task_id: str, status: str) -> dict[str, object]:
     """Apply one validated machine transition and update the record projection."""
-    identity = resolve_task_identity(project_root, task_id, "existing")
+    identity = resolve_task_identity(project_root, task_id, "existing", allow_archived_queue_links=True)
     task_id = identity.canonical_id
     workflow = detect_mode(project_root)
     record = identity.task_path.read_text(encoding="utf-8")
@@ -9622,6 +9661,7 @@ def resolve_task_identity(
     *,
     check_queue_links: bool = True,
     context: TaskIdentityContext | None = None,
+    allow_archived_queue_links: bool = False,
 ) -> ResolvedTaskIdentity:
     if intent not in ("existing", "new"):
         raise MeridianError(f"unsupported task identity intent: {intent!r}")
@@ -9667,7 +9707,14 @@ def resolve_task_identity(
         if len(authority.task_paths) > 1 or authority.queue_records > 1 or len(authority.queue_links) > 1:
             raise MeridianError(f"ambiguous authoritative artifacts for task {canonical}")
         if check_queue_links:
-            linked_existing = tuple(path for path in authority.queue_links if path.is_file())
+            links = authority.queue_links
+            if allow_archived_queue_links and len(authority.task_paths) == 1:
+                record = authority.task_paths[0]
+                links = tuple(
+                    record if not link.exists() and record == link.parent / "done" / link.name else link
+                    for link in links
+                )
+            linked_existing = tuple(path for path in links if path.is_file())
             if authority.queue_links and len(linked_existing) != len(authority.queue_links):
                 raise MeridianError(f"queue link for task {canonical} does not resolve to an existing task file")
             if linked_existing and not authority.task_paths:
