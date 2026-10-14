@@ -1,6 +1,8 @@
 # ADR: Public Surface and Stability
 
-Status: Proposed
+Status: Accepted
+
+*Proposed and accepted on 2026-10-14, with option A: the stable line starts at `1.3.0`.*
 
 ## Context
 
@@ -113,15 +115,15 @@ rules.
 - Limitation: the tier of a new surface is decided when it is introduced. A
   surface that managed text names becomes stable as soon as it ships.
 
-## Open choice: which version starts the stable line
+## Starting version
 
 | Option | For | Against |
 |--------|-----|---------|
 | **A. Next minor, `1.3.0` (recommended)** | No breaking change is needed to declare stability. Existing pins and the upgrade window stay untouched. A `2.0.0` would announce a break that did not happen. | Earlier `1.x` releases did not follow these rules. The changelog must say from which release the promise holds. |
 | B. `2.0.0` | A clean boundary: everything before `2.0.0` is read as pre-stable. | It signals a breaking change to every adopter. The upgrade window and its tests must cover a major boundary with no actual break. |
 
-The developer chooses when accepting this ADR. The rollout below assumes
-option A.
+Decided on acceptance, 2026-10-14: option A. The stable line starts at
+`1.3.0`.
 
 ## Rejected alternatives
 
@@ -134,13 +136,13 @@ option A.
 
 ## Rollout Plan
 
-1. Accept this ADR and choose the starting version.
+1. Accepted on 2026-10-14; the starting version is `1.3.0`.
 2. Task 210 publishes `docs/PUBLIC_SURFACE.md`, derived by the Decision 1
    rule, and labels experimental surfaces in `--help`. It also adds the
    Decision 4 check to `release.py`, the versioning and deprecation rules to
    `CONTRIBUTING.md`, and the README status line. CLI-only; it ships in the
    starting release.
-3. The first release after task 210 is the starting version, and its changelog
+3. The first release after task 210 is `1.3.0`, and its changelog
    states that the promise holds from that release forward.
 
 ## Out of Scope

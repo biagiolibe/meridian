@@ -12,8 +12,7 @@
 
 Implement Decisions 1–5 of
 [docs/ADR_PUBLIC_SURFACE_AND_STABILITY.md](../docs/ADR_PUBLIC_SURFACE_AND_STABILITY.md).
-Starts only after that ADR is accepted, and uses the starting version it
-records.
+The ADR was accepted on 2026-10-14; the stable line starts at `1.3.0`.
 
 ## Acceptance Criteria
 
@@ -71,5 +70,5 @@ adopter documentation beyond the status line (task 211).
 
 ## Dependencies
 
-- **Depends on**: acceptance of `docs/ADR_PUBLIC_SURFACE_AND_STABILITY.md`
+- **Depends on**: —
 - **Blocks**: 211

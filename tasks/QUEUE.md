@@ -39,7 +39,7 @@ are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 
 ### Phase 65 — Public adoption readiness
 
-Authority: [docs/ADR_PUBLIC_SURFACE_AND_STABILITY.md](../docs/ADR_PUBLIC_SURFACE_AND_STABILITY.md) (proposed 2026-10-14) for 210; the 2026-10-14 public-distribution gap review for 209 and 211–214. Task 210 starts only after that ADR is accepted.
+Authority: [docs/ADR_PUBLIC_SURFACE_AND_STABILITY.md](../docs/ADR_PUBLIC_SURFACE_AND_STABILITY.md) (accepted 2026-10-14; stable line from `1.3.0`) for 210; the 2026-10-14 public-distribution gap review for 209 and 211–214.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
