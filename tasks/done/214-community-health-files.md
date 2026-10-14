@@ -17,23 +17,23 @@ vulnerabilities and a predictable shape for reports.
 
 ## Acceptance Criteria
 
-- [ ] `SECURITY.md` names the supported versions by reference to the support
+- [x] `SECURITY.md` names the supported versions by reference to the support
   policy, the private reporting channel (GitHub private vulnerability
   reporting), what to include in a report, and the expected response. It does
   not publish a personal email address.
-- [ ] `CODE_OF_CONDUCT.md` adopts the Contributor Covenant 2.1 with its
+- [x] `CODE_OF_CONDUCT.md` adopts the Contributor Covenant 2.1 with its
   attribution and names the same private reporting channel for enforcement.
-- [ ] `.github/ISSUE_TEMPLATE/` has a bug report template and a feature
+- [x] `.github/ISSUE_TEMPLATE/` has a bug report template and a feature
   request template, plus a `config.yml` that routes security reports to
   `SECURITY.md`. The bug template asks for the Meridian version (`meridian
   --version`), workflow mode, host, OS, and the exact `BLOCKED` line when
   there is one.
-- [ ] `.github/pull_request_template.md` asks for the task ID, validation
+- [x] `.github/pull_request_template.md` asks for the task ID, validation
   commands and results, and a changelog fragment when the change is
   user-visible, as `CONTRIBUTING.md` requires.
-- [ ] `README.md` and `CONTRIBUTING.md` link `SECURITY.md` and
+- [x] `README.md` and `CONTRIBUTING.md` link `SECURITY.md` and
   `CODE_OF_CONDUCT.md`.
-- [ ] `python3 scripts/check_repository.py` and `git diff --check` pass.
+- [x] `python3 scripts/check_repository.py` and `git diff --check` pass.
 
 ## Relevant Files
 
