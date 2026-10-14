@@ -1001,7 +1001,7 @@ migration for each version and remains the authoritative detail.
   category the framework doesn't have yet (previous migrations only ever
   add or version a capability, never move it between files) and would orphan
   the operative prose a customized project has already written next to that
-  marker in its current location (Palimpsest and fusa both did this in
+  marker in its current location (consumer project A and consumer project B both did this in
   their retrofit onto capability markers). A prompt-level reading rule gets
   most of the same benefit — implementer and reviewer sessions each skip
   roughly a quarter to a third of the file — with no migration risk and no
@@ -1037,7 +1037,7 @@ migration for each version and remains the authoritative detail.
   tightened from "marker version present" to a byte-exact comparison of
   the local marker's content against the template's, closing a gap where a
   version-tagged marker with corrupted inner text was wrongly accepted.
-  Caught while retrofitting a real, heavily customized project (Palimpsest)
+  Caught while retrofitting a real, heavily customized project (consumer project A)
   onto capability markers: `meridian audit` passed all 31 markers while
   `meridian upgrade --check` still reported 5 files as blocking `CONFLICT`s
   — a contradiction between the two commands that shouldn't be possible
@@ -1137,8 +1137,8 @@ file changed, so no migration record or `VERSION` bump applies.
   `commands/meridian-init.md` step 9 replaces that placeholder with the
   project's actual chosen language during initialization — so every real,
   correctly initialized project would have diverged from canon on that exact
-  line and failed `meridian audit` on day one, not just Palimpsest. Caught
-  before shipping anywhere, while working out the Palimpsest retrofit.
+  line and failed `meridian audit` on day one, not just consumer project A. Caught
+  before shipping anywhere, while working out the consumer project A retrofit.
   Verified live: a project with the placeholder replaced (exactly what
   `/meridian-init` produces) now passes.
 
@@ -1203,10 +1203,10 @@ file changed, so no migration record or `VERSION` bump applies.
   `009-lifecycle-orchestration-v2`: the canonical text for both capabilities
   stops hardcoding `tasks/reviews/<TASK-ID>.md` inline, referencing a new
   "Canonical locations" declaration in `PROJECT_WORKFLOW.md`'s Execution
-  assets section instead (default unchanged). Motivated by Palimpsest: its
+  assets section instead (default unchanged). Motivated by consumer project A: its
   own directory conventions (`docs/tasks/...`) were baked into the literal
   wording of the review-remediation-record and lifecycle-orchestration
-  capabilities, so wrapping Palimpsest's actual text in a marker would have
+  capabilities, so wrapping consumer project A's actual text in a marker would have
   been a false claim of byte-identical canon. Parameterizing the reference
   lets any project's own declared locations sit outside the protected
   region without changing the canonical text at all.
@@ -1215,7 +1215,7 @@ file changed, so no migration record or `VERSION` bump applies.
   capabilities require v2 now. The `LEGACY_CAPABILITY_EVIDENCE` fallback
   (added in migration 006/phase 2) only ever proves v1, by design — so a
   project relying on it, including the two real projects adopted so far
-  (`fusa`, `palimpsest`), now correctly reports both capabilities `MISSING`
+  (`consumer project B`, `consumer project A`), now correctly reports both capabilities `MISSING`
   (stale) rather than falsely `PRESENT`, and needs another assisted-adoption
   pass to reach `1.1.6`. Verified live, read-only, against both.
 

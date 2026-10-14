@@ -193,7 +193,7 @@ fi
 # A project's entry router may declare files that are always loaded, in a
 # line containing "always" alongside their backticked paths -- e.g. "AGENTS.md
 # and CLAUDE.md are always loaded." Project-declared, not a hardcoded path
-# list, so a non-Palimpsest project does not inherit Palimpsest exemptions.
+# list, so other projects do not inherit consumer project A exemptions.
 ROUTER="$CWD/docs/workflows/ENTRY_ROUTER.md"
 if [ -f "$ROUTER" ]; then
   ALWAYS_LOADED=$(grep -i 'always' "$ROUTER" 2>/dev/null | grep -Eo '`[^`]+`' | tr -d '`')

@@ -24,34 +24,34 @@ into plain text. Task 216 was cancelled, and its name-guard scope moved here.
 
 ## Acceptance Criteria
 
-- [ ] Every document under `docs/` that mentions either project is classified
+- [x] Every document under `docs/` that mentions either project is classified
   in the handoff as `delete` or `anonymize`:
   - `delete`: the document's subject is the other project, for example the
     routing evidence report of consumer project A;
   - `anonymize`: the document is about Meridian and only cites the project as
     evidence.
   Every tracked link to a deleted document is removed or redirected.
-- [ ] Anonymized text names neither project, nor its domain terms or crate
+- [x] Anonymized text names neither project, nor its domain terms or crate
   names. Each mention becomes a neutral description, using the labels the
   coordination commit used in `tasks/`: "consumer project A" and "consumer
   project B". Each measured fact, such as a count, size, or date, is
   kept.
-- [ ] The same applies to `hooks/`, `migrations/` (descriptions and
+- [x] The same applies to `hooks/`, `migrations/` (descriptions and
   `CAPABILITY_MARKERS.md`), `tests/` (names, docstrings, and fixtures),
   `CHANGELOG.md`, and `.meridian/`. Before editing a published migration
   description, the handoff records whether any digest, baseline, or check
   covers it. A covered field is left unchanged and listed instead.
-- [ ] `scripts/check_repository.py` fails when any tracked file, including
+- [x] `scripts/check_repository.py` fails when any tracked file, including
   everything under `tasks/`, contains a denied name. The check matches
   case-insensitively at word boundaries, where `_`, `-`, `.`, and `/` also
   count as boundaries, so identifiers such as `NAME_ROUTING` and `../name` are
   caught. The denied names are stored only as SHA-256 hashes of their
   lowercase form. A test covers a plain match, an identifier match, and a
   non-match on a substring such as `refusal`.
-- [ ] The handoff lists the GitHub Release bodies that still contain either
+- [x] The handoff lists the GitHub Release bodies that still contain either
   name, with each release tag. Editing them is a developer action.
-- [ ] No behavior changes. Test renames keep every assertion.
-- [ ] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
+- [x] No behavior changes. Test renames keep every assertion.
+- [x] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
   --parallel`, and `git diff --check` pass.
 
 ## Relevant Files
@@ -84,3 +84,7 @@ history; and GitHub Release bodies.
 
 - **Depends on**: —
 - **Blocks**: none
+
+## Completion
+
+Implemented and validated on 2026-10-15. See `tasks/handoffs/215.md`.

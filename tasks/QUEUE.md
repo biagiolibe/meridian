@@ -49,7 +49,7 @@ Authority: [docs/ADR_PUBLIC_SURFACE_AND_STABILITY.md](../docs/ADR_PUBLIC_SURFACE
 | `[ ]` | 212 | Add a reproducible Lean Delivery walkthrough | 🟡 P2 | 211 | [212](212-reproducible-lean-walkthrough.md) |
 | `[ ]` | 213 | Declare supported platforms and validate on macOS in CI | 🟡 P2 | — | [213](213-platform-support-matrix.md) |
 | `[ ]` | 214 | Add security policy, code of conduct, and issue and PR templates | 🟡 P2 | — | [214](214-community-health-files.md) |
-| `[ ]` | 215 | Remove private-project references from the distributed tree | 🔴 P1 | — | [215](215-remove-private-project-references.md) |
+| `[x]` | 215 | Remove private-project references from the distributed tree | 🔴 P1 | — | [215](done/215-remove-private-project-references.md) |
 | `[x]` | 216 | Anonymize private-project references in task records (cancelled) | 🟡 P2 | 215 | [216](done/216-anonymize-task-records.md) |
 | `[ ]` | 217 | Replace the author email in the plugin manifests | 🟢 P3 | — | [217](217-remove-email-from-plugin-manifests.md) |
 

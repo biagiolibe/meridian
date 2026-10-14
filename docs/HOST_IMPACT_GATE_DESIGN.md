@@ -112,8 +112,8 @@ must not block on heuristic inference.
 |---|---|---|
 | Claude Code 2.1.278 direct-plugin session, native `Read` guard | `enforced` | The direct `--plugin-dir` probe is evidence only for this invocation; marketplace installation and other runtimes are `unverified`. |
 | Codex CLI 0.155.1 trusted project session, command approval rules | `enforced` | The verified profile requires trusted project rules and one shell command per invocation; approval does not grant sandbox access. |
-| Codex trusted Palimpsest project session, read guard for project files | `enforced` | A 2,520-line project file was denied before execution. |
-| Codex trusted Palimpsest project session, read guard for absolute external paths | `enforced` | `cat /private/tmp/meridian-read-guard-probe.txt > /dev/null` was denied before execution at 401 effective lines. Other Codex versions and plugin sessions remain `unverified`. |
+| Codex trusted consumer project A project session, read guard for project files | `enforced` | A 2,520-line project file was denied before execution. |
+| Codex trusted consumer project A project session, read guard for absolute external paths | `enforced` | `cat /private/tmp/meridian-read-guard-probe.txt > /dev/null` was denied before execution at 401 effective lines. Other Codex versions and plugin sessions remain `unverified`. |
 | Codex plugin session | `unverified` | No plugin-layer hook or trust probe has been recorded. |
 | Host-neutral CLI bootstrap | `unverified` | The Codex hook PATH was observed, but authority, upgrade, and adoption commands have not each been tested from every claimed profile. |
 

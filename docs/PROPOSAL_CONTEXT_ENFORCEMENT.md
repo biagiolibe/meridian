@@ -3,7 +3,7 @@
 Status: **M1/M2 shipped** (`tasks/done/034`, `tasks/done/035`, commit
 `4ab174d`); M3/M4/M5/M6 not scheduled. See §8 for the closure report — read
 that first if resuming this work. Author context: post-mortem of a
-Palimpsest `M25-SPIKE-001` session, generalized so the interventions apply
+consumer project A `M25-SPIKE-001` session, generalized so the interventions apply
 to every Meridian project rather than to that one session.
 
 Prior work this builds on: `docs/AUDIT_TOKEN_EFFICIENCY.md` (findings F1–F11,
@@ -12,7 +12,7 @@ if a cross-reference below needs its detail.
 
 ## 1. Evidence
 
-One governed spike session in Palimpsest, 25 model responses, no subagents,
+One governed spike session in consumer project A, 25 model responses, no subagents,
 roughly 1.0M weighted tokens (cache read 0.1, cache write 2, output 5):
 
 | Bucket | Weighted tokens | Share |
@@ -62,7 +62,7 @@ reaches that 38%. **Measured** — see §5.
 
 ### D3 — Entry documents carry non-operative verbatim text
 
-Palimpsest `PROJECT_WORKFLOW.md` lines 40–237 (~80% of the file) are
+consumer project A `PROJECT_WORKFLOW.md` lines 40–237 (~80% of the file) are
 verbatim framework capability regions kept only so `meridian audit` matches
 the release, each followed by a note saying the operative rule lives
 elsewhere. Every read pays ~5k tokens for text that is explicitly not the
@@ -95,7 +95,7 @@ reach every project immediately (as in migration 026).
 - Policy text: one marker line in `CONTEXT_BUDGET_POLICY.md` pointing sessions
   at the command as the normal path (mirroring `queue-briefing v1`).
 
-Acceptance: on Palimpsest, `meridian context authority M25-SPIKE-001` emits
+Acceptance: on consumer project A, `meridian context authority M25-SPIKE-001` emits
 only ADR-0060 and ADR-0063 sections; unit tests cover heading splitting,
 missing IDs (non-zero exit, clear message), and spec-section anchors.
 
@@ -120,7 +120,7 @@ project keeps only for framework compatibility (i.e. followed by a declared
 The entry document keeps a one-line pointer per region. `meridian audit`
 verifies the relocated copy byte-for-byte; `upgrade` updates it there.
 
-Acceptance: Palimpsest `PROJECT_WORKFLOW.md` drops from ~236 to ~40 lines
+Acceptance: consumer project A `PROJECT_WORKFLOW.md` drops from ~236 to ~40 lines
 with `meridian audit` still passing; regions without an operative-elsewhere
 note are never moved.
 
@@ -149,7 +149,7 @@ Probe code prints summary lines only (e.g. `PROBE key=value`); full dumps go
 to a file under the evidence directory and are read by range. Complements
 audit P2 / plan W1.1, which bound validation commands but not probes.
 
-## 4. Project interventions (Palimpsest) — lower yield
+## 4. Project interventions (consumer project A) — lower yield
 
 - **P1** — Declare bounded Git commands in `EXECUTION_EVIDENCE_PROFILE.md` as
   literal command strings (`git branch --list '<task>*'`,
@@ -168,7 +168,7 @@ raises the floor; M3 delivers the same saving by shrinking the existing file.
 ## 5. Fixed-preamble measurement (resolved)
 
 Measured with `/context` in a fresh interactive `claude` CLI session inside
-the Palimpsest checkout, before any prompt (model `claude-sonnet-5`, 1M
+the consumer project A checkout, before any prompt (model `claude-sonnet-5`, 1M
 window). The preamble is session-independent, so a fresh session is a valid
 measurement of the evidence session's floor.
 
@@ -221,7 +221,7 @@ the fixed preamble is worth low single-digit thousands of tokens.
 2. ~~M1 and M2 are queued as `tasks/034` and `tasks/035`~~ — done, see §8.
    M3 (migration), M5, M6, and M4 (low-priority clarity fix) remain to be
    turned into task files, in that priority order (§8).
-3. Palimpsest P1 as a governed task once M1 lands; P2 only if still justified
+3. consumer project A P1 as a governed task once M1 lands; P2 only if still justified
    afterwards; P3 dropped unless a future host loads MCP schemas eagerly.
 
 ## 8. Closure report — M1/M2 (2026-09-16)

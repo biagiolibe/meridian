@@ -144,7 +144,7 @@ and a PATH containing `MERIDIAN_ROOT/bin` (but no `PLUGIN_ROOT`). Its deny
 probe confirmed that stderr plus exit `2` blocks the whole chain and conveys
 the reason; structured JSON is supplementary.
 
-On 2026-09-20, a trusted Palimpsest project session denied both a 2,520-line
+On 2026-09-20, a trusted consumer project A project session denied both a 2,520-line
 project file and `cat /private/tmp/meridian-read-guard-probe.txt > /dev/null`
 for an external 401-line file before execution. Together with task 042's
 external-path regression fixture, this is enforcement evidence for the named
@@ -368,7 +368,7 @@ worktree-path` remains a deprecated path-only alias for one migration window.
 |---|---|---|
 | Claude plugin read-guard activation | `enforced` for the tested direct-plugin Claude Code 2.1.278 profile. | Marketplace-installed plugin activation and any other Claude runtime remain unverified. |
 | Codex command approval policy | `enforced` for the Codex CLI 0.155.1 trusted project profile. | Other Codex versions and plugin sessions remain unverified; governed sessions issue one command per invocation. |
-| Codex read guard | `enforced` for the trusted Palimpsest Codex project-session profile, including the recorded external absolute-path read. | Other Codex versions and plugin sessions remain unverified. |
+| Codex read guard | `enforced` for the trusted consumer project A Codex project-session profile, including the recorded external absolute-path read. | Other Codex versions and plugin sessions remain unverified. |
 | Router auto-load parity | `unverified` as a release-wide claim. | Fresh-session evidence for the actual entry point and route-specific initial reads on both profiles. |
 | Codex review-isolation adapter | `unverified`; existing skill language may be stale. | Versioned check of available subagent/thread capability and a documented fresh-chat fallback. |
 | Codex tagged-checkout launcher | Skills directory, symlink following, and `MERIDIAN_ROOT` propagation verified on Codex CLI 0.159.2; `bin/meridian` launch is `unverified`. | Run the launcher in a Codex session whose shell resolves Python 3.12+. |

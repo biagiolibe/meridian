@@ -5,7 +5,7 @@ Status: Proposed
 ## Context
 
 Tasks 023–025 made Meridian's generic governed-SDD procedures routable and
-safe to relocate. The Palimpsest preflight in task 026 exposed a separate
+safe to relocate. The consumer project A preflight in task 026 exposed a separate
 consumer concern: its project-owned `AGENTS.md` is a 31,619-byte monolith.
 An explicit `CLAUDE.md` pointer is safe and avoids duplicate capability
 markers, but it still requires Claude to read that monolith. It therefore
@@ -108,11 +108,11 @@ semantics.
 1. Implement and test the generic generated-router contract in Meridian.
 2. Complete task 026's compatibility upgrade only when explicitly authorized;
    it is a safe prerequisite, not the compact-router result.
-3. Use Palimpsest as the first mapped additive/retirement pilot.
+3. Use consumer project A as the first mapped additive/retirement pilot.
 4. Publish the validated consumer playbook and apply it project by project.
 
 ## Out of Scope
 
-This ADR does not authorize a Palimpsest edit, change a consumer's lifecycle
+This ADR does not authorize a consumer project A edit, change a consumer's lifecycle
 or domain semantics, remove its project-owned rules automatically, or replace
 the existing compatibility rollout in task 026.

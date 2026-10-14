@@ -1383,7 +1383,7 @@ class GovernedEffectiveStateTest(RepoCase):
 
 
 class LinklessQueueTest(RepoCase):
-    """A Governed SDD project shaped like Palimpsest: no file or review column."""
+    """A Governed SDD project shaped like consumer project A: no file or review column."""
 
     lock = "GOVERNED_SDD"
     header = (
@@ -1422,7 +1422,7 @@ class LinklessQueueTest(RepoCase):
             self.write(self.project, path, text)
         self.commit(self.project, "initial")
 
-    def test_palimpsest_shaped_project_lists_every_row_without_stale(self) -> None:
+    def test_consumer_project_a_shaped_project_lists_every_row_without_stale(self) -> None:
         rows = [
             ("M37-CAUSE-001", "ACCEPTED", "—"), ("M37-CAUSE-002", "QUEUED", "M37-CAUSE-001"),
             ("M37-CAUSE-003", "IN_PROGRESS", "—"), ("M37-CAUSE-004", "READY_FOR_REVIEW", "—"),
