@@ -175,6 +175,12 @@
 - `[x]` 206 — Make the console snapshot cheaper.
 - `[x]` 207 — Add a read-only `meridian adr list`.
 - `[x]` 208 — Archive queue sections from task state.
+- `[ ]` 209 — Verify a clean install from a release tag.
+- `[ ]` 210 — Publish the public surface and enforce the release bump.
+- `[ ]` 211 — Publish an adopter quick start and separate maintainer content.
+- `[ ]` 212 — Add a reproducible Lean Delivery walkthrough.
+- `[ ]` 213 — Declare supported platforms and validate on macOS in CI.
+- `[ ]` 214 — Add security policy, code of conduct, and issue and PR templates.
 - `[x]` 140 — Let `integrate stage` complete rows of project-shaped Governed queues.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.

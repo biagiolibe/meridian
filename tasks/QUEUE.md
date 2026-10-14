@@ -36,3 +36,16 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 
 Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, 25, 26, 27, 28, 31, 32, 34, 35, 36, 42, 44, 45, 46, and 47
 are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
+
+### Phase 65 — Public adoption readiness
+
+Authority: [docs/ADR_PUBLIC_SURFACE_AND_STABILITY.md](../docs/ADR_PUBLIC_SURFACE_AND_STABILITY.md) (proposed 2026-10-14) for 210; the 2026-10-14 public-distribution gap review for 209 and 211–214. Task 210 starts only after that ADR is accepted.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 209 | Verify a clean install from a release tag | 🔴 P1 | — | [209](209-clean-install-verification.md) |
+| `[ ]` | 210 | Publish the public surface and enforce the release bump | 🔴 P1 | — | [210](210-public-surface-and-release-bump-check.md) |
+| `[ ]` | 211 | Publish an adopter quick start and separate maintainer content | 🔴 P1 | 209, 210 | [211](211-adopter-quickstart-and-readme.md) |
+| `[ ]` | 212 | Add a reproducible Lean Delivery walkthrough | 🟡 P2 | 211 | [212](212-reproducible-lean-walkthrough.md) |
+| `[ ]` | 213 | Declare supported platforms and validate on macOS in CI | 🟡 P2 | — | [213](213-platform-support-matrix.md) |
+| `[ ]` | 214 | Add security policy, code of conduct, and issue and PR templates | 🟡 P2 | — | [214](214-community-health-files.md) |
