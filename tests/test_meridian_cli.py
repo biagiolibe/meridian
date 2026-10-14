@@ -2337,7 +2337,7 @@ worktree before the branch only after validated integration succeeds.
         policy = self.framework / "templates/workflows/governed-sdd/docs/CONTEXT_BUDGET_POLICY.md"
         incoming_policy = policy.read_text(encoding="utf-8")
         marker = re.search(
-            r"<!-- MERIDIAN:BEGIN capability=minimal-read-only-status v2 -->\n?.*?"
+            r"<!-- MERIDIAN:BEGIN capability=minimal-read-only-status v3 -->\n?.*?"
             r"<!-- MERIDIAN:END -->\n?",
             incoming_policy,
             re.DOTALL,
@@ -2362,7 +2362,7 @@ worktree before the branch only after validated integration succeeds.
                     "removes": [
                         {
                             "capability": "minimal-read-only-status",
-                            "capabilityVersion": 2,
+                            "capabilityVersion": 3,
                             "supersededBy": "role-scoped-agent-rules",
                         }
                     ],
@@ -2376,7 +2376,7 @@ worktree before the branch only after validated integration succeeds.
 
         local_policy = self.project / "docs/CONTEXT_BUDGET_POLICY.md"
         local_text = local_policy.read_text(encoding="utf-8")
-        self.assertIn("MERIDIAN:BEGIN capability=minimal-read-only-status v2", local_text)
+        self.assertIn("MERIDIAN:BEGIN capability=minimal-read-only-status v3", local_text)
         local_policy.write_text(
             local_text.replace("## Task-first loading", "## Task-First Loading (project wording)"),
             encoding="utf-8",
@@ -2409,7 +2409,7 @@ worktree before the branch only after validated integration succeeds.
         policy = self.framework / "templates/workflows/governed-sdd/docs/CONTEXT_BUDGET_POLICY.md"
         incoming_policy = policy.read_text(encoding="utf-8")
         marker = re.search(
-            r"<!-- MERIDIAN:BEGIN capability=minimal-read-only-status v2 -->\n?.*?"
+            r"<!-- MERIDIAN:BEGIN capability=minimal-read-only-status v3 -->\n?.*?"
             r"<!-- MERIDIAN:END -->\n?",
             incoming_policy,
             re.DOTALL,
@@ -2428,7 +2428,7 @@ worktree before the branch only after validated integration succeeds.
                     "from": "1.1.0",
                     "to": "1.1.1",
                     "description": "test-only retirement",
-                    "removes": [{"capability": "minimal-read-only-status", "capabilityVersion": 2}],
+                    "removes": [{"capability": "minimal-read-only-status", "capabilityVersion": 3}],
                     "managedPaths": ["docs/CONTEXT_BUDGET_POLICY.md"],
                     "verification": ["test-only"],
                 }
@@ -2464,7 +2464,7 @@ worktree before the branch only after validated integration succeeds.
         source = self.framework / "templates/workflows/governed-sdd/docs/CONTEXT_BUDGET_POLICY.md"
         source_text = source.read_text(encoding="utf-8")
         marker = re.search(
-            r"<!-- MERIDIAN:BEGIN capability=minimal-read-only-status v2 -->\n?.*?"
+            r"<!-- MERIDIAN:BEGIN capability=minimal-read-only-status v3 -->\n?.*?"
             r"<!-- MERIDIAN:END -->",
             source_text,
             re.DOTALL,
@@ -2496,13 +2496,13 @@ worktree before the branch only after validated integration succeeds.
                             "source": {
                                 "path": "docs/CONTEXT_BUDGET_POLICY.md",
                                 "capability": "minimal-read-only-status",
-                                "capabilityVersion": 2,
+                                "capabilityVersion": 3,
                                 "markerSha256": digest,
                             },
                             "target": {
                                 "path": "docs/ROUTED_STATUS_RULE.md",
                                 "capability": "minimal-read-only-status",
-                                "capabilityVersion": 2,
+                                "capabilityVersion": 3,
                                 "markerSha256": digest,
                             },
                         }
@@ -2551,7 +2551,7 @@ worktree before the branch only after validated integration succeeds.
             "  through \"Command triggers\", plus \"Owner-acceptance workflow\".\n"
             "<!-- MERIDIAN:END -->\n\n"
         )
-        anchor = "<!-- MERIDIAN:BEGIN capability=minimal-read-only-status v2 -->"
+        anchor = "<!-- MERIDIAN:BEGIN capability=minimal-read-only-status v3 -->"
         self.assertIn(anchor, text)
         return text.replace(anchor, block + anchor, 1)
 
@@ -5099,7 +5099,7 @@ class CapabilityMarkerTest(unittest.TestCase):
                 ("authority-excerpt", "1"),
                 ("read-guard", "2"),
                 ("isolated-exploration", "1"),
-                ("minimal-read-only-status", "2"),
+                ("minimal-read-only-status", "3"),
                 ("validation-scoping", "2"),
                 ("evidence-tiers", "1"),
                 ("execution-evidence-profile", "5"),

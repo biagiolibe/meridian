@@ -149,12 +149,14 @@ waived by reading a document later.
 - At verdict: `docs/REVIEW_RECORD_TEMPLATE.md`.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=bounded-context-readers v1 -->
+<!-- MERIDIAN:BEGIN capability=bounded-context-readers v2 -->
 ## Bounded context readers
 
 Read the task's cited ADRs and specification sections with `meridian context
-authority <TASK-ID>`, and a single ADR with `meridian adr show <ADR-ID>`. Do
-not open the whole ADR log or a whole specification to find them. Read the
+authority <TASK-ID>`, and a single ADR with `meridian adr show <ADR-ID>`.
+Find the ADR that governs a question with `meridian adr list`, which prints one
+line per ADR. Do not open the whole ADR log or a whole specification to find
+them. Read the
 queue state through the resolved queue briefing, never by opening the whole
 queue file. When the briefing did not fire, conflicts with other evidence, or a
 row must be read verbatim or edited, locate that row and read only its range.

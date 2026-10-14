@@ -51,7 +51,7 @@ it to bypass a task's authority boundary, conceal a broad repository scan, or
 replace a required spike when the unknown changes the task's design premise.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=minimal-read-only-status v2 -->
+<!-- MERIDIAN:BEGIN capability=minimal-read-only-status v3 -->
 ## Minimal read-only status
 
 For a request to report the current governed-SDD status without modifying
@@ -67,7 +67,9 @@ files, minimize context deliberately:
 3. Read only the direct dependencies and task records needed to establish
    readiness for the next permitted governance action. Read a cited ADR or
    specification section only through `meridian context authority <TASK-ID>` or
-   `meridian adr show <ADR-ID>`, never by opening the whole ADR log.
+   `meridian adr show <ADR-ID>`, never by opening the whole ADR log. Discover
+   which ADR governs a question with `meridian adr list`, which prints one
+   line per ADR.
 4. Do not load completed milestones, broad file inventories, full
    specifications, ADRs, audit prompts, review records, or Git history unless
    a concrete discrepancy, blocker, or requested handoff requires them.
