@@ -180,7 +180,7 @@
 - `[ ]` 211 — Publish an adopter quick start and separate maintainer content.
 - `[ ]` 212 — Add a reproducible Lean Delivery walkthrough.
 - `[ ]` 213 — Declare supported platforms and validate on macOS in CI.
-- `[ ]` 214 — Add security policy, code of conduct, and issue and PR templates.
+- `[x]` 214 — Add security policy, code of conduct, and issue and PR templates.
 - `[x]` 215 — Remove private-project references from the distributed tree.
 - `[x]` 216 — Anonymize private-project references in task records (cancelled, see `tasks/done/216-anonymize-task-records.md`).
 - `[x]` 217 — Replace the author email in the plugin manifests.

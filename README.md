@@ -716,6 +716,12 @@ The immediate goals are the open queue items, starting with the hands-off task c
 follow-ups and the completion-handoff evidence for commits that cannot contain
 their own SHA.
 
+## Community and security
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidance and follow the
+[code of conduct](CODE_OF_CONDUCT.md). Report suspected vulnerabilities privately
+using the [security policy](SECURITY.md).
+
 ## License
 
 Copyright © 2026 Biagio Liberto. Meridian is available under the [MIT License](LICENSE).
