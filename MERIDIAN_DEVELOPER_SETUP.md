@@ -1,0 +1,438 @@
+# Meridian Developer Machine Setup
+
+This guide takes a macOS machine from zero to ready for developing Meridian
+itself (`https://github.com/biagiolibe/meridian`) with Claude Code, Codex, or
+by hand. It is written for two readers:
+
+- **A human** following it step by step.
+- **An agent** executing it on the human's behalf.
+
+Each step has the same shape: **Check** (read-only), **Do** (the change),
+**Verify** (proof that it worked). Skip a step's **Do** when its **Check**
+already passes.
+
+## Rules for agents executing this guide
+
+1. Run every **Check** before its **Do**. Never run a **Do** whose **Check**
+   already passes.
+2. Steps marked **[HUMAN]** need the human: interactive sign-in, a Claude Code
+   slash command, or explicit consent. Print the exact command, stop, and wait.
+3. Steps marked **[CONSENT]** change global or user-level configuration
+   (`~/.gitconfig`, `~/.zshrc`, `~/.codex/config.toml`, Claude Code settings).
+   Show the planned change and get an explicit yes first.
+4. Never push, force push, create or move tags, rewrite history, or delete
+   folders while following this guide.
+5. If a **Verify** fails, stop and report the command and its output. Do not
+   improvise a workaround.
+6. Never print tokens, passwords, or keychain contents.
+
+## Variables used below
+
+Adjust these once; every later command uses them.
+
+```bash
+export MERIDIAN_DEV_PARENT="$HOME/dev"                  # parent folder for the clone
+export MERIDIAN_DEV_DIR="$MERIDIAN_DEV_PARENT/meridian" # the development clone
+```
+
+---
+
+## 1. Base tools
+
+**Requirements**
+
+| Tool | Minimum | Why |
+|---|---|---|
+| macOS Command Line Tools | any current | `git`, `bash`, `osacompile` |
+| Homebrew | any current | installs the rest |
+| Git | any current release | linked task worktrees |
+| Python | **3.12 or later** | Meridian CLI, scripts, and tests (stdlib only, no `pip install`) |
+| GitHub CLI `gh` | any current | CI evidence and release verification |
+| Claude Code | current | primary agent host (plugin + hooks) |
+| Codex CLI | current | second agent host (skills + hooks) |
+| `jq` | optional | convenient for reading JSON output |
+
+**Check**
+
+```bash
+xcode-select -p
+brew --version
+git --version
+python3 --version
+gh --version
+claude --version
+codex --version
+```
+
+**Do**
+
+```bash
+xcode-select --install          # [HUMAN] opens a system dialog
+```
+
+Install Homebrew from <https://brew.sh> **[HUMAN]**, then:
+
+```bash
+brew install git python@3.12 gh jq
+```
+
+Make Homebrew's Python the `python3` of every shell, including the one Codex
+and Claude Code start **[CONSENT]** (append to `~/.zshrc`):
+
+```bash
+export PATH="$(brew --prefix python@3.12)/libexec/bin:$PATH"
+```
+
+Install Claude Code and Codex CLI following their official instructions
+**[HUMAN]**, then sign in to each one **[HUMAN]**.
+
+**Verify**
+
+```bash
+command -v python3                       # should point to Homebrew's python@3.12 (or newer)
+python3 -c 'import sys; assert sys.version_info >= (3, 12), sys.version'
+python3 -c 'import ssl, urllib.request; urllib.request.urlopen("https://api.github.com", timeout=10); print("TLS ok")'
+```
+
+> **TLS pitfall.** A Python installed from the python.org `.pkg` has no
+> CA certificates until you run its `Install Certificates.command`. Without it,
+> `meridian self-check --check-latest` reports
+> `CERTIFICATE_VERIFY_FAILED`. Either run that command
+> (`/Applications/Python 3.x/Install Certificates.command`) or put Homebrew's
+> Python first on `PATH`.
+
+---
+
+## 2. Git identity and GitHub access
+
+Commits need an explicit author identity. Use the GitHub account you
+contribute with; the GitHub noreply address
+(`<id>+<username>@users.noreply.github.com`, shown in GitHub's email settings)
+keeps a private email out of the public history.
+
+**Check**
+
+```bash
+git config --global --get user.name
+git config --global --get user.email
+git config --global --get user.useConfigOnly
+```
+
+**Do** **[CONSENT]** (only for missing values)
+
+```bash
+git config --global user.name "<your name>"
+git config --global user.email "<your commit email>"
+git config --global user.useConfigOnly true
+```
+
+`user.useConfigOnly` makes Git refuse a commit that has no configured
+identity instead of guessing one from the machine name.
+
+Pushes over HTTPS prompt once for a username and a **personal access token**
+**[HUMAN]**; the macOS keychain (`osxkeychain`) stores it. For SSH, add your key
+to the GitHub account and clone with the `git@github.com:` URL instead.
+
+**Verify** (after step 3 has created the clone)
+
+```bash
+git -C "$MERIDIAN_DEV_DIR" config --show-origin user.email
+```
+
+### GitHub CLI account
+
+`gh` keeps its own sign-in, separate from Git. Meridian's `ci_evidence.py` and
+`release.py` call `gh`, so it must be signed in to an account that can read the
+repository (publishing a release needs push rights).
+
+**Check**
+
+```bash
+gh auth status
+```
+
+**Do** **[HUMAN]** (only if no suitable account is listed)
+
+```bash
+gh auth login --hostname github.com --git-protocol https
+```
+
+With several accounts, select the right one before CI-evidence or release work:
+
+```bash
+gh auth switch --hostname github.com --user <username>
+```
+
+Do **not** run `gh auth setup-git` unless you want `gh` to become the Git
+credential helper for every repository on the machine.
+
+---
+
+## 3. Development clone
+
+**Check**
+
+```bash
+test -d "$MERIDIAN_DEV_DIR/.git" && git -C "$MERIDIAN_DEV_DIR" remote get-url origin
+```
+
+**Do**
+
+```bash
+mkdir -p "$MERIDIAN_DEV_PARENT"
+git clone https://github.com/biagiolibe/meridian.git "$MERIDIAN_DEV_DIR"
+```
+
+**Verify**
+
+```bash
+git -C "$MERIDIAN_DEV_DIR" status --short --branch                 # ## main...origin/main, clean
+```
+
+---
+
+## 4. Shell environment
+
+The Meridian CLI is `bin/meridian`. For Meridian development, `MERIDIAN_ROOT`
+points at the development clone, so the CLI and Codex skills follow `main`.
+
+> Adopters of Meridian (people who only *use* it in other projects) point
+> `MERIDIAN_ROOT` at a separate tagged checkout instead
+> (`git clone --branch v<version> ...`). Do not point it at a tag checkout
+> inside `$MERIDIAN_DEV_DIR`; one folder cannot be both.
+
+**Check**
+
+```bash
+grep -n 'MERIDIAN_ROOT' ~/.zshrc ~/.zprofile 2>/dev/null
+```
+
+**Do** **[CONSENT]** (append to `~/.zshrc`)
+
+```bash
+export MERIDIAN_ROOT="$HOME/dev/meridian"   # the value of MERIDIAN_DEV_DIR
+export PATH="$MERIDIAN_ROOT/bin:$PATH"
+```
+
+Open a new terminal afterwards.
+
+**Verify**
+
+```bash
+command -v meridian          # -> $MERIDIAN_ROOT/bin/meridian
+meridian --version           # -> same value as $MERIDIAN_ROOT/VERSION
+cat "$MERIDIAN_ROOT/VERSION"
+```
+
+---
+
+## 5. Baseline validation
+
+Run the same checks as CI (`.github/workflows/validate.yml`) from the clone.
+
+```bash
+cd "$MERIDIAN_DEV_DIR"
+python3 scripts/check_repository.py
+python3 scripts/meridian.py --framework-root . profile doctor meridian-self-hosting --project .
+python3 scripts/meridian.py --framework-root . audit --project . --mode lean-delivery --ci-profile meridian-self-hosting
+python3 scripts/run_tests.py --parallel
+```
+
+**Verify**
+
+- `check_repository.py` prints `Meridian repository checks passed.`
+- `profile doctor` ends with `SUMMARY ... FAIL=0`.
+- `audit` ends with `CI_GATE ... failures=0`. `ADVISORY` and `UNVERIFIED`
+  lines are expected and do not fail the gate.
+- `run_tests.py --parallel` exits `0` and prints the `total` and `digest` lines.
+  With about 1,000 tests it takes several minutes; run it in the background
+  when an agent's command timeout is short.
+
+If the parallel run cannot start its workers, use the sequential release gate:
+`python3 -m unittest discover -s tests`. Changes under `bin/`, `migrations/`,
+or `scripts/meridian.py` also need `python3 -m unittest discover -s tests -v`.
+
+---
+
+## 6. Meridian machine setup (worktrees, Codex profile, Claude allowlist)
+
+Meridian runs every task in its own linked worktree under one machine-level
+root (default `~/.meridian/worktrees`, overridable with
+`MERIDIAN_WORKTREE_ROOT`). `meridian setup` prepares that root, the Codex
+permission profile, the Codex skill links, and the project-local Claude Code
+allowlist.
+
+**Check** (read-only)
+
+```bash
+cd "$MERIDIAN_DEV_DIR"
+meridian codex doctor
+meridian setup --check
+```
+
+Read the `changes:` list that `setup --check` prints. On a fresh machine it
+typically plans to:
+
+- create `~/.meridian/worktrees` (owner-only permissions);
+- add a `MERIDIAN:BEGIN worktree-permissions` block to `~/.codex/config.toml`
+  that grants Codex write access to the worktree root;
+- link `~/.agents/skills/meridian-lean-delivery` and
+  `~/.agents/skills/meridian-governed-sdd` to `$MERIDIAN_ROOT/skills/...`;
+- write an allowlist and `permissions.deny` rules into the ignored
+  `$MERIDIAN_DEV_DIR/.claude/settings.local.json`;
+- possibly write `.meridian/project.json` (a project declaration). That file
+  is tracked; leave it out of this setup unless a task asks for it.
+
+**Do** **[CONSENT]**
+
+```bash
+meridian setup --apply
+```
+
+Then restart Codex and Claude Code.
+
+**Verify**
+
+```bash
+meridian codex doctor        # every line "ready"
+meridian setup --check       # no remaining changes except ones you chose to skip
+ls -la ~/.agents/skills
+git -C "$MERIDIAN_DEV_DIR" status --short   # still clean (settings.local.json is ignored)
+```
+
+`.claude/settings.local.json` is ignored by Git, so a fresh clone never has it.
+Run `meridian setup --apply` again after every re-clone.
+
+---
+
+## 7. Claude Code plugin
+
+Claude Code loads Meridian as a plugin from the `meridian` marketplace. The
+plugin provides the `/meridian-*` skills and the hooks (`read-guard`,
+`queue-briefing`, `stop-audit`). It runs the **released** version, not the
+development clone.
+
+**Check**
+
+```bash
+python3 -c "import json,os; d=json.load(open(os.path.expanduser('~/.claude/plugins/installed_plugins.json'))); print(d['plugins'].get('meridian@meridian'))"
+python3 -c "import json,os; d=json.load(open(os.path.expanduser('~/.claude/settings.json'))); print(d.get('extraKnownMarketplaces',{}).get('meridian'))"
+```
+
+**Do** **[HUMAN]** (slash commands inside Claude Code)
+
+Pick one pin:
+
+- `stable`: follows each published release; refresh with
+  `/plugin marketplace update meridian`.
+- `v<version>`: an exact tag; move it by hand.
+
+```text
+/plugin marketplace remove meridian
+/plugin marketplace add biagiolibe/meridian#stable
+/plugin install meridian@meridian
+```
+
+If `~/.claude/settings.json` declares `extraKnownMarketplaces.meridian` with a
+different `ref`, `add` fails with `its source doesn't match its
+extraKnownMarketplaces entry`. Change that `ref` to the one you add, or remove
+the entry, first **[CONSENT]**. Removing the marketplace also uninstalls the
+plugin, so always reinstall afterwards. Restart Claude Code.
+
+**Verify**
+
+```bash
+meridian self-check --check-latest   # Installed / Latest / Status / Plugin ref lines
+```
+
+In Claude Code, `/plugin` shows `meridian@meridian` enabled with the expected
+version. Old folders under `~/.claude/plugins/cache/meridian/` are not proof of
+the active version; `installed_plugins.json` is.
+
+---
+
+## 8. Codex
+
+**Check**
+
+```bash
+ls -la ~/.agents/skills                 # links created in step 6
+ls ~/.codex/skills 2>/dev/null          # an old copy here shadows the links; remove it yourself
+grep -n -A1 "projects.\"$MERIDIAN_DEV_DIR\"" ~/.codex/config.toml
+```
+
+**Do** **[HUMAN]**
+
+1. Start Codex in `$MERIDIAN_DEV_DIR` and trust the project when asked. The
+   project's `.codex/` layer (rules and `hooks.json`) is read only for a
+   trusted project.
+2. Accept the project hooks when Codex asks to trust them.
+3. Restart Codex after any change to skills, profile, or `PATH`.
+
+**Verify**
+
+- `meridian codex doctor` reports `project-trust: ready` and
+  `skill-links: ready`.
+- In Codex, `$meridian-lean-delivery` is available.
+- In a Codex shell, `python3 --version` reports 3.12 or later.
+
+---
+
+## 9. Final checklist
+
+Run from a **new** terminal. An agent reports each line's result.
+
+```bash
+cd "$MERIDIAN_DEV_DIR"
+python3 -c 'import sys; assert sys.version_info >= (3, 12)' && echo "python ok"
+test -n "$(git config user.email)" && echo "identity ok: $(git config user.email)"
+git status --short --branch
+test "$(meridian --version)" = "$(cat VERSION)" && echo "cli ok"
+meridian codex doctor
+python3 scripts/check_repository.py
+python3 scripts/run_tests.py --parallel
+gh auth status
+```
+
+The machine is ready when every line succeeds, `codex doctor` is all `ready`,
+and the plugin check in step 7 passes.
+
+---
+
+## 10. Working on Meridian
+
+Read these in the clone before the first task:
+
+- `CLAUDE.md` / `AGENTS.md`: agent rules for this repository.
+- `PROJECT_WORKFLOW.md`: the Lean Delivery lifecycle (locked mode).
+- `LANGUAGE_POLICY.md`: the conversation language; all repository text is
+  English.
+- `CONTRIBUTING.md`: validation, managed copies, changelog fragments, releases.
+- `docs/WORKTREE_LIFECYCLE.md`: single-step lifecycle commands for recovery.
+
+Day-to-day directives for an agent:
+
+- `Proceed with <TASK-ID>`: implement one queued task end to end in its own
+  worktree (`meridian worktree prepare` → implement → validate →
+  `meridian worktree advance` → integrate → push `main` → cleanup).
+- `Review <TASK-ID>`: read-only review.
+- Small, reversible additions may be quick tasks directly on `main`.
+
+Never part of a normal task: tags, releases, force pushes, history rewrites,
+deleting unmerged branches. Releases go through
+`python3 scripts/release.py` as described in `CONTRIBUTING.md`, run by the
+maintainer.
+
+---
+
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `CERTIFICATE_VERIFY_FAILED` from `self-check` | python.org Python without CA bundle | Run `Install Certificates.command` or use Homebrew Python first on `PATH` |
+| Commit refused: `no email was given and auto-detection is disabled` | No `user.email` configured | Set it (step 2); check with `git config --show-origin user.email` |
+| Push authenticates as the wrong GitHub account | Keychain returns another account's token | Delete the wrong keychain entry for `github.com` and push again **[HUMAN]** |
+| `Cannot add marketplace "meridian"` | `extraKnownMarketplaces` ref differs | Align or remove that entry (step 7) |
+| `codex doctor` shows `blocked` | Codex profile diverges from Meridian's block | Reconcile `~/.codex/config.toml` by hand; `meridian codex configure --check` explains |
+| `BLOCKED WRONG_WORKTREE` | Agent started outside the task worktree | Start in the path printed by `meridian worktree prepare` |
+| Tests fail only for AppleScript/iTerm2 | Sandbox cannot resolve the iTerm2 dictionary | Recorded as a named skip; run the full suite outside the sandbox before a release |
