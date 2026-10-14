@@ -52,3 +52,11 @@ Authority: [docs/ADR_PUBLIC_SURFACE_AND_STABILITY.md](../docs/ADR_PUBLIC_SURFACE
 | `[ ]` | 215 | Remove private-project references from the distributed tree | 🔴 P1 | — | [215](215-remove-private-project-references.md) |
 | `[ ]` | 216 | Anonymize private-project references in task records | 🟡 P2 | 215 | [216](216-anonymize-task-records.md) |
 | `[ ]` | 217 | Replace the author email in the plugin manifests | 🟢 P3 | — | [217](217-remove-email-from-plugin-manifests.md) |
+
+### Phase 66 — Lifecycle closure friction
+
+Authority: the task 209 closure stop of 2026-10-14 (`BLOCKED TASK_STATE_MISSING`).
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 218 | Detect missing closure state early and point recovery at the task worktree | 🔴 P1 | — | [218](218-task-state-closure-friction.md) |

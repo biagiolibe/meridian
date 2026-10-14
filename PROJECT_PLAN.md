@@ -184,6 +184,7 @@
 - `[ ]` 215 — Remove private-project references from the distributed tree.
 - `[ ]` 216 — Anonymize private-project references in task records.
 - `[ ]` 217 — Replace the author email in the plugin manifests.
+- `[ ]` 218 — Detect missing closure state early and point recovery at the task worktree.
 - `[x]` 140 — Let `integrate stage` complete rows of project-shaped Governed queues.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.
