@@ -18,26 +18,26 @@ each point where a newcomer would get stuck. The findings feed tasks 211 and
 
 ## Acceptance Criteria
 
-- [ ] `docs/CLEAN_INSTALL_VERIFICATION.md` records, for the newest published
+- [x] `docs/CLEAN_INSTALL_VERIFICATION.md` records, for the newest published
   tag, the environment used: OS, Python version, Git version, host versions,
   and a fresh `HOME` or equivalent isolation with no prior Meridian install,
   user configuration, or worktree root.
-- [ ] It follows the README's Claude Code quick start from the pinned
+- [x] It follows the README's Claude Code quick start from the pinned
   marketplace install through `/meridian-init` on a new empty Git project.
   Then it follows one Lean Delivery task from creation to `meridian worktree
   advance` and `cleanup`, against a local bare repository used as `origin`.
-- [ ] It follows the README's Codex quick start, from the tagged checkout,
+- [x] It follows the README's Codex quick start, from the tagged checkout,
   `MERIDIAN_ROOT`, and the skill links, through `meridian self-check`.
-- [ ] Each step records the exact command, its exit status, and the outcome.
+- [x] Each step records the exact command, its exit status, and the outcome.
   A step that cannot run non-interactively, such as a Claude Code `/plugin`
   command, is recorded as manual evidence with its exact procedure and is not
   claimed as executed.
-- [ ] A findings table lists every friction: missing prerequisite, unclear or
+- [x] A findings table lists every friction: missing prerequisite, unclear or
   wrong instruction, unexpected prompt, or stop. Each row names the README
   section and a proposed correction. Findings are not fixed in this task.
-- [ ] No machine-specific absolute path, user name, or credential appears in
+- [x] No machine-specific absolute path, user name, or credential appears in
   the record.
-- [ ] `python3 scripts/check_repository.py` and `git diff --check` pass.
+- [x] `python3 scripts/check_repository.py` and `git diff --check` pass.
 
 ## Relevant Files
 
@@ -66,3 +66,14 @@ Changing the README, the CLI, or the templates, and verifying Windows.
 
 - **Depends on**: —
 - **Blocks**: 211
+
+## Completion
+
+Verified release `v1.2.15` in a disposable home and consumer project with a local
+bare origin. The record includes 71 executed shell steps, explicit unexecuted
+Claude Code procedures, a recovered first-task lifecycle through cleanup, and
+15 findings for follow-up tasks. README, CLI, and templates were not changed.
+
+Validation: `python3 scripts/check_repository.py` and `git diff --check` passed.
+See `docs/CLEAN_INSTALL_VERIFICATION.md` and `tasks/handoffs/209.md` for evidence
+and the limitations of interactive host verification.
