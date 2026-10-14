@@ -11,7 +11,7 @@ project-relative and may not be absolute or contain `..`.
 ```json
 {
   "version": 1,
-  "project": { "name": "Palimpsest", "slug": "palimpsest" },
+  "project": { "name": "consumer project A", "slug": "consumer-project-a" },
   "locations": {
     "queue": "docs/TASK_QUEUE.md",
     "taskRoots": ["tasks"],

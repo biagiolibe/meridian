@@ -10,18 +10,18 @@ path-parameterized canon for 001/002, baseline capabilities for
 whole-file policies, and baseline capabilities for `AGENTS.md`/`CLAUDE.md`'s
 remaining sections — every managed governed-SDD file now has capability
 tracking except the two intentionally excluded ones. Migration 013 then
-corrected a real defect found while starting the Palimpsest retrofit:
+corrected a real defect found while starting the consumer project A retrofit:
 `language-policy`'s v1 marker wrongly enclosed the per-project conversation-
 language declaration that `meridian-init.md` fills in during initialization,
 which would have failed `meridian audit` for every correctly initialized
-project, not just Palimpsest — moved that line outside the protected region
-in v2. Only the full Palimpsest retrofit remains — see
+project, not just consumer project A — moved that line outside the protected region
+in v2. Only the full consumer project A retrofit remains — see
 "Addendum: expanded retrofit plan" near the end of this document for the
 current, authoritative state; treat the original Phase 1-5 plan below as
 historical design reasoning, not the up-to-date task list. This document
 integrates two ideas
 discussed while adopting Meridian onto a heavily customized project
-(Palimpsest/ECHOES): capability detection that survives a project rewriting
+(consumer project A): capability detection that survives a project rewriting
 Meridian's prose in its own voice, and a way to stop that same rewriting from
 silently swallowing a framework-mandated rule. Both problems have the same
 root cause and the same fix.
@@ -38,11 +38,11 @@ what actually matters (behavior). Two concrete failures from this session:
    `detect_capabilities()` look for literal tokens (`GOVERNED_SDD`, `Address
    review`, `Run lifecycle`). A project whose `PROJECT_WORKFLOW.md` predates
    the exact `GOVERNED_SDD` token — genuinely governed-SDD in substance —
-   fails detection (`fusa`, then `palimpsest`, both this session).
+   fails detection (`consumer project B`, then `consumer project A`, both this session).
 2. **Permanent merge conflicts with no way to tell real gaps from cosmetic
-   ones.** Palimpsest's `AGENTS.md`/`CLAUDE.md`/four docs files conflict on
+   ones.** consumer project A's `AGENTS.md`/`CLAUDE.md`/four docs files conflict on
    every upgrade because their wording diverged from the template long ago,
-   even after every rule was correctly, manually incorporated in Palimpsest's
+   even after every rule was correctly, manually incorporated in consumer project A's
    own voice. `upgrade --check` cannot distinguish "this project doesn't have
    the rule" from "this project has the rule, phrased differently" — so the
    only tool-supported outcome was `--owner-reconciled`, an act of faith by
@@ -158,7 +158,7 @@ next upgrade conflicts for a reason nobody can explain.
   inside them, in the moment. Nothing can, for a plain file with write
   access. It stops that edit from going unnoticed past the next audit or
   review.
-- It doesn't retroactively fix Palimpsest's existing prose — the framework
+- It doesn't retroactively fix consumer project A's existing prose — the framework
   rules there are still interleaved with project-specific text in the same
   sentences in places. Introducing markers there is a one-time, manual
   separation job, the same kind of work already done by hand this session,
@@ -189,7 +189,7 @@ a version comparison. A legacy fallback (`LEGACY_CAPABILITY_EVIDENCE`) was
 added beyond the original plan: without it, every project adopted before
 migration 006 has no marker at all and would have regressed to fully
 `MISSING` under marker-only detection — caught by testing against two real
-projects (fusa, palimpsest) before shipping, not by the unit tests alone.
+projects (consumer project B, consumer project A) before shipping, not by the unit tests alone.
 The fallback proves only v1, never a later version. `assisted_implementer_prompt`
 surfaces a migration's `delta` field when present.
 
@@ -226,7 +226,7 @@ absent from both the local and base pair sets exactly like a genuinely new
 one is, so a template raising `manual-verification-precondition` from v1 to
 v2 got appended as if v2 were a brand-new capability, leaving the stale v1
 block — the one still read in place — untouched. Observed for real upgrading
-Palimpsest to 1.1.19; corrected there by hand, in Palimpsest's own history
+consumer project A to 1.1.19; corrected there by hand, in consumer project A's own history
 (commit `a83d88b`), before this framework fix landed. The function now groups by capability *name*: a name
 absent from the local file (and never present in the base either) is still a
 pure addition, appended as before; a name whose local version is lower than
@@ -245,7 +245,7 @@ modifies existing framework-mandated prose (not just adds a new file) must
 declare `capability`/`capabilityVersion` and wrap the affected text in
 markers if it doesn't already have them, with a `delta` scoped to the actual
 change. Migrations 003, 004, and 005 do not carry markers yet, and neither
-`fusa` nor `palimpsest` (both real, already-adopted projects) have adopted
+`consumer project B` nor `consumer project A` (both real, already-adopted projects) have adopted
 any marker — both are intentionally deferred to each one's next real change
 rather than a dedicated migration or session with no other purpose.
 
@@ -331,14 +331,14 @@ concern, invisible to any mechanical check, diff tool included.
 
 ## Addendum: expanded retrofit plan
 
-Decided while bringing Palimpsest to full compliance: Palimpsest's own
+Decided while bringing consumer project A to full compliance: consumer project A's own
 directory conventions (`docs/TASK_QUEUE.md`, `docs/tasks/<milestone>/`,
 `docs/tasks/reviews/`) are hardcoded inline inside 001/002's canonical text,
-so wrapping Palimpsest's actual wording in a marker would be a false claim
+so wrapping consumer project A's actual wording in a marker would be a false claim
 (it isn't the canonical text) and would fail `meridian audit`. Bringing
-Palimpsest to genuine compliance without changing its real file layout
+consumer project A to genuine compliance without changing its real file layout
 requires the canonical text itself to stop hardcoding paths — a framework
-change, not a Palimpsest-only one. Separately: `PROJECT_WORKFLOW.md` — the
+change, not a consumer project A-only one. Separately: `PROJECT_WORKFLOW.md` — the
 single most important managed file, since it carries the `GOVERNED_SDD`
 mode lock itself — has no capability tracking at all today, the same gap
 001/002 had before migration 006, just not yet hit by a real incident.
@@ -363,7 +363,7 @@ section. `009` does the same for `lifecycle-orchestration` in
 one capability's marker must agree on version, or the lowest one found
 reports the whole capability stale.
 
-Real, verified-live consequence, not a bug: `fusa` and `palimpsest` — the
+Real, verified-live consequence, not a bug: `consumer project B` and `consumer project A` — the
 two real projects adopted so far — now report `review-remediation-record`
 and `lifecycle-orchestration` as `MISSING` (stale at v1) rather than
 `PRESENT`, since `LEGACY_CAPABILITY_EVIDENCE` only ever proves v1. Both need
@@ -414,16 +414,16 @@ that it stays one) — protecting either would fight its purpose.
   34 marker occurrences — every managed governed-SDD file except the two
   intentionally excluded ones now has capability tracking.
 
-**Palimpsest retrofit (planned, after 007-012 land).** Every managed file
+**consumer project A retrofit (planned, after 007-012 land).** Every managed file
 except the two excluded ones gets the protected-region + extension pattern:
 canonical text byte-identical to the (parameterized, where applicable)
-framework version, Palimpsest's own material — explicit `cargo` commands,
-the `palimpsest-domain` Bevy-free boundary, ECHOES terminology, milestone
+framework version, consumer project A's own material — explicit `cargo` commands,
+the domain-crate dependency boundary, project terminology, milestone
 `*-VERIFY` PR gating, the reviewer-identity override — moved to clearly
 labeled extension text immediately outside the marker, never inside it.
 Verification: `meridian audit` all `PASS`, `meridian upgrade --check` zero
 conflicts across all previously-conflicting files, and a manual line-by-line
-diff confirming no existing Palimpsest rule was dropped, only relocated.
+diff confirming no existing consumer project A rule was dropped, only relocated.
 
 **Migration 065 — 1.2.12 lifecycle documentation.** The unreleased migration
 keeps `task-blueprint` v16 and also registers `worktree-lifecycle` v3 for both

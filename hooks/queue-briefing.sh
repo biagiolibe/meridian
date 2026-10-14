@@ -62,7 +62,7 @@ emit_language_policy_briefing
 # this project" (see templates/workflows/governed-sdd/PROJECT_WORKFLOW.md).
 # A project that customizes it does so in an annotated paragraph immediately
 # after that marker's END, still inside the "## Execution assets" section
-# (the pattern task 014 documented from Palimpsest's own adoption). Scan
+# (the pattern task 014 documented from consumer project A's own adoption). Scan
 # exactly that zone for a `*queue*.md`-shaped path; a project with no
 # customization has nothing there and falls through to the default.
 resolve_queue_path() {

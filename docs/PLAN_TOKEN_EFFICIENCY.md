@@ -44,8 +44,9 @@ leaves the identical step 1 of `CLAUDE.md` stale.
 
 **Direction is the whole design decision, and it is the counter-intuitive one.**
 In a real project `AGENTS.md` is authoritative and carries project-specific
-content with no home in `CLAUDE.md` (Palimpsest: `Truth layers`, `Events`,
-`Determinism`, `Palimpsest manual-evidence extension`). Generating `AGENTS.md`
+content with no home in `CLAUDE.md` (consumer project A: project-specific
+architectural sections and `consumer project A manual-evidence extension`).
+Generating `AGENTS.md`
 from `CLAUDE.md` would delete that. So:
 
 - `AGENTS.md` is the source of truth.
@@ -104,7 +105,7 @@ set -o pipefail
 ```
 
 The project fills that in (`cargo test --workspace --quiet 2>&1 | tail -40` in
-Palimpsest's case). Per-stack worked examples belong in `WORKFLOW_GUIDE.md`, which
+consumer project A's case). Per-stack worked examples belong in `WORKFLOW_GUIDE.md`, which
 is repo documentation and is not copied into projects.
 
 **`set -o pipefail` is not optional, and every example must lead with it.** A bare
@@ -161,7 +162,7 @@ do not mistake it for enforcement.
 The clearest single framework defect the incident exposed. Two capabilities, each
 defensible alone, compose into a hole:
 
-- Palimpsest's local extension requires a manual-evidence probe that *actually
+- consumer project A's local extension requires a manual-evidence probe that *actually
   succeeds*, and mandates `BLOCKED` if it cannot.
 - The framework's `manual-verification-precondition` says a deterministic test
   may serve as primary evidence, making visual confirmation "a secondary check,
@@ -175,7 +176,7 @@ followed.
 Two changes, both in the capability text:
 
 1. **Promote the stronger form upward.** Replace the template's "confirm you can
-   produce that evidence" with Palimpsest's executable-probe requirement. The
+   produce that evidence" with consumer project A's executable-probe requirement. The
    consumer project is ahead of the framework here; adopt its wording.
 2. **Separate the two things the escape hatch conflates.** A deterministic test
    may remove the *requirement to capture*. It must never suspend the *stop on a
@@ -274,7 +275,7 @@ triplication happened.
 Under Claude Code's `CLAUDE.md` auto-injection the file enters the session in
 full before the rule is ever read, so it saves nothing for `CLAUDE.md`. It is not
 target-less — `AGENTS.md` survives W0.1 as the source of truth and is 29 KB in
-Palimpsest, so a harness that loads it by explicit read could in principle use
+consumer project A, so a harness that loads it by explicit read could in principle use
 the rule. The case for retiring it is reliability, not absence of a target: its
 own closing clause ("if the mapping is otherwise unclear, read the whole file
 instead") means it degrades to the unoptimized behavior under exactly the
@@ -289,7 +290,7 @@ a good test of it.
 ### W3.3 — Bound the queue read
 *Audit: F9 · ~4h · template + `hooks/queue-briefing.sh`*
 
-Palimpsest's `docs/TASK_QUEUE.md` is 27 KB / 191 rows and is the specific object
+consumer project A's `docs/TASK_QUEUE.md` is 27 KB / 191 rows and is the specific object
 the post-mortem names. `CONTEXT_BUDGET_POLICY.md` says to read "non-terminal
 entries only" — prose, applied after the file is already open and billed.
 
@@ -302,7 +303,7 @@ correct behavior the default rather than a discipline:
 - Have the hook emit the resolved active / queued / blocked rows directly, so a
   session normally never opens the file at all.
 
-Roughly 7 k tokens off `P` in a project of Palimpsest's size.
+Roughly 7 k tokens off `P` in a project of consumer project A's size.
 
 ---
 
@@ -404,7 +405,7 @@ probably does not belong in this plan.
 
 ---
 
-## Next: Palimpsest
+## Next: consumer project A
 
 Delivery splits in two, and the split matters for planning:
 
@@ -423,7 +424,7 @@ inconsistency — but the saving it buys is in history and review, not in operat
 effort. What actually spares an operator is not making the project upgrade twice.
 
 - **Needs an operator reconciliation pass.** W1.1 and W1.2 change
-  `EXECUTION_EVIDENCE_PROFILE.md` — a *project-owned* file that Palimpsest has
+  `EXECUTION_EVIDENCE_PROFILE.md` — a *project-owned* file that consumer project A has
   legitimately filled in with substantial custom content (its Rust command forms,
   its capture policy, its `screencapture` path). An upgrade against a managed
   path the project has rewritten on purpose is the merge-conflict case

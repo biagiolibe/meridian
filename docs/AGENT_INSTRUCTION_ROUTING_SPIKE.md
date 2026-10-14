@@ -13,13 +13,13 @@ question, without weakening workflow safety or breaking managed upgrades?
 | Governed-SDD template `AGENTS.md` | 15,223 |
 | Governed-SDD template `CLAUDE.md` | 14,872 |
 | Governed-SDD template `PROJECT_WORKFLOW.md` | 11,209 |
-| Palimpsest `AGENTS.md` | 31,619 |
-| Palimpsest `CLAUDE.md` | 1,665 |
-| Palimpsest `PROJECT_WORKFLOW.md` | 18,292 |
+| consumer project A `AGENTS.md` | 31,619 |
+| consumer project A `CLAUDE.md` | 1,665 |
+| consumer project A `PROJECT_WORKFLOW.md` | 18,292 |
 
 The template `AGENTS.md` carries eleven capability-marker blocks. Its role
 procedures, not merely project invariants, are therefore paid before the
-request type is known. Palimpsest's thin Claude pointer then instructs Claude
+request type is known. consumer project A's thin Claude pointer then instructs Claude
 Code to read its 31.6 KB `AGENTS.md`, recreating the same unconditional cost.
 
 ## Recommended architecture
@@ -78,7 +78,7 @@ went.
    projects.
 3. Convert `AGENTS.md` and `CLAUDE.md` to compact routers and retire duplicate
    blocks in a separate migration.
-4. Upgrade Palimpsest in a clean checkout; measure entry-point bytes and run a
+4. Upgrade consumer project A in a clean checkout; measure entry-point bytes and run a
    real `Proceed`, `Review`, status, and tech-design-alignment session.
 
 ## Success and rollback

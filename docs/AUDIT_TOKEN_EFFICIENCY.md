@@ -2,12 +2,12 @@
 
 Date: 2026-09-10. Scope: the `meridian` framework repository at commit `5dd218b`
 plus three uncommitted edits. Evidence for the incident itself is the operator's
-post-mortem of a task in Palimpsest, a downstream Rust/GPU project. Palimpsest's
+post-mortem of a task in consumer project A, a downstream Rust/GPU project. consumer project A's
 governance surface was subsequently inspected (§1.5); findings specific to it are
 marked **[project]** rather than **[framework]**.
 
 **Revision 2026-09-10:** §1.5 and findings F1, F4, F9 were rewritten after the
-operator supplied Palimpsest's actual `EXECUTION_EVIDENCE_PROFILE.md`. The first
+operator supplied consumer project A's actual `EXECUTION_EVIDENCE_PROFILE.md`. The first
 draft assumed that file was unconfigured. It is not — it is configured, and
 carefully. The corrected evidence makes the audit's thesis stronger, not weaker.
 
@@ -42,7 +42,7 @@ finding.
 
 ### Reconstruction of the incident
 
-Figures measured in Palimpsest (F9), not assumed: `P` ≈ **32k** tokens — ~25k of
+Figures measured in consumer project A (F9), not assumed: `P` ≈ **32k** tokens — ~25k of
 governance documents plus ~6.7k for `docs/TASK_QUEUE.md`. `d` ≈ 2k tokens per
 tune-and-test cycle; `N` ≈ 20 cycles, consistent with the post-mortem's "molte
 volte".
@@ -68,7 +68,7 @@ percent.
 
 ### F1 — [framework, root cause] Numeric budgets held; prose budgets did not
 
-Palimpsest's profile is configured, and configured well. The first draft of this
+consumer project A's profile is configured, and configured well. The first draft of this
 audit assumed otherwise and was wrong. The corrected finding is sharper, because
 the file turns out to be a **natural experiment**: some of its budgets are
 numbers, some are prose, and the post-mortem records the outcome for each.
@@ -109,7 +109,7 @@ the enforcement surface.
 Confirmed by version archaeology: the three controls that would have covered the
 gaps — a diagnostic-attempt budget, the test-and-tune prohibition, and the
 "before the first code edit and after each material change" diff trigger — are
-**absent from Palimpsest** (`grep` returns nothing in either
+**absent from consumer project A** (`grep` returns nothing in either
 `docs/CONTEXT_BUDGET_POLICY.md` or `docs/EXECUTION_EVIDENCE_PROFILE.md`). They
 exist only as the three uncommitted edits in the framework working tree. The
 incident happened in a genuine gap, not through negligence.
@@ -134,7 +134,7 @@ governs the re-print and leaves `d`, the quadratic term, untouched.
 The harness does impose a backstop, measured here: ~19 KB of command output
 returned **in full**, while ~224 KB was diverted to a file with a 2 KB preview.
 The cap therefore sits somewhere well above 20 KB. A `cargo test --workspace`
-run on a project of Palimpsest's size produces roughly 5–50 KB — under the
+run on a project of consumer project A's size produces roughly 5–50 KB — under the
 backstop, so it lands whole. The harness protects against a runaway log; it does
 not implement a 120-line rule, and nothing else does either.
 
@@ -254,7 +254,7 @@ probe failed later — because "confirm you can produce it" is answerable
 optimistically. A preflight that does not *execute* the capture path is a
 self-report, and self-reports do not fail early.
 
-**Partly superseded.** Palimpsest already replaced this with an executable probe
+**Partly superseded.** consumer project A already replaced this with an executable probe
 (F11), so the framework template is behind its own consumer here — see P6. The
 residual framework defect is not the preflight's form but its interaction with
 the deterministic-test escape hatch.
@@ -271,10 +271,10 @@ contract has no legal move except `BLOCKED`, and `BLOCKED` feels like failure �
 so the model keeps searching inside the implementation frame. **The framework
 made the expensive path the only path that looked like progress.**
 
-### F9 — [project] Measured governance surface in Palimpsest
+### F9 — [project] Measured governance surface in consumer project A
 
 The template figures in F6 badly understate the real case. Measured in
-Palimpsest:
+consumer project A:
 
 | Bytes | File |
 |---:|---|
@@ -302,7 +302,7 @@ discipline the model must apply *after* the file is open.
 
 ### F10 — [project, runtime 2×] `CLAUDE.md` and `AGENTS.md` are both loaded, and 59% overlaps
 
-Palimpsest's `CLAUDE.md` opens by declaring itself "a thin pointer to
+consumer project A's `CLAUDE.md` opens by declaring itself "a thin pointer to
 `AGENTS.md`, which is authoritative" — and then carries a "Meridian generic
 baseline (framework compatibility)" section reproducing five capability blocks
 that appear verbatim in `AGENTS.md`:
@@ -327,8 +327,8 @@ diverged 3:1 in size; a reader that trusted `CLAUDE.md`'s self-description as a
 
 ### F11 — [project] The escape hatch disarmed the one executable preflight
 
-Palimpsest already implements what §3's P6 proposes, and implements it well —
-`## Palimpsest manual-evidence extension` requires an **end-to-end probe that
+consumer project A already implements what §3's P6 proposes, and implements it well —
+`## consumer project A manual-evidence extension` requires an **end-to-end probe that
 actually succeeds** before implementation, and states: "If no allowed probe can
 succeed before code changes, return `BLOCKED`; do not implement in the hope that
 the channel will become available later."
@@ -445,13 +445,13 @@ the cause and F1 is the missing brake.
 ### P4 — Generate `AGENTS.md`, stop maintaining a twin
 
 **Direction matters, and it is the opposite of what it first looks like.** In
-Palimpsest, `AGENTS.md` is authoritative and carries substantial project-specific
+consumer project A, `AGENTS.md` is authoritative and carries substantial project-specific
 content with no home in `CLAUDE.md` (`Truth layers`, `Events`, `Determinism`,
-`Palimpsest manual-evidence extension`). Generating `AGENTS.md` from `CLAUDE.md`
+`consumer project A manual-evidence extension`). Generating `AGENTS.md` from `CLAUDE.md`
 would destroy it.
 
 So: **`AGENTS.md` is the source; the thin `CLAUDE.md` pointer is generated from
-it** — which is what Palimpsest already half-does by hand, and does wrongly, by
+it** — which is what consumer project A already half-does by hand, and does wrongly, by
 also pasting in five stale duplicate blocks (F10). The generated `CLAUDE.md`
 should be *only* the pointer plus whatever Claude Code specifically needs, with
 the duplicated capability blocks removed outright.
@@ -479,8 +479,8 @@ spread); `role-scoped-agent-rules` (delete outright per F5).
 ### P6 — Close the probe/escape-hatch composition (replaces the original P6)
 
 The first draft proposed making the manual-verification preflight executable.
-Palimpsest already did that, and did it better than the framework template —
-`## Palimpsest manual-evidence extension` requires a probe that actually
+consumer project A already did that, and did it better than the framework template —
+`## consumer project A manual-evidence extension` requires a probe that actually
 succeeds. That extension should be promoted **upward into the framework
 template**, replacing the template's weaker "confirm you can produce that
 evidence".
@@ -552,7 +552,7 @@ good at.
 The first draft's step 1 — "fill the profile" — is already done, and done well.
 Revised:
 
-1. **P2** — wrapped validation commands in Palimpsest's profile. One line of
+1. **P2** — wrapped validation commands in consumer project A's profile. One line of
    change, attacks the quadratic term, and per F1b it is the only form of the
    output bound that can actually bind. Do this today.
 2. **P1** — numeric budgets + hook echo. F1's table is the argument: in this

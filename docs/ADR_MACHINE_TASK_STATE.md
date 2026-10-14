@@ -14,14 +14,14 @@ agents write by hand:
 `latest_review_verdict` finds `APPROVE` in that heading. Its pattern
 (`scripts/console_workflow.py`) accepts exactly `## Attempt 1 — APPROVE`.
 
-On 2026-10-11, Palimpsest integrated `F2-TOKENS-001` (`be74ae7`) after a
+On 2026-10-11, consumer project A integrated `F2-TOKENS-001` (`be74ae7`) after a
 review headed `## Attempt 1 — 2026-10-11 — APPROVE`. The pattern did not match,
 so `integrate stage` returned `REVIEW_PENDING`. `meridian worktree advance`
 did not treat that as a stop and went on through finalize, push, and cleanup.
 The code reached `main`, and the queue row stayed `QUEUED`. The console then
 offered the task as ready, and it was prepared again 19 minutes later.
 `F2-TILE-001` had failed the same way and was repaired by hand (`5234bf0`).
-Of 183 attempt headings in Palimpsest's review records, only 18 match the
+Of 183 attempt headings in consumer project A's review records, only 18 match the
 pattern.
 
 Two weaknesses are involved, and a more tolerant pattern would fix neither:
@@ -30,7 +30,7 @@ Two weaknesses are involved, and a more tolerant pattern would fix neither:
    expect changes the decision. A stricter or looser parser only moves the
    boundary.
 2. **An approval is not bound to the approved code.** Nothing proves that the
-   commit being integrated is the commit the reviewer approved. Palimpsest
+   commit being integrated is the commit the reviewer approved. consumer project A
    reviewers check by hand that "the intervening commit changes only the task
    record and the handoff", and write the result into prose.
 
@@ -150,7 +150,7 @@ stops. `meridian worktree advance` reports these stops like any other.
 ### 7. Growth and read cost
 
 A project gains one state file of about 1 KB per task created after adoption.
-Terminal tasks from before adoption get none. Palimpsest, measured on
+Terminal tasks from before adoption get none. consumer project A, measured on
 2026-10-11, has 333 task records, 146 review records, 159 handoffs, and a
 97 KB queue, so a state file adds one small file to the three that each task
 already has. The file count is not the cost to control. Agent context and
@@ -177,7 +177,7 @@ full-directory scans are, so:
 
 Queue archival still decides from table text. Only `###` sections are
 candidates, and every row's status cell must be a recognized terminal token.
-Palimpsest groups its tasks under `##` sections, so its queue (about 97 KB)
+consumer project A groups its tasks under `##` sections, so its queue (about 97 KB)
 never shrinks. A section that holds an `INCONCLUSIVE` spike never closes.
 This is the same weakness Decision 1 removed from acceptance, and it is
 removed the same way:
@@ -242,7 +242,7 @@ removed the same way:
 5. `meridian task state import`, the managed review, closure, and `Accept`
    text, the governance-file ownership addition, and a migration with upgrade
    notes. Template-changing.
-6. Palimpsest and Fusa adopt through `upgrade` and `task state import`.
+6. consumer project A and consumer project B adopt through `upgrade` and `task state import`.
 7. Amendment 1 (Decision 8), accepted on 2026-10-14: archival from task state and
    `task state import --include-terminal` in the CLI, plus the archival rule
    in the managed `docs/WORKTREE_LIFECYCLE.md` copies (`worktree-lifecycle`),

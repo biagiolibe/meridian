@@ -453,13 +453,13 @@ class MeridianCliTest(unittest.TestCase):
         transient capability (task 036's own edge case: never physically
         written to any template, only proven via the migration ledger) so
         that its *first* test can exercise that narrow path. A real
-        long-lag consumer like Fusa instead has the marker literally present
+        long-lag consumer like consumer project B instead has the marker literally present
         in its locked content the whole time. Tests that resume a capped
         upgrade to completion need that realistic shape: task 036's
         transient-source proof only consults the *currently pending*
         migration list, so it cannot see an establishing migration that a
         prior, already-applied capped run already consumed — a composition
-        gap in task 036 itself, out of scope here, and irrelevant to Fusa's
+        gap in task 036 itself, out of scope here, and irrelevant to consumer project B's
         real content."""
         manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
         baseline_root = self.project / ".meridian/baselines" / str(

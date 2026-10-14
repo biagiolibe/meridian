@@ -954,6 +954,37 @@ def check_no_machine_paths(
                 fail(f"machine-specific absolute path in {name}:{number}")
 
 
+# Private consumer identities are never stored in clear text in this guard.
+DENIED_NAME_HASHES = frozenset({
+    "0a5cec0b348b57fed596878cf03760d9475f3d2a84e62c61bf139945cea9389f",
+    "b62149e19a473376ecf8cc88196d4a465572b126d6112a34461fb09e403637c1",
+})
+
+
+def check_no_private_names(
+    root: Path = ROOT, denied_hashes: frozenset[str] = DENIED_NAME_HASHES
+) -> None:
+    """Check all tracked file contents, including archived task records."""
+    listed = subprocess.run(
+        ["git", "-C", str(root), "ls-files", "-z"],
+        capture_output=True, check=False,
+    )
+    if listed.returncode != 0:
+        fail("cannot list tracked files to check for private names")
+    for name in listed.stdout.decode("utf-8").split("\0"):
+        path = root / name
+        if not name or not path.is_file():
+            continue
+        # Byte decoding preserves ASCII tokens even in non-text artifacts.
+        content = path.read_bytes().decode("utf-8", errors="replace")
+        for number, line in enumerate(content.splitlines(), start=1):
+            # Unicode word characters except underscore; punctuation, including
+            # underscore, hyphen, dot and slash, delimits each candidate.
+            for token in re.findall(r"[^\W_]+", line):
+                if hashlib.sha256(token.lower().encode("utf-8")).hexdigest() in denied_hashes:
+                    fail(f"private consumer name in {name}:{number}")
+
+
 def main() -> None:
     if "--write-managed-digests" in sys.argv[1:]:
         changes = write_managed_digests()
@@ -986,6 +1017,7 @@ def main() -> None:
     check_self_hosting_baseline()
     check_managed_digests()
     check_no_machine_paths()
+    check_no_private_names()
     print("Meridian repository checks passed.")
 
 

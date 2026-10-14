@@ -27,7 +27,7 @@ Terms:
   (`bin/meridian`), migrations, and release tooling for agent-driven development.
 - **Lean Delivery / Governed SDD**: the two workflow modes. This repository is
   locked to Lean Delivery by `PROJECT_WORKFLOW.md`. The adopter project
-  `palimpsest` uses Governed SDD (framework baseline `1.1.49` when last read).
+  `consumer project A` uses Governed SDD (framework baseline `1.1.49` when last read).
 - **Task lifecycle**: `[ ]` to `[/]` to `[x]`, with the task file archived to
   `tasks/done/`, a handoff in `tasks/handoffs/`, and rows in `tasks/QUEUE.md`
   and `PROJECT_PLAN.md`.
@@ -47,7 +47,7 @@ Terms:
   reported `permission-model: unconfigured`), and the worktrees lived outside the
   project, where the bounded `:workspace` sandbox does not reach.
 - **Observed**: three different worktree roots were in use: `.claude/worktrees`
-  inside palimpsest, `~/.codex/meridian-worktrees`, and `~/.meridian/worktrees`.
+  inside consumer project A, `~/.codex/meridian-worktrees`, and `~/.meridian/worktrees`.
   Task 083 unified resolution (explicit option, `MERIDIAN_WORKTREE_ROOT`, a
   versioned user config, then `~/.meridian/worktrees`) and added
   `meridian setup --check|--apply`; Task 085 made setup repair or replace the
@@ -65,7 +65,7 @@ Terms:
 
 ### 2.2 Unprepared worktrees in a Governed project (Task 097)
 
-- Three palimpsest tasks (M37-CAUSE-001, F1-FIGURE-001, F1-TREAT-001) stopped with
+- Three consumer project A tasks (M37-CAUSE-001, F1-FIGURE-001, F1-TREAT-001) stopped with
   `missing-state`, `wrong-worktree`, `unregistered-worktree` from
   `meridian worktree check`. **Observed** each time: no branch, no worktree.
 - Cause (**observed** in the templates): Governed `IMPLEMENTATION.md` and
@@ -89,9 +89,9 @@ Terms:
   horizontal split pane of the console's own session (session found through
   `ITERM_SESSION_ID`). A later fix rewrote the AppleScript after the split-session
   lookup was found invalid.
-- For palimpsest, the console showed "Awaiting review of the task branch" and no
+- For consumer project A, the console showed "Awaiting review of the task branch" and no
   `Review <ID>` directive. **Observed** cause: the review policy was read only
-  from a `Review` queue column; palimpsest declares `Review: REQUIRED` in the task
+  from a `Review` queue column; consumer project A declares `Review: REQUIRED` in the task
   record header. Task 087 reads the record when the column is absent and makes
   `Next action` state why a directive is withheld.
 - **Noted, not tasked**: the console groups lifecycle `done` (accepted, not yet

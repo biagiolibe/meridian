@@ -207,7 +207,7 @@ class QueueBriefingTest(unittest.TestCase):
         self.assertIn("Accepted: 1", result.stdout)
 
     def test_resolves_a_projects_declared_queue_location(self) -> None:
-        """The Palimpsest-shaped customization: an annotated paragraph right
+        """The consumer project A-shaped customization: an annotated paragraph right
         after execution-assets' MERIDIAN:END, still inside the section,
         naming a different queue path than the tasks/QUEUE.md default."""
         (self.project / "PROJECT_WORKFLOW.md").write_text(
@@ -234,7 +234,7 @@ class QueueBriefingTest(unittest.TestCase):
         self.assertIn("Queued (startable): TASK-001", result.stdout)
 
     def test_accepts_a_governed_queue_without_optional_review_column(self) -> None:
-        """Palimpsest's established queue omits `Review`; lifecycle parsing
+        """consumer project A's established queue omits `Review`; lifecycle parsing
         must use the required named columns rather than fall back to Lean."""
         queue = self.project / "docs/TASK_QUEUE.md"
         queue.parent.mkdir(parents=True, exist_ok=True)

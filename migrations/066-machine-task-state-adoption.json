@@ -175,6 +175,6 @@
   "verification": [
     "Preview and apply import on open tasks; disagreeing evidence stops with TASK_STATE_INVALID and does not write.",
     "Governed SDD review and Accept use review verdict; remediation and lifecycle use task transition; no manual status or verdict edits.",
-    "Marker baselines and audit match the new capability versions; Palimpsest and Fusa copies upgrade without BLOCKED."
+    "Marker baselines and audit match the new capability versions; consumer project A and consumer project B copies upgrade without BLOCKED."
   ]
 }

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import io
+import hashlib
 import json
 import re
 import shutil
@@ -929,6 +930,46 @@ class StopCodeRegistryCheckTest(unittest.TestCase):
 
     def test_repository_passes(self) -> None:
         cr.check_stop_code_registry(ROOT)
+
+
+
+class PrivateNameGuardTest(unittest.TestCase):
+    """Exercise matching without recording real consumer identities."""
+
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name)
+        subprocess.run(["git", "init", "-q", str(self.root)], check=True)
+        self.denied = frozenset({hashlib.sha256(b"example").hexdigest()})
+
+    def track(self, name: str, content: bytes) -> None:
+        path = self.root / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(content)
+        subprocess.run(["git", "-C", str(self.root), "add", name], check=True)
+
+    def test_plain_identifier_and_path_matches_include_task_archives(self) -> None:
+        for value in ("Example", "EXAMPLE_ROUTING", "../example", "example-domain", "example.md"):
+            with self.subTest(value=value):
+                self.track("tasks/done/record.md", ("safe\n" + value).encode())
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output), self.assertRaises(SystemExit):
+                    cr.check_no_private_names(self.root, self.denied)
+                self.assertIn("tasks/done/record.md:2", output.getvalue())
+                self.assertNotIn(value, output.getvalue())
+
+    def test_substrings_and_untracked_files_are_ignored(self) -> None:
+        self.track("safe.md", b"refusal examples preexample example2")
+        (self.root / "scratch.md").write_text("example")
+        cr.check_no_private_names(self.root, self.denied)
+        # The production hashes must also leave this known substring intact.
+        cr.check_no_private_names(self.root)
+
+    def test_binary_artifacts_cannot_hide_ascii_names(self) -> None:
+        self.track("artifact.bin", b"\xff EXAMPLE \xfe")
+        with contextlib.redirect_stdout(io.StringIO()), self.assertRaises(SystemExit):
+            cr.check_no_private_names(self.root, self.denied)
 
 
 if __name__ == "__main__":
