@@ -55,9 +55,11 @@ Authority: [docs/ADR_PUBLIC_SURFACE_AND_STABILITY.md](../docs/ADR_PUBLIC_SURFACE
 
 ### Phase 66 — Lifecycle closure friction
 
-Authority: the task 209 closure stop of 2026-10-14 (`BLOCKED TASK_STATE_MISSING`).
+Authority: the task 209 closure stop of 2026-10-14 (`BLOCKED TASK_STATE_MISSING`) for 218–219, the task 217 closure stop of 2026-10-15 for 220, and the Codex approval review of 2026-10-15 for 221. Schedule 221 after 219: both edit `scripts/meridian.py`.
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
 | `[ ]` | 218 | Detect missing closure state early and point recovery at the task worktree | 🔴 P1 | — | [218](218-task-state-closure-friction.md) |
 | `[ ]` | 219 | Close a Lean task with one command | 🟡 P2 | 218 | [219](219-lean-task-close-command.md) |
+| `[ ]` | 220 | Accept a queue link to a record archived on its task branch | 🔴 P1 | — | [220](220-tolerate-pending-archive-queue-link.md) |
+| `[ ]` | 221 | Manage a Meridian block in the user's Codex rules through setup | 🟡 P2 | — | [221](221-codex-user-rules-block.md) |
