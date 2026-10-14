@@ -43,7 +43,7 @@ Authority: [docs/ADR_PUBLIC_SURFACE_AND_STABILITY.md](../docs/ADR_PUBLIC_SURFACE
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[ ]` | 209 | Verify a clean install from a release tag | 🔴 P1 | — | [209](209-clean-install-verification.md) |
+| `[x]` | 209 | Verify a clean install from a release tag | 🔴 P1 | — | [209](done/209-clean-install-verification.md) |
 | `[ ]` | 210 | Publish the public surface and enforce the release bump | 🔴 P1 | — | [210](210-public-surface-and-release-bump-check.md) |
 | `[ ]` | 211 | Publish an adopter quick start and separate maintainer content | 🔴 P1 | 209, 210 | [211](211-adopter-quickstart-and-readme.md) |
 | `[ ]` | 212 | Add a reproducible Lean Delivery walkthrough | 🟡 P2 | 211 | [212](212-reproducible-lean-walkthrough.md) |

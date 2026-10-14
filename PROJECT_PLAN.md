@@ -175,7 +175,7 @@
 - `[x]` 206 — Make the console snapshot cheaper.
 - `[x]` 207 — Add a read-only `meridian adr list`.
 - `[x]` 208 — Archive queue sections from task state.
-- `[ ]` 209 — Verify a clean install from a release tag.
+- `[x]` 209 — Verify a clean install from a release tag.
 - `[ ]` 210 — Publish the public surface and enforce the release bump.
 - `[ ]` 211 — Publish an adopter quick start and separate maintainer content.
 - `[ ]` 212 — Add a reproducible Lean Delivery walkthrough.
