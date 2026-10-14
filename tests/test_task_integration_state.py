@@ -2,6 +2,8 @@
 
 import json
 import unittest
+from unittest import mock
+import shlex
 from pathlib import Path
 
 from tests import test_task_worktree_isolation as fixtures
@@ -248,6 +250,62 @@ class TaskIntegrationStateTest(unittest.TestCase):
         self.assertTrue(blocked)
         self.assertEqual(result["stop_code"], "REVIEW_NOT_APPROVED")
         self.assertEqual(result["step"], "C6")
+
+    def test_advance_state_gate_runs_before_stage(self):
+        self.start(workflow="lean-delivery")
+        self.write_state(required=False, status="QUEUED")
+        for missing in (True, False):
+            with self.subTest(missing=missing):
+                if missing:
+                    self.state_file.unlink()
+                else:
+                    self.write_state(required=False, status="QUEUED")
+                self.git("add", "-A", cwd=self.worker)
+                self.git("commit", "--allow-empty", "-m", "set closure state", cwd=self.worker)
+                before = {path: self.git("write-tree", cwd=path).stdout for path in (self.primary, self.worker)}
+                with mock.patch.object(meridian, "stage_task_integration") as stage:
+                    result, blocked = meridian.advance_task_closure(
+                        "056", self.worktree_root, ["test task"], [0], accepted=True, supplied_project=self.primary)
+                stage.assert_not_called()
+                self.assertTrue(blocked)
+                self.assertEqual(result["stop_code"], "TASK_STATE_MISSING" if missing else "TASK_STATE_INVALID")
+                if missing:
+                    command = shlex.split(result["commands"][0])
+                    self.assertEqual(command[:5], ["meridian", "task", "transition", "056", "DONE"])
+                    self.assertEqual(command[command.index("--project") + 1], str(self.worker))
+                for path, tree in before.items():
+                    self.assertEqual(self.git("write-tree", cwd=path).stdout, tree)
+                self.assertFalse(meridian._merge_head_path(self.primary).exists())
+
+    def test_advance_requires_state_even_before_machine_state_adoption(self):
+        self.start(workflow="lean-delivery")
+        self.assertFalse((self.worker / ".meridian/tasks").exists())
+        with mock.patch.object(meridian, "stage_task_integration") as stage:
+            result, blocked = meridian.advance_task_closure(
+                "056", self.worktree_root, ["test task"], [0], accepted=True, supplied_project=self.primary)
+        stage.assert_not_called()
+        self.assertTrue(blocked)
+        self.assertEqual(result["stop_code"], "TASK_STATE_MISSING")
+
+    def test_advance_terminal_state_reaches_stage(self):
+        self.start(workflow="lean-delivery")
+        self.write_state(required=False)
+        original = meridian.stage_task_integration
+        with mock.patch.object(meridian, "stage_task_integration", wraps=original) as stage:
+            result, blocked = meridian.advance_task_closure(
+                "056", self.worktree_root, ["test task"], [0], accepted=True, supplied_project=self.primary)
+        stage.assert_called_once()
+        self.assertFalse(blocked)
+        self.assertEqual(result["action_required"], "run-candidate-validation")
+        meridian.abort_task_integration("056", self.primary)
+
+    def test_missing_state_resume_selects_registered_worktree(self):
+        self.start()
+        resume = meridian.stop_resume("TASK_STATE_MISSING", task_id="056", project=self.primary)
+        self.assertEqual(shlex.split(resume)[shlex.split(resume).index("--project") + 1], str(self.worker))
+        (self.worker / ".meridian/tasks").mkdir()
+        error = self.assert_stop("TASK_STATE_MISSING", ".meridian/tasks/056.json")
+        self.assertIn(resume, str(error))
 
     def test_legacy_stage_is_labeled_and_missing_approval_blocks(self):
         self.start()

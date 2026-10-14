@@ -72,6 +72,30 @@ class TaskStateImportTest(unittest.TestCase):
         self.assertEqual((record.read_bytes(), self.queue.read_bytes()), before)
         self.assertFalse((self.root / ".meridian/tasks/002.json").exists())
 
+    def test_archived_record_import_preserves_record_and_stale_queue_link(self):
+        record = self.add_task("001", "IN_PROGRESS")
+        archived = self.root / "tasks/done/001.md"
+        archived.parent.mkdir()
+        record.rename(archived)
+        before = archived.read_bytes(), self.queue.read_bytes()
+        result = self.cli("001", "--apply")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        proposal = json.loads(result.stdout)["tasks"][0]
+        self.assertEqual(proposal["evidence"]["record"]["path"], "tasks/done/001.md")
+        self.assertEqual(json.loads((self.root / proposal["path"]).read_text())["status"], "IN_PROGRESS")
+        self.assertEqual((archived.read_bytes(), self.queue.read_bytes()), before)
+        self.assertFalse(record.exists())
+
+    def test_archived_recovery_refuses_unrelated_missing_queue_link(self):
+        record = self.add_task("001", "IN_PROGRESS")
+        archived = self.root / "tasks/done/001.md"
+        archived.parent.mkdir()
+        record.rename(archived)
+        self.queue.write_text(self.queue.read_text().replace("(001.md)", "(different.md)"))
+        result = self.cli("001", "--apply")
+        self.assertEqual(result.returncode, 2)
+        self.assertFalse((self.root / ".meridian/tasks/001.json").exists())
+
     def test_terminal_tasks_need_no_record_or_state(self):
         for task_id, status in (("001", "ACCEPTED"), ("002", "ANSWERED"), ("003", "INCONCLUSIVE")):
             self.add_task(task_id, status).unlink()
