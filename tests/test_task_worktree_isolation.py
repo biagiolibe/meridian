@@ -1016,6 +1016,9 @@ class BoundedWorktreeLifecycleTest(unittest.TestCase):
         staged = meridian.stage_task_integration("056", self.worktree_root, evidence_path, self.primary)
         self.assertEqual(len(staged["warnings"]), 1)
         self.assertIn("## Phase 2 — Unreadable", staged["warnings"][0])
+        report = {item["section"]: item for item in staged["archival"]}
+        self.assertFalse(report["## Phase 2 — Unreadable"]["archive"])
+        self.assertTrue(report["## Phase 2 — Unreadable"]["reason"])
         self.assertIn(unreadable, queue.read_text(encoding="utf-8"))
         meridian.abort_task_integration("056", self.primary)
 

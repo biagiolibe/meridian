@@ -1,6 +1,6 @@
 # Bounded Worktree Lifecycle
 
-<!-- MERIDIAN:BEGIN capability=worktree-lifecycle v5 -->
+<!-- MERIDIAN:BEGIN capability=worktree-lifecycle v6 -->
 Use the host-neutral `meridian worktree` namespace for task checkout lifecycle
 operations. Commands exit `0` on success, `2` when blocked, and `64` on usage
 errors. The root resolves from an explicit option, the environment, user
@@ -71,17 +71,25 @@ stale: renew validation and record new evidence before closure. The result
 reports `evidence_renewal_required: true`; repeating recovery at the same commit
 is a read-only no-op. Unproven transitions report `BLOCKED WRONG_WORKTREE`.
 
-## Conservative queue-section archival
+## Queue-section archival
 
-Only `###` sections are archival candidates; each ends at the next heading of
-the same or higher level, including its nested headings. Every task table and
-row must be recognized and terminal (`[x]` in Lean Delivery). An open or
-ambiguous table retains the entire section; warnings name the section and
-reason. Ambiguous or project-shaped tables are retained rather than guessed.
+A section ends at the next heading of the same or a higher level and includes
+its nested headings; its heading level does not restrict archival. A section
+that itself lists task rows is archived when every task row in it has a state
+file, read by task ID, whose status is terminal (`DONE` in Lean Delivery). Table
+shape, column order, and status-cell wording are not read. A row without
+a state file keeps the conservative table rule: only a `###` section whose task
+tables and rows are all recognized and terminal (`[x]`) is archived, and a
+section that mixes both kinds of row archives only when both rules agree. An
+open, invalid-state, or ambiguous row retains the entire section, and so does a
+section that lists no task row of its own. `integrate stage` reports every
+section as archived or retained with its reason and its open or legacy rows.
+`meridian task state import --include-terminal` creates state for terminal
+legacy tasks so that their sections archive by state.
 
 ## Machine task state adoption
 
-Run `meridian task state import [<TASK-ID>...] --project <path> --format json` to preview state files for open legacy tasks and inspect the queue, record, and review evidence. Repeat with `--apply` only after resolving reported disagreements. Existing state files and terminal legacy tasks are skipped. Imported transition history describes the bootstrap at the current HEAD and timestamp, not past implementation or review events; it never manufactures an approval. For Lean Delivery, progress remains derived from the worktree and imports as `QUEUED`. Use `meridian task transition` and `meridian review verdict` for subsequent changes; never edit statuses or verdicts by hand. Machine state files stay tracked at their original path when task records are archived.
+Run `meridian task state import [<TASK-ID>...] --project <path> --format json` to preview state files for open legacy tasks and inspect the queue, record, and review evidence. Repeat with `--apply` only after resolving reported disagreements. Existing state files are never overwritten, and terminal legacy tasks are skipped unless `--include-terminal` is given; it previews and, with `--apply`, writes their state from the current texts, stops with `TASK_STATE_INVALID` when the queue, record, or review texts disagree, and never creates an approval. Imported transition history describes the bootstrap at the current HEAD and timestamp, not past implementation or review events; it never manufactures an approval. For Lean Delivery, progress remains derived from the worktree and imports as `QUEUED`. Use `meridian task transition` and `meridian review verdict` for subsequent changes; never edit statuses or verdicts by hand. Machine state files stay tracked at their original path when task records are archived.
 
 ## Candidate validation by integration outcome
 

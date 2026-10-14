@@ -179,8 +179,8 @@
   },
   "templates/workflows/governed-sdd/docs/WORKTREE_LIFECYCLE.md": {
     "worktree-lifecycle": {
-      "sha256": "5fd00c77678e764288eb77c81de256292c6950d0e7130e993f249645a8b8d3de",
-      "version": 5
+      "sha256": "0ba4ebf470a99249607c9498c7ea23e76cd08d51ba73af363bccc4cbc55b5ab2",
+      "version": 6
     }
   },
   "templates/workflows/governed-sdd/docs/workflows/IMPLEMENTATION.md": {
@@ -363,8 +363,8 @@
   },
   "templates/workflows/lean-delivery/docs/WORKTREE_LIFECYCLE.md": {
     "worktree-lifecycle": {
-      "sha256": "b7ca01401904cb0a7789af6b01382fd835b57b93fb20328d18be587877515900",
-      "version": 5
+      "sha256": "0f3e39fb97e61a4636e83bf2a61ee3a602b3dc2bd0900c3512abb66f716e15ab",
+      "version": 6
     }
   }
 }
