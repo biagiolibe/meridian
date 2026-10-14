@@ -6,6 +6,6 @@
   "workflowBaselineVersion": "1.2.15",
   "baselineChanged": true,
   "migrations": [
-    "068-queue-archival-from-task-state"
+    "068-adr-list-discovery"
   ]
 }

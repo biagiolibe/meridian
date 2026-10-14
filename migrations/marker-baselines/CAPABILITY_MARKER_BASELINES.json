@@ -113,8 +113,8 @@
       "version": 1
     },
     "minimal-read-only-status": {
-      "sha256": "9794d7a9cd029fe49d939a71000db8c2cd5b7a9be8e0ce313ac112f0b2ec865e",
-      "version": 2
+      "sha256": "7f14cb011aad3e4020b32f6f459f7c0cf385e7980ae506d1c417902c42d07a6d",
+      "version": 3
     },
     "phase-reads": {
       "sha256": "0db50cbc054ade823b2f6909c93f96da8529614ae9fc8af35c6a953fbeb4a49c",
@@ -185,8 +185,8 @@
   },
   "templates/workflows/governed-sdd/docs/workflows/IMPLEMENTATION.md": {
     "bounded-context-readers": {
-      "sha256": "0595c6cb137aeef54cb7d8fe118d0d818803325ef2a2504e9bf1ca557c6ff6c5",
-      "version": 1
+      "sha256": "385d7e97162088eb0055231bf31da0e0c9326888c7ebd8c5c55e5036b8d7124e",
+      "version": 2
     },
     "execution-command-gate": {
       "sha256": "fe58c91b6ea1562b43936754ef3ca8f142c021cd0ab52d3069a73c63f58b3bb3",
@@ -237,8 +237,8 @@
   },
   "templates/workflows/governed-sdd/docs/workflows/REMEDIATION.md": {
     "bounded-context-readers": {
-      "sha256": "0595c6cb137aeef54cb7d8fe118d0d818803325ef2a2504e9bf1ca557c6ff6c5",
-      "version": 1
+      "sha256": "385d7e97162088eb0055231bf31da0e0c9326888c7ebd8c5c55e5036b8d7124e",
+      "version": 2
     },
     "phase-reads": {
       "sha256": "8693526d918a057acea808d3396af2c0d07c60194d76fe4c0e9102b9cc3ec2d5",
@@ -259,8 +259,8 @@
   },
   "templates/workflows/governed-sdd/docs/workflows/REVIEW.md": {
     "bounded-context-readers": {
-      "sha256": "0595c6cb137aeef54cb7d8fe118d0d818803325ef2a2504e9bf1ca557c6ff6c5",
-      "version": 1
+      "sha256": "385d7e97162088eb0055231bf31da0e0c9326888c7ebd8c5c55e5036b8d7124e",
+      "version": 2
     },
     "implementer-reviewer-handoff": {
       "sha256": "5967007cad424d32d3c22444d8826fce0c2862a5ccaf2afcf76c996a009e7f29",

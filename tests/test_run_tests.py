@@ -98,11 +98,11 @@ class ShardedTestRunnerTest(unittest.TestCase):
         self.assertIn("usage:", missing.stderr)
 
     def test_empty_shard_exits_with_status_two(self) -> None:
-        result = self.run_script("--shard", "99999/99999")
+        result = self.run_script("--shard", "9999/9999")
 
         self.assertEqual(result.returncode, 2)
         self.assertIn("selects no tests", result.stderr)
-        self.assertRegex(result.stdout, r"^shard=99999/99999 total=\d+ selected=0 digest=[0-9a-f]{64}\n$")
+        self.assertRegex(result.stdout, r"^shard=9999/9999 total=\d+ selected=0 digest=[0-9a-f]{64}\n$")
 
 
 class ParallelTestRunnerTest(unittest.TestCase):

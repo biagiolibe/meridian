@@ -67,7 +67,7 @@
     "065-spike-blueprint-worktree-closure",
     "066-machine-task-state-adoption",
     "067-execution-boundaries",
-    "068-queue-archival-from-task-state"
+    "068-adr-list-discovery"
   ],
   "capabilityProfiles": {
     "meridian-self-hosting": {

@@ -9783,19 +9783,79 @@ def find_adr_log(project_root: Path) -> Path:
     return project_root / resolve_project_locations(project_root).adr_log
 
 
+def adr_title_matcher(adr_id: str):
+    """The one title test that decides which heading is ADR `adr_id`, at any
+    heading level; `adr show` and `adr list` both resolve entries through it."""
+    return lambda title: re.match(rf"{re.escape(adr_id)}\b", title) is not None
+
+
 def adr_show(project_root: Path, adr_id: str) -> str:
-    """Print exactly one ADR section, from its `## ADR-NNNN` heading up to the
-    next `## ADR-` heading or EOF, without depending on contiguous numbering.
+    """Print exactly one ADR section: the first heading whose title starts with
+    the ID, up to the next heading at the same or a shallower level or EOF,
+    without depending on contiguous numbering.
     """
     adr_log = find_adr_log(project_root)
     if not adr_log.is_file():
         raise MeridianError(f"ADR log not found for {adr_id}: {adr_log}")
     text = adr_log.read_text(encoding="utf-8")
-    result = extract_heading_block(text, lambda title: re.match(rf"{re.escape(adr_id)}\b", title) is not None)
+    result = extract_heading_block(text, adr_title_matcher(adr_id))
     if result is None:
         raise MeridianError(f"unknown ADR {adr_id}: not found in {adr_log}")
     excerpt, _ = result
     return excerpt
+
+
+ADR_HEADING_ID = re.compile(r"ADR-\d+\b")
+ADR_LIKE_HEADING = re.compile(r"ADR\b", re.IGNORECASE)
+ADR_STATUS_LINE = re.compile(r"^\s*(?:[-*]\s+)?\*{0,2}Status\*{0,2}\s*:\s*\*{0,2}\s*(.*?)\s*$", re.IGNORECASE)
+
+
+def adr_entries(text: str) -> tuple[list[dict[str, str | None]], list[str]]:
+    """Return `(entries, warnings)` for an ADR log. An entry exists exactly when
+    `adr show` would resolve its ID: the first heading whose title starts with
+    `ADR-<digits>`. A later heading that repeats an ID, or an ADR-like heading
+    that carries no parsable ID, is reported as a warning, never dropped.
+    """
+    entries: list[dict[str, str | None]] = []
+    warnings: list[str] = []
+    seen: set[str] = set()
+    for match in HEADING_LINE.finditer(text):
+        title = match.group(2).strip()
+        line = text.count("\n", 0, match.start()) + 1
+        id_match = ADR_HEADING_ID.match(title)
+        if id_match is None:
+            if ADR_LIKE_HEADING.match(title):
+                warnings.append(f"line {line}: heading is not an ADR-NNNN entry and cannot be listed or shown: {title}")
+            continue
+        adr_id = id_match.group(0)
+        if adr_id in seen:
+            warnings.append(f"line {line}: duplicate {adr_id}; `adr show` resolves only the first entry")
+            continue
+        seen.add(adr_id)
+        result = extract_heading_block(text, adr_title_matcher(adr_id))
+        block = result[0] if result is not None else ""
+        status = None
+        for block_line in block.splitlines()[1:]:
+            status_match = ADR_STATUS_LINE.match(block_line)
+            if status_match is not None:
+                status = status_match.group(1) or None
+                break
+        entries.append({"id": adr_id, "title": title[len(adr_id):].lstrip(" \t:\u2014\u2013-").strip(), "status": status})
+    return entries, warnings
+
+
+def adr_list(
+    project_root: Path, status_filter: str | None = None
+) -> tuple[list[dict[str, str | None]], list[str]]:
+    """List every ADR entry as `{id, title, status}` without printing a body."""
+    adr_log = find_adr_log(project_root)
+    if not adr_log.is_file():
+        raise MeridianError(f"ADR log not found: {adr_log}")
+    entries, warnings = adr_entries(adr_log.read_text(encoding="utf-8"))
+    if status_filter is not None:
+        wanted = status_filter.strip().casefold()
+        entries = [entry for entry in entries if entry["status"] is not None and entry["status"].casefold() == wanted]
+    return entries, warnings
 
 
 def extract_spec_heading(project_root: Path, spec_path: str, heading: str) -> str:
@@ -11842,6 +11902,10 @@ def _run_cli(journal: LifecycleJournalEntry) -> int:
     adr_show_parser = adr_sub.add_parser("show", help="print exactly one ADR section")
     adr_show_parser.add_argument("adr_id")
     adr_show_parser.add_argument("--project", type=Path, default=Path.cwd())
+    adr_list_parser = adr_sub.add_parser("list", help="print one line per ADR: ID, title, and status")
+    adr_list_parser.add_argument("--project", type=Path, default=Path.cwd())
+    adr_list_parser.add_argument("--status", help="keep only entries whose Status field equals this value, ignoring case")
+    adr_list_parser.add_argument("--format", choices=("text", "json"), default="text")
 
     context = subparsers.add_parser("context", help="inspect task authority or measure a role's startup read set")
     context_sub = context.add_subparsers(dest="context_command", required=True)
@@ -12292,7 +12356,17 @@ def _run_cli(journal: LifecycleJournalEntry) -> int:
             print(json.dumps(report, sort_keys=True))
             return exit_code
         elif arguments.command == "adr":
-            print(adr_show(project_root, arguments.adr_id))
+            if arguments.adr_command == "list":
+                listed, adr_warnings = adr_list(project_root, arguments.status)
+                for adr_warning in adr_warnings:
+                    print(f"warning: {adr_warning}", file=sys.stderr)
+                if arguments.format == "json":
+                    print(json.dumps(listed, sort_keys=True))
+                else:
+                    for entry in listed:
+                        print(f"{entry['id']}\t{entry['title']}\t{entry['status'] or '-'}")
+            else:
+                print(adr_show(project_root, arguments.adr_id))
         elif arguments.command == "context":
             if arguments.context_command == "authority":
                 print(context_authority(project_root, arguments.task_id, arguments.labels_only))
