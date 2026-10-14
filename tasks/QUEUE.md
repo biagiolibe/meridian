@@ -60,3 +60,4 @@ Authority: the task 209 closure stop of 2026-10-14 (`BLOCKED TASK_STATE_MISSING`
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
 | `[ ]` | 218 | Detect missing closure state early and point recovery at the task worktree | 🔴 P1 | — | [218](218-task-state-closure-friction.md) |
+| `[ ]` | 219 | Close a Lean task with one command | 🟡 P2 | 218 | [219](219-lean-task-close-command.md) |
