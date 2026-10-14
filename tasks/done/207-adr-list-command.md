@@ -18,26 +18,26 @@ prints one line per ADR without loading the log into an agent's context.
 
 ## Acceptance Criteria
 
-- [ ] `meridian adr list [--project <path>] [--status <value>] [--format
+- [x] `meridian adr list [--project <path>] [--status <value>] [--format
   text|json]` resolves the ADR log through `meridian locations`. It prints one
   line per ADR with its ID, title, and status. JSON output is a list of
   objects with `id`, `title`, and `status`.
-- [ ] `--status` filters, case-insensitively, on the value of each entry's
+- [x] `--status` filters, case-insensitively, on the value of each entry's
   `Status` field. An entry without a status is listed with `status: null` and
   is excluded by any `--status` filter.
-- [ ] The command is read-only. A missing log, or an entry it cannot parse, is
+- [x] The command is read-only. A missing log, or an entry it cannot parse, is
   reported with a registered stop code or a per-entry warning. It never
   silently drops an entry.
-- [ ] It reuses the entry-boundary rules of `adr show`, so `list` and `show`
+- [x] It reuses the entry-boundary rules of `adr show`, so `list` and `show`
   agree on which entries exist.
-- [ ] Tests cover a multi-entry log, the status filter, an entry without a
+- [x] Tests cover a multi-entry log, the status filter, an entry without a
   status, a malformed entry, a missing log, and JSON output.
-- [ ] `docs/CONTEXT_BUDGET_POLICY.md` and the Governed SDD guidance name
+- [x] `docs/CONTEXT_BUDGET_POLICY.md` and the Governed SDD guidance name
   `adr list` as the way to discover ADRs, if that guidance is managed text,
   through the existing marker mechanism. Otherwise only the README is
   updated, and the handoff records which applies.
-- [ ] One changelog fragment states the command under `Added`.
-- [ ] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
+- [x] One changelog fragment states the command under `Added`.
+- [x] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
   --parallel`, and `git diff --check` pass.
 
 ## Relevant Files
