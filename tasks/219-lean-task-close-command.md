@@ -45,7 +45,14 @@ its state, and make the managed closure text name that command.
   carries the change, following `migrations/README.md` and `CONTRIBUTING.md`.
 - [ ] `docs/PUBLIC_SURFACE.md`, if task 210 has landed, lists `task close` as
   Stable.
-- [ ] Tests cover success, each refusal, the identity of the written state
+- [ ] Resuming a task whose record is already archived and whose state is
+  `DONE` skips `meridian execution start --resume`. The managed Resume text
+  goes straight to the remaining closure steps: commit the staged closure
+  records, then `meridian worktree advance`. `execution start --resume` on
+  such a task returns `"started": false` with the next closure action,
+  instead of `COMMAND_REFUSED` on the queue link. Evidence: task 218's resume
+  of 2026-10-15 stopped there with its closure records staged.
+- [ ] Tests cover success, each refusal, the archived-and-DONE resume, the identity of the written state
   with `task transition`'s, and the upgrade of a pristine `1.2.15` Lean project
   through the new migration.
 - [ ] One changelog fragment states the command under `Added`, and the
