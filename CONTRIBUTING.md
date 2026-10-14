@@ -2,6 +2,9 @@
 
 Thanks for helping improve Meridian.
 
+Participation follows the [code of conduct](CODE_OF_CONDUCT.md). Report suspected
+vulnerabilities privately using the [security policy](SECURITY.md).
+
 ## Scope
 
 Meridian is a stack-agnostic workflow for agentic software development. Keep generic workflow assets free of product, language, framework, and hosting-specific rules. Project-specific architecture belongs in generated projects, not in this repository's templates.
