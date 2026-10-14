@@ -415,6 +415,101 @@ grep -n -A1 "projects.\"$MERIDIAN_DEV_DIR\"" ~/.codex/config.toml
 - In Codex, `$meridian-lean-delivery` is available.
 - In a Codex shell, `python3 --version` reports 3.12 or later.
 
+### Command approval rules
+
+Codex prompts for every command that leaves its sandbox unless an execpolicy
+rule allows it. The project rules in `.codex/rules/` apply only inside a
+trusted project, and only to that project. The user-level file
+`~/.codex/rules/default.rules` applies everywhere, including the task
+worktrees under `~/.meridian/worktrees`. Rules match leading tokens only, and
+when several rules match, the most restrictive decision wins.
+
+**Check**
+
+```bash
+grep -n 'meridian\|"gh"\|"push"' ~/.codex/rules/default.rules
+```
+
+Look for broad rules that a "don't ask again" click may have created, such as
+`["git", "push"]` or `["meridian"]` with no further token. They allow force
+pushes and `--apply` commands without a prompt.
+
+**Do** **[CONSENT]**
+
+Back up the file, remove the broad rules found above, then append:
+
+```text
+# Plain pushes to origin only. A flag placed after the refspec
+# (`git push origin main --force`) is not caught by prefix rules; the GitHub
+# ruleset on main and stable is the real guard against that form.
+prefix_rule(pattern=["git", "push", "origin"], decision="allow")
+prefix_rule(pattern=["git", "push", ["--force", "-f", "--force-with-lease", "--delete", "-d", "--mirror"]], decision="forbidden")
+prefix_rule(pattern=["git", "push", "origin", ["--force", "-f", "--force-with-lease", "--delete", "-d", "--mirror"]], decision="forbidden")
+
+# Meridian read-only and task-lifecycle commands. Commands that change machine
+# or project configuration (setup/codex configure --apply, upgrade --apply,
+# adopt, finalize-adoption, lock, generate-*) keep prompting.
+prefix_rule(pattern=["meridian", ["--version", "self-check", "console", "audit", "profile", "locations", "project", "context", "adr", "budget", "report", "usage", "validation", "execution", "task", "review"]], decision="allow")
+prefix_rule(pattern=["meridian", "worktree"], decision="allow")
+prefix_rule(pattern=["meridian", "codex", ["doctor", "worktree-path"]], decision="allow")
+prefix_rule(pattern=["meridian", ["upgrade", "setup"], "--check"], decision="allow")
+prefix_rule(pattern=["meridian", "codex", "configure", "--check"], decision="allow")
+
+# Read-only GitHub CLI. `gh api` stays unlisted: it can send writing requests.
+prefix_rule(pattern=["gh", "release", ["list", "view"]], decision="allow")
+prefix_rule(pattern=["gh", "run", ["list", "view", "watch"]], decision="allow")
+prefix_rule(pattern=["gh", "pr", ["list", "view", "checks", "diff"]], decision="allow")
+prefix_rule(pattern=["gh", "issue", ["list", "view"]], decision="allow")
+prefix_rule(pattern=["gh", "repo", "view"], decision="allow")
+prefix_rule(pattern=["gh", "auth", "status"], decision="allow")
+
+# Git and system commands that do not discard work.
+prefix_rule(pattern=["git", "write-tree"], decision="allow")
+prefix_rule(pattern=["git", "fetch"], decision="allow")
+prefix_rule(pattern=["git", "restore", "--staged"], decision="allow")
+prefix_rule(pattern=["git", "rm"], decision="allow")
+prefix_rule(pattern=["git", "rm", ["-f", "--force"]], decision="prompt")
+prefix_rule(pattern=["ps"], decision="allow")
+```
+
+Restart Codex; rules load when a session starts.
+
+**Verify**
+
+Each command must print the decision shown. Pass the command as separate
+tokens after `--`, not as one quoted string.
+
+```bash
+R=~/.codex/rules/default.rules
+codex execpolicy check --rules "$R" -- git push origin main          # allow
+codex execpolicy check --rules "$R" -- git push --force origin main  # forbidden
+codex execpolicy check --rules "$R" -- meridian worktree advance 1   # allow
+codex execpolicy check --rules "$R" -- meridian upgrade --apply      # no decision: prompts
+codex execpolicy check --rules "$R" -- gh release list               # allow
+codex execpolicy check --rules "$R" -- gh api repos/x                # no decision: prompts
+codex execpolicy check --rules "$R" -- git rm -f x                   # prompt
+```
+
+### GitHub branch protection
+
+The repository ruleset **Protect main and stable** blocks force pushes
+(`non_fast_forward`) and deletion of `main` and `stable`, with no bypass
+actors. Task branches are not covered. A deliberate force push, such as a
+history rewrite, needs the ruleset disabled first and re-enabled right after
+**[HUMAN]**:
+
+```bash
+RULESET_ID=$(gh api repos/biagiolibe/meridian/rulesets --jq '.[] | select(.name == "Protect main and stable") | .id')
+gh api -X PUT "repos/biagiolibe/meridian/rulesets/$RULESET_ID" -f enforcement=disabled
+gh api -X PUT "repos/biagiolibe/meridian/rulesets/$RULESET_ID" -f enforcement=active
+```
+
+**Verify**
+
+```bash
+gh api repos/biagiolibe/meridian/rules/branches/main --jq '.[].type'   # non_fast_forward, deletion
+```
+
 ---
 
 ## 9. Final checklist
@@ -483,4 +578,6 @@ maintainer.
 | `STOP: framework HEAD is not tag v<version>` from `upgrade_project.sh` | `MERIDIAN_ROOT` points at the development clone, which is past the tag | Point `MERIDIAN_ROOT` at the release checkout on `stable` (step 4) |
 | Push rejected: `GH007: Your push would publish a private email address` | A commit carries your private email | Set the noreply address (step 2) and recreate the unpushed commits with it |
 | `would clobber existing tag` on fetch, or `git pull` merges two unrelated histories | Clone made before the history rewrite of 2026-10-14 | Do not pull. Move the clone aside, clone again, and copy back ignored files such as `.claude/settings.local.json` |
+| Codex prompts for a routine command | No execpolicy rule allows it, or the project rules are not loaded in this directory | Check it with `codex execpolicy check` (step 8); add a narrow rule only if the command cannot write or execute arbitrary code |
+| Push rejected: `Cannot force-push to this branch` or `Cannot delete this branch` | The ruleset on `main` and `stable` | Intended. For a deliberate rewrite, disable the ruleset and re-enable it afterwards (step 8) |
 | Tests fail only for AppleScript/iTerm2 | Sandbox cannot resolve the iTerm2 dictionary | Recorded as a named skip; run the full suite outside the sandbox before a release |
