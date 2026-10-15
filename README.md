@@ -320,6 +320,26 @@ There is no `meridian init` CLI subcommand in v1.2.15.
 For permission diagnostics, the read guard, and local usage reports, see
 [Agent operations](docs/AGENT_OPERATIONS.md).
 
+`meridian setup --check` also previews a managed user-level command approval
+block in `~/.codex/rules/default.rules`; `setup --apply` installs or updates it.
+The block is bounded by `# MERIDIAN:BEGIN codex-user-rules v1` and
+`# MERIDIAN:END codex-user-rules`. Rules outside those markers are preserved.
+Damaged markers stop setup with `BLOCKED COMMAND_REFUSED`. Broad foreign
+`["meridian"]` or `["git", "push"]` allow rules produce warnings naming the
+line; setup never removes them. `meridian codex doctor` reports
+`user-command-policy` as `ready`, `missing`, or `stale`. Restart Codex after applying.
+
+The block allows Meridian inspection and task lifecycle commands, configuration
+`--check` forms, read-only `gh` commands, plain `git push origin`, `git fetch`,
+`git write-tree`, `git restore --staged`, and `git rm`. Forced removal keeps
+prompting. `gh api` and configuration `--apply` forms stay unlisted. Force,
+delete, and mirror push flags directly after `push` or `origin` are forbidden.
+Prefix rules match only leading tokens: a flag after the refspec, such as
+`git push origin main --force`, is not matched by those prohibitions. Repository
+branch protection remains necessary for that form. A foreign broad allow can
+allow otherwise unlisted commands; matching prompt or forbidden rules still
+take precedence.
+
 ## How the governed workflow works
 
 ```text

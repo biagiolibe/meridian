@@ -24,12 +24,12 @@ profile.
 
 ## Acceptance Criteria
 
-- [ ] Before any change, the handoff records a probe of one question: does a
+- [x] Before any change, the handoff records a probe of one question: does a
   Codex session started inside a task worktree under the worktree root load
   that worktree's `.codex/rules/`? Only the primary checkout is a trusted
   project. The probe uses an allowed command such as `git mv` and records
   whether it prompted, with the Codex version.
-- [ ] `meridian setup --check` plans, and `--apply` writes, one block in
+- [x] `meridian setup --check` plans, and `--apply` writes, one block in
   `~/.codex/rules/default.rules` between `# MERIDIAN:BEGIN codex-user-rules
   v1` and `# MERIDIAN:END codex-user-rules`. The block holds:
   - Meridian read-only and lifecycle commands;
@@ -40,16 +40,16 @@ profile.
   - `git fetch`, `git write-tree`, `git restore --staged`, and `git rm`, with
     `git rm -f` prompting.
   `gh api` and every `--apply` form stay unlisted.
-- [ ] Text outside the block is never changed. A block that differs from the
+- [x] Text outside the block is never changed. A block that differs from the
   current version is replaced only through `--apply`, after `--check` shows
   the diff. A damaged marker pair stops with a registered stop code.
-- [ ] `setup --check` warns, without changing anything, when the file outside
+- [x] `setup --check` warns, without changing anything, when the file outside
   the block holds a broad rule that overrides the block's prompts. The cases
   are `["meridian"]` alone and `["git", "push"]` without a remote. The warning
   names the line.
-- [ ] `meridian codex doctor` reports the block as `ready`, `missing`, or
+- [x] `meridian codex doctor` reports the block as `ready`, `missing`, or
   `stale`.
-- [ ] Tests cover:
+- [x] Tests cover:
   - plan and apply on a missing file, on a file without the block, and on an
     outdated block;
   - preservation of foreign rules;
@@ -57,10 +57,10 @@ profile.
   - the broad-rule warning;
   - `codex execpolicy check` decisions for the block, when the `codex` binary
     is available. Without the binary, the test reports a named skip.
-- [ ] README's Codex section documents the block, its decisions, and the
+- [x] README's Codex section documents the block, its decisions, and the
   prefix-rule limit: a flag after the refspec is not matched. One changelog
   fragment states the feature under `Added`.
-- [ ] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
+- [x] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
   --parallel`, and `git diff --check` pass.
 
 ## Relevant Files

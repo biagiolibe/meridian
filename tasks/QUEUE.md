@@ -36,14 +36,3 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 
 Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, 25, 26, 27, 28, 31, 32, 34, 35, 36, 42, 44, 45, 46, and 47
 are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
-
-### Phase 66 — Lifecycle closure friction
-
-Authority: the task 209 closure stop of 2026-10-14 (`BLOCKED TASK_STATE_MISSING`) for 218–219, the task 217 closure stop of 2026-10-15 for 220, and the Codex approval review of 2026-10-15 for 221. Schedule 221 after 219: both edit `scripts/meridian.py`.
-
-| Status | ID | Title | Priority | Depends on | File |
-|--------|----|-------|----------|------------|------|
-| `[x]` | 218 | Detect missing closure state early and point recovery at the task worktree | 🔴 P1 | — | [218](done/218-task-state-closure-friction.md) |
-| `[x]` | 219 | Close a Lean task with one command | 🟡 P2 | 218 | [219](done/219-lean-task-close-command.md) |
-| `[x]` | 220 | Accept a queue link to a record archived on its task branch | 🔴 P1 | — | [220](done/220-tolerate-pending-archive-queue-link.md) |
-| `[ ]` | 221 | Manage a Meridian block in the user's Codex rules through setup | 🟡 P2 | — | [221](221-codex-user-rules-block.md) |
