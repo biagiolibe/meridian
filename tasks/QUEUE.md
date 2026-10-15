@@ -37,22 +37,6 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, 25, 26, 27, 28, 31, 32, 34, 35, 36, 42, 44, 45, 46, and 47
 are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 
-### Phase 65 — Public adoption readiness
-
-Authority: [docs/ADR_PUBLIC_SURFACE_AND_STABILITY.md](../docs/ADR_PUBLIC_SURFACE_AND_STABILITY.md) (accepted 2026-10-14; stable line from `1.3.0`) for 210; the 2026-10-14 public-distribution gap review for 209 and 211–217.
-
-| Status | ID | Title | Priority | Depends on | File |
-|--------|----|-------|----------|------------|------|
-| `[x]` | 209 | Verify a clean install from a release tag | 🔴 P1 | — | [209](done/209-clean-install-verification.md) |
-| `[x]` | 210 | Publish the public surface and enforce the release bump | 🔴 P1 | — | [210](done/210-public-surface-and-release-bump-check.md) |
-| `[x]` | 211 | Publish an adopter quick start and separate maintainer content | 🔴 P1 | 209, 210 | [211](done/211-adopter-quickstart-and-readme.md) |
-| `[ ]` | 212 | Add a reproducible Lean Delivery walkthrough | 🟡 P2 | 211 | [212](212-reproducible-lean-walkthrough.md) |
-| `[x]` | 213 | Declare supported platforms and validate on macOS in CI | 🟡 P2 | — | [213](done/213-platform-support-matrix.md) |
-| `[x]` | 214 | Add security policy, code of conduct, and issue and PR templates | 🟡 P2 | — | [214](done/214-community-health-files.md) |
-| `[x]` | 215 | Remove private-project references from the distributed tree | 🔴 P1 | — | [215](done/215-remove-private-project-references.md) |
-| `[x]` | 216 | Anonymize private-project references in task records (cancelled) | 🟡 P2 | 215 | [216](done/216-anonymize-task-records.md) |
-| `[x]` | 217 | Replace the author email in the plugin manifests | 🟢 P3 | — | [217](done/217-remove-email-from-plugin-manifests.md) |
-
 ### Phase 66 — Lifecycle closure friction
 
 Authority: the task 209 closure stop of 2026-10-14 (`BLOCKED TASK_STATE_MISSING`) for 218–219, the task 217 closure stop of 2026-10-15 for 220, and the Codex approval review of 2026-10-15 for 221. Schedule 221 after 219: both edit `scripts/meridian.py`.

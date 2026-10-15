@@ -178,7 +178,7 @@
 - `[x]` 209 — Verify a clean install from a release tag.
 - `[x]` 210 — Publish the public surface and enforce the release bump.
 - `[x]` 211 — Publish an adopter quick start and separate maintainer content.
-- `[ ]` 212 — Add a reproducible Lean Delivery walkthrough.
+- `[x]` 212 — Add a reproducible Lean Delivery walkthrough.
 - `[x]` 213 — Declare supported platforms and validate on macOS in CI.
 - `[x]` 214 — Add security policy, code of conduct, and issue and PR templates.
 - `[x]` 215 — Remove private-project references from the distributed tree.
