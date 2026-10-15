@@ -60,6 +60,6 @@ Authority: the task 209 closure stop of 2026-10-14 (`BLOCKED TASK_STATE_MISSING`
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
 | `[x]` | 218 | Detect missing closure state early and point recovery at the task worktree | 🔴 P1 | — | [218](done/218-task-state-closure-friction.md) |
-| `[ ]` | 219 | Close a Lean task with one command | 🟡 P2 | 218 | [219](219-lean-task-close-command.md) |
+| `[x]` | 219 | Close a Lean task with one command | 🟡 P2 | 218 | [219](done/219-lean-task-close-command.md) |
 | `[x]` | 220 | Accept a queue link to a record archived on its task branch | 🔴 P1 | — | [220](done/220-tolerate-pending-archive-queue-link.md) |
 | `[ ]` | 221 | Manage a Meridian block in the user's Codex rules through setup | 🟡 P2 | — | [221](221-codex-user-rules-block.md) |

@@ -1583,6 +1583,41 @@ worktree before the branch only after validated integration succeeds.
         self.assertEqual(manifest["workflowBaselineVersion"], "1.1.55")
         self.assertEqual(manifest["appliedMigrations"][-1], "057-self-referential-handoff-commits")
 
+    def test_pristine_1_2_15_lean_upgrade_installs_task_close(self) -> None:
+        workflow = self.framework / "templates/workflows/lean-delivery"
+        paths = ("AGENTS.md", "CLAUDE.md", "PROJECT_WORKFLOW.md")
+        current = {name: (workflow / name).read_text() for name in paths}
+        old_closure = "When closure requires machine task state, run `meridian task transition <TASK-ID> DONE` in the task worktree after validation and before archiving the record, then commit the state file with the completion records. Never edit status or verdict fields by hand."
+        for name in paths:
+            text = current[name].replace("capability=git-workflow v14", "capability=git-workflow v13")
+            text = re.sub(r"After validation, commit the completed task record and handoff, then run.*?with the validation evidence\.", old_closure, text)
+            text = text.replace("capability=bounded-worktree-lifecycle v7", "capability=bounded-worktree-lifecycle v6").replace(
+                "writer confirmation, except when the record is archived and state is DONE:\nskip execution start, commit staged closure records, then run worktree advance.",
+                "writer confirmation.")
+            (workflow / name).write_text(text)
+        for path in workflow.rglob("*"):
+            if path.is_file():
+                destination = self.project / path.relative_to(workflow)
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(path, destination)
+        (self.framework / "VERSION").write_text("1.2.15\n")
+        locked = self.run_cli("lock", "--mode", "lean-delivery")
+        self.assertEqual(locked.returncode, 0, locked.stdout + locked.stderr)
+        for name, text in current.items():
+            (workflow / name).write_text(text)
+        (self.framework / "VERSION").write_text("1.3.0\n")
+        checked = self.run_cli("upgrade", "--check")
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+        self.assertIn("MIGRATION 069-lean-task-close", checked.stdout)
+        applied = self.run_cli("upgrade", "--apply")
+        self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+        for name, text in current.items():
+            self.assertEqual((self.project / name).read_text(), text)
+            self.assertIn("meridian task close <TASK-ID>", text)
+        manifest = json.loads((self.project / ".meridian/manifest.json").read_text())
+        self.assertEqual(manifest["workflowBaselineVersion"], "1.3.0")
+        self.assertEqual(manifest["appliedMigrations"][-1], "069-lean-task-close")
+
     def test_upgrade_installs_lean_closure_procedure_and_preserves_consumer_text(self) -> None:
         workflow = self.framework / "templates/workflows/lean-delivery"
         paths = ("PROJECT_WORKFLOW.md", "AGENTS.md", "CLAUDE.md")
@@ -1622,7 +1657,7 @@ worktree before the branch only after validated integration succeeds.
 
         for relative in paths:
             upgraded = (self.project / relative).read_text(encoding="utf-8")
-            self.assertIn("MERIDIAN:BEGIN capability=git-workflow v13", upgraded)
+            self.assertIn("MERIDIAN:BEGIN capability=git-workflow v14", upgraded)
             self.assertIn("Task branches do not edit `tasks/QUEUE.md`", upgraded)
         self.assertIn("Consumer-owned closure note.", agents.read_text(encoding="utf-8"))
         manifest = json.loads((self.project / ".meridian/manifest.json").read_text(encoding="utf-8"))
@@ -1822,7 +1857,7 @@ worktree before the branch only after validated integration succeeds.
         previous = {
             "PROJECT_WORKFLOW.md": resume_paragraph.sub(
                 "\n", current["PROJECT_WORKFLOW.md"].replace(
-                    "capability=bounded-worktree-lifecycle v6", "capability=bounded-worktree-lifecycle v3"
+                    "capability=bounded-worktree-lifecycle v7", "capability=bounded-worktree-lifecycle v3"
                 ), count=1,
             ),
             "docs/WORKTREE_LIFECYCLE.md": resume_bullet.sub(
@@ -1837,8 +1872,9 @@ worktree before the branch only after validated integration succeeds.
         for relative in paths:
             self.assertNotEqual(previous[relative], current[relative], relative)
             previous[relative] = previous[relative].replace(
-                "Only explicit Resume passes `--resume` after status/diff inspection and sole\nwriter confirmation.", ""
+                "Only explicit Resume passes `--resume` after status/diff inspection and sole\nwriter confirmation, except when the record is archived and state is DONE:\nskip execution start, commit staged closure records, then run worktree advance.", ""
             ).replace("Only explicit Resume adds `--resume` after\n  status/diff inspection.", "")
+            previous[relative] = re.sub(r" On explicit Resume, if the record is already archived.*?with the validation evidence\.", "", previous[relative])
             self.assertNotIn("--resume", previous[relative])
             (workflow / relative).write_text(previous[relative], encoding="utf-8")
         for path in workflow.rglob("*"):
@@ -1863,7 +1899,7 @@ worktree before the branch only after validated integration succeeds.
         self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
 
         upgraded = project_workflow.read_text(encoding="utf-8")
-        self.assertIn("capability=bounded-worktree-lifecycle v6", upgraded)
+        self.assertIn("capability=bounded-worktree-lifecycle v7", upgraded)
         self.assertIn("`--resume` is allowed only for that directive", upgraded)
         self.assertIn("Consumer-owned resume note.", upgraded)
         lifecycle = (self.project / "docs/WORKTREE_LIFECYCLE.md").read_text(encoding="utf-8")

@@ -1,4 +1,4 @@
-# [Project Name] — Agent Rules
+# [Project Name]
 
 Read `PROJECT_WORKFLOW.md` before acting. It locks this repository to
 `LEAN_DELIVERY`; use its local lifecycle rather than global, home-directory,
@@ -9,13 +9,19 @@ Git state.
 Read `LANGUAGE_POLICY.md` before responding or writing. Use its persisted
 conversation language and write every repository artifact in English.
 
+## Commands
+
+```bash
+# Fill in the project's run, test, lint, and format commands.
+```
+
+## Delivery rules
+
 Work only on the task explicitly assigned by the developer. Before changing
 code, read the task or quick-task description, its relevant context, and `git
 status --short`; state a short plan. Do not choose a queue item autonomously.
 If unrelated uncommitted changes prevent safe work, do not modify, stage,
 discard, or commit them; report the conflict and stop.
-
-## Delivery rules
 
 - Keep the task scope bounded. Record a newly discovered requirement as a new
   task rather than silently widening the current one.
@@ -37,7 +43,7 @@ discard, or commit them; report the conflict and stop.
   fix. Report actionable findings; do not silently correct implementation code
   during review.
 
-<!-- MERIDIAN:BEGIN capability=git-workflow v13 -->
+<!-- MERIDIAN:BEGIN capability=git-workflow v14 -->
 ## Authority of `Proceed with`
 
 `Proceed with <TASK-ID>` authorizes that task's whole lifecycle when every gate
@@ -85,7 +91,7 @@ and phase archival once on the merged candidate tree. The queue retains `[ ]`
 until then; in-progress state is derived from the canonical branch, registered
 worktree, and unarchived record.
 
-Close a validated task with `meridian worktree advance`. When closure requires machine task state, run `meridian task transition <TASK-ID> DONE` in the task worktree after validation and before archiving the record, then commit the state file with the completion records. Never edit status or verdict fields by hand. After verifying the
+Close a validated task with `meridian worktree advance`. After validation, commit the completed task record and handoff, then run `meridian task close <TASK-ID>` in the clean task worktree. It writes DONE state and stages the exact record archive and state file without committing; commit these closure records together. Never edit status or verdict fields by hand. On explicit Resume, if the record is already archived and its state is DONE, skip `meridian execution start --resume`: commit any staged closure records, then run `meridian worktree advance` with the validation evidence. After verifying the
 acceptance criteria, running validation, and committing the completion record
 and handoff, run `meridian worktree advance <TASK-ID> --project
 <primary-checkout> --format json` from the primary checkout, giving each result
