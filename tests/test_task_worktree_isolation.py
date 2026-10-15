@@ -778,7 +778,19 @@ class BoundedWorktreeLifecycleTest(unittest.TestCase):
         self.assertTrue((self.primary / "feature.txt").is_file())
         cleaned = meridian.cleanup_task_worktree("056", self.worktree_root, self.primary)
         self.assertEqual(cleaned["status"], "cleaned")
-        self.assertFalse(task_worktree.exists())
+        self.assertTrue(task_worktree.is_dir())
+        self.assertEqual(list(task_worktree.iterdir()), [])
+        self.assertNotIn(str(task_worktree), self.git("worktree", "list", "--porcelain").stdout)
+        for hook in ("read-guard", "stop-audit"):
+            result = subprocess.run(
+                [sys.executable, str(ROOT / "scripts/meridian.py"), "hook", hook, "--host", "codex"],
+                cwd=task_worktree, input=json.dumps({"cwd": str(task_worktree),
+                    "tool_name": "Bash", "tool_input": {"command": "cat missing.txt"},
+                    "last_assistant_message": "BLOCKED WRONG_WORKTREE"}),
+                text=True, capture_output=True,
+            )
+            self.assertEqual((result.returncode, result.stdout, result.stderr), (0, "", ""))
+        self.assertEqual(list(task_worktree.iterdir()), [])
         self.assertNotEqual(self.git("show-ref", "--verify", "refs/heads/task-056", check=False).returncode, 0)
         repeated = meridian.cleanup_task_worktree("056", self.worktree_root, self.primary)
         self.assertTrue(repeated["already_cleaned"])

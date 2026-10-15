@@ -2863,7 +2863,7 @@ def cleanup_task_worktree(
     registered_paths = {Path(item["worktree"]).resolve() for item in _git_worktrees(project_root)}
     if (
         expected not in registered_paths
-        and not expected.exists()
+        and (not expected.exists() or (expected.is_dir() and not any(expected.iterdir())))
         and _branch_commit(project_root, identity.branch_name) is None
         and not state_path.exists()
     ):
@@ -2895,6 +2895,9 @@ def cleanup_task_worktree(
         raise stop_error(
             "CLEANUP_BLOCKED", removed.stderr.strip() or "worktree removal failed; branch was retained", task_id=identity.canonical_id, project=project_root
         )
+    # Codex launches Stop hooks with the session path as cwd, even after cleanup.
+    # Keep an empty, unregistered directory so the host can start the hook.
+    expected.mkdir(exist_ok=True)
     deleted = _run_git(project_root, "branch", "-d", identity.branch_name)
     if deleted.returncode != 0:
         raise stop_error(
@@ -11808,6 +11811,12 @@ class ShowVersionAction(argparse.Action):
 
 
 def main() -> int:
+    if sys.argv[1:2] == ["hook"]:
+        try:
+            Path.cwd()
+        except FileNotFoundError:
+            # Advisory hooks must also tolerate an inherited, deleted cwd.
+            return 0
     journal = LifecycleJournalEntry()
     exit_code = _run_cli(journal)
     journal.write(exit_code)
