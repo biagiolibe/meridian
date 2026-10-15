@@ -6,7 +6,7 @@ Meridian turns a project plan into small, explicit, verifiable tasks that agents
 
 It is deliberately stack-agnostic: Meridian defines the process; each project supplies its own architecture, invariants, and validation commands.
 
-> **Project status:** early-stage / experimental. The workflow is usable today, but its public API and templates may evolve before a stable release.
+> **Project status:** the stable compatibility promise starts at 1.3.0. See the [public surface classification](docs/PUBLIC_SURFACE.md) and [versioning and deprecation rules](CONTRIBUTING.md#versioning-and-deprecation).
 
 ## Why Meridian?
 
@@ -88,6 +88,9 @@ Then open the project you want to initialize and run:
 ```
 
 ### Project console
+
+The console, including its interactive keys and agent launch, is experimental;
+it may change in minor releases.
 
 From any project that contains Meridian's queue and task records, launch the
 read-only interactive project console with:
@@ -526,6 +529,9 @@ governing ADR without opening the log. Declare a necessary file in task
 Authority or raise `Read-guard threshold` only when the larger read is needed.
 
 ### Local session token usage
+
+`meridian usage` and `meridian usage report` are experimental and may change
+in minor releases.
 
 `meridian usage report --format text` summarizes local Codex and Claude Code
 session counters without reading or exposing message content. Filter a host,

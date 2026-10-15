@@ -54,6 +54,52 @@ class ReleasePrepareTest(unittest.TestCase):
     def invoke(self, *args: str) -> int:
         return release.main([*args, "--root", str(self.root)])
 
+    def test_fragment_headings_enforce_both_version_selection_forms(self) -> None:
+        for heading in release.CHANGELOG_HEADINGS:
+            fragment = self.add_fragment(text=f"### {heading}\n\n- Release item.\n")
+            self.git("add", ".")
+            self.git("commit", "-qm", f"fragment {heading}")
+            for bump, version in (("patch", "1.0.2"), ("minor", "1.2.3"), ("major", "2.0.0")):
+                refused = (bump == "patch" and heading in {"Added", "Deprecated", "Removed"}) or (bump == "minor" and heading == "Removed")
+                for selection in (("--bump", bump), ("--version", version)):
+                    with self.subTest(heading=heading, selection=selection):
+                        errors = io.StringIO()
+                        with redirect_stderr(errors), redirect_stdout(io.StringIO()):
+                            self.assertEqual(self.invoke("prepare", *selection, "--dry-run"), int(refused))
+                        if refused:
+                            self.assertIn(f"{bump} releases must not contain {heading}", errors.getvalue())
+                            self.assertIn(str(fragment.relative_to(self.root)), errors.getvalue())
+                        self.assertEqual(self.git("status", "--porcelain").stdout, "")
+                        self.assertEqual((self.root / "VERSION").read_text(), "1.0.0\n")
+
+    def test_migrations_require_minor_for_both_version_selection_forms(self) -> None:
+        self.write_changelog("### Upgrade notes\n\n- Apply the migration.")
+        for bump, version in (("patch", "1.0.1"), ("minor", "1.1.0"), ("major", "2.0.0")):
+            (self.root / "migrations/001-test.json").write_text(json.dumps({"id": "001-test", "to": version}))
+            self.git("add", ".")
+            self.git("commit", "-qm", f"migration {version}")
+            for selection in (("--bump", bump), ("--version", version)):
+                with self.subTest(selection=selection):
+                    errors = io.StringIO()
+                    with redirect_stderr(errors), redirect_stdout(io.StringIO()):
+                        self.assertEqual(self.invoke("prepare", *selection, "--dry-run"), int(bump == "patch"))
+                    if bump == "patch":
+                        self.assertIn("patch releases must not add migrations", errors.getvalue())
+                        self.assertIn("001-test", errors.getvalue())
+                    self.assertEqual(self.git("status", "--porcelain").stdout, "")
+
+    def test_existing_migration_does_not_require_minor(self) -> None:
+        (self.root / "migrations/001-old.json").write_text('{"id":"001-old","to":"1.0.0"}', encoding="utf-8")
+        ledger_path = self.root / "releases/1.0.0.json"
+        ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+        ledger.update(baselineChanged=True, migrations=["001-old"])
+        ledger_path.write_text(json.dumps(ledger), encoding="utf-8")
+        self.git("add", ".")
+        self.git("commit", "-qm", "existing migration")
+        self.git("tag", "v1.0.0")
+        with redirect_stdout(io.StringIO()):
+            self.assertEqual(self.invoke("prepare", "--bump", "patch", "--dry-run"), 0)
+
     def test_preflight_failures_write_nothing(self) -> None:
         cases = [
             ("branch", lambda: self.git("checkout", "-qb", "feature"), "current branch"),
@@ -103,23 +149,23 @@ class ReleasePrepareTest(unittest.TestCase):
         self.assertLess(len(text), 500)
 
     def test_template_change_needs_upgrade_notes(self) -> None:
-        (self.root / "migrations/001-test.json").write_text('{"id":"001-test","to":"1.0.1"}', encoding="utf-8")
+        (self.root / "migrations/001-test.json").write_text('{"id":"001-test","to":"1.1.0"}', encoding="utf-8")
         self.git("add", ".")
         self.git("commit", "-qm", "migration")
         with redirect_stderr(io.StringIO()):
-            self.assertEqual(self.invoke("--version", "1.0.1"), 1)
+            self.assertEqual(self.invoke("--version", "1.1.0"), 1)
 
     def test_template_change_and_protocol_gate(self) -> None:
-        (self.root / "migrations/001-test.json").write_text('{"id":"001-test","to":"1.0.1"}', encoding="utf-8")
+        (self.root / "migrations/001-test.json").write_text('{"id":"001-test","to":"1.1.0"}', encoding="utf-8")
         self.write_changelog("### Upgrade notes\n\n- Apply the migration.")
         (self.root / "scripts/meridian.py").write_text("PROTOCOL_VERSION = 3\n", encoding="utf-8")
         self.git("add", ".")
         self.git("commit", "-qm", "migration")
         with redirect_stderr(io.StringIO()):
-            self.assertEqual(self.invoke("--version", "1.0.1"), 1)
+            self.assertEqual(self.invoke("--version", "1.1.0"), 1)
         with mock.patch.object(release, "validate", return_value=(0, [])):
-            self.assertEqual(self.invoke("--version", "1.0.1", "--protocol-reviewed"), 0)
-        record = json.loads((self.root / "releases/1.0.1.json").read_text(encoding="utf-8"))
+            self.assertEqual(self.invoke("--version", "1.1.0", "--protocol-reviewed"), 0)
+        record = json.loads((self.root / "releases/1.1.0.json").read_text(encoding="utf-8"))
         self.assertEqual(record["migrations"], ["001-test"])
         self.assertTrue(record["baselineChanged"])
 
@@ -129,19 +175,19 @@ class ReleasePrepareTest(unittest.TestCase):
             self.assertEqual(self.invoke("--bump", "patch", "--dry-run"), 0)
         self.assertNotIn("run_agent_evals", cli_only.getvalue())
 
-        (self.root / "migrations/001-test.json").write_text('{"id":"001-test","to":"1.0.1"}', encoding="utf-8")
+        (self.root / "migrations/001-test.json").write_text('{"id":"001-test","to":"1.1.0"}', encoding="utf-8")
         self.write_changelog("### Upgrade notes\n\n- Apply the migration.")
         self.git("add", ".")
         self.git("commit", "-qm", "migration")
         dry_run = io.StringIO()
         with redirect_stdout(dry_run):
-            self.assertEqual(self.invoke("--version", "1.0.1", "--dry-run"), 0)
+            self.assertEqual(self.invoke("--version", "1.1.0", "--dry-run"), 0)
         prepared = io.StringIO()
         with mock.patch.object(release, "validate", return_value=(0, [])), redirect_stdout(prepared):
-            self.assertEqual(self.invoke("--version", "1.0.1"), 0)
+            self.assertEqual(self.invoke("--version", "1.1.0"), 0)
         for text in (dry_run.getvalue(), prepared.getvalue()):
             self.assertNotIn("run_agent_evals", text)
-        self.assertEqual(self.git("log", "-1", "--format=%s").stdout.strip(), "Release 1.0.1")
+        self.assertEqual(self.git("log", "-1", "--format=%s").stdout.strip(), "Release 1.1.0")
 
     def test_directing_a_migration_release_to_publish_prints_no_agent_evaluation_reminder(self) -> None:
         (self.root / "migrations/001-test.json").write_text('{"id":"001-test","to":"1.0.1"}', encoding="utf-8")
@@ -194,7 +240,7 @@ class ReleasePrepareTest(unittest.TestCase):
         self.git("add", ".")
         self.git("commit", "-qm", "fragment")
         with mock.patch.object(release, "validate", return_value=(0, [])):
-            self.assertEqual(self.invoke("--version", "1.0.1"), 0)
+            self.assertEqual(self.invoke("--version", "1.1.0"), 0)
         self.assertFalse(fragment.exists())
         self.assertIn("### Added\n\n- Fragment.", (self.root / "CHANGELOG.md").read_text(encoding="utf-8"))
 
@@ -223,7 +269,7 @@ class ReleasePrepareTest(unittest.TestCase):
         self.git("add", ".")
         self.git("commit", "-qm", "fragment")
         with mock.patch.object(release, "validate", return_value=(7, ["test", "failure"])), redirect_stderr(io.StringIO()):
-            self.assertEqual(self.invoke("--version", "1.0.1"), 7)
+            self.assertEqual(self.invoke("--version", "1.1.0"), 7)
         self.assertEqual(fragment.read_text(encoding="utf-8"), "### Added\n\n- Fragment.\n")
 
 
