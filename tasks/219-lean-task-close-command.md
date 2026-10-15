@@ -18,23 +18,23 @@ its state, and make the managed closure text name that command.
 
 ## Acceptance Criteria
 
-- [ ] `meridian task close <TASK-ID> [--project <path>] [--format json]` runs
+- [x] `meridian task close <TASK-ID> [--project <path>] [--format json]` runs
   in the task worktree of a Lean Delivery project. It checks in this order:
   - the worktree is the task's canonical worktree and is clean;
   - the task record is unarchived;
   - the handoff exists and is committed;
   - the transition to `DONE` is allowed by the Lean state machine.
   Each failed check stops with a registered stop code and changes nothing.
-- [ ] On success it does two things, then stages the record move and the
+- [x] On success it does two things, then stages the record move and the
   state file, so the agent commits them together with its completion records:
   - writes `.meridian/tasks/<TASK-ID>.json` through the same code path as
     `task transition`, so the state is identical;
   - moves the record to its exact archive path under `tasks/done/`.
   The command does not commit.
-- [ ] In a Governed SDD project, or for a task already `DONE`, the command
+- [x] In a Governed SDD project, or for a task already `DONE`, the command
   stops with a registered stop code and a message that names the correct
   command.
-- [ ] The managed Lean closure text in the `git-workflow` capability names
+- [x] The managed Lean closure text in the `git-workflow` capability names
   `meridian task close <TASK-ID>` instead of the transition-then-archive pair.
   It is updated in:
   - `templates/workflows/lean-delivery/` (`AGENTS.md`, `CLAUDE.md`,
@@ -43,22 +43,22 @@ its state, and make the managed closure text name that command.
   - this repository's managed copies.
   The capability version advances, and a new migration with marker baselines
   carries the change, following `migrations/README.md` and `CONTRIBUTING.md`.
-- [ ] `docs/PUBLIC_SURFACE.md`, if task 210 has landed, lists `task close` as
+- [x] `docs/PUBLIC_SURFACE.md`, if task 210 has landed, lists `task close` as
   Stable.
-- [ ] Resuming a task whose record is already archived and whose state is
+- [x] Resuming a task whose record is already archived and whose state is
   `DONE` skips `meridian execution start --resume`. The managed Resume text
   goes straight to the remaining closure steps: commit the staged closure
   records, then `meridian worktree advance`. `execution start --resume` on
   such a task returns `"started": false` with the next closure action,
   instead of `COMMAND_REFUSED` on the queue link. Evidence: task 218's resume
   of 2026-10-15 stopped there with its closure records staged.
-- [ ] Tests cover success, each refusal, the archived-and-DONE resume, the identity of the written state
+- [x] Tests cover success, each refusal, the archived-and-DONE resume, the identity of the written state
   with `task transition`'s, and the upgrade of a pristine `1.2.15` Lean project
   through the new migration.
-- [ ] One changelog fragment states the command under `Added`, and the
+- [x] One changelog fragment states the command under `Added`, and the
   template change under `Upgrade notes`, with the affected managed paths and
   the required `meridian upgrade --apply`.
-- [ ] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
+- [x] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
   --parallel`, and `git diff --check` pass.
 
 ## Relevant Files
