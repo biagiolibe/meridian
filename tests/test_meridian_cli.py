@@ -8550,7 +8550,8 @@ class WorktreeLifecycleCliTest(unittest.TestCase):
             "COMMAND_REFUSED", "OS_ACCESS_FAILED", "VALIDATION_ID_UNDECLARED", "BUDGET_EXHAUSTED",
             "HOST_IMPACT_DECLARATION_INVALID", "HOST_IMPACT_EVIDENCE_MISSING", "UPGRADE_BLOCKED", "ADOPTION_BLOCKED",
             "WORKFLOW_UNREADABLE", "RULE_CONFLICT", "CONTRACT_EXHAUSTED", "SCOPE_CHANGE_REQUIRED",
-            "REVIEW_LOOP_EXHAUSTED",
+            "REVIEW_LOOP_EXHAUSTED", "SELF_UPDATE_PLUGIN_CACHE", "SELF_UPDATE_DIRTY",
+            "SELF_UPDATE_BRANCH", "SELF_UPDATE_TARGET", "SELF_UPDATE_NON_FF", "SELF_UPDATE_VERIFY",
         )
         self.assertEqual(set(registry), set(closure) | set(gates) | set(remaining))
         self.assertEqual(

@@ -33,6 +33,7 @@ including command containers and nested subcommands.
 | Command | Tier |
 |---------|------|
 | `meridian self-check` | Stable |
+| `meridian self-update` | Experimental |
 | `meridian console` | Experimental |
 | `meridian lock` | Stable |
 | `meridian upgrade` | Stable |

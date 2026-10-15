@@ -660,6 +660,84 @@
       "kind": "stop",
       "summary": "the reviewed commit is not an ancestor or code changed after approval",
       "test": "tests.test_task_integration_state.TaskIntegrationStateTest.test_stale_review_stop"
+    },
+    {
+      "code": "SELF_UPDATE_PLUGIN_CACHE",
+      "class": "command-exit",
+      "workflows": [
+        "lean-delivery",
+        "governed-sdd"
+      ],
+      "emitter": "meridian self-update",
+      "human_decision": false,
+      "resume": "inspect the framework checkout, then rerun meridian self-update --check",
+      "kind": "stop",
+      "summary": "plugin cache is owned by the plugin manager"
+    },
+    {
+      "code": "SELF_UPDATE_DIRTY",
+      "class": "command-exit",
+      "workflows": [
+        "lean-delivery",
+        "governed-sdd"
+      ],
+      "emitter": "meridian self-update",
+      "human_decision": false,
+      "resume": "inspect the framework checkout, then rerun meridian self-update --check",
+      "kind": "stop",
+      "summary": "framework checkout has local changes"
+    },
+    {
+      "code": "SELF_UPDATE_BRANCH",
+      "class": "command-exit",
+      "workflows": [
+        "lean-delivery",
+        "governed-sdd"
+      ],
+      "emitter": "meridian self-update",
+      "human_decision": false,
+      "resume": "inspect the framework checkout, then rerun meridian self-update --check",
+      "kind": "stop",
+      "summary": "framework checkout is not an eligible branch"
+    },
+    {
+      "code": "SELF_UPDATE_TARGET",
+      "class": "command-exit",
+      "workflows": [
+        "lean-delivery",
+        "governed-sdd"
+      ],
+      "emitter": "meridian self-update",
+      "human_decision": false,
+      "resume": "inspect the framework checkout, then rerun meridian self-update --check",
+      "kind": "stop",
+      "summary": "target is not a matching published release tag"
+    },
+    {
+      "code": "SELF_UPDATE_NON_FF",
+      "class": "command-exit",
+      "workflows": [
+        "lean-delivery",
+        "governed-sdd"
+      ],
+      "emitter": "meridian self-update",
+      "human_decision": false,
+      "resume": "inspect the framework checkout, then rerun meridian self-update --check",
+      "kind": "stop",
+      "summary": "stable cannot fast-forward"
+    },
+    {
+      "code": "SELF_UPDATE_VERIFY",
+      "class": "command-exit",
+      "workflows": [
+        "lean-delivery",
+        "governed-sdd"
+      ],
+      "emitter": "meridian self-update",
+      "human_decision": false,
+      "resume": "inspect the framework checkout, then rerun meridian self-update --check",
+      "kind": "stop",
+      "summary": "self-update Git operation or final verification failed"
     }
   ]
 }
