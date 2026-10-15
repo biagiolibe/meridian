@@ -17,18 +17,18 @@ each "supported" claim with CI.
 
 ## Acceptance Criteria
 
-- [ ] The README has one support matrix covering OS (macOS, Linux, Windows),
+- [x] The README has one support matrix covering OS (macOS, Linux, Windows),
   Python, Git, hosts (Claude Code, Codex), and console features, with each
   cell marked supported, best-effort, or unsupported.
-- [ ] Every OS marked supported runs `python3 scripts/run_tests.py
+- [x] Every OS marked supported runs `python3 scripts/run_tests.py
   --parallel` and `python3 scripts/check_repository.py` in
   `.github/workflows/validate.yml`. A macOS job is added. The Python minimum
   stays 3.12.
-- [ ] A test that cannot run on an OS is skipped by the test itself with a
+- [x] A test that cannot run on an OS is skipped by the test itself with a
   named reason, never by the workflow file.
-- [ ] Windows is marked unsupported or best-effort unless a CI job proves it.
-- [ ] One changelog fragment states the matrix under `Documentation`.
-- [ ] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
+- [x] Windows is marked unsupported or best-effort unless a CI job proves it.
+- [x] One changelog fragment states the matrix under `Documentation`.
+- [x] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
   --parallel`, and `git diff --check` pass locally. The CI run of the task
   commit passes on every job.
 
@@ -61,3 +61,12 @@ terminals other than iTerm2.
 
 - **Depends on**: —
 - **Blocks**: none
+
+## Completion
+
+Implemented in `a51bf3fad4304c60ef26d5e8bcdb4acb5bfd4c19`. Local repository
+checks, all 1,027 tests, and whitespace validation passed. CI run
+[38651926265](https://github.com/biagiolibe/meridian/actions/runs/38651926265)
+passed on both Ubuntu and macOS with Python 3.12. Each CI job ran 1,027 tests
+with six tool-dependent skips declared by the tests. See `../handoffs/213.md`
+for the validation evidence and scope.

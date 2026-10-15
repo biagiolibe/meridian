@@ -179,7 +179,7 @@
 - `[ ]` 210 — Publish the public surface and enforce the release bump.
 - `[ ]` 211 — Publish an adopter quick start and separate maintainer content.
 - `[ ]` 212 — Add a reproducible Lean Delivery walkthrough.
-- `[ ]` 213 — Declare supported platforms and validate on macOS in CI.
+- `[x]` 213 — Declare supported platforms and validate on macOS in CI.
 - `[x]` 214 — Add security policy, code of conduct, and issue and PR templates.
 - `[x]` 215 — Remove private-project references from the distributed tree.
 - `[x]` 216 — Anonymize private-project references in task records (cancelled, see `tasks/done/216-anonymize-task-records.md`).
