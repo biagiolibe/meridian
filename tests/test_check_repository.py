@@ -13,11 +13,57 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 import check_repository as cr  # noqa: E402
+
+
+class LocalMarkdownLinksTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name)
+        root_patch = patch.object(cr, "ROOT", self.root)
+        root_patch.start()
+        self.addCleanup(root_patch.stop)
+
+    def write(self, name: str, text: str = "") -> None:
+        path = self.root / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+
+    def test_queue_link_to_archived_record_is_informational(self) -> None:
+        self.write("tasks/QUEUE.md", "[Task](220-example.md#objective)")
+        self.write("tasks/done/220-example.md")
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            cr.check_local_markdown_links()
+        self.assertIn("INFO:", output.getvalue())
+        self.assertIn("tasks/QUEUE.md: 220-example.md", output.getvalue())
+        self.assertIn("integrate stage relinks it", output.getvalue())
+
+    def test_missing_targets_still_fail(self) -> None:
+        cases = (
+            ("tasks/QUEUE.md", "220-example.md", None),
+            ("tasks/OTHER.md", "220-example.md", "tasks/done/220-example.md"),
+            ("README.md", "missing.md", None),
+            ("tasks/QUEUE.md", "nested/record.md", "tasks/done/record.md"),
+            ("tasks/QUEUE.md", "record.txt", "tasks/done/record.txt"),
+            ("tasks/QUEUE.md", "../record.md", "tasks/done/record.md"),
+        )
+        for source, target, archive in cases:
+            with self.subTest(source=source, target=target):
+                self.write(source, f"[Missing]({target})")
+                if archive:
+                    self.write(archive)
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output), self.assertRaises(SystemExit):
+                    cr.check_local_markdown_links()
+                self.assertIn(f"broken local Markdown link in {source}: {target}", output.getvalue())
+                (self.root / source).unlink()
 
 
 class PluginVersionTest(unittest.TestCase):

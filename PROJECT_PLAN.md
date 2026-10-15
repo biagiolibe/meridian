@@ -186,7 +186,7 @@
 - `[x]` 217 — Replace the author email in the plugin manifests.
 - `[x]` 218 — Detect missing closure state early and point recovery at the task worktree.
 - `[ ]` 219 — Close a Lean task with one command.
-- `[ ]` 220 — Accept a queue link to a record archived on its task branch.
+- `[x]` 220 — Accept a queue link to a record archived on its task branch.
 - `[ ]` 221 — Manage a Meridian block in the user's Codex rules through setup.
 - `[x]` 140 — Let `integrate stage` complete rows of project-shaped Governed queues.
 - `[x]` 069 — Document Codex install from a tagged checkout.

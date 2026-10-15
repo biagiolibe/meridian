@@ -692,6 +692,19 @@ def check_local_markdown_links() -> None:
                 continue
             destination = (path.parent / target).resolve()
             if not destination.exists():
+                # Task branches archive records before integrate stage owns
+                # the corresponding queue-row relink.
+                if (
+                    relative_path == Path("tasks/QUEUE.md")
+                    and destination.parent == (ROOT / "tasks").resolve()
+                    and destination.suffix == ".md"
+                    and (ROOT / "tasks/done" / destination.name).is_file()
+                ):
+                    print(
+                        f"INFO: pending archive link in {relative_path}: {target}; "
+                        "integrate stage relinks it."
+                    )
+                    continue
                 fail(
                     f"broken local Markdown link in {relative_path}: {target}"
                 )
