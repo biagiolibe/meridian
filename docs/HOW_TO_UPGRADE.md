@@ -9,6 +9,10 @@ a dedicated branch and never merges, pushes, tags, or deletes anything.
 ## 1. Update the framework first
 
 A project can only be upgraded to a release the framework already has.
+Every host uses the canonical CLI checkout at `~/.local/share/meridian`
+(`$MERIDIAN_ROOT`); see the [installation steps](QUICKSTART.md#install-the-cli-for-every-host).
+Update that checkout first. Claude Code users also update the plugin below:
+both copies must stay at the same release. Terminal commands use the checkout CLI.
 
 - **Claude Code** (marketplace declared with `"ref": "stable"`):
 
@@ -39,9 +43,10 @@ template-changing release lists the affected files and likely conflicts under
 
 Pass the framework with `--meridian-root`. It must be a released version:
 
-- the installed Claude Code plugin, for example
-  `~/.claude/plugins/cache/meridian/meridian/<version>`; or
-- a Meridian checkout whose `HEAD` is exactly the tag `v<version>`.
+- the canonical checkout at `$MERIDIAN_ROOT` (`~/.local/share/meridian`),
+  whose `HEAD` is exactly the tag `v<version>`; or
+- as an alternative for `--meridian-root`, the installed Claude Code plugin,
+  for example `~/.claude/plugins/cache/meridian/meridian/<version>`.
 
 The script refuses a checkout that is not at the release tag, because upgrading
 from unreleased `main` is not supported. `--allow-untagged` overrides this for
@@ -50,7 +55,7 @@ framework development only.
 The examples below use:
 
 ```bash
-export FW=~/.claude/plugins/cache/meridian/meridian/<version>
+export FW="$MERIDIAN_ROOT"
 ```
 
 ## 3. Prepare the project
@@ -176,8 +181,11 @@ manual procedure it wraps.
    `10` means `UPDATE_AVAILABLE`, and exit `11` means `UNKNOWN` because the
    request was offline, rate-limited, or malformed. These informational results
    never block `upgrade` or other Meridian work.
-2. Move the pin. Re-adding a marketplace at a different ref is refused, and
-   removing a marketplace also uninstalls its plugins, so reinstall afterwards:
+2. Update the canonical checkout (`~/.local/share/meridian`) using the
+   self-update procedure above, then move the Claude Code plugin pin to the
+   same release if you use that host. Re-adding a marketplace at a different
+   ref is refused, and removing a marketplace also uninstalls its plugins, so
+   reinstall afterwards:
 
    ```text
    /plugin marketplace remove meridian

@@ -192,7 +192,7 @@
 - `[x]` 223 — Consume changelog fragments in prepared releases.
 - `[x]` 224 — Rewrite the README around one host-neutral description.
 - `[x]` 225 — Update the framework checkout with `meridian self-update`.
-- `[ ]` 226 — Install the Meridian CLI once, at one path, for every host.
+- `[x]` 226 — Install the Meridian CLI once, at one path, for every host.
 - `[x]` 140 — Let `integrate stage` complete rows of project-shaped Governed queues.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.

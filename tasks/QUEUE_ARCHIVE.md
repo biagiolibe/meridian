@@ -820,3 +820,12 @@ Authority: the README review of 2026-10-15. Meridian has three different descrip
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
 | `[x]` | 224 | Rewrite the README around one host-neutral description | 🟡 P2 | — | [224](done/224-readme-rewrite-and-unified-description.md) |
+
+### Phase 70 — Framework checkout updates
+
+Authority: the release checkout review of 2026-10-15. Moving the local framework checkout to a new release is a manual Git step that fails silently when `MERIDIAN_RELEASE_DIR` is unset and stops `upgrade_project.sh` when the checkout leaves its tag. Schedule 225 after 224: both edit `docs/HOW_TO_UPGRADE.md`. The installation review of 2026-10-15 for 226: the CLI is installed only on the Codex path, at `~/meridian`; the canonical path is `~/.local/share/meridian` for every host. Schedule 226 after 225: both edit `README.md` and `docs/HOW_TO_UPGRADE.md`.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 225 | Update the framework checkout with `meridian self-update` | 🟡 P2 | — | [225](done/225-self-update-command.md) |
+| `[x]` | 226 | Install the Meridian CLI once, at one path, for every host | 🟡 P2 | 225 | [226](done/226-host-neutral-cli-install.md) |

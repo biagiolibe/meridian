@@ -1,5 +1,7 @@
 # Clean install verification — v1.2.15
 
+Current installations use `~/.local/share/meridian`; paths below preserve the historical commands tested.
+
 Verification date: 2026-10-14. This is a recorded experiment, including failed
 steps and explicit recoveries, rather than a corrected quick start.
 

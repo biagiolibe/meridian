@@ -34,7 +34,7 @@ then connect the host.
 
 ## Acceptance Criteria
 
-- [ ] `docs/QUICKSTART.md` starts installation with one step for every reader,
+- [x] `docs/QUICKSTART.md` starts installation with one step for every reader,
   before any host-specific step:
 
   ```bash
@@ -47,17 +47,17 @@ then connect the host.
   their terminal and agent host load. Then it verifies with
   `command -v meridian`, `meridian --version`, `cat "$MERIDIAN_ROOT/VERSION"`,
   and `git -C "$MERIDIAN_ROOT" describe --tags --exact-match`.
-- [ ] The persistence instruction names a file that non-interactive shells
+- [x] The persistence instruction names a file that non-interactive shells
   also read, because an agent host or script can start `zsh -lc` or
   `zsh -c`, which do not read `~/.zshrc`. For zsh it recommends `~/.zshenv`;
   for bash it names the equivalent pair (`~/.profile` or `~/.bash_profile`,
   plus `~/.bashrc`). It adds a check that works without an interactive shell:
   `zsh -lc 'command -v meridian'` (or `bash -lc` for bash) prints the
   checkout's `bin/meridian`.
-- [ ] The prerequisites tell the reader to check `python3 --version` in the
+- [x] The prerequisites tell the reader to check `python3 --version` in the
   same non-interactive form, because on macOS a `PATH` without Homebrew
   resolves `python3` to the system Python 3.9.
-- [ ] `bin/meridian` stops with a clear message and a non-zero exit when the
+- [x] `bin/meridian` stops with a clear message and a non-zero exit when the
   interpreter is older than Python 3.12, before importing the CLI. The message
   names the required version, the version found, and the interpreter path
   (`sys.executable`), and points to the quick start prerequisites. Today the
@@ -65,35 +65,35 @@ then connect the host.
   itself must parse and run on Python 3.9, so it uses no newer syntax. A test
   runs the wrapper under a simulated old version and checks the message and
   exit code; the existing CLI tests keep passing.
-- [ ] The host steps follow the CLI step:
+- [x] The host steps follow the CLI step:
   - **Claude Code**: the marketplace plugin on `#stable`, with a note that the
     plugin and the checkout must stay at the same release, and that the
     terminal uses the checkout CLI, not the plugin cache path;
   - **Codex**: `meridian setup --check` and `--apply` for skill links and
     the permission profile, with no separate clone.
-- [ ] `~/.local/share/meridian` is the only install path in user-facing
+- [x] `~/.local/share/meridian` is the only install path in user-facing
   documentation. No instruction tells an adopter to clone to `~/meridian` or to
   add the plugin cache directory to `PATH`. A pinned tag keeps the same path:
   `--branch v<version>` instead of `--branch stable`.
-- [ ] `README.md` "Install" shows the same two steps in short form and links
+- [x] `README.md` "Install" shows the same two steps in short form and links
   to the quick start. The README stays under 1,000 words (`wc -w README.md`).
-- [ ] `docs/HOW_TO_UPGRADE.md` "Update the framework first" names the canonical
+- [x] `docs/HOW_TO_UPGRADE.md` "Update the framework first" names the canonical
   checkout and explains that a Claude Code user updates both the checkout and
   the plugin. It keeps the rule that a checkout must be exactly at a release
   tag. Any section that task 225 added for `meridian self-update` stays intact.
-- [ ] The "framework root" examples in `docs/HOW_TO_UPGRADE.md` use
+- [x] The "framework root" examples in `docs/HOW_TO_UPGRADE.md` use
   `$MERIDIAN_ROOT` or `~/.local/share/meridian` first; the plugin cache path
   remains only as a documented alternative for `--meridian-root`.
-- [ ] Historical evidence is not rewritten. `docs/CLEAN_INSTALL_VERIFICATION.md`
+- [x] Historical evidence is not rewritten. `docs/CLEAN_INSTALL_VERIFICATION.md`
   records what a past release tested with `$HOME/meridian`; it gains at most one
   note that the current canonical path is `~/.local/share/meridian`.
-- [ ] Tests that read the quick start, README, or upgrade guide pass. Any
+- [x] Tests that read the quick start, README, or upgrade guide pass. Any
   assertion on the old clone path or section heading moves to the new text.
   If no test checks that the quick start installs at the canonical path, add
   one.
-- [ ] A changelog fragment `changelog.d/226.md` records the documentation
+- [x] A changelog fragment `changelog.d/226.md` records the documentation
   change under `Changed` and the Python version message under `Fixed`.
-- [ ] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
+- [x] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
   --parallel`, and `git diff --check` pass.
 
 ## Relevant Files

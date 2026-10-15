@@ -66,20 +66,32 @@ Each project's `PROJECT_WORKFLOW.md` locks its mode and takes precedence over gl
 
 Requires macOS or Linux, Python 3.12+, Git, and an installed, authenticated agent host. See [platform support](docs/PLATFORM_SUPPORT.md) for the CI-tested matrix and best-effort integrations.
 
-**Claude Code:** install the marketplace plugin, then run `/meridian-init` in your project:
+**1. Install the CLI for every host** at the canonical checkout:
+
+```bash
+git clone --branch stable https://github.com/biagiolibe/meridian ~/.local/share/meridian
+export MERIDIAN_ROOT="$HOME/.local/share/meridian"
+export PATH="$MERIDIAN_ROOT/bin:$PATH"
+```
+
+Persist both exports (`~/.zshenv` for zsh). The
+[quick start](docs/QUICKSTART.md#install-the-cli-for-every-host) covers bash,
+non-interactive Python/PATH checks, and release verification.
+Use `--branch v<version>` to pin a [specific release](https://github.com/biagiolibe/meridian/releases)
+at the same path.
+
+**2. Connect your host.** For Claude Code, install the matching release plugin:
 
 ```text
 /plugin marketplace add biagiolibe/meridian#stable
 /plugin install meridian@meridian
 ```
 
-**Codex:** clone the stable release and follow the [Codex quick start](docs/QUICKSTART.md#install-for-codex) for PATH, skill links, consented setup, restart, and effective access checks:
-
-```bash
-git clone --branch stable https://github.com/biagiolibe/meridian ~/meridian
-```
-
-Use `v<version>` instead of `stable` to pin a [specific release](https://github.com/biagiolibe/meridian/releases).
+Keep plugin and checkout versions aligned; terminal commands use the checkout
+CLI. For Codex, run `meridian setup --check`, review the skill-link and
+permission-profile diff, then consent with `meridian setup --apply` and
+restart. Follow the [quick start](docs/QUICKSTART.md#connect-codex) for
+initialization and effective access checks.
 
 ## Update
 

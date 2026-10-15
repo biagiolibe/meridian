@@ -36,12 +36,3 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 
 Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, 25, 26, 27, 28, 31, 32, 34, 35, 36, 42, 44, 45, 46, and 47
 are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
-
-### Phase 70 — Framework checkout updates
-
-Authority: the release checkout review of 2026-10-15. Moving the local framework checkout to a new release is a manual Git step that fails silently when `MERIDIAN_RELEASE_DIR` is unset and stops `upgrade_project.sh` when the checkout leaves its tag. Schedule 225 after 224: both edit `docs/HOW_TO_UPGRADE.md`. The installation review of 2026-10-15 for 226: the CLI is installed only on the Codex path, at `~/meridian`; the canonical path is `~/.local/share/meridian` for every host. Schedule 226 after 225: both edit `README.md` and `docs/HOW_TO_UPGRADE.md`.
-
-| Status | ID | Title | Priority | Depends on | File |
-|--------|----|-------|----------|------------|------|
-| `[x]` | 225 | Update the framework checkout with `meridian self-update` | 🟡 P2 | — | [225](done/225-self-update-command.md) |
-| `[ ]` | 226 | Install the Meridian CLI once, at one path, for every host | 🟡 P2 | 225 | [226](226-host-neutral-cli-install.md) |
