@@ -18,22 +18,22 @@ findings of task 209 and the status established by task 210.
 
 ## Acceptance Criteria
 
-- [ ] `docs/QUICKSTART.md` takes a newcomer, in order, through:
+- [x] `docs/QUICKSTART.md` takes a newcomer, in order, through:
   prerequisites; a pinned install for Claude Code and for Codex;
   `/meridian-init`; choosing a workflow mode; one Lean Delivery task from
   creation to cleanup; and where to go next.
-- [ ] Every friction recorded in `docs/CLEAN_INSTALL_VERIFICATION.md` is
+- [x] Every friction recorded in `docs/CLEAN_INSTALL_VERIFICATION.md` is
   either corrected in the README or the quick start, or listed in the handoff
   with the reason it was left.
-- [ ] The README's opening, before the first `##` section after the
+- [x] The README's opening, before the first `##` section after the
   introduction, links the quick start. Maintainer-only sections move to
   `CONTRIBUTING.md` or an existing `docs/` page, and every moved anchor that
   another tracked file links to is updated.
-- [ ] The Roadmap section either links the open queue and plan or is removed.
+- [x] The Roadmap section either links the open queue and plan or is removed.
   It names no closed work as upcoming.
-- [ ] No managed text or template changes. If a correction needs one, it is
+- [x] No managed text or template changes. If a correction needs one, it is
   listed in the handoff as a follow-up instead.
-- [ ] `python3 scripts/check_repository.py` and `git diff --check` pass.
+- [x] `python3 scripts/check_repository.py` and `git diff --check` pass.
 
 ## Relevant Files
 
