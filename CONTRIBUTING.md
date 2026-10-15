@@ -302,7 +302,11 @@ heading and file-name order, consumes them in its release commit, and continues
 to render an existing non-empty `[Unreleased]` body first during the migration.
 Use `python3 scripts/release.py changelog render --version X.Y.Z` to inspect
 the rendered body, or add `--write` to put it in `[Unreleased]` and consume the
-fragments without making a Git commit.
+fragments without making a Git commit. For an already-prepared template-changing
+release, add `--prepared` to inspect or update the existing `## [X.Y.Z]` section
+instead. This preserves its release kind line, merges subsection content in the
+same heading and file-name order, and keeps a single `### Upgrade notes` heading.
+With no pending fragments, `--prepared --write` leaves the file unchanged.
 
 For a **CLI-only release**, `python3 scripts/release.py prepare --bump patch`
 (or `--bump minor`, `--bump major`, or `--version X.Y.Z`) is the repeatable
@@ -349,7 +353,12 @@ ahead of it.
 For a **template-changing release**, the task that adds the migration must also
 bump `VERSION`, `.claude-plugin/plugin.json`, the release ledger, and the
 changelog in its ordinary commits. Do not run `prepare`: it recognizes this
-already-prepared state and directs you to publish. For either path, on `main`,
+already-prepared state and directs you to publish when no fragments remain.
+If later tasks add fragments, both `prepare` and `publish` stop and name the
+pending files. Run `python3 scripts/release.py changelog render --version X.Y.Z
+--prepared --write` for the current `VERSION`, review the merged section, and
+commit `CHANGELOG.md` together with the consumed fragment removals before
+publishing. For either path, on `main`,
 publish with `python3 scripts/release.py publish --confirm v<VERSION>`. The
 confirmation must exactly match the current `VERSION`; the command prints every
 commit to push, the ledger kind, and any migration ids before it pushes `main`,

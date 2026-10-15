@@ -257,6 +257,7 @@ def ensure_not_already_prepared(root: Path, current: str) -> None:
     current_is_newer = bool(published) and version_key(current) > max(map(version_key, published))
     migration_targets_current = any(str(migration.get("to")) == current for migration in read_migrations(root))
     if current_is_newer or (migration_targets_current and not current_is_published):
+        require_consumed_fragments(root, current)
         raise ReleaseError(
             f"preflight failed: release {current} is already prepared; "
             f"run python3 scripts/release.py publish --confirm v{current}"
@@ -383,10 +384,58 @@ def prepare_main(argv: list[str] | None = None) -> int:
         return 1
 
 
+def prepared_changelog_body(root: Path, changelog: str, version: str) -> tuple[int, int, str, list[Path]]:
+    """Merge pending fragments into the current release, preserving its preamble."""
+    if (root / "VERSION").read_text(encoding="utf-8").strip() != version:
+        raise ReleaseError("--prepared requires the current VERSION")
+    match = re.search(rf"^## \[{re.escape(version)}\][ \t]*$", changelog, re.MULTILINE)
+    if not match:
+        raise ReleaseError(f"CHANGELOG.md has no '## [{version}]' heading")
+    start = match.end()
+    following = re.search(r"^## \[", changelog[start:], re.MULTILINE)
+    end = start + following.start() if following else len(changelog)
+    old = changelog[start:end].strip()
+    if not old.startswith((CLI_ONLY, TEMPLATE_CHANGING)):
+        raise ReleaseError("prepared release must start with its release kind line")
+    fragments = fragment_paths(root)
+    parsed = [parse_fragment(path) for path in fragments]
+    if not fragments:
+        return start, end, old, fragments
+    headings = list(re.finditer(r"^### (.+)$", old, re.MULTILINE))
+    preamble = old[:headings[0].start()].strip() if headings else old
+    sections: dict[str, list[str]] = {}
+    for index, heading in enumerate(headings):
+        name = heading.group(1)
+        if name not in CHANGELOG_HEADINGS:
+            raise ReleaseError(f"unsupported prepared release subsection: {name}")
+        stop = headings[index + 1].start() if index + 1 < len(headings) else len(old)
+        sections.setdefault(name, []).append(old[heading.end():stop].strip())
+    for fragment in parsed:
+        for name, bullets in fragment.items():
+            sections.setdefault(name, []).extend(bullets)
+    blocks = [preamble]
+    for name in CHANGELOG_HEADINGS:
+        if name in sections:
+            blocks.append(f"### {name}\n\n" + "\n".join(sections[name]))
+    return start, end, "\n\n".join(blocks), fragments
+
+
+def require_consumed_fragments(root: Path, version: str) -> None:
+    paths = fragment_paths(root)
+    if paths:
+        names = ", ".join(str(path.relative_to(root)) for path in paths)
+        raise ReleaseError(
+            f"preflight failed: pending changelog fragments: {names}; "
+            f"run python3 scripts/release.py changelog render --version {version} --prepared --write "
+            "and commit the updated CHANGELOG.md and fragment removals before publishing"
+        )
+
+
 def changelog_render_main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description="Render changelog fragments without making a release commit.")
     parser.add_argument("--version", required=True)
     parser.add_argument("--write", action="store_true")
+    parser.add_argument("--prepared", action="store_true", help="merge into the current prepared release section")
     parser.add_argument("--root", type=Path, default=ROOT, help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
     try:
@@ -394,10 +443,13 @@ def changelog_render_main(argv: list[str]) -> int:
         root = args.root.resolve()
         changelog_path = root / "CHANGELOG.md"
         changelog = changelog_path.read_text(encoding="utf-8")
-        body, fragments, _legacy, _fragment_source = release_body(root, changelog)
-        print(body)
-        if args.write:
+        if args.prepared:
+            start, end, body, fragments = prepared_changelog_body(root, changelog, args.version)
+        else:
+            body, fragments, _legacy, _fragment_source = release_body(root, changelog)
             start, end, _old = unreleased_body(changelog, required=False)
+        print(body)
+        if args.write and (not args.prepared or fragments):
             changelog_path.write_text(changelog[:start] + "\n\n" + body + "\n\n" + changelog[end:].lstrip("\n"), encoding="utf-8")
             for fragment in fragments:
                 fragment.unlink()
@@ -546,6 +598,7 @@ def release_state(root: Path, version: str) -> tuple[str, list[str]]:
 
 
 def publish_preflight(root: Path, version: str) -> tuple[str, str, list[str], list[str]]:
+    require_consumed_fragments(root, version)
     if git_output(root, "branch", "--show-current") != "main":
         raise ReleaseError("preflight failed: current branch must be main")
     if git_output(root, "status", "--porcelain"):
