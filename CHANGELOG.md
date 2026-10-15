@@ -18,14 +18,39 @@ records which release moved it.
 
 ## [1.3.0] - 2026-10-15
 
-Template-changing release: atomic Lean task closure and archived-task Resume recovery.
+Template-changing release: atomic Lean task closure, the public surface and
+stability promise, and bounded Codex command rules.
+
+### Added
+
+- `meridian task close <TASK-ID>` writes Lean DONE state, archives the exact record, and stages both without committing. Archived DONE Resume returns the next closure action.
+- `meridian setup` plans and installs a bounded user-level Codex command rules block, preserves foreign rules, warns about broad approvals, and reports its state through `codex doctor`.
+
+### Changed
+
+- Release preparation enforces minimum version bumps from migrations and
+  changelog fragment headings, including explicit version selections.
+
+### Fixed
+
+- Detect missing or non-terminal task state before advance starts integration, direct missing-state recovery to the registered task worktree, and allow state transition/import with records at their exact archive paths.
+- Keep an empty task directory after worktree cleanup so Codex can launch its
+  final Stop hook. Hook commands also tolerate an inherited deleted working
+  directory. Document the primary project hook trust reused by linked worktrees.
+
+### Documentation
+
+- Publish the public surface classification and versioning and deprecation
+  rules. The stable compatibility promise starts at 1.3.0.
+- Declare the platform support matrix: macOS and Linux have CI coverage on
+  Python 3.12, Windows is unsupported, and host integrations, clipboard access,
+  and macOS iTerm2 agent launch are best-effort.
+- Add security and community conduct policies, bug and feature request templates,
+  and a pull request template with task, validation, and changelog guidance.
 
 ### Upgrade notes
 
-- Run `meridian upgrade --apply` for Lean `git-workflow` v14 and
-  `bounded-worktree-lifecycle` v7 in `AGENTS.md`, `CLAUDE.md`, and
-  `PROJECT_WORKFLOW.md`. Adapted closure and Resume text may conflict.
-  No minimum framework or protocolVersion change.
+- Run `meridian upgrade --apply` to install Lean `git-workflow` v14 and `bounded-worktree-lifecycle` v7 in `AGENTS.md`, `CLAUDE.md`, and `PROJECT_WORKFLOW.md`; both Lean skills now name `task close`. Adapted closure or Resume text may conflict. No minimum framework or protocolVersion change.
 
 ## [1.2.15]
 
