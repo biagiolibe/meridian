@@ -317,6 +317,20 @@ Python/Git prerequisites, initialization from the command instructions,
 consented setup, restart and effective access checks, and a first closed task.
 There is no `meridian init` CLI subcommand in v1.2.15.
 
+Meridian installs the read guard (`PreToolUse`) and stop audit (`Stop`) in
+project-level `.codex/hooks.json`. Open `/hooks` in Codex, review the two
+`meridian hook` commands, and trust them once. In Codex CLI 0.161.0, linked
+worktree sessions load the primary checkout's project configuration and reuse
+that trust; no user-level hook installation or per-task trust step is needed.
+Changed hook definitions require another review. Check `/hooks` after a Codex
+upgrade, since host discovery behavior can change.
+
+`meridian worktree cleanup` unregisters the worktree and deletes the merged
+branch but retains an empty directory at the task path. This lets Codex launch
+its final Stop hook without a missing-directory error. The hook exits silently
+outside a Meridian project, including that empty directory. Remove the empty
+directory after closing the session if desired.
+
 For permission diagnostics, the read guard, and local usage reports, see
 [Agent operations](docs/AGENT_OPERATIONS.md).
 

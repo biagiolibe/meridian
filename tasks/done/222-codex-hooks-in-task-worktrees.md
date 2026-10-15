@@ -30,29 +30,29 @@ and stop the end-of-session failure.
 
 ## Acceptance Criteria
 
-- [ ] Before any change, the handoff records a probe with the Codex version:
+- [x] Before any change, the handoff records a probe with the Codex version:
   in a session started inside a task worktree, does Codex run the worktree's
   `.codex/hooks.json` hooks, prompt for trust, or skip them? Also record
   whether a user-level `~/.codex/hooks.json` hook runs there after one trust
   step.
-- [ ] Based on the probe, task worktree sessions run the read guard and the
+- [x] Based on the probe, task worktree sessions run the read guard and the
   stop audit without a trust step per task. The chosen mechanism and its
   reason are recorded in the handoff. If it is a user-level hooks block,
   `meridian setup --check` plans it and `--apply` writes it between Meridian
   markers. Foreign hooks are preserved, and a damaged marker pair stops with
   a registered stop code. `meridian codex doctor` reports it as `ready`,
   `missing`, or `stale`.
-- [ ] A user-level hook is a no-op with exit code 0 in a directory that is not
+- [x] A user-level hook is a no-op with exit code 0 in a directory that is not
   a Meridian project, and in a working directory that no longer exists.
-- [ ] A successful `Proceed with` session no longer ends with `Hook failed`
+- [x] A successful `Proceed with` session no longer ends with `Hook failed`
   after `meridian worktree cleanup`. Either the hook tolerates a removed
   working directory, or the cleanup leaves the session directory to a later
   step. The handoff records which, with evidence.
-- [ ] Tests cover the chosen mechanism, the non-Meridian no-op, and the
+- [x] Tests cover the chosen mechanism, the non-Meridian no-op, and the
   removed-directory case.
-- [ ] README's Codex section documents the hook installation and trust step.
+- [x] README's Codex section documents the hook installation and trust step.
   One changelog fragment states the change under `Fixed`.
-- [ ] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
+- [x] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
   --parallel`, and `git diff --check` pass.
 
 ## Relevant Files
@@ -101,3 +101,10 @@ audit checks.
 ```bash
 claude "$(cat tasks/222-codex-hooks-in-task-worktrees.md)"$'\n\nExecute this task in the current project.'
 ```
+
+## Completion Evidence
+
+See `tasks/handoffs/222.md` for the pre-change Codex 0.161.0 probe and full
+validation. Linked worktrees use the primary checkout's trusted hook source;
+no user-level hook block is needed. Cleanup retains an empty session directory,
+and hook CLI startup tolerates an inherited deleted working directory.
