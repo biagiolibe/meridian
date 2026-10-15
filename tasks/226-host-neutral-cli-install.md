@@ -1,7 +1,7 @@
 # Task 226 — Install the Meridian CLI once, at one path, for every host
 
 > **ID**: `226`
-> **Category**: Documentation
+> **Category**: Documentation (plus a Python version guard in `bin/meridian`)
 > **Priority**: 🟡 P2
 > **Estimate**: ~2h
 > **Assigned to**: unassigned
@@ -47,6 +47,24 @@ then connect the host.
   their terminal and agent host load. Then it verifies with
   `command -v meridian`, `meridian --version`, `cat "$MERIDIAN_ROOT/VERSION"`,
   and `git -C "$MERIDIAN_ROOT" describe --tags --exact-match`.
+- [ ] The persistence instruction names a file that non-interactive shells
+  also read, because an agent host or script can start `zsh -lc` or
+  `zsh -c`, which do not read `~/.zshrc`. For zsh it recommends `~/.zshenv`;
+  for bash it names the equivalent pair (`~/.profile` or `~/.bash_profile`,
+  plus `~/.bashrc`). It adds a check that works without an interactive shell:
+  `zsh -lc 'command -v meridian'` (or `bash -lc` for bash) prints the
+  checkout's `bin/meridian`.
+- [ ] The prerequisites tell the reader to check `python3 --version` in the
+  same non-interactive form, because on macOS a `PATH` without Homebrew
+  resolves `python3` to the system Python 3.9.
+- [ ] `bin/meridian` stops with a clear message and a non-zero exit when the
+  interpreter is older than Python 3.12, before importing the CLI. The message
+  names the required version, the version found, and the interpreter path
+  (`sys.executable`), and points to the quick start prerequisites. Today the
+  CLI fails with `ModuleNotFoundError: No module named 'tomllib'`. The guard
+  itself must parse and run on Python 3.9, so it uses no newer syntax. A test
+  runs the wrapper under a simulated old version and checks the message and
+  exit code; the existing CLI tests keep passing.
 - [ ] The host steps follow the CLI step:
   - **Claude Code**: the marketplace plugin on `#stable`, with a note that the
     plugin and the checkout must stay at the same release, and that the
@@ -74,7 +92,7 @@ then connect the host.
   If no test checks that the quick start installs at the canonical path, add
   one.
 - [ ] A changelog fragment `changelog.d/226.md` records the documentation
-  change.
+  change under `Changed` and the Python version message under `Fixed`.
 - [ ] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
   --parallel`, and `git diff --check` pass.
 
@@ -86,6 +104,7 @@ then connect the host.
 | `README.md` | Short install section. |
 | `docs/HOW_TO_UPGRADE.md` | Framework update and framework root examples. |
 | `docs/CLEAN_INSTALL_VERIFICATION.md` | Historical install evidence; note only. |
+| `bin/meridian` | CLI wrapper; gains the Python version guard. |
 | `tests/` | Public documentation tests. |
 
 ## Technical Context
@@ -97,6 +116,11 @@ then connect the host.
 - `scripts/upgrade_project.sh` refuses a framework whose `HEAD` is not exactly
   the tag of its `VERSION`. A checkout on `stable` satisfies this after each
   release's `publish`.
+- Evidence of 2026-10-15, from a clean isolated home: with the exports only
+  in `~/.zshrc`, `zsh -c` and `zsh -lc` do not find `meridian`, while
+  `zsh -ic` and `zsh -ilc` do. With `PATH=/usr/bin:/bin` on macOS,
+  `meridian --version` fails on the system Python 3.9 with
+  `ModuleNotFoundError: No module named 'tomllib'`.
 - Task 225 adds `meridian self-update`, which updates the checkout that the CLI
   runs from; it relies on every reader having that checkout.
 
