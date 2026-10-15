@@ -7,6 +7,9 @@ Meridian turns a project plan into small, explicit, verifiable tasks that agents
 It is deliberately stack-agnostic: Meridian defines the process; each project supplies its own architecture, invariants, and validation commands.
 
 > **Project status:** the stable compatibility promise starts at 1.3.0. See the [public surface classification](docs/PUBLIC_SURFACE.md) and [versioning and deprecation rules](CONTRIBUTING.md#versioning-and-deprecation).
+> Experimental surfaces may change in any minor release:
+> - The project console (`meridian console`), including its interactive keys and agent launch, is experimental.
+> - `meridian usage` and `meridian usage report` are experimental.
 
 Start with the [adopter quick start](docs/QUICKSTART.md): install a pinned release,
 initialize a project, and close your first Lean Delivery task.

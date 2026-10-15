@@ -17,19 +17,19 @@ the example cannot silently go stale.
 
 ## Acceptance Criteria
 
-- [ ] `docs/examples/LEAN_DELIVERY_WALKTHROUGH.md` walks one small task in a
+- [x] `docs/examples/LEAN_DELIVERY_WALKTHROUGH.md` walks one small task in a
   new Lean Delivery project. It covers the initialized files, the task record,
   `worktree prepare`, implementation, the handoff, `worktree advance`, and
   `cleanup`. It shows short excerpts of the resulting queue, plan, and handoff.
-- [ ] Every CLI command in the walkthrough is in a fenced block that a test
+- [x] Every CLI command in the walkthrough is in a fenced block that a test
   extracts and runs in order, in a temporary project with a local bare
   `origin`. The test fails when a command exits non-zero, or when an excerpt
   marked as checked no longer matches the generated file.
-- [ ] Steps that run inside an agent host, such as `/meridian-init`, are
+- [x] Steps that run inside an agent host, such as `/meridian-init`, are
   marked as host steps. The test reproduces them through the CLI or fixture
   path that the skill uses, and the walkthrough says so.
-- [ ] `docs/QUICKSTART.md` links the walkthrough.
-- [ ] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
+- [x] `docs/QUICKSTART.md` links the walkthrough.
+- [x] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
   --parallel`, and `git diff --check` pass.
 
 ## Relevant Files

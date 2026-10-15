@@ -769,3 +769,19 @@ Authority: GitHub issues #13 (205, 206), #3 (207), and #2 (208). Task 208 implem
 | `[x]` | 206 | Make the console snapshot cheaper | 🟡 P2 | 205 | [206](done/206-cheaper-console-snapshot.md) |
 | `[x]` | 207 | Add a read-only `meridian adr list` | 🟢 P3 | — | [207](done/207-adr-list-command.md) |
 | `[x]` | 208 | Archive queue sections from task state | 🟡 P2 | — | [208](done/208-queue-archival-from-task-state.md) |
+
+### Phase 65 — Public adoption readiness
+
+Authority: [docs/ADR_PUBLIC_SURFACE_AND_STABILITY.md](../docs/ADR_PUBLIC_SURFACE_AND_STABILITY.md) (accepted 2026-10-14; stable line from `1.3.0`) for 210; the 2026-10-14 public-distribution gap review for 209 and 211–217.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 209 | Verify a clean install from a release tag | 🔴 P1 | — | [209](done/209-clean-install-verification.md) |
+| `[x]` | 210 | Publish the public surface and enforce the release bump | 🔴 P1 | — | [210](done/210-public-surface-and-release-bump-check.md) |
+| `[x]` | 211 | Publish an adopter quick start and separate maintainer content | 🔴 P1 | 209, 210 | [211](done/211-adopter-quickstart-and-readme.md) |
+| `[x]` | 212 | Add a reproducible Lean Delivery walkthrough | 🟡 P2 | 211 | [212](done/212-reproducible-lean-walkthrough.md) |
+| `[x]` | 213 | Declare supported platforms and validate on macOS in CI | 🟡 P2 | — | [213](done/213-platform-support-matrix.md) |
+| `[x]` | 214 | Add security policy, code of conduct, and issue and PR templates | 🟡 P2 | — | [214](done/214-community-health-files.md) |
+| `[x]` | 215 | Remove private-project references from the distributed tree | 🔴 P1 | — | [215](done/215-remove-private-project-references.md) |
+| `[x]` | 216 | Anonymize private-project references in task records (cancelled) | 🟡 P2 | 215 | [216](done/216-anonymize-task-records.md) |
+| `[x]` | 217 | Replace the author email in the plugin manifests | 🟢 P3 | — | [217](done/217-remove-email-from-plugin-manifests.md) |

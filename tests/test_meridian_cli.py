@@ -8129,7 +8129,7 @@ class ProfileSurfaceUpgradeTest(unittest.TestCase):
 
 
 class WorktreeLifecycleCliTest(unittest.TestCase):
-    def setUp(self) -> None:
+    def setUp(self, *, seed: bool = True) -> None:
         self.temporary = tempfile.TemporaryDirectory()
         self.root = Path(self.temporary.name)
         self.project = self.root / "project"
@@ -8139,6 +8139,10 @@ class WorktreeLifecycleCliTest(unittest.TestCase):
         subprocess.run(["git", "config", "user.email", "meridian@example.invalid"], cwd=self.project, check=True)
         # Fixture commits must not leave detached Git maintenance running during snapshots.
         subprocess.run(["git", "config", "maintenance.auto", "false"], cwd=self.project, check=True)
+        self.worktree_root = self.root / "worktrees"
+        self.worktree_root.mkdir()
+        if not seed:
+            return
         (self.project / "tasks").mkdir()
         (self.project / "tasks/056-lifecycle.md").write_text(
             "# Task 056\n\n> **ID**: `056`\n", encoding="utf-8"
@@ -8149,8 +8153,12 @@ class WorktreeLifecycleCliTest(unittest.TestCase):
         )
         subprocess.run(["git", "add", "."], cwd=self.project, check=True)
         subprocess.run(["git", "commit", "-m", "initial"], cwd=self.project, check=True, capture_output=True)
-        self.worktree_root = self.root / "worktrees"
-        self.worktree_root.mkdir()
+
+    def create_bare_origin(self) -> Path:
+        remote = self.root / "origin.git"
+        subprocess.run(["git", "init", "--bare", str(remote)], check=True, capture_output=True)
+        subprocess.run(["git", "remote", "add", "origin", str(remote)], cwd=self.project, check=True)
+        return remote
 
     def tearDown(self) -> None:
         self.temporary.cleanup()
@@ -8416,9 +8424,7 @@ class WorktreeLifecycleCliTest(unittest.TestCase):
         status("C10", None)
 
     def _stage_ready_task_with_origin(self, local_ahead: bool = False) -> Path:
-        remote = self.root / "origin.git"
-        subprocess.run(["git", "init", "--bare", str(remote)], check=True, capture_output=True)
-        subprocess.run(["git", "remote", "add", "origin", str(remote)], cwd=self.project, check=True)
+        self.create_bare_origin()
         subprocess.run(["git", "push", "-u", "origin", "main"], cwd=self.project, check=True, capture_output=True)
         if local_ahead:
             (self.project / "unpushed.txt").write_text("unpushed\n", encoding="utf-8")
