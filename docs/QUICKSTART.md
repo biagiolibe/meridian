@@ -12,6 +12,8 @@ records the historical release it tested. See the
 - macOS or Linux; see the [platform matrix](PLATFORM_SUPPORT.md).
 - Python 3.12+ and Git on the shell PATH used by your agent. Check with
   `python3 --version` and `git --version` inside that host as well as your terminal.
+  Also check `zsh -lc 'python3 --version'` (or `bash -lc 'python3 --version'`
+  for bash): on macOS a PATH without Homebrew can select system Python 3.9.
 - An installed, authenticated Claude Code or Codex host. Meridian supplies
   workflow instructions; install and sign into the host separately.
 - Network access for installation, release discovery, and a remote push.
@@ -28,9 +30,49 @@ export PATH="$(brew --prefix python@3.12)/libexec/bin:$PATH"
 python3 --version
 ```
 
-Persist the PATH in the startup file your host uses, then restart that host.
+Persist the resolved Python directory (for example,
+`/opt/homebrew/opt/python@3.12/libexec/bin`) in PATH before the Meridian
+exports below in the same shell startup files. Use the resolved path so
+startup does not depend on finding `brew` in a non-interactive shell.
+Then restart your host.
 
-## Install for Claude Code
+## Install the CLI for every host
+
+Install one release checkout for terminal commands and every agent host.
+Choose the persistent canonical path below, which must not already exist:
+
+```bash
+git clone --branch stable https://github.com/biagiolibe/meridian ~/.local/share/meridian
+export MERIDIAN_ROOT="$HOME/.local/share/meridian"
+export PATH="$MERIDIAN_ROOT/bin:$PATH"
+```
+
+Use `--branch v<version>` instead of `--branch stable` to pin a release at
+the same path. Persist both exports in the startup files that your terminal
+and agent host load. For zsh, use `~/.zshenv`: non-interactive `zsh -c` and
+`zsh -lc` do not read `~/.zshrc`. For bash, use `~/.profile` (or
+`~/.bash_profile` when present) plus `~/.bashrc`; non-interactive `bash -c`
+inherits exported variables, or reads a file explicitly selected by
+`BASH_ENV`. Restart the terminal and host after persisting the exports.
+
+Verify the resolved CLI, Python, and exact release tag:
+
+```bash
+command -v meridian
+meridian --version
+cat "$MERIDIAN_ROOT/VERSION"
+git -C "$MERIDIAN_ROOT" describe --tags --exact-match
+zsh -lc 'command -v meridian'
+zsh -lc 'python3 --version'
+```
+
+For bash, replace `zsh -lc` with `bash -lc`. The non-interactive CLI check
+must print the checkout's `bin/meridian`, and Python must be 3.12 or newer.
+The CLI version, `VERSION`, and tag must agree. The checkout changes only
+when you explicitly update it; see the
+[framework update instructions](HOW_TO_UPGRADE.md#1-update-the-framework-first).
+
+## Connect Claude Code
 
 In Claude Code, add the stable marketplace and install its plugin:
 
@@ -39,30 +81,31 @@ In Claude Code, add the stable marketplace and install its plugin:
 /plugin install meridian@meridian
 ```
 
-Open `/plugin` and confirm Meridian is enabled at the selected version. The
-tagged CLI is `${CLAUDE_PLUGIN_ROOT}/bin/meridian` inside plugin commands;
-in an ordinary terminal, use the installed plugin's absolute `bin/meridian`
-path, or add that directory to PATH. The shell examples below assume
-`meridian` resolves to that CLI. Continue with initialization below.
+Open `/plugin` and confirm Meridian is enabled at the same release as the
+checkout. Keep the plugin and checkout at the same release when updating or
+pinning a tag. Plugin commands use `${CLAUDE_PLUGIN_ROOT}/bin/meridian`;
+terminal commands use the checkout CLI installed above. Continue with
+initialization below.
 
-## Install for Codex
+## Connect Codex
 
-Clone the stable release branch into a persistent location that does not
-already exist:
+Use the checkout installed above; no second clone is needed. From your project,
+preview the skill links and Codex permission profile:
 
 ```bash
-git clone --branch stable https://github.com/biagiolibe/meridian ~/meridian
-export MERIDIAN_ROOT=~/meridian
-export PATH="$MERIDIAN_ROOT/bin:$PATH"
-meridian --version
+meridian setup --check
 ```
 
-Persist both exports in the shell startup file used by Codex. The checkout
-changes only when you explicitly update it; see the
-[framework update instructions](HOW_TO_UPGRADE.md#1-update-the-framework-first).
-Setup below creates the user skill
-links under `~/.agents/skills`; inspect any older `~/.codex/skills` copies
-yourself to avoid loading stale instructions.
+Review the exact diff, then explicitly consent before applying:
+
+```bash
+meridian setup --apply
+```
+
+Restart Codex afterwards. Setup creates user skill links under
+`~/.agents/skills`; inspect older `~/.codex/skills` copies yourself to avoid
+loading stale instructions. Initialization and the project-specific setup
+review below cover workflow and task identity choices.
 
 ## Initialize and choose a workflow
 
@@ -144,7 +187,7 @@ Before committing, add `.claude/settings.local.json` to the consumer project's
 the path. Setup-generated settings are local; verify this entry even when
 using an older base ignore template.
 
-For either installation path, finish the version check with:
+For either host, finish the version check with:
 
 ```bash
 meridian self-check --check-latest
