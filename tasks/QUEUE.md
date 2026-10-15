@@ -45,7 +45,7 @@ Authority: [docs/ADR_PUBLIC_SURFACE_AND_STABILITY.md](../docs/ADR_PUBLIC_SURFACE
 |--------|----|-------|----------|------------|------|
 | `[x]` | 209 | Verify a clean install from a release tag | 🔴 P1 | — | [209](done/209-clean-install-verification.md) |
 | `[x]` | 210 | Publish the public surface and enforce the release bump | 🔴 P1 | — | [210](done/210-public-surface-and-release-bump-check.md) |
-| `[ ]` | 211 | Publish an adopter quick start and separate maintainer content | 🔴 P1 | 209, 210 | [211](211-adopter-quickstart-and-readme.md) |
+| `[x]` | 211 | Publish an adopter quick start and separate maintainer content | 🔴 P1 | 209, 210 | [211](done/211-adopter-quickstart-and-readme.md) |
 | `[ ]` | 212 | Add a reproducible Lean Delivery walkthrough | 🟡 P2 | 211 | [212](212-reproducible-lean-walkthrough.md) |
 | `[x]` | 213 | Declare supported platforms and validate on macOS in CI | 🟡 P2 | — | [213](done/213-platform-support-matrix.md) |
 | `[x]` | 214 | Add security policy, code of conduct, and issue and PR templates | 🟡 P2 | — | [214](done/214-community-health-files.md) |

@@ -5,6 +5,30 @@ Thanks for helping improve Meridian.
 Participation follows the [code of conduct](CODE_OF_CONDUCT.md). Report suspected
 vulnerabilities privately using the [security policy](SECURITY.md).
 
+## Repository layout
+
+```text
+commands/                         Claude Code commands
+hooks/                            Queue briefing hook
+bin/                              Framework maintenance CLI
+capabilities/                     Machine-readable framework capability catalog
+docs/                             Architecture, workflow, and operator documentation
+migrations/                       Versioned deterministic upgrade records
+release-baselines/                Archived release baseline templates
+releases/                         Immutable release ledger records
+schemas/                          JSON schemas for Meridian records
+scripts/                          Repository validation and release tooling
+skills/                           Codex and Claude Code workflow skills
+tasks/                            Active task records, queue, and handoffs
+templates/base/                   Shared stack-agnostic templates
+templates/workflows/lean-delivery/ Lean Delivery overlay
+templates/workflows/governed-sdd/ Governed-SDD overlay
+tests/                            Unit tests
+.github/workflows/                GitHub Actions workflows
+WORKFLOW_GUIDE.md                 Lean Delivery workflow reference
+CONTRIBUTING.md                   Contribution guidance and validation
+```
+
 ## Scope
 
 Meridian is a stack-agnostic workflow for agentic software development. Keep generic workflow assets free of product, language, framework, and hosting-specific rules. Project-specific architecture belongs in generated projects, not in this repository's templates.
