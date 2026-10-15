@@ -8,6 +8,7 @@ cut out between the axis and the right half of the circle.
 | `meridian-mark.svg` | Adapts to the viewer's light or dark color scheme. Use it on web pages. |
 | `meridian-mark-light.svg` | Fixed colors for light backgrounds, such as the README `<picture>` fallback. |
 | `meridian-mark-dark.svg` | Fixed colors for dark backgrounds. |
+| `meridian-social-preview.png` | GitHub social preview, 1280 × 640. Upload it in the repository settings under Social preview. |
 
 ## Colors
 
@@ -20,5 +21,5 @@ cut out between the axis and the right half of the circle.
 Typefaces: IBM Plex Sans for the name and text, IBM Plex Mono for commands
 and data.
 
-The GitHub social preview image (1280 × 640) is uploaded in the repository
-settings and is not stored here.
+GitHub does not read the social preview from the repository: after changing
+`meridian-social-preview.png`, upload it again in the repository settings.
