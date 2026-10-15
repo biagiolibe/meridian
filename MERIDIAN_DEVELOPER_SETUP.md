@@ -36,6 +36,11 @@ export MERIDIAN_DEV_DIR="$MERIDIAN_DEV_PARENT/meridian" # the development clone
 export MERIDIAN_RELEASE_DIR="$HOME/.local/share/meridian" # the released CLI (step 4)
 ```
 
+These exports last only for the current shell. Step 4 persists the release
+checkout as `MERIDIAN_ROOT` in `~/.zshrc`; commands you repeat later, such as
+the update after each release, use `$MERIDIAN_ROOT`. An unset variable in
+`git -C "$VAR"` is not an error: Git runs in the current directory.
+
 The machine holds two Meridian checkouts with different jobs:
 
 | Checkout | Follows | Used for |
@@ -256,11 +261,19 @@ cat "$MERIDIAN_ROOT/VERSION"
 git -C "$MERIDIAN_ROOT" describe --tags --exact-match   # -> v<that version>
 ```
 
-**After each release**, move the release checkout forward and restart Codex:
+**After each release**, move the release checkout forward, verify it, and
+restart Codex and any open agent session so they use the new CLI. Use
+`$MERIDIAN_ROOT`, which `~/.zshrc` sets in every shell:
 
 ```bash
-git -C "$MERIDIAN_RELEASE_DIR" pull --ff-only
+test -n "$MERIDIAN_ROOT" && git -C "$MERIDIAN_ROOT" pull --ff-only origin stable
+git -C "$MERIDIAN_ROOT" describe --tags --exact-match   # -> v<new version>
+cat "$MERIDIAN_ROOT/VERSION"                            # -> <new version>
 ```
+
+Then upgrade each project that uses Meridian (`meridian upgrade --check`, then
+`--apply` on a dedicated branch), and refresh the Claude Code plugin with
+`/plugin marketplace update meridian` if its marketplace follows `stable`.
 
 ---
 
