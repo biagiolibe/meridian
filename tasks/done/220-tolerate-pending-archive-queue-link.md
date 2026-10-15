@@ -21,16 +21,16 @@ requires.
 
 ## Acceptance Criteria
 
-- [ ] `check_local_markdown_links` accepts exactly one case. A link in
+- [x] `check_local_markdown_links` accepts exactly one case. A link in
   `tasks/QUEUE.md` whose target `tasks/<name>.md` is missing is accepted when
   `tasks/done/<name>.md` exists. It still fails for every other missing
   target, including a missing archive and links from any other file.
-- [ ] The accepted case is printed as an informational line that names the
+- [x] The accepted case is printed as an informational line that names the
   link and states that `integrate stage` relinks it. The check still exits
   `0`.
-- [ ] Tests cover the accepted case, a missing archive, the same link from a
+- [x] Tests cover the accepted case, a missing archive, the same link from a
   file other than `tasks/QUEUE.md`, and an ordinary broken link.
-- [ ] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
+- [x] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
   --parallel`, and `git diff --check` pass.
 
 ## Relevant Files
