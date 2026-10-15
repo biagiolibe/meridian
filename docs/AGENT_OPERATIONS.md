@@ -151,4 +151,3 @@ cache-creation tokens); `cached` is the cache-read part and `cache_ratio` is
 `peak_call_input`, and `cumulative_input` use that total. A Claude Code call
 with no usage counters is excluded and counted in `unavailable_calls`. Private host log formats can change; an absent or
 unrecognized format reports `unsupported` clearly.
-
