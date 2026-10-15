@@ -156,8 +156,9 @@ prove an installed-version mismatch. A tagged Codex checkout may report
 ## Close a first Lean Delivery task
 
 Use a documentation-only change, such as adding a short purpose paragraph to
-your project's README. This is a lifecycle outline; the reproducible fixture
-and local-bare-origin walkthrough are tracked in [task 212](../tasks/212-reproducible-lean-walkthrough.md).
+your project's README. Follow the [reproducible Lean Delivery walkthrough](examples/LEAN_DELIVERY_WALKTHROUGH.md)
+for executable commands, checked file excerpts, and a local bare origin.
+The steps below outline the lifecycle.
 Use an existing writable remote here. Never apply the documentation-only
 validation example below to source or runtime changes.
 
