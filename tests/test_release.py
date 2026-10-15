@@ -220,6 +220,22 @@ class ReleasePrepareTest(unittest.TestCase):
             self.assertEqual(self.invoke("--bump", "patch"), 1)
         self.assertIn("publish --confirm v1.0.1", "".join(str(call) for call in stderr.write.call_args_list))
 
+    def test_prepare_names_pending_fragments_for_migration_release(self) -> None:
+        (self.root / "migrations/001-test.json").write_text('{"id":"001-test","to":"1.0.1"}', encoding="utf-8")
+        (self.root / "VERSION").write_text("1.0.1\n", encoding="utf-8")
+        (self.root / "changelog.d").mkdir()
+        fragment = self.root / "changelog.d/223.md"
+        fragment.write_text("### Fixed\n\n- Pending fix.\n", encoding="utf-8")
+        self.git("add", ".")
+        self.git("commit", "-qm", "Prepare migration with pending fragment")
+        errors = io.StringIO()
+        with redirect_stderr(errors):
+            self.assertEqual(self.invoke("--bump", "patch"), 1)
+        self.assertIn("changelog.d/223.md", errors.getvalue())
+        self.assertIn("changelog render --version 1.0.1 --prepared --write", errors.getvalue())
+        self.assertTrue(fragment.exists())
+        self.assertEqual(self.git("status", "--porcelain").stdout, "")
+
     def test_commit_contains_only_release_files(self) -> None:
         with mock.patch.object(release, "validate", return_value=(0, [])):
             self.assertEqual(self.invoke("--version", "1.0.1"), 0)
@@ -328,6 +344,41 @@ class ChangelogFragmentTest(unittest.TestCase):
         self.assertFalse(path.exists())
         self.assertIn("### Documentation", (self.root / "CHANGELOG.md").read_text(encoding="utf-8"))
 
+    def test_prepared_render_merges_headings_and_preserves_other_sections(self) -> None:
+        (self.root / "VERSION").write_text("1.0.1\n", encoding="utf-8")
+        prefix = "# Changelog\n\n## [Unreleased]\n\n- Future.\n\n## [1.0.1]"
+        suffix = "## [1.0.0]\n\nOld release.\n"
+        kind = "Template-changing release: baseline advances."
+        original = prefix + f"\n\n{kind}\n\n### Fixed\n\n- Existing fix.\n\n### Upgrade notes\n\n- Existing upgrade.\n\n" + suffix
+        changelog = self.root / "CHANGELOG.md"
+        changelog.write_text(original, encoding="utf-8")
+        self.fragment("20.md", "### Fixed\n\n- Later fix.\n\n### Upgrade notes\n\n- Later upgrade.\n")
+        self.fragment("10.md", "### Added\n\n- Addition.\n\n### Fixed\n\n- Earlier fix.\n")
+        command = ["changelog", "render", "--version", "1.0.1", "--prepared", "--root", str(self.root)]
+        with redirect_stdout(io.StringIO()):
+            self.assertEqual(release.main(command), 0)
+            self.assertEqual(changelog.read_text(encoding="utf-8"), original)
+            self.assertEqual(len(release.fragment_paths(self.root)), 2)
+            self.assertEqual(release.main([*command, "--write"]), 0)
+        expected_body = f"{kind}\n\n### Added\n\n- Addition.\n\n### Fixed\n\n- Existing fix.\n- Earlier fix.\n- Later fix.\n\n### Upgrade notes\n\n- Existing upgrade.\n- Later upgrade."
+        expected = prefix + "\n\n" + expected_body + "\n\n" + suffix
+        self.assertEqual(changelog.read_text(encoding="utf-8"), expected)
+        self.assertEqual(release.fragment_paths(self.root), [])
+        with redirect_stdout(io.StringIO()):
+            self.assertEqual(release.main([*command, "--write"]), 0)
+        self.assertEqual(changelog.read_text(encoding="utf-8"), expected)
+
+    def test_prepared_render_failure_preserves_fragments(self) -> None:
+        (self.root / "VERSION").write_text("1.0.1\n", encoding="utf-8")
+        path = self.fragment("1.md", "### Fixed\n\n- Fix.\n")
+        changelog = self.root / "CHANGELOG.md"
+        for body in ("## [1.0.0]\n", "## [1.0.1]\n\nMissing kind.\n"):
+            changelog.write_text(body, encoding="utf-8")
+            with redirect_stderr(io.StringIO()):
+                self.assertEqual(release.main(["changelog", "render", "--version", "1.0.1", "--prepared", "--write", "--root", str(self.root)]), 1)
+            self.assertTrue(path.exists())
+            self.assertEqual(changelog.read_text(encoding="utf-8"), body)
+
     def test_fragments_merge_without_conflict_while_unreleased_edits_conflict(self) -> None:
         root = self.root
         (root / "CHANGELOG.md").write_text("## [Unreleased]\n\n- base\n", encoding="utf-8")
@@ -435,6 +486,36 @@ class ReleasePublishTest(unittest.TestCase):
             return original(root, command)
 
         return gh
+
+    def test_pending_fragments_block_publish_before_any_push(self) -> None:
+        directory = self.root / "changelog.d"
+        directory.mkdir()
+        (directory / "README.md").write_text("Fragment instructions.\n", encoding="utf-8")
+        for name in ("20.md", "10.md"):
+            (directory / name).write_text("### Fixed\n\n- Pending fix.\n", encoding="utf-8")
+        self.git("add", ".")
+        self.git("commit", "-qm", "Add pending fragments")
+        remote_before = self.git("ls-remote", "origin").stdout
+        errors = io.StringIO()
+        with mock.patch.object(release, "validate") as validate, mock.patch.object(release, "run_command") as command, redirect_stderr(errors):
+            self.assertEqual(self.invoke("--confirm", "v1.0.1"), 1)
+            validate.assert_not_called()
+            command.assert_not_called()
+        self.assertIn("changelog.d/10.md, changelog.d/20.md", errors.getvalue())
+        self.assertIn("changelog render --version 1.0.1 --prepared --write", errors.getvalue())
+        self.assertEqual(self.git("ls-remote", "origin").stdout, remote_before)
+        self.assertEqual(self.git("tag", "--list").stdout, "")
+
+    def test_readme_only_does_not_block_prepared_release(self) -> None:
+        (self.root / "changelog.d").mkdir()
+        (self.root / "changelog.d/README.md").write_text("Instructions.\n", encoding="utf-8")
+        self.git("add", ".")
+        self.git("commit", "-qm", "Add fragment instructions")
+        head, kind, migrations, commits = release.publish_preflight(self.root, "1.0.1")
+        self.assertEqual(head, self.git("rev-parse", "HEAD").stdout.strip())
+        self.assertEqual(kind, release.CLI_ONLY)
+        self.assertEqual(migrations, [])
+        self.assertTrue(commits)
 
     def test_confirmation_is_required_and_exact(self) -> None:
         for confirm in ([], ["--confirm", "v1.0.2"]):

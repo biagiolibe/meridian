@@ -189,7 +189,7 @@
 - `[x]` 220 — Accept a queue link to a record archived on its task branch.
 - `[x]` 221 — Manage a Meridian block in the user's Codex rules through setup.
 - `[x]` 222 — Run Meridian's Codex hooks in task worktrees.
-- `[ ]` 223 — Consume changelog fragments in prepared releases.
+- `[x]` 223 — Consume changelog fragments in prepared releases.
 - `[ ]` 224 — Rewrite the README around one host-neutral description.
 - `[ ]` 225 — Update the framework checkout with `meridian self-update`.
 - `[x]` 140 — Let `integrate stage` complete rows of project-shaped Governed queues.

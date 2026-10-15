@@ -804,3 +804,11 @@ Authority: the Codex hook review of 2026-10-15. Task worktree sessions never tru
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
 | `[x]` | 222 | Run Meridian's Codex hooks in task worktrees | 🟡 P2 | 221 | [222](done/222-codex-hooks-in-task-worktrees.md) |
+
+### Phase 68 — Release changelog completeness
+
+Authority: the 1.3.0 release preparation of 2026-10-15. An already-prepared template-changing release leaves later changelog fragments unconsumed.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 223 | Consume changelog fragments in prepared releases | 🟡 P2 | — | [223](done/223-consume-fragments-in-prepared-releases.md) |
