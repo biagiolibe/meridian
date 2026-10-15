@@ -43,5 +43,5 @@ Authority: the release checkout review of 2026-10-15. Moving the local framework
 
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
-| `[ ]` | 225 | Update the framework checkout with `meridian self-update` | 🟡 P2 | — | [225](225-self-update-command.md) |
+| `[x]` | 225 | Update the framework checkout with `meridian self-update` | 🟡 P2 | — | [225](done/225-self-update-command.md) |
 | `[ ]` | 226 | Install the Meridian CLI once, at one path, for every host | 🟡 P2 | 225 | [226](226-host-neutral-cli-install.md) |

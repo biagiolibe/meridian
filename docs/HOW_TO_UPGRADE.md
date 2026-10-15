@@ -16,32 +16,20 @@ A project can only be upgraded to a release the framework already has.
   /plugin marketplace update meridian
   ```
 
-- **Local framework checkout** (the CLI and Codex skill links use this tree):
-  if it follows the `stable` branch, update it with:
-
-  ```bash
-  git -C "$MERIDIAN_ROOT" pull --ff-only
-  ```
-
-  If it is pinned to a tag, select the next release explicitly:
-
-  ```bash
-  git -C "$MERIDIAN_ROOT" fetch --tags
-  git -C "$MERIDIAN_ROOT" checkout v<version>
-  ```
-
-  For either variant, verify the release before upgrading projects:
-
-  ```bash
-  git -C "$MERIDIAN_ROOT" describe --tags --exact-match
-  cat "$MERIDIAN_ROOT/VERSION"
-  ```
-
-  The first command must print `v<version>`, matching the version in `VERSION`.
-  `upgrade_project.sh` relies on this exact-tag check. The `stable` branch
-  points at a released tag; using it avoids editing the version at each release.
-  Restart running agent sessions after updating so they use the new CLI and
-  skill instructions.
+- **Local framework checkout** (Experimental): run `meridian self-update
+  --check` to inspect the current and target versions, release notes, template
+  impact, and Git operation. Then run `meridian self-update --apply`.
+  The command uses the checkout containing the running CLI, ignoring
+  `MERIDIAN_ROOT` and `--framework-root`. It fast-forwards `stable` or switches
+  a detached release checkout to the latest tag. For a pinned target or
+  rollback, use `--to v<version>` on a detached release checkout; on `stable`,
+  first switch explicitly with `git switch --detach v<version>`.
+  Dirty trees, development branches, and divergent `stable` are refused.
+  A plan never changes checkout refs or files. Offline release lookup exits 11
+  with the latest release unknown; registered refusals exit 2.
+  Apply verifies the target tag and `VERSION`. Restart running Codex and
+  Claude Code sessions afterwards. For template-changing releases, run
+  `meridian upgrade --check` in each project.
 
 Read the release section in `CHANGELOG.md` before upgrading projects. A
 template-changing release lists the affected files and likely conflicts under

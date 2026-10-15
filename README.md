@@ -111,3 +111,7 @@ Update the installed plugin or local framework checkout first, restart agent ses
 Follow the [code of conduct](CODE_OF_CONDUCT.md) and report vulnerabilities privately through the [security policy](SECURITY.md).
 
 Copyright © 2026 Biagio Liberto. Available under the [MIT License](LICENSE).
+
+`meridian self-update` is Experimental. Preview local framework updates with
+`meridian self-update --check`, then use `--apply`; see
+[the update procedure](docs/HOW_TO_UPGRADE.md#1-update-the-framework-first).
