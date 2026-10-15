@@ -52,3 +52,11 @@ Authority: the README review of 2026-10-15. Meridian has three different descrip
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
 | `[ ]` | 224 | Rewrite the README around one host-neutral description | 🟡 P2 | — | [224](224-readme-rewrite-and-unified-description.md) |
+
+### Phase 70 — Framework checkout updates
+
+Authority: the release checkout review of 2026-10-15. Moving the local framework checkout to a new release is a manual Git step that fails silently when `MERIDIAN_RELEASE_DIR` is unset and stops `upgrade_project.sh` when the checkout leaves its tag. Schedule 225 after 224: both edit `docs/HOW_TO_UPGRADE.md`.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 225 | Update the framework checkout with `meridian self-update` | 🟡 P2 | — | [225](225-self-update-command.md) |
