@@ -190,6 +190,7 @@
 - `[x]` 221 — Manage a Meridian block in the user's Codex rules through setup.
 - `[x]` 222 — Run Meridian's Codex hooks in task worktrees.
 - `[ ]` 223 — Consume changelog fragments in prepared releases.
+- `[ ]` 224 — Rewrite the README around one host-neutral description.
 - `[x]` 140 — Let `integrate stage` complete rows of project-shaped Governed queues.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.

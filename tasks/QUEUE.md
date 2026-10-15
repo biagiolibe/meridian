@@ -44,3 +44,11 @@ Authority: the 1.3.0 release preparation of 2026-10-15. An already-prepared temp
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
 | `[ ]` | 223 | Consume changelog fragments in prepared releases | 🟡 P2 | — | [223](223-consume-fragments-in-prepared-releases.md) |
+
+### Phase 69 — Public presentation
+
+Authority: the README review of 2026-10-15. Meridian has three different descriptions and a README that mixes first-time readers, adopters, and maintainers.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 224 | Rewrite the README around one host-neutral description | 🟡 P2 | — | [224](224-readme-rewrite-and-unified-description.md) |
