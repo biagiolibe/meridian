@@ -63,7 +63,7 @@ requires manual reconciliation. Repair never proves that a running session
 loaded the profile; start a fresh session and probe it.
 <!-- MERIDIAN:END -->
 
-<!-- MERIDIAN:BEGIN capability=bounded-worktree-lifecycle v6 -->
+<!-- MERIDIAN:BEGIN capability=bounded-worktree-lifecycle v7 -->
 `Proceed with <TASK-ID>` runs `meridian worktree prepare <task-id> --project
 <primary-checkout> --format json` before
 starting a worker. The coordinator passes the returned branch and absolute
@@ -76,7 +76,8 @@ After check and minimal metadata/contract resolution, run
 `meridian execution start <TASK-ID> --project <task-worktree>` before
 substantive authority/source analysis, advisor consultation, or implementation.
 Only explicit Resume passes `--resume` after status/diff inspection and sole
-writer confirmation. Lean start adds no machine state; Governed start records
+writer confirmation, except when the record is archived and state is DONE:
+skip execution start, commit staged closure records, then run worktree advance. Lean start adds no machine state; Governed start records
 the first IN_PROGRESS transition once. Read-only review/status never starts.
 Absolute paths are runtime launch inputs only. A handoff or other tracked
 record that names the worktree uses the `handoff_worktree` value returned by
@@ -99,7 +100,7 @@ fully closed phase is archived only after all of its task branches have been
 integrated. A conflict in a shared governance file is an integration conflict:
 abort and return `BLOCKED INTEGRATION_CONFLICT` without choosing or recreating either task's state.
 
-<!-- MERIDIAN:BEGIN capability=git-workflow v13 -->
+<!-- MERIDIAN:BEGIN capability=git-workflow v14 -->
 ## Authority of `Proceed with`
 
 `Proceed with <TASK-ID>` authorizes that task's whole lifecycle when every gate
@@ -147,7 +148,7 @@ and phase archival once on the merged candidate tree. The queue retains `[ ]`
 until then; in-progress state is derived from the canonical branch, registered
 worktree, and unarchived record.
 
-Close a validated task with `meridian worktree advance`. When closure requires machine task state, run `meridian task transition <TASK-ID> DONE` in the task worktree after validation and before archiving the record, then commit the state file with the completion records. Never edit status or verdict fields by hand. After verifying the
+Close a validated task with `meridian worktree advance`. After validation, commit the completed task record and handoff, then run `meridian task close <TASK-ID>` in the clean task worktree. It writes DONE state and stages the exact record archive and state file without committing; commit these closure records together. Never edit status or verdict fields by hand. On explicit Resume, if the record is already archived and its state is DONE, skip `meridian execution start --resume`: commit any staged closure records, then run `meridian worktree advance` with the validation evidence. After verifying the
 acceptance criteria, running validation, and committing the completion record
 and handoff, run `meridian worktree advance <TASK-ID> --project
 <primary-checkout> --format json` from the primary checkout, giving each result

@@ -32,7 +32,7 @@ identity. `opaque` keeps task IDs as labels; `milestone` uses
 pass the answer to `meridian setup --apply --task-identity <choice>` and note
 that the project can later change it by editing the declaration.
 
-When closure requires machine task state, run `meridian task transition <TASK-ID> DONE` after validation and before archiving the record; commit the task state with the completion records. Never edit a status or verdict by hand. Task branches own their own `.meridian/tasks/<TASK-ID>.json` in addition to their task record, exact archive, and handoff.
+After validation, commit the completed task record and handoff, then run `meridian task close <TASK-ID>` in the clean task worktree. It writes DONE state and stages the exact record archive and state file without committing; commit these closure records together. Never edit status or verdict fields by hand. On explicit Resume, if the record is already archived and its state is DONE, skip `meridian execution start --resume`: commit any staged closure records, then run `meridian worktree advance` with the validation evidence. Task branches own their own `.meridian/tasks/<TASK-ID>.json` in addition to their task record, exact archive, and handoff.
 
 <!-- MERIDIAN:BEGIN capability=execution-boundaries v1 -->
 After prepare and worktree check, run `meridian execution start <TASK-ID>
@@ -40,6 +40,7 @@ After prepare and worktree check, run `meridian execution start <TASK-ID>
 or implementation. Lean start verifies the worktree and preserves its existing
 worktree-derived progress without adding IN_PROGRESS to machine state. Only
 explicit Resume adds --resume after status/diff inspection and sole-writer
-confirmation. Console, manual, and orchestrated workers use this same ordering;
+confirmation, unless the record is archived and state is DONE; in that case
+skip execution start, commit staged closure records, and run worktree advance. Console, manual, and orchestrated workers use this same ordering;
 read-only review/status requests never start work.
 <!-- MERIDIAN:END -->

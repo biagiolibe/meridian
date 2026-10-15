@@ -70,6 +70,7 @@ including command containers and nested subcommands.
 | `meridian review verdict` | Stable |
 | `meridian task` | Stable |
 | `meridian task transition` | Stable |
+| `meridian task close` | Stable |
 | `meridian task state` | Stable |
 | `meridian task state import` | Stable |
 | `meridian task identity` | Stable |

@@ -9147,6 +9147,45 @@ def transition_task_state(project_root: Path, task_id: str, status: str) -> dict
     return state
 
 
+def close_task(project_root: Path, task_id: str) -> dict[str, object]:
+    """Close a validated Lean task, staging its state and exact record archive."""
+    project_root = project_root.resolve()
+    _execution_worktree(project_root, task_id)
+    if detect_mode(project_root) != "lean-delivery":
+        raise stop_error("TASK_STATUS_REJECTED", "task close is Lean-only; use meridian task transition for Governed SDD",
+                         task_id=task_id, project=project_root)
+    identity = resolve_task_identity(project_root, task_id, "existing", allow_archived_queue_links=True)
+    task_id = identity.canonical_id
+    record_path = identity.task_path
+    if record_path.parent.name == "done":
+        raise stop_error("TASK_STATUS_REJECTED", "record is already archived; use meridian worktree advance",
+                         task_id=task_id, project=project_root)
+    archive = record_path.parent / "done" / record_path.name
+    if archive.exists():
+        raise stop_error("TASK_STATUS_REJECTED", "exact archive path already exists; inspect the task record before retrying task close",
+                         task_id=task_id, project=project_root)
+    handoff = identity.handoff_path.relative_to(project_root).as_posix()
+    if not identity.handoff_path.is_file() or _run_git(project_root, "cat-file", "-e", f"HEAD:{handoff}").returncode:
+        raise stop_error("HANDOFF_REPORT_MISSING", "task close requires a committed handoff; commit it before meridian task close",
+                         task_id=task_id, project=project_root)
+    path = state_path(project_root, task_id)
+    if path.exists():
+        state = read_task_state(project_root, task_id, "lean-delivery", stop_factory=stop_error)
+        if state["status"] == "DONE":
+            raise stop_error("TASK_STATUS_REJECTED", "task is already DONE; use meridian worktree advance",
+                             task_id=task_id, project=project_root)
+    # The transition validates everything before writing and is the single state writer.
+    state = transition_task_state(project_root, task_id, "DONE")
+    archive.parent.mkdir(parents=True, exist_ok=True)
+    record_path.rename(archive)
+    staged = _run_git(project_root, "add", "--", record_path.relative_to(project_root).as_posix(),
+                      archive.relative_to(project_root).as_posix(), path.relative_to(project_root).as_posix())
+    if staged.returncode:
+        raise MeridianError(f"could not stage closure records: {staged.stderr.strip()}")
+    return {"task_id": task_id, "state": state, "archive": archive.relative_to(project_root).as_posix(),
+            "staged": True, "committed": False}
+
+
 def record_review_verdict(project_root: Path, task_id: str, verdict: str, *, owner: bool = False,
                           body: str = "") -> dict[str, object]:
     """Bind a review and its transition to HEAD, with prose as a projection only."""
@@ -11239,7 +11278,9 @@ def _execution_worktree(project_root: Path, task_id: str, *, resume: bool = Fals
         raise stop_error("WRONG_WORKTREE", "execution --project must name the caller's task worktree",
                          task_id=task_id, project=canonical_project_root(project_root))
     primary = canonical_project_root(project_root)
-    result, valid = inspect_task_worktree(task_id, None, primary)
+    result, valid = inspect_task_worktree(
+        task_id, None, primary, identity=resolve_task_identity(
+            primary, task_id, "existing", allow_archived_queue_links=True))
     errors = list(result["errors"])
     if errors == ["dirty-worktree"] and (resume or repeated_start):
         if repeated_start and not resume:
@@ -11282,13 +11323,22 @@ def _execution_state(project_root: Path, task_id: str) -> dict[str, object]:
 
 def execution_start(project_root: Path, task_id: str, *, resume: bool = False) -> dict[str, object]:
     """Record the first legal start only after worktree and contract preflight."""
-    identity = resolve_task_identity(project_root, task_id, "existing")
+    identity = resolve_task_identity(project_root, task_id, "existing", allow_archived_queue_links=True)
     task_id = identity.canonical_id
     workflow = detect_mode(project_root)
-    state = _execution_state(project_root, task_id) if state_path(project_root, task_id).exists() else None
+    record = identity.task_path.read_text(encoding="utf-8")
+    state = read_task_state(project_root, task_id, workflow,
+                            spike=read_task_field(record, "Class") == "SPIKE",
+                            review_required=read_task_field(record, "Review") != "NOT_REQUIRED",
+                            stop_factory=stop_error) if state_path(project_root, task_id).exists() else None
     _execution_worktree(project_root, task_id, resume=resume,
                         repeated_start=bool(state and state["status"] == "IN_PROGRESS"))
     status = state["status"] if state else "QUEUED"
+    if resume and workflow == "lean-delivery" and status == "DONE" and identity.task_path.parent.name == "done":
+        dirty = bool(git_output(project_root, "status", "--porcelain"))
+        return {"task_id": task_id, "workflow": workflow, "status": status, "started": False,
+                "state": state, "commit": git_output(project_root, "rev-parse", "HEAD"),
+                "next_action": "commit-closure-records" if dirty else "worktree-advance"}
     eligible = ("QUEUED",) if workflow == "lean-delivery" else ("QUEUED", "IN_PROGRESS")
     if status not in eligible:
         raise stop_error("TASK_STATUS_REJECTED", f"execution start allows {eligible}; found {status}", task_id=task_id, project=canonical_project_root(project_root))
@@ -11925,6 +11975,10 @@ def build_parser() -> MeridianArgumentParser:
     transition.add_argument("status")
     transition.add_argument("--project", type=Path, default=Path.cwd())
     transition.add_argument("--format", choices=("json",), default="json")
+    close = task_sub.add_parser("close", help="stage Lean task state and record archive without committing")
+    close.add_argument("task_id")
+    close.add_argument("--project", type=Path, default=Path.cwd())
+    close.add_argument("--format", choices=("json",), default="json")
     state = task_sub.add_parser("state", help="explicit task-state adoption")
     state_sub = state.add_subparsers(dest="state_command", required=True)
     state_import = state_sub.add_parser("import", help="preview or create state for legacy tasks")
@@ -12392,6 +12446,8 @@ def _run_cli(journal: LifecycleJournalEntry) -> int:
         elif arguments.command == "task":
             if arguments.task_command == "transition":
                 print(json.dumps(transition_task_state(project_root, arguments.task_id, arguments.status), sort_keys=True))
+            elif arguments.task_command == "close":
+                print(json.dumps(close_task(project_root, arguments.task_id), sort_keys=True))
             elif arguments.task_command == "state":
                 print(json.dumps(import_task_states(project_root, arguments.task_ids, apply=arguments.apply,
                                                   include_terminal=arguments.include_terminal), sort_keys=True))

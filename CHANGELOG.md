@@ -16,6 +16,17 @@ records which release moved it.
 ## [Unreleased]
 
 
+## [1.3.0] - 2026-10-15
+
+Template-changing release: atomic Lean task closure and archived-task Resume recovery.
+
+### Upgrade notes
+
+- Run `meridian upgrade --apply` for Lean `git-workflow` v14 and
+  `bounded-worktree-lifecycle` v7 in `AGENTS.md`, `CLAUDE.md`, and
+  `PROJECT_WORKFLOW.md`. Adapted closure and Resume text may conflict.
+  No minimum framework or protocolVersion change.
+
 ## [1.2.15]
 
 Template-changing release: migration `068-adr-list-discovery` advances `workflowBaselineVersion` to `1.2.15`. Queue archival now decides from task state at any heading level, `meridian adr list` adds ADR discovery, and the project console launches agents without freezing and refreshes faster. The manifest shape and `protocolVersion` 2 are unchanged.
