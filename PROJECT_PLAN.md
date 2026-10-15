@@ -188,6 +188,7 @@
 - `[x]` 219 — Close a Lean task with one command.
 - `[x]` 220 — Accept a queue link to a record archived on its task branch.
 - `[x]` 221 — Manage a Meridian block in the user's Codex rules through setup.
+- `[ ]` 222 — Run Meridian's Codex hooks in task worktrees.
 - `[x]` 140 — Let `integrate stage` complete rows of project-shaped Governed queues.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.
