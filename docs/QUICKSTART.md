@@ -1,15 +1,15 @@
 # Adopter quick start
 
-Install a pinned release, initialize a project, and close one small Lean
-Delivery task. This guide uses `v1.2.15`, the release checked in the
-[clean-install report](CLEAN_INSTALL_VERIFICATION.md). Select a different tag
-from [Releases](https://github.com/biagiolibe/meridian/releases) after reading
-its notes. The stable compatibility promise starts at 1.3.0; see the
-[public surface classification](PUBLIC_SURFACE.md).
+Install the latest stable release, initialize a project, and close one small
+Lean Delivery task. The `stable` ref follows published releases; use an exact
+`v<version>` tag from [Releases](https://github.com/biagiolibe/meridian/releases)
+when you need a fixed pin. The [clean-install report](CLEAN_INSTALL_VERIFICATION.md)
+records the historical release it tested. See the
+[public surface classification](PUBLIC_SURFACE.md) for compatibility promises.
 
 ## Prerequisites
 
-- macOS or Linux; see the [platform matrix](../README.md#platform-support).
+- macOS or Linux; see the [platform matrix](PLATFORM_SUPPORT.md).
 - Python 3.12+ and Git on the shell PATH used by your agent. Check with
   `python3 --version` and `git --version` inside that host as well as your terminal.
 - An installed, authenticated Claude Code or Codex host. Meridian supplies
@@ -32,10 +32,10 @@ Persist the PATH in the startup file your host uses, then restart that host.
 
 ## Install for Claude Code
 
-In Claude Code, add the pinned marketplace and install its plugin:
+In Claude Code, add the stable marketplace and install its plugin:
 
 ```text
-/plugin marketplace add biagiolibe/meridian#v1.2.15
+/plugin marketplace add biagiolibe/meridian#stable
 /plugin install meridian@meridian
 ```
 
@@ -47,17 +47,20 @@ path, or add that directory to PATH. The shell examples below assume
 
 ## Install for Codex
 
-Clone a release into a persistent location that does not already exist:
+Clone the stable release branch into a persistent location that does not
+already exist:
 
 ```bash
-git clone --branch v1.2.15 https://github.com/biagiolibe/meridian ~/meridian
+git clone --branch stable https://github.com/biagiolibe/meridian ~/meridian
 export MERIDIAN_ROOT=~/meridian
 export PATH="$MERIDIAN_ROOT/bin:$PATH"
 meridian --version
 ```
 
-Persist both exports in the shell startup file used by Codex. The pin stays
-fixed until you explicitly update it. Setup below creates the user skill
+Persist both exports in the shell startup file used by Codex. The checkout
+changes only when you explicitly update it; see the
+[framework update instructions](HOW_TO_UPGRADE.md#1-update-the-framework-first).
+Setup below creates the user skill
 links under `~/.agents/skills`; inspect any older `~/.codex/skills` copies
 yourself to avoid loading stale instructions.
 
@@ -69,7 +72,7 @@ Open the target project directory in your host. In Claude Code run:
 /meridian-init
 ```
 
-For Codex, there is no `meridian init` CLI subcommand in v1.2.15. Ask Codex:
+For Codex, there is no `meridian init` CLI subcommand. Ask Codex:
 
 ```text
 Initialize this project by following $MERIDIAN_ROOT/commands/meridian-init.md
@@ -138,8 +141,8 @@ for the additional Governed-SDD rules checks.
 
 Before committing, add `.claude/settings.local.json` to the consumer project's
 `.gitignore` and confirm `git check-ignore .claude/settings.local.json` prints
-the path. Setup-generated settings are local; the v1.2.15 base ignore template
-does not supply this entry. This is a consumer fix, not a template update.
+the path. Setup-generated settings are local; verify this entry even when
+using an older base ignore template.
 
 For either installation path, finish the version check with:
 
