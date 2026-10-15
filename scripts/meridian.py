@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import contextlib
 import contextvars
 import copy
@@ -445,7 +446,117 @@ class ClaudeConfigurationPlan:
 
 
 @dataclass(frozen=True)
+class CodexUserRulesPlan:
+    path: Path
+    status: str
+    current_text: str
+    proposed_text: str | None
+    warnings: tuple[str, ...]
+
+
+CODEX_USER_RULES = '''# MERIDIAN:BEGIN codex-user-rules v1
+# Plain pushes to origin only. A flag placed after the refspec
+# (`git push origin main --force`) is not caught by prefix rules; the GitHub
+# ruleset on main and stable is the real guard against that form.
+prefix_rule(pattern=["git", "push", "origin"], decision="allow")
+prefix_rule(pattern=["git", "push", ["--force", "-f", "--force-with-lease", "--delete", "-d", "--mirror"]], decision="forbidden")
+prefix_rule(pattern=["git", "push", "origin", ["--force", "-f", "--force-with-lease", "--delete", "-d", "--mirror"]], decision="forbidden")
+
+# Meridian read-only and task-lifecycle commands. Commands that change machine
+# or project configuration (setup/codex configure --apply, upgrade --apply,
+# adopt, finalize-adoption, lock, generate-*) keep prompting.
+prefix_rule(pattern=["meridian", ["--version", "self-check", "console", "audit", "profile", "locations", "project", "context", "adr", "budget", "report", "usage", "validation", "execution", "task", "review"]], decision="allow")
+prefix_rule(pattern=["meridian", "worktree"], decision="allow")
+prefix_rule(pattern=["meridian", "codex", ["doctor", "worktree-path"]], decision="allow")
+prefix_rule(pattern=["meridian", ["upgrade", "setup"], "--check"], decision="allow")
+prefix_rule(pattern=["meridian", "codex", "configure", "--check"], decision="allow")
+
+# Read-only GitHub CLI. `gh api` stays unlisted: it can send writing requests.
+prefix_rule(pattern=["gh", "release", ["list", "view"]], decision="allow")
+prefix_rule(pattern=["gh", "run", ["list", "view", "watch"]], decision="allow")
+prefix_rule(pattern=["gh", "pr", ["list", "view", "checks", "diff"]], decision="allow")
+prefix_rule(pattern=["gh", "issue", ["list", "view"]], decision="allow")
+prefix_rule(pattern=["gh", "repo", "view"], decision="allow")
+prefix_rule(pattern=["gh", "auth", "status"], decision="allow")
+
+# Git and system commands that do not discard work.
+prefix_rule(pattern=["git", "write-tree"], decision="allow")
+prefix_rule(pattern=["git", "fetch"], decision="allow")
+prefix_rule(pattern=["git", "restore", "--staged"], decision="allow")
+prefix_rule(pattern=["git", "rm"], decision="allow")
+prefix_rule(pattern=["git", "rm", ["-f", "--force"]], decision="prompt")
+prefix_rule(pattern=["ps"], decision="allow")
+# MERIDIAN:END codex-user-rules
+'''
+
+
+def plan_codex_user_rules(path: Path) -> CodexUserRulesPlan:
+    # Read bytes so CRLF and missing final newlines in foreign rules survive.
+    text = path.read_bytes().decode("utf-8") if path.exists() else ""
+    markers = list(re.finditer(r"(?m)^.*# MERIDIAN:(?:BEGIN|END) codex-user-rules[^\r\n]*", text))
+    if markers:
+        if (len(markers) != 2
+            or not re.fullmatch(r"# MERIDIAN:BEGIN codex-user-rules v[0-9]+", markers[0].group())
+            or markers[1].group() != "# MERIDIAN:END codex-user-rules"):
+            raise stop_error("COMMAND_REFUSED", f"damaged Codex user-rules markers in {path}; repair the marker pair before setup")
+        start, end = markers[0].start(), markers[1].end()
+        if text[end:end + 2] == "\r\n":
+            end += 2
+        elif text[end:end + 1] == "\n":
+            end += 1
+        proposed = text[:start] + CODEX_USER_RULES + text[end:]
+        status = "ready" if proposed == text else "stale"
+    else:
+        proposed = text + ("\n" if text and not text.endswith("\n") else "") + CODEX_USER_RULES
+        status = "missing"
+    warnings = []
+    # Inspect literal calls without executing user-owned policy. AST parsing
+    # handles multiline calls, comments, and either keyword order.
+    try:
+        calls = [node for node in ast.walk(ast.parse(text)) if isinstance(node, ast.Call)]
+    except SyntaxError:
+        calls = []
+    lines = text.splitlines(keepends=True)
+    for call in sorted(calls, key=lambda node: node.lineno):
+        if not isinstance(call.func, ast.Name) or call.func.id != "prefix_rule":
+            continue
+        offset = sum(len(line) for line in lines[:call.lineno - 1])
+        if markers and start <= offset < end:
+            continue
+        keywords = {item.arg: item.value for item in call.keywords}
+        try:
+            pattern = ast.literal_eval(keywords["pattern"])
+            decision = ast.literal_eval(keywords["decision"])
+        except (KeyError, ValueError, SyntaxError):
+            continue
+        if decision == "allow" and pattern in (["meridian"], ["git", "push"]):
+            warnings.append(f"{path}:{call.lineno}: broad allow rule {pattern!r} permits commands outside Meridian's prompt coverage")
+    return CodexUserRulesPlan(path, status, text, None if status == "ready" else proposed, tuple(warnings))
+
+
+def apply_codex_user_rules(plan: CodexUserRulesPlan) -> bool:
+    current = plan.path.read_bytes().decode("utf-8") if plan.path.exists() else ""
+    if current != plan.current_text:
+        raise MeridianError("Codex user rules changed since planning; rerun --check")
+    if plan.proposed_text is None:
+        return False
+    plan.path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, name = tempfile.mkstemp(prefix=".meridian-rules-", dir=plan.path.parent)
+    try:
+        with os.fdopen(descriptor, "wb") as stream:
+            stream.write(plan.proposed_text.encode("utf-8"))
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(name, plan.path)
+    finally:
+        if os.path.exists(name):
+            os.unlink(name)
+    return True
+
+
+@dataclass(frozen=True)
 class SetupPlan:
+    user_rules: CodexUserRulesPlan
     resolution: ResolvedWorktreeRoot
     codex_config: Path
     directory_state: str
@@ -3687,6 +3798,7 @@ def plan_setup(
     else:
         config_action = "write"
 
+    user_rules = plan_codex_user_rules(home / ".codex/rules/default.rules")
     directory_state, directory_change = _directory_setup_state(resolution.path)
     codex_plan: CodexConfigurationPlan | None = None
     try:
@@ -3781,6 +3893,8 @@ def plan_setup(
         task_identity_detail = f"write task identity declaration with mode {task_identity}"
 
     changes: list[str] = []
+    if user_rules.proposed_text is not None:
+        changes.append(f"configure Meridian Codex user-rules block in {user_rules.path}")
     if directory_state != "ready":
         changes.append(directory_change)
     if config_action == "write":
@@ -3813,7 +3927,7 @@ def plan_setup(
         changes = ["none; setup is blocked before mutation"]
     elif not changes:
         changes.append("none")
-    warnings: list[str] = []
+    warnings: list[str] = list(user_rules.warnings)
     skill_links = _framework_skill_links(framework_root, home)
     skill_links_state = _aggregate_skill_state(skill_links)
     if skill_links_state in ("blocked", "conflict"):
@@ -3845,6 +3959,7 @@ def plan_setup(
         if resolution.path == repository_root or repository_root in resolution.path.parents:
             warnings.append("resolved root is inside the current repository and is unsuitable for machine setup")
     return SetupPlan(
+        user_rules,
         resolution,
         codex_config,
         directory_state,
@@ -3877,6 +3992,13 @@ def plan_setup(
 
 
 def print_setup_plan(plan: SetupPlan) -> None:
+    print(f"codex-user-rules: {plan.user_rules.status} ({plan.user_rules.path})")
+    if plan.user_rules.proposed_text is not None:
+        print("".join(difflib.unified_diff(
+            plan.user_rules.current_text.splitlines(keepends=True),
+            plan.user_rules.proposed_text.splitlines(keepends=True),
+            fromfile=str(plan.user_rules.path), tofile=str(plan.user_rules.path) + " (planned)",
+        )), end="")
     print(f"worktree-root: {plan.resolution.path}")
     print(f"worktree-root-source: {plan.resolution.source}")
     print(f"directory-exists: {'no' if plan.directory_state == 'missing' else 'yes'}")
@@ -3944,7 +4066,11 @@ def apply_setup(plan: SetupPlan) -> bool:
             else _directory_setup_state(plan.resolution.path)[1]
         )
         raise MeridianError(f"setup is blocked: {detail}")
-    changed = False
+    # Revalidate the user-owned file before any setup mutation.
+    fresh_rules = plan_codex_user_rules(plan.user_rules.path)
+    if fresh_rules.current_text != plan.user_rules.current_text:
+        raise MeridianError("Codex user rules changed since planning; rerun --check")
+    changed = apply_codex_user_rules(plan.user_rules)
     root = plan.resolution.path
     if plan.directory_state == "missing":
         root.mkdir(parents=True, mode=0o700)
@@ -4150,6 +4276,10 @@ def codex_doctor(
     result["git-metadata"] = "ready" if lifecycle_policy == "ready" else "approval-required"
     home = (home or Path.home()).expanduser().resolve()
     framework_root = (framework_root or Path(__file__).resolve().parents[1]).expanduser().resolve()
+    try:
+        result["user-command-policy"] = plan_codex_user_rules(home / ".codex/rules/default.rules").status
+    except MeridianError:
+        result["user-command-policy"] = "stale"
     result["skill-links"] = _aggregate_skill_state(_framework_skill_links(framework_root, home))
     meridian_root_value = (environment or os.environ).get("MERIDIAN_ROOT")
     result["MERIDIAN_ROOT"] = (
