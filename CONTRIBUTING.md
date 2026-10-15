@@ -235,6 +235,34 @@ The repository check fails when the manifest's `workflowBaselineVersion` is
 older than the newest migration's `to` that is not ahead of `VERSION`; run the
 commands above to fix it.
 
+## Versioning and deprecation
+
+The stable compatibility promise starts at **1.3.0**. See the
+[public surface](docs/PUBLIC_SURFACE.md) for command tiers and stable registries.
+Choose versions by compatibility, independently of whether a release is CLI-only:
+
+- **Patch**: fixes only, no new stable surface, no migration, and
+  `baselineChanged: false`.
+- **Minor**: additive stable surface, experimental changes, or template changes
+  whose migrations apply through `meridian upgrade --apply`. Adopter action is
+  limited to resolving conflicts in adapted managed text.
+- **Major**: removing or renaming stable commands, flags or JSON fields;
+  changing exit-status or stop-code meanings; removing stop codes; incompatible
+  schema versions; a manifest `protocolVersion` refused by an older CLI;
+  narrowing the support upgrade window; or any change requiring adopter action
+  beyond `upgrade --apply`.
+
+Deprecate stable surfaces in a minor release: list each under `Deprecated` in
+its changelog and print a warning on stderr when it is used. Remove it only in
+the next major release, under `Removed`. Experimental surfaces may be removed
+in a minor release under `Changed`, explicitly marked experimental.
+
+`release.py prepare` refuses patch releases with new migrations or fragment
+subsections `Added`, `Deprecated`, or `Removed`, and minor releases with
+`Removed`. Explicit `--version X.Y.Z` follows the same checks. These checks
+cannot prove that an `Added` bullet is additive or a `Changed` bullet is
+compatible: authors and reviewers remain responsible for that classification.
+
 ## Release procedure
 
 ## Changelog fragments

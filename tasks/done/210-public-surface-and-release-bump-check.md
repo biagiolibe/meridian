@@ -11,32 +11,32 @@
 ## Objective
 
 Implement Decisions 1–5 of
-[docs/ADR_PUBLIC_SURFACE_AND_STABILITY.md](../docs/ADR_PUBLIC_SURFACE_AND_STABILITY.md).
+[docs/ADR_PUBLIC_SURFACE_AND_STABILITY.md](../../docs/ADR_PUBLIC_SURFACE_AND_STABILITY.md).
 The ADR was accepted on 2026-10-14; the stable line starts at `1.3.0`.
 
 ## Acceptance Criteria
 
-- [ ] `docs/PUBLIC_SURFACE.md` classifies every top-level CLI command and its
+- [x] `docs/PUBLIC_SURFACE.md` classifies every top-level CLI command and its
   subcommands as Stable, Host-facing, Experimental, or Internal by the
   Decision 1 rule. It also names the stable registries: stop codes, schemas,
   the manifest `protocolVersion`, capability markers, and plugin command and
   skill names.
-- [ ] A test fails when a top-level command or subcommand from the CLI parser
+- [x] A test fails when a top-level command or subcommand from the CLI parser
   is missing from `docs/PUBLIC_SURFACE.md`, or when the document names one
   that does not exist.
-- [ ] Every Experimental and Internal command says so in its `--help` text.
-- [ ] `scripts/release.py prepare` refuses a `patch` bump when the release
+- [x] Every Experimental and Internal command says so in its `--help` text.
+- [x] `scripts/release.py prepare` refuses a `patch` bump when the release
   adds a migration or a fragment has an `Added`, `Deprecated`, or `Removed`
   subsection. It refuses a `minor` bump when a fragment has `Removed`. It
   checks `--version X.Y.Z` the same way. Each refusal names the rule and the
   offending fragment or migration. Tests cover each refusal and each allowed
   case.
-- [ ] `CONTRIBUTING.md` states the versioning and deprecation rules of
+- [x] `CONTRIBUTING.md` states the versioning and deprecation rules of
   Decisions 2 and 3.
-- [ ] The README status line is replaced as Decision 5 requires.
-- [ ] One changelog fragment states the release check under `Changed` and the
+- [x] The README status line is replaced as Decision 5 requires.
+- [x] One changelog fragment states the release check under `Changed` and the
   surface document under `Documentation`.
-- [ ] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
+- [x] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
   --parallel`, and `git diff --check` pass.
 
 ## Relevant Files

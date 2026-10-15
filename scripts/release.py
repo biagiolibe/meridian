@@ -188,6 +188,34 @@ def derive_release(root: Path, new_version: str, previous: dict[str, object], bo
     return TEMPLATE_CHANGING, [str(migration["id"]) for migration in introduced], new_version
 
 
+def check_release_bump(root: Path, current: str, new_version: str, previous: dict[str, object]) -> None:
+    """Enforce the minimum bump from fragment headings and new migrations."""
+    old_major, old_minor, _ = version_key(current)
+    new_major, new_minor, _ = version_key(new_version)
+    bump = "major" if new_major > old_major else ("minor" if new_minor > old_minor else "patch")
+    if bump == "major":
+        return
+    if bump == "patch":
+        introduced = [
+            migration for migration in read_migrations(root)
+            if version_key(str(migration["to"])) > version_key(str(previous["workflowBaselineVersion"]))
+        ]
+        if introduced:
+            raise ReleaseError(
+                "BLOCKED: patch releases must not add migrations; requires at least minor: "
+                + ", ".join(str(migration["id"]) for migration in introduced)
+            )
+    forbidden = ("Added", "Deprecated", "Removed") if bump == "patch" else ("Removed",)
+    for path in fragment_paths(root):
+        for heading in parse_fragment(path):
+            if heading in forbidden:
+                minimum = "major" if heading == "Removed" else "minor"
+                raise ReleaseError(
+                    f"BLOCKED: {bump} releases must not contain {heading}; requires at least "
+                    f"{minimum}: {path.relative_to(root)}"
+                )
+
+
 def preflight(root: Path, new_version: str) -> tuple[dict[str, object], str, str, list[str], str, int]:
     branch = run_git(root, "branch", "--show-current")
     if branch.returncode or branch.stdout.strip() != "main":
@@ -208,6 +236,7 @@ def preflight(root: Path, new_version: str) -> tuple[dict[str, object], str, str
     if tag.returncode or tag.stdout.strip():
         raise ReleaseError(f"preflight failed: local tag v{new_version} already exists")
     body, _paths, _legacy, _fragments = release_body(root, (root / "CHANGELOG.md").read_text(encoding="utf-8"))
+    check_release_bump(root, current, new_version, previous)
     kind, migrations, baseline = derive_release(root, new_version, previous, body)
     protocol = protocol_version(root)
     old_protocol = previous.get("protocolVersion")

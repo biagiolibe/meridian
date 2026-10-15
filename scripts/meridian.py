@@ -11634,7 +11634,8 @@ def main() -> int:
     return exit_code
 
 
-def _run_cli(journal: LifecycleJournalEntry) -> int:
+def build_parser() -> MeridianArgumentParser:
+    """Build the CLI parser, also used to verify the published command surface."""
     parser = MeridianArgumentParser(prog="meridian")
     parser.add_argument(
         "--framework-root",
@@ -11659,7 +11660,8 @@ def _run_cli(journal: LifecycleJournalEntry) -> int:
     )
 
     console = subparsers.add_parser(
-        "console", help="open the read-only project state console"
+        "console", help="open the read-only project state console (experimental)",
+        description="Experimental: interactive keys and agent launch may change in minor releases."
     )
     console.add_argument("--project", type=Path, default=Path.cwd())
     console.add_argument(
@@ -11750,16 +11752,16 @@ def _run_cli(journal: LifecycleJournalEntry) -> int:
     )
 
     profile_parser = subparsers.add_parser(
-        "profile", help="inspect or bootstrap an effective capability profile"
+        "profile", description="Framework-internal: no compatibility promise.", help="inspect or bootstrap an effective capability profile (framework-internal)"
     )
     profile_sub = profile_parser.add_subparsers(dest="profile_command", required=True)
     profile_doctor_parser = profile_sub.add_parser(
-        "doctor", help="resolve a declared profile, its evidence, and required probes"
+        "doctor", description="Framework-internal: no compatibility promise.", help="resolve a declared profile, its evidence, and required probes (framework-internal)"
     )
     profile_doctor_parser.add_argument("profile_id")
     profile_doctor_parser.add_argument("--project", type=Path, default=Path.cwd())
     profile_bootstrap = profile_sub.add_parser(
-        "bootstrap", help="observe installation surfaces without claiming host activation"
+        "bootstrap", description="Framework-internal: no compatibility promise.", help="observe installation surfaces without claiming host activation (framework-internal)"
     )
     profile_bootstrap.add_argument("profile_id")
     profile_bootstrap.add_argument("--project", type=Path, default=Path.cwd())
@@ -11836,13 +11838,13 @@ def _run_cli(journal: LifecycleJournalEntry) -> int:
     worktree_repair.add_argument("--project", type=Path)
     worktree_repair.add_argument("--worktree-root", type=Path)
     worktree_repair.add_argument("--format", choices=("json",), required=True)
-    worktree_active = worktree_sub.add_parser("active", help="resolve the active task from this registered worktree")
+    worktree_active = worktree_sub.add_parser("active", description="Framework-internal: no compatibility promise.", help="resolve the active task from this registered worktree (framework-internal)")
     worktree_active.add_argument("--format", choices=("json",), required=True)
-    worktree_states = worktree_sub.add_parser("states", help="list task states from registered worktrees")
+    worktree_states = worktree_sub.add_parser("states", description="Framework-internal: no compatibility promise.", help="list task states from registered worktrees (framework-internal)")
     worktree_states.add_argument("--project", type=Path, default=Path.cwd())
     worktree_states.add_argument("--format", choices=("json",), required=True)
     worktree_evidence = worktree_sub.add_parser(
-        "evidence", help="record Git-derived task validation evidence without running commands"
+        "evidence", description="Framework-internal: no compatibility promise.", help="record Git-derived task validation evidence without running commands (framework-internal)"
     )
     worktree_evidence.add_argument("task_id")
     worktree_evidence.add_argument("--project", type=Path)
@@ -11857,7 +11859,7 @@ def _run_cli(journal: LifecycleJournalEntry) -> int:
     worktree_evidence.add_argument("--full-validation-required", action="store_true")
     worktree_evidence.add_argument("--format", choices=("json",), required=True)
     worktree_closure_status = worktree_sub.add_parser(
-        "closure-status", help="report the next closure step without changing lifecycle state"
+        "closure-status", description="Framework-internal: no compatibility promise.", help="report the next closure step without changing lifecycle state (framework-internal)"
     )
     worktree_closure_status.add_argument("task_id")
     worktree_closure_status.add_argument("--project", type=Path)
@@ -11898,9 +11900,9 @@ def _run_cli(journal: LifecycleJournalEntry) -> int:
     worktree_cleanup.add_argument("--worktree-root", type=Path)
     worktree_cleanup.add_argument("--format", choices=("json",), required=True)
 
-    validation = subparsers.add_parser("validation", help="read and verify an external validation evidence record")
+    validation = subparsers.add_parser("validation", description="Framework-internal: no compatibility promise.", help="read and verify an external validation evidence record (framework-internal)")
     validation_sub = validation.add_subparsers(dest="validation_command", required=True)
-    validation_check = validation_sub.add_parser("check", help="verify a record without running validation")
+    validation_check = validation_sub.add_parser("check", description="Framework-internal: no compatibility promise.", help="verify a record without running validation (framework-internal)")
     validation_check.add_argument("record", type=Path)
     validation_check.add_argument("--project", type=Path, default=Path.cwd())
     validation_check.add_argument("--commit")
@@ -11934,7 +11936,7 @@ def _run_cli(journal: LifecycleJournalEntry) -> int:
     state_import.add_argument("--format", choices=("json",), default="json")
     identity = task_sub.add_parser("identity", help="resolve the project-selected task identity policy")
     identity_sub = identity.add_subparsers(dest="identity_command", required=True)
-    identity_check = identity_sub.add_parser("check", help="validate and print one resolved task identity")
+    identity_check = identity_sub.add_parser("check", description="Framework-internal: no compatibility promise.", help="validate and print one resolved task identity (framework-internal)")
     identity_check.add_argument("task_id")
     identity_check.add_argument("--project", type=Path, default=Path.cwd())
     identity_check.add_argument("--format", choices=("json",), required=True)
@@ -11971,34 +11973,34 @@ def _run_cli(journal: LifecycleJournalEntry) -> int:
     context_size_parser.add_argument("--threshold-bytes", type=int, default=None, help="fail when an included file exceeds this size")
     context_size_parser.add_argument("--format", choices=("json", "text"), default="text")
 
-    usage = subparsers.add_parser("usage", help="report local host session token counters without reading message content")
+    usage = subparsers.add_parser("usage", help="report local host session token counters (experimental)", description="Experimental: report local host session token counters without reading message content.")
     usage_sub = usage.add_subparsers(dest="usage_command", required=True)
-    usage_report_parser = usage_sub.add_parser("report", help="summarize private host session token counters")
+    usage_report_parser = usage_sub.add_parser("report", help="summarize private host session token counters (experimental)", description="Experimental: summarize private host session token counters.")
     usage_report_parser.add_argument("--host", choices=USAGE_HOSTS)
     usage_report_parser.add_argument("--project", type=Path)
     usage_report_parser.add_argument("--since", help="include sessions starting on or after YYYY-MM-DD")
     usage_report_parser.add_argument("--breakdown", action="store_true", help="report the call with the greatest input growth")
     usage_report_parser.add_argument("--format", choices=("json", "text"), default="text")
 
-    report = subparsers.add_parser("report", help="read-only reports over the lifecycle journal")
+    report = subparsers.add_parser("report", description="Framework-internal: no compatibility promise.", help="read-only reports over the lifecycle journal (framework-internal)")
     report_sub = report.add_subparsers(dest="report_command", required=True)
-    report_flow_parser = report_sub.add_parser("flow", help="lead time, stops, and origin shares from the lifecycle journal")
+    report_flow_parser = report_sub.add_parser("flow", description="Framework-internal: no compatibility promise.", help="lead time, stops, and origin shares from the lifecycle journal (framework-internal)")
     report_flow_parser.add_argument("--project", type=Path)
     report_flow_parser.add_argument("--since", help="include journal records on or after YYYY-MM-DD")
     report_flow_parser.add_argument("--format", choices=("json", "text"), default="text")
 
     budget = subparsers.add_parser(
-        "budget",
-        help="track a governed-SDD task's diagnostic/evidence/context-expansion/investigation caps",
+        "budget", description="Framework-internal: no compatibility promise.",
+        help="track a governed-SDD task's diagnostic/evidence/context-expansion/investigation caps (framework-internal)",
     )
     budget_sub = budget.add_subparsers(dest="budget_command", required=True)
 
-    budget_show_parser = budget_sub.add_parser("show", help="print the active attempt's budget state")
+    budget_show_parser = budget_sub.add_parser("show", description="Framework-internal: no compatibility promise.", help="print the active attempt's budget state (framework-internal)")
     budget_show_parser.add_argument("task_id")
     budget_show_parser.add_argument("--project", type=Path, default=Path.cwd())
 
     budget_spend_parser = budget_sub.add_parser(
-        "spend", help="record one diagnostic/evidence/context use and check the declared cap"
+        "spend", description="Framework-internal: no compatibility promise.", help="record one diagnostic/evidence/context use and check the declared cap (framework-internal)"
     )
     budget_spend_parser.add_argument("task_id")
     budget_spend_parser.add_argument("kind", choices=BUDGET_KINDS)
@@ -12057,6 +12059,7 @@ def _run_cli(journal: LifecycleJournalEntry) -> int:
     generate_claude = subparsers.add_parser(
         "generate-claude-md",
         help="regenerate a workflow template's CLAUDE.md shared body from its AGENTS.md (framework-internal)",
+        description="Framework-internal: regenerate CLAUDE.md shared bodies from AGENTS.md.",
     )
     generate_claude.add_argument("--mode", choices=tuple(CLAUDE_MD_SHARED_ANCHOR), required=True)
     generate_group = generate_claude.add_mutually_exclusive_group(required=True)
@@ -12064,8 +12067,8 @@ def _run_cli(journal: LifecycleJournalEntry) -> int:
     generate_group.add_argument("--write", action="store_true", help="regenerate CLAUDE.md in place")
 
     generate_router = subparsers.add_parser(
-        "generate-entry-routers",
-        help="generate a consumer's AGENTS.md and CLAUDE.md from docs/workflows/ENTRY_ROUTER.md",
+        "generate-entry-routers", description="Framework-internal: no compatibility promise.",
+        help="generate a consumer's AGENTS.md and CLAUDE.md from docs/workflows/ENTRY_ROUTER.md (framework-internal)",
     )
     generate_router.add_argument("--project", type=Path, default=Path.cwd())
     generate_router_group = generate_router.add_mutually_exclusive_group(required=True)
@@ -12079,7 +12082,11 @@ def _run_cli(journal: LifecycleJournalEntry) -> int:
     stop_audit = hook_sub.add_parser("stop-audit", help="record `BLOCKED <CODE>` reports that no command emitted (Stop hook)")
     stop_audit.add_argument("--host", choices=("claude", "codex"), default="claude")
 
-    arguments = parser.parse_args()
+    return parser
+
+
+def _run_cli(journal: LifecycleJournalEntry) -> int:
+    arguments = build_parser().parse_args()
     journal.begin(arguments)
     framework_root = arguments.framework_root.resolve()
     project_root = (
