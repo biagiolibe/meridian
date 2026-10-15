@@ -29,20 +29,20 @@ published with unconsumed changelog entries.
 
 ## Acceptance Criteria
 
-- [ ] For an already-prepared release with pending fragments in `changelog.d/`,
+- [x] For an already-prepared release with pending fragments in `changelog.d/`,
   the tooling either renders them into the existing `## [X.Y.Z]` section
   (keeping its kind line first and merging any `### Upgrade notes` without
   duplicating them) and removes the consumed fragments, or `publish` preflight
   stops with a message that names the pending fragments and the command that
   consumes them. The handoff records which behavior was chosen and why.
-- [ ] `publish --confirm vX.Y.Z` never pushes a release while fragments remain
+- [x] `publish --confirm vX.Y.Z` never pushes a release while fragments remain
   in `changelog.d/` (other than `README.md`).
-- [ ] The prepared release with no pending fragments behaves as today.
-- [ ] Regression tests in `tests/` cover the pending-fragment path and the
+- [x] The prepared release with no pending fragments behaves as today.
+- [x] Regression tests in `tests/` cover the pending-fragment path and the
   clean path.
-- [ ] `CONTRIBUTING.md` (Changelog fragments and Release procedure) describes
+- [x] `CONTRIBUTING.md` (Changelog fragments and Release procedure) describes
   the behavior for template-changing releases.
-- [ ] A changelog fragment `changelog.d/223.md` describes the fix.
+- [x] A changelog fragment `changelog.d/223.md` describes the fix.
 
 ## Relevant Files
 
@@ -95,3 +95,15 @@ python3 scripts/run_tests.py --parallel
 ```bash
 claude "$(cat tasks/223-consume-fragments-in-prepared-releases.md)"$'\n\nExecute this task in the current project.'
 ```
+
+## Completion
+
+Implemented the explicit publication guard and `changelog render --prepared`
+remedy. Pending fragments stop both already-prepared `prepare` and `publish`
+with file names and the exact consumption command. The renderer preserves the
+release preamble, groups existing and new subsections in canonical order, merges
+Upgrade notes under one heading, and consumes fragments only with `--write`.
+No-fragment prepared rendering is a byte-preserving no-op.
+
+Validation: repository checks passed; the complete parallel suite passed all
+1062 tests with no failures, errors, or skips. See `tasks/handoffs/223.md`.
