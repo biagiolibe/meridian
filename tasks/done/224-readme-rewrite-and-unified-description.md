@@ -31,29 +31,29 @@ The approved description is:
 
 ## Acceptance Criteria
 
-- [ ] The README subtitle, `.claude-plugin/plugin.json`, and
+- [x] The README subtitle, `.claude-plugin/plugin.json`, and
   `.claude-plugin/marketplace.json` use the approved description verbatim.
   The handoff gives the developer the exact text for the GitHub repository
   description; the task does not change repository settings.
-- [ ] The README header, introduction, and feature list name no specific
+- [x] The README header, introduction, and feature list name no specific
   agent host.
-- [ ] The README opens with the logo header, the description, release, CI,
+- [x] The README opens with the logo header, the description, release, CI,
   and license badges, and a three-to-five sentence explanation of what
   Meridian is and what it is not (not an agent, no stack, no service).
-- [ ] A "Meridian in 30 seconds" section shows a short task file excerpt and
+- [x] A "Meridian in 30 seconds" section shows a short task file excerpt and
   what `Proceed with <TASK-ID>` does: worktree, validation, integration, push,
   cleanup.
-- [ ] A concise feature list covers explicit tasks, per-task worktrees,
+- [x] A concise feature list covers explicit tasks, per-task worktrees,
   command-backed stops, denied destructive actions, migration-based project
   upgrades, the project console, and host hooks.
-- [ ] Lean Delivery is presented first as the default mode; Governed SDD
+- [x] Lean Delivery is presented first as the default mode; Governed SDD
   follows for higher-risk work.
-- [ ] Install sections are short and link to `docs/QUICKSTART.md`; the
+- [x] Install sections are short and link to `docs/QUICKSTART.md`; the
   version example is current or uses the `stable` ref.
-- [ ] `docs/QUICKSTART.md` no longer names a superseded release: its clone
+- [x] `docs/QUICKSTART.md` no longer names a superseded release: its clone
   command uses `--branch stable`, or the current release tag with a note that
   `stable` avoids editing it at each release. Today it clones `v1.2.15`.
-- [ ] The update procedure covers the local framework checkout that provides
+- [x] The update procedure covers the local framework checkout that provides
   the `meridian` CLI and the Codex skills, not only the Claude Code plugin pin
   and the project upgrade. `docs/HOW_TO_UPGRADE.md`, linked from the README,
   documents both variants:
@@ -66,16 +66,16 @@ The approved description is:
   "$MERIDIAN_ROOT" describe --tags --exact-match` prints `v<version>`, matching
   `VERSION`. The procedure says to restart running agent sessions so they use
   the new CLI.
-- [ ] Detailed sections move to dedicated documents and leave a link:
+- [x] Detailed sections move to dedicated documents and leave a link:
   Updating Meridian, Framework upgrades, Codex command approvals, Governed
   execution evidence, and Language behavior. No content is lost; each moved
   section is findable from the README.
-- [ ] The Documentation links are grouped by reader: adopters, agent
+- [x] The Documentation links are grouped by reader: adopters, agent
   operators, maintainers.
-- [ ] The README is under 1,000 words (`wc -w README.md`).
-- [ ] `tests/test_public_surface.py` and every README-dependent test pass;
+- [x] The README is under 1,000 words (`wc -w README.md`).
+- [x] `tests/test_public_surface.py` and every README-dependent test pass;
   any assertion that depends on moved text is updated to the new location.
-- [ ] A changelog fragment `changelog.d/224.md` records the documentation
+- [x] A changelog fragment `changelog.d/224.md` records the documentation
   change.
 
 ## Relevant Files

@@ -151,3 +151,64 @@ cache-creation tokens); `cached` is the cache-read part and `cache_ratio` is
 `peak_call_input`, and `cumulative_input` use that total. A Claude Code call
 with no usage counters is excluded and counted in `unavailable_calls`. Private host log formats can change; an absent or
 unrecognized format reports `unsupported` clearly.
+
+## Language behavior
+
+During initialization, choose the language used for agent-developer conversation. Meridian stores that preference in `LANGUAGE_POLICY.md`; agents must keep using it even when an individual prompt is written in another language. The file also establishes an unconditional invariant: every persistent repository artifact—including code, documentation, comments, identifiers, user-facing strings, tests, configuration text, and commit messages—must be in English.
+
+To change the conversation language later, explicitly request the change and update `LANGUAGE_POLICY.md` in the same edit. Prompt language alone never changes the preference.
+
+In Claude Code, the Meridian `UserPromptSubmit` hook reprints a valid configured
+conversation language and the repository-English invariant at every prompt. It
+is a salience aid, not a policy-enforcement mechanism. In Codex, the generated
+project `AGENTS.md` and the Meridian skill load the same project-owned policy;
+the language value is never duplicated in host configuration.
+
+When you are ready to scope work, run:
+
+```text
+/meridian-task
+```
+
+The hook stays silent outside a project containing either `LANGUAGE_POLICY.md`
+or `tasks/QUEUE.md`.
+
+
+## Codex hooks and command approvals
+
+Meridian installs the read guard (`PreToolUse`) and stop audit (`Stop`) in
+project-level `.codex/hooks.json`. Open `/hooks` in Codex, review the two
+`meridian hook` commands, and trust them once. In Codex CLI 0.161.0, linked
+worktree sessions load the primary checkout's project configuration and reuse
+that trust; no user-level hook installation or per-task trust step is needed.
+Changed hook definitions require another review. Check `/hooks` after a Codex
+upgrade, since host discovery behavior can change.
+
+`meridian worktree cleanup` unregisters the worktree and deletes the merged
+branch but retains an empty directory at the task path. This lets Codex launch
+its final Stop hook without a missing-directory error. The hook exits silently
+outside a Meridian project, including that empty directory. Remove the empty
+directory after closing the session if desired.
+
+For permission diagnostics, the read guard, and local usage reports, see the
+sections above.
+
+`meridian setup --check` also previews a managed user-level command approval
+block in `~/.codex/rules/default.rules`; `setup --apply` installs or updates it.
+The block is bounded by `# MERIDIAN:BEGIN codex-user-rules v1` and
+`# MERIDIAN:END codex-user-rules`. Rules outside those markers are preserved.
+Damaged markers stop setup with `BLOCKED COMMAND_REFUSED`. Broad foreign
+`["meridian"]` or `["git", "push"]` allow rules produce warnings naming the
+line; setup never removes them. `meridian codex doctor` reports
+`user-command-policy` as `ready`, `missing`, or `stale`. Restart Codex after applying.
+
+The block allows Meridian inspection and task lifecycle commands, configuration
+`--check` forms, read-only `gh` commands, plain `git push origin`, `git fetch`,
+`git write-tree`, `git restore --staged`, and `git rm`. Forced removal keeps
+prompting. `gh api` and configuration `--apply` forms stay unlisted. Force,
+delete, and mirror push flags directly after `push` or `origin` are forbidden.
+Prefix rules match only leading tokens: a flag after the refspec, such as
+`git push origin main --force`, is not matched by those prohibitions. Repository
+branch protection remains necessary for that form. A foreign broad allow can
+allow otherwise unlisted commands; matching prompt or forbidden rules still
+take precedence.

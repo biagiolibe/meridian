@@ -37,14 +37,6 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, 25, 26, 27, 28, 31, 32, 34, 35, 36, 42, 44, 45, 46, and 47
 are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
 
-### Phase 69 — Public presentation
-
-Authority: the README review of 2026-10-15. Meridian has three different descriptions and a README that mixes first-time readers, adopters, and maintainers.
-
-| Status | ID | Title | Priority | Depends on | File |
-|--------|----|-------|----------|------------|------|
-| `[ ]` | 224 | Rewrite the README around one host-neutral description | 🟡 P2 | — | [224](224-readme-rewrite-and-unified-description.md) |
-
 ### Phase 70 — Framework checkout updates
 
 Authority: the release checkout review of 2026-10-15. Moving the local framework checkout to a new release is a manual Git step that fails silently when `MERIDIAN_RELEASE_DIR` is unset and stops `upgrade_project.sh` when the checkout leaves its tag. Schedule 225 after 224: both edit `docs/HOW_TO_UPGRADE.md`.
