@@ -26,7 +26,7 @@ updates in the background and never touches projects.
 
 ## Acceptance Criteria
 
-- [ ] `meridian self-update --check` identifies the framework checkout that the
+- [x] `meridian self-update --check` identifies the framework checkout that the
   running CLI belongs to and prints a plan without changing anything:
   - the current version and the target version;
   - the release kind, patch or minor, and whether it changes templates, from
@@ -37,14 +37,14 @@ updates in the background and never touches projects.
   another release tag, including an older one for rollback. Without
   network access, `--check` reports the latest release as unknown and exits
   with a distinct code, as `self-check --check-latest` does.
-- [ ] `meridian self-update --apply` performs the plan:
+- [x] `meridian self-update --apply` performs the plan:
   - on a checkout that follows `stable`, a fast-forward of `stable` to
     `origin/stable`;
   - on a detached checkout at a release tag, a checkout of the target tag
     after `git fetch --tags`;
   - with `--to v<version>` on a `stable` checkout, it stops and explains how
     to switch to a tag checkout; it does not reset `stable`.
-- [ ] Each refusal stops with a registered `BLOCKED <CODE>` before any Git
+- [x] Each refusal stops with a registered `BLOCKED <CODE>` before any Git
   change:
   - uncommitted or untracked changes in the checkout;
   - a checkout on `main` or any branch other than `stable`, which covers a
@@ -53,29 +53,29 @@ updates in the background and never touches projects.
   - a target that is not a release tag;
   - a CLI that runs from the Claude Code plugin cache, which the plugin
     manager owns; the message names `/plugin marketplace update meridian`.
-- [ ] After `--apply`, the command verifies that `HEAD` is exactly the target
+- [x] After `--apply`, the command verifies that `HEAD` is exactly the target
   tag and that `VERSION` matches it, the same conditions that
   `upgrade_project.sh` requires. A failed verification stops with a
   registered code and prints the recovery command.
-- [ ] On success it prints the next steps: restart running Codex and Claude
+- [x] On success it prints the next steps: restart running Codex and Claude
   Code sessions, and run `meridian upgrade --check` in each project when the
   release changes templates.
-- [ ] The command never edits shell profiles, Codex or Claude configuration,
+- [x] The command never edits shell profiles, Codex or Claude configuration,
   skill links, or any project. It runs no update without `--apply`.
-- [ ] Tests use local Git fixtures, with no network access, and cover:
+- [x] Tests use local Git fixtures, with no network access, and cover:
   - the plan on a `stable` checkout and on a tag checkout;
   - apply on both;
   - `--to` rollback on a tag checkout;
   - every refusal above;
   - the post-apply verification failure;
   - offline `--check`.
-- [ ] `docs/PUBLIC_SURFACE.md` lists `meridian self-update` as Experimental.
+- [x] `docs/PUBLIC_SURFACE.md` lists `meridian self-update` as Experimental.
   The README update procedure, or the document it links for updates, names
   the command. One changelog fragment records it under `Added`, which makes
   the next release a minor release.
-- [ ] The managed Codex user rules block from task 221 does not allow
+- [x] The managed Codex user rules block from task 221 does not allow
   `self-update --apply`; `self-update --check` may be allowed.
-- [ ] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
+- [x] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
   --parallel`, and `git diff --check` pass.
 
 ## Relevant Files
@@ -124,3 +124,15 @@ verification.
 ```bash
 claude "$(cat tasks/225-self-update-command.md)"$'\n\nExecute this task in the current project.'
 ```
+
+## Completion
+
+Implemented the experimental self-update command with isolated Git preflight,
+release lookup, stable fast-forward, detached-tag update and rollback, registered
+refusals, and post-apply verification. Local Git fixtures cover the requested
+paths; CLI dispatch always selects its own checkout. The managed Codex rules
+remain unchanged and do not authorize self-update apply.
+
+Validation passed: repository checks, the full parallel suite (1078 tests,
+0 failures/errors, 1 named environment skip), 16 targeted self-update tests,
+2 public-surface tests, and diff whitespace checks. See `tasks/handoffs/225.md`.
