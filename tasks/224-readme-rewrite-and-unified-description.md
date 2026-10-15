@@ -50,6 +50,22 @@ The approved description is:
   follows for higher-risk work.
 - [ ] Install sections are short and link to `docs/QUICKSTART.md`; the
   version example is current or uses the `stable` ref.
+- [ ] `docs/QUICKSTART.md` no longer names a superseded release: its clone
+  command uses `--branch stable`, or the current release tag with a note that
+  `stable` avoids editing it at each release. Today it clones `v1.2.15`.
+- [ ] The update procedure covers the local framework checkout that provides
+  the `meridian` CLI and the Codex skills, not only the Claude Code plugin pin
+  and the project upgrade. `docs/HOW_TO_UPGRADE.md`, linked from the README,
+  documents both variants:
+  - a checkout that follows `stable`: `git -C "$MERIDIAN_ROOT" pull
+    --ff-only`;
+  - a checkout pinned to a tag: `git -C "$MERIDIAN_ROOT" fetch --tags` then
+    `git -C "$MERIDIAN_ROOT" checkout v<version>`.
+
+  Both end with the check that `upgrade_project.sh` relies on: `git -C
+  "$MERIDIAN_ROOT" describe --tags --exact-match` prints `v<version>`, matching
+  `VERSION`. The procedure says to restart running agent sessions so they use
+  the new CLI.
 - [ ] Detailed sections move to dedicated documents and leave a link:
   Updating Meridian, Framework upgrades, Codex command approvals, Governed
   execution evidence, and Language behavior. No content is lost; each moved
@@ -68,7 +84,7 @@ The approved description is:
 |------|------|
 | `README.md` | Rewritten. |
 | `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json` | Description. |
-| `docs/QUICKSTART.md` | Install target for README links. |
+| `docs/QUICKSTART.md` | Install target for README links; stale `v1.2.15` clone command. |
 | `docs/HOW_TO_UPGRADE.md`, `docs/AGENT_OPERATIONS.md` | Destinations for moved sections. |
 | `docs/assets/` | Logo used in the header. |
 | `tests/test_public_surface.py` | Reads the README. |
