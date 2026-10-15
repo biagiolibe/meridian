@@ -1,6 +1,13 @@
-# Meridian
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/meridian-mark-dark.svg">
+    <img src="docs/assets/meridian-mark-light.svg" alt="Meridian logo" width="96" height="96">
+  </picture>
+</p>
 
-**Two deliberate workflows for building software with AI coding agents: Lean Delivery and Governed SDD.**
+<h1 align="center">Meridian</h1>
+
+<p align="center"><strong>Two deliberate workflows for building software with AI coding agents: Lean Delivery and Governed SDD.</strong></p>
 
 Meridian turns a project plan into small, explicit, verifiable tasks that agents can implement without rediscovering the project on every session. It provides templates, Claude Code commands, a queue briefing hook, and companion skills for a delivery process proportionate to risk.
 
