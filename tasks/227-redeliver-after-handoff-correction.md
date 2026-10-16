@@ -31,37 +31,37 @@ handoff, and catch a malformed commit field before the first delivery.
 
 ## Acceptance Criteria
 
-- [ ] When the task is `READY_FOR_REVIEW` and every path changed after the
+- [x] When the task is `READY_FOR_REVIEW` and every path changed after the
   delivery transition commit is the task's handoff record, `meridian
   execution deliver` records a fresh delivery. It commits a new `Deliver
   <TASK-ID> for review` that leaves the task `READY_FOR_REVIEW` and anchors
   the delivery at the corrected handoff, then returns a passing
   `ready-check` result. The task record's state and transitions are written
   by the command, never by hand.
-- [ ] Any other change after delivery still stops with `EVIDENCE_INCOMPLETE`
+- [x] Any other change after delivery still stops with `EVIDENCE_INCOMPLETE`
   as today, including a change to implementation files, the task record,
   execution evidence, or the state file.
-- [ ] `meridian execution ready-check` and `deliver` fail before delivery with
+- [x] `meridian execution ready-check` and `deliver` fail before delivery with
   a registered stop code when the handoff's `Current task commit` field is
   missing, names the validated base `main` commit, or uses a descriptive form
   without the commit subject that `REVIEW.md` step 3 requires. The message
   names the field and the expected form.
-- [ ] The governed-SDD workflow text describes the supported correction path:
+- [x] The governed-SDD workflow text describes the supported correction path:
   commit the handoff-only correction, then rerun `meridian execution deliver`,
   then start the next review attempt. Prefer wording that the current managed
   text already permits. If managed text inside capability markers must change,
   the change ships with its migration, and the handoff records that the
   release becomes template-changing.
-- [ ] Tests cover:
+- [x] Tests cover:
   - re-delivery after a handoff-only change;
   - refusal of a later implementation change and of a later task-record
     change;
   - a second re-delivery after another handoff-only correction;
   - each malformed `Current task commit` case;
   - an unchanged `deliver` on a `READY_FOR_REVIEW` task with no later commit.
-- [ ] A changelog fragment `changelog.d/227.md` records the fix under
+- [x] A changelog fragment `changelog.d/227.md` records the fix under
   `Fixed`.
-- [ ] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
+- [x] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
   --parallel`, and `git diff --check` pass.
 
 ## Relevant Files
@@ -110,3 +110,14 @@ Delivery, which has no delivery transition. Budget attempts (task 228).
 ```bash
 claude "$(cat tasks/227-redeliver-after-handoff-correction.md)"$'\n\nExecute this task in the current project.'
 ```
+
+## Completion
+
+Implemented and validated in `cb5de49f99d6084d4e9a03852d7fd8e3be51115b`.
+Re-delivery creates an empty delivery commit whose parent is the corrected
+handoff, preserving state and transition history. Every intervening commit is
+checked to reject changes to other paths, including reverted changes.
+The correction procedure is clarified outside existing capability markers;
+no capability version or migration changes are required. The completion-report
+template change makes the next release template-changing.
+See `tasks/handoffs/227.md` for validation and the named environment skip.
