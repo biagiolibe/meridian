@@ -829,3 +829,14 @@ Authority: the release checkout review of 2026-10-15. Moving the local framework
 |--------|----|-------|----------|------------|------|
 | `[x]` | 225 | Update the framework checkout with `meridian self-update` | 🟡 P2 | — | [225](done/225-self-update-command.md) |
 | `[x]` | 226 | Install the Meridian CLI once, at one path, for every host | 🟡 P2 | 225 | [226](done/226-host-neutral-cli-install.md) |
+
+### Phase 71 — GitHub issues of 2026-10-16
+
+Authority: GitHub issues #14 (227) and #15 (228), both from a Governed SDD consumer project. Planned for release 1.4.0, before it is prepared. Task 229 comes from the task 227 start stop of 2026-10-16. Task 230 comes from the task 229 integration stop of 2026-10-16. Run 227, 228, 229, and 230 one after the other: all edit `scripts/meridian.py`.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 227 | Re-deliver a governed task after a handoff-only correction | 🔴 P1 | — | [227](done/227-redeliver-after-handoff-correction.md) |
+| `[x]` | 228 | Start a new budget attempt only by explicit re-preparation | 🟡 P2 | — | [228](done/228-budget-attempt-on-re-prepare.md) |
+| `[x]` | 229 | Name the exact directory and command when a task command runs from the wrong place | 🟡 P2 | — | [229](done/229-precise-wrong-worktree-recovery.md) |
+| `[x]` | 230 | Give runnable candidate validation commands | 🔴 P1 | — | [230](done/230-runnable-candidate-validation-commands.md) |

@@ -1,14 +1,14 @@
 {
   "outcomes": {
     "BOUNDED": [
-      "scripts/check_repository.py"
+      "python3 scripts/check_repository.py"
     ],
     "FULL": [
-      "scripts/check_repository.py",
-      "scripts/run_tests.py"
+      "python3 scripts/check_repository.py",
+      "python3 scripts/run_tests.py --parallel"
     ],
     "REUSE": [
-      "scripts/check_repository.py"
+      "python3 scripts/check_repository.py"
     ]
   },
   "state": "declared",

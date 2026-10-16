@@ -29,11 +29,11 @@ existing declarations valid.
 
 ## Acceptance Criteria
 
-- [ ] A declaration may hold complete runnable commands, for example
+- [x] A declaration may hold complete runnable commands, for example
   `python3 scripts/check_repository.py`. The substring check accepts a
   reported command that contains the declared entry, as it does today, so an
   existing fragment-only declaration stays valid without migration.
-- [ ] `meridian worktree advance` at `C7` returns two distinct fields: the
+- [x] `meridian worktree advance` at `C7` returns two distinct fields: the
   runnable `commands` to execute, and the `required_fragments` it checks.
   `commands` contains only entries that run unchanged from the primary
   checkout: `git diff --check` and each declared entry that is a complete
@@ -41,33 +41,33 @@ existing declarations valid.
   does not present it as a command; it names it under `required_fragments`
   with an explicit instruction that the agent must run a project command
   containing it.
-- [ ] The rule for deciding whether an entry is runnable is deterministic and
+- [x] The rule for deciding whether an entry is runnable is deterministic and
   documented, for example: its first token resolves to an executable on
   `PATH`, or is an existing executable file in the project. No network access
   and no execution happens during the decision.
-- [ ] `proposed_candidate_validation_declaration` proposes complete commands:
+- [x] `proposed_candidate_validation_declaration` proposes complete commands:
   `python3 scripts/check_repository.py` when that script exists, and a runnable
   test command (for example `python3 -m unittest discover`) instead of the bare
   `unittest discover`. `meridian setup --check` shows the proposal; it never
   rewrites an existing declaration without `--apply` and a displayed diff.
-- [ ] This repository's own `.meridian/candidate-validation.json` declares
+- [x] This repository's own `.meridian/candidate-validation.json` declares
   complete commands: `python3 scripts/check_repository.py` and
   `python3 scripts/run_tests.py --parallel`.
-- [ ] The workflow text and `docs/WORKTREE_LIFECYCLE.md` describe the
+- [x] The workflow text and `docs/WORKTREE_LIFECYCLE.md` describe the
   candidate step with the two fields. If managed text inside capability markers
   must change, the change ships with its migration, and the handoff records
   that the release becomes template-changing; prefer wording that the current
   managed text already permits.
-- [ ] Tests cover:
+- [x] Tests cover:
   - `advance` output with a complete-command declaration;
   - `advance` output with a fragment-only declaration;
   - acceptance of a reported command that contains a fragment;
   - the new setup proposal;
   - a candidate run that executes the returned `commands` unchanged in a
     fixture project and passes.
-- [ ] A changelog fragment `changelog.d/230.md` records the fix under
+- [x] A changelog fragment `changelog.d/230.md` records the fix under
   `Fixed`.
-- [ ] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
+- [x] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
   --parallel`, and `git diff --check` pass.
 
 ## Relevant Files
@@ -112,3 +112,9 @@ validation from Meridian itself.
 ```bash
 claude "$(cat tasks/230-runnable-candidate-validation-commands.md)"$'\n\nExecute this task in the current project.'
 ```
+
+## Completion evidence
+
+Implemented in `ccadadf94882e717c9681b5776ffc6ab9d24489b`.
+All acceptance criteria passed. See `tasks/handoffs/230.md` for validation,
+compatibility, and release-surface evidence.

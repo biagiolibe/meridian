@@ -6046,6 +6046,49 @@ class WorktreeRootSetupTest(unittest.TestCase):
                         {"version": 1, "mode": choice},
                     )
 
+    def test_setup_proposes_runnable_candidate_commands_without_rewriting_declared_entries(self) -> None:
+        project = self.home / "project"
+        (project / "scripts").mkdir(parents=True)
+        (project / "scripts/check_repository.py").write_text("pass\n", encoding="utf-8")
+        (project / "tests").mkdir()
+        command = [sys.executable, str(CLI), "setup", "--project", str(project),
+                   "--worktree-root", str(self.home / "root"), "--config", str(self.codex_config)]
+        environment = {**os.environ, **self.environment}
+        checked = subprocess.run(command + ["--check"], text=True, capture_output=True, env=environment)
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+        line = next(line for line in checked.stdout.splitlines() if line.startswith("candidate-validation-proposal: "))
+        proposal = json.loads(line.split(": ", 1)[1])
+        self.assertEqual(proposal["outcomes"]["FULL"],
+                         ["python3 scripts/check_repository.py", "python3 -m unittest discover -s tests"])
+        declaration = project / meridian.CANDIDATE_VALIDATION_PATH
+        self.assertFalse(declaration.exists())
+        applied = subprocess.run(command + ["--apply"], text=True, capture_output=True, env=environment)
+        self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+        self.assertEqual(json.loads(declaration.read_text()), proposal)
+        proposal["outcomes"] = {outcome: ["scripts/check_repository.py"] for outcome in proposal["outcomes"]}
+        legacy = json.dumps(proposal) + "\n"
+        declaration.write_text(legacy, encoding="utf-8")
+        for mode in ("--check", "--apply"):
+            result = subprocess.run(command + [mode], text=True, capture_output=True, env=environment)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertNotIn("candidate-validation-proposal:", result.stdout)
+            self.assertEqual(declaration.read_text(), legacy)
+
+    def test_candidate_command_discovery_uses_primary_paths_and_never_executes(self) -> None:
+        project = self.home / "project"
+        (project / "bin").mkdir(parents=True)
+        executable = project / "bin/check"
+        executable.write_text("#!/bin/sh\ntouch executed\n", encoding="utf-8")
+        executable.chmod(0o755)
+        with mock.patch.dict(os.environ, {"PATH": "bin"}):
+            for entry in ("check --flag", "bin/check", "./bin/check", str(executable)):
+                self.assertTrue(meridian.runnable_candidate_validation_command(entry, project), entry)
+            for entry in ("", "'unterminated", "unittest discover", "missing/check"):
+                self.assertFalse(meridian.runnable_candidate_validation_command(entry, project), entry)
+            executable.chmod(0o644)
+            self.assertFalse(meridian.runnable_candidate_validation_command("bin/check", project))
+        self.assertFalse((project / "executed").exists())
+
     def test_setup_cli_plans_then_applies_the_requested_task_identity(self) -> None:
         project = self.home / "project"
         project.mkdir()
@@ -8761,13 +8804,15 @@ class WorktreeLifecycleCliTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         report = json.loads(result.stdout)
         self.assertEqual(set(report), {
-            "version", "task_id", "step", "action_required", "commands", "stop_code", "resume", "performed",
+            "version", "task_id", "step", "action_required", "commands", "required_fragments", "stop_code", "resume", "performed",
         })
         self.assertEqual((report["step"], report["action_required"]), ("C7", "run-candidate-validation"))
         self.assertEqual(report["performed"], ["C5", "C6"])
         self.assertIsNone(report["stop_code"])
         self.assertEqual(report["commands"][0], "git diff --check")
-        self.assertIn("scripts/check_repository.py", report["commands"])
+        self.assertEqual(report["commands"], ["git diff --check"])
+        self.assertIn("scripts/check_repository.py", report["required_fragments"])
+        self.assertIn("project command containing that exact fragment", report["resume"])
         recorded = json.loads(evidence_path.read_text(encoding="utf-8"))
         self.assertEqual(recorded["validation_commands"], ["check"])
         commands = [(line["command"], line["result"]) for line in self._journal()]
@@ -8784,6 +8829,34 @@ class WorktreeLifecycleCliTest(unittest.TestCase):
         self.assertEqual(
             [line["command"] for line in self._journal()].count("integrate stage"), 1
         )
+
+    def test_advance_complete_commands_run_unchanged_and_finalize(self) -> None:
+        self._advance_ready_task()
+        script = self.project / "scripts/check_repository.py"
+        script.parent.mkdir(exist_ok=True)
+        script.write_text("from pathlib import Path\nassert Path('PROJECT_WORKFLOW.md').is_file()\n", encoding="utf-8")
+        script.chmod(0o644)
+        command = "python3 scripts/check_repository.py"
+        (self.project / meridian.CANDIDATE_VALIDATION_PATH).write_text(json.dumps({
+            "version": 1, "state": "declared",
+            "outcomes": {outcome: [command] for outcome in ("REUSE", "BOUNDED", "FULL")},
+        }), encoding="utf-8")
+        subprocess.run(["git", "add", "."], cwd=self.project, check=True)
+        subprocess.run(["git", "commit", "-m", "runnable declaration"], cwd=self.project,
+                       check=True, capture_output=True)
+        staged = self._advance(*self._passing())
+        self.assertEqual(staged.returncode, 0, staged.stderr)
+        report = json.loads(staged.stdout)
+        self.assertEqual(report["commands"], ["git diff --check", command])
+        self.assertEqual(report["required_fragments"], report["commands"])
+        results = []
+        for entry in report["commands"]:
+            executed = subprocess.run(entry, shell=True, cwd=self.project, text=True, capture_output=True)
+            self.assertEqual(executed.returncode, 0, executed.stderr)
+            results.extend(("--candidate-command", entry, "--candidate-exit-code", str(executed.returncode)))
+        finalized = self._advance(*results)
+        self.assertEqual(finalized.returncode, 0, finalized.stderr)
+        self.assertEqual(json.loads(finalized.stdout)["action_required"], "push")
 
     def test_advance_resumes_after_each_mechanical_step_and_reaches_cleanup(self) -> None:
         self._advance_ready_task()

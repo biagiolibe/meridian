@@ -36,14 +36,3 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 
 Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, 25, 26, 27, 28, 31, 32, 34, 35, 36, 42, 44, 45, 46, and 47
 are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
-
-### Phase 71 — GitHub issues of 2026-10-16
-
-Authority: GitHub issues #14 (227) and #15 (228), both from a Governed SDD consumer project. Planned for release 1.4.0, before it is prepared. Task 229 comes from the task 227 start stop of 2026-10-16. Task 230 comes from the task 229 integration stop of 2026-10-16. Run 227, 228, 229, and 230 one after the other: all edit `scripts/meridian.py`.
-
-| Status | ID | Title | Priority | Depends on | File |
-|--------|----|-------|----------|------------|------|
-| `[x]` | 227 | Re-deliver a governed task after a handoff-only correction | 🔴 P1 | — | [227](done/227-redeliver-after-handoff-correction.md) |
-| `[x]` | 228 | Start a new budget attempt only by explicit re-preparation | 🟡 P2 | — | [228](done/228-budget-attempt-on-re-prepare.md) |
-| `[x]` | 229 | Name the exact directory and command when a task command runs from the wrong place | 🟡 P2 | — | [229](done/229-precise-wrong-worktree-recovery.md) |
-| `[ ]` | 230 | Give runnable candidate validation commands | 🔴 P1 | — | [230](230-runnable-candidate-validation-commands.md) |
