@@ -112,6 +112,24 @@ class TaskCloseTest(unittest.TestCase):
         self.assertEqual(self.snapshot(), before)
         self.assert_stop('TASK_STATUS_REJECTED', lambda: meridian.execution_start(self.worker, '001'))
 
+    def close_from(self, directory):
+        os.chdir(directory)
+        before = self.git('rev-parse', 'HEAD')
+        result = meridian.close_task(self.worker, '001')
+        self.assertEqual(result['state']['status'], 'DONE')
+        self.assertEqual(result['state']['transitions'][-1]['commit'], before)
+        self.assertEqual(self.git('rev-parse', 'HEAD'), before)
+        self.assertEqual(set(self.git('diff', '--cached', '--name-only', '--no-renames').splitlines()),
+                         {'.meridian/tasks/001.json', 'tasks/001.md', 'tasks/done/001.md'})
+        self.assertEqual(self.git('diff', '--name-only'), '')
+        self.assertEqual(Path.cwd(), directory.resolve())
+
+    def test_close_from_primary(self):
+        self.close_from(self.primary)
+
+    def test_close_from_unrelated_directory(self):
+        self.close_from(Path(self.temp.name))
+
     def test_cli_parser_accepts_close_flags(self):
         args = meridian.build_parser().parse_args(['task', 'close', '001', '--project', str(self.worker), '--format', 'json'])
         self.assertEqual(args.task_command, 'close')

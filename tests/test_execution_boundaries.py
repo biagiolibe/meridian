@@ -309,6 +309,78 @@ class ExecutionBoundariesTest(unittest.TestCase):
         self.assertEqual(self.state()['status'], 'ANSWERED')
         self.assert_stop('TASK_STATUS_REJECTED', lambda: meridian.execution_start(self.worker, '001', resume=True))
 
+    def external_lifecycle(self, location):
+        directory = self.primary if location == 'primary' else Path(self.temp.name)
+        if location == 'worker':
+            directory = self.worker
+        os.chdir(directory)
+        before = self.git('rev-parse', 'HEAD')
+        started = meridian.execution_start(self.worker, '001')
+        self.assertEqual(started['commit'], before)
+        self.assertEqual(self.state()['transitions'][0]['commit'], before)
+        # Exercise a relative file write in the actual validation subprocess.
+        record = self.worker / self.record
+        record.write_text(record.read_text().replace('`true`', '`pwd > validation-directory.txt`'))
+        self.commit('Declare directory validation')
+        self.assertEqual(meridian.run_validation(self.worker, '001', 'check'), 0)
+        self.assertEqual((self.worker / 'validation-directory.txt').read_text().strip(), str(self.worker))
+        self.commit('Record validation')
+        self.implemented()
+        before = self.git('rev-parse', 'HEAD')
+        delivered = meridian.execution_deliver(self.worker, '001')
+        self.assertEqual(delivered['status'], 'READY_FOR_REVIEW')
+        self.assertEqual(self.git('rev-parse', 'HEAD^'), before)
+        self.assertEqual(self.git('log', '-1', '--format=%s'), 'Deliver 001 for review')
+        self.assertEqual(set(self.git('diff', '--name-only', before, 'HEAD').splitlines()),
+                         {'.meridian/tasks/001.json', 'tasks/001.md'})
+        self.assertEqual(meridian.execution_deliver(self.worker, '001'), delivered)
+        self.assertEqual(Path.cwd(), directory.resolve())
+        self.assertEqual(self.git('status', '--porcelain'), '')
+
+    def test_lifecycle_from_primary(self):
+        self.external_lifecycle('primary')
+
+    def test_lifecycle_from_unrelated_directory(self):
+        self.external_lifecycle('unrelated')
+
+    def test_lifecycle_from_worker_comparison(self):
+        self.external_lifecycle('worker')
+
+    def test_wrong_project_cli_preserves_arguments_and_names_paths(self):
+        import shlex
+        script = Path(__file__).resolve().parents[1] / 'scripts/meridian.py'
+        other = Path(self.temp.name) / 'other task'
+        self.git('worktree', 'add', '-qb', 'task-002', str(other), cwd=self.primary)
+        stale = self.primary / 'stale-worktree'
+        for project in (self.primary, other, stale):
+            for command in (['execution', 'start', '001', '--resume', '--format', 'json'],
+                            ['execution', 'deliver', '001'],
+                            ['task', 'close', '001', '--format', 'json']):
+                with self.subTest(project=project, command=command):
+                    result = subprocess.run([sys.executable, str(script), *command,
+                                             '--project=' + str(project)], cwd=self.worker,
+                                            capture_output=True, text=True)
+                    self.assertEqual(result.returncode, 2, result.stdout)
+                    detail = (f'cwd={self.worker}; --project={project}; '
+                              + (f'resolved project={project.resolve()}; ' if project != project.resolve() else '')
+                              + f'expected worktree={self.worker}; --project does not name the canonical task worktree')
+                    resume = shlex.join(['meridian', *command, '--project', str(self.worker)])
+                    self.assertEqual(result.stderr.strip(), f'BLOCKED WRONG_WORKTREE: {detail}; resume: {resume}')
+        self.assertFalse((self.worker / '.meridian/tasks/001.json').exists())
+        self.assertEqual(self.git('status', '--porcelain'), '')
+
+    def test_no_registered_worktree_keeps_prepare_resume(self):
+        import shlex
+        os.chdir(self.primary)
+        self.git('worktree', 'remove', str(self.worker), cwd=self.primary)
+        for action in (meridian.execution_start, meridian.close_task):
+            with self.assertRaises(meridian.MeridianStop) as caught:
+                action(self.primary, '001')
+            detail = (f'cwd={self.primary.resolve()}; --project={self.primary.resolve()}; expected worktree={self.worker}; '
+                      'no registered task worktree')
+            resume = f'meridian worktree prepare 001 --project {shlex.quote(str(self.primary.resolve()))} --format json'
+            self.assertEqual(str(caught.exception), f'BLOCKED WRONG_WORKTREE: {detail}; resume: {resume}')
+
     def test_instruction_ordering_and_skill_parity(self):
         root = Path(__file__).resolve().parents[1]
         text = (root / 'templates/workflows/governed-sdd/docs/workflows/IMPLEMENTATION.md').read_text()

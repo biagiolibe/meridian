@@ -65,11 +65,11 @@
         "governed-sdd"
       ],
       "step": "C4",
-      "emitter": "`meridian worktree closure-status`; `meridian worktree check`; `meridian worktree prepare` on a mismatched lifecycle state file",
+      "emitter": "`meridian worktree closure-status`; `meridian worktree check`; `meridian worktree prepare` on a mismatched lifecycle state file; `meridian execution start/deliver/ready-check`; `meridian task close`",
       "human_decision": false,
       "resume": "meridian worktree prepare {task_id} --project {project} --format json",
       "kind": "stop",
-      "summary": "the task worktree, branch, or lifecycle state is missing or does not match",
+      "summary": "the task worktree, branch, or lifecycle state is missing or does not match; execution/close project mismatches override the default resume with the same invocation targeting the registered task worktree",
       "test": "tests.test_meridian_cli.WorktreeLifecycleCliTest.test_closure_status_covers_lifecycle_states_without_mutation"
     },
     {
