@@ -35,21 +35,21 @@ exact recovery command, and document the two conventions in one place.
 
 ## Acceptance Criteria
 
-- [ ] `meridian execution` subcommands and `meridian task close` no longer
+- [x] `meridian execution` subcommands and `meridian task close` no longer
   require the current directory to equal `--project` when `--project` names
   the task's canonical registered worktree. Run from any directory, including
   the primary checkout, they act on that worktree with the same result as when
   run from inside it. Every other check stays: the worktree is registered and
   canonical for that task, the branch and lifecycle state match, the worktree
   is clean where required, and no integration is active.
-- [ ] Before the change, the handoff records an inventory of every place these
+- [x] Before the change, the handoff records an inventory of every place these
   commands depend on the current directory: `Path.cwd()`, relative paths,
   subprocesses or Git calls without an explicit directory or `-C`, and the
   host hooks they trigger. Each is converted to use the resolved worktree path,
   or recorded with the reason it is safe. The inventory states whether the
   current-directory check protected anything that the `--project` checks do
   not; if it did, the requirement stays for that case and the handoff names it.
-- [ ] When `meridian execution` subcommands or `meridian task close` stop
+- [x] When `meridian execution` subcommands or `meridian task close` stop
   because `--project` does not name the task's canonical worktree (for example
   the primary checkout, another task's worktree, or a stale path), the detail
   names the current directory, the `--project` value, and the expected worktree
@@ -57,24 +57,24 @@ exact recovery command, and document the two conventions in one place.
   same command with `--project` set to that worktree, for example
   `meridian execution start <TASK-ID> --project <task-worktree>`, with the
   original arguments preserved.
-- [ ] When the task has no registered worktree, the resume stays `meridian
+- [x] When the task has no registered worktree, the resume stays `meridian
   worktree prepare <TASK-ID> --project <primary-checkout> --format json`.
-- [ ] The rules for when to stop are unchanged: the agent still stops on the
+- [x] The rules for when to stop are unchanged: the agent still stops on the
   `BLOCKED` line. Because the resume names the exact command, a later explicit
   Resume needs no developer diagnosis. Apart from the current-directory
   requirement removed above, no safety check is relaxed.
-- [ ] The resume template mechanism supports a per-call resume for
+- [x] The resume template mechanism supports a per-call resume for
   `WRONG_WORKTREE` without changing the resume of other emitters of the same
   code. `capabilities/stop-codes-v1.json` stays consistent with the emitted
   text and its registry tests pass.
-- [ ] `docs/WORKTREE_LIFECYCLE.md` contains one table listing, for each
+- [x] `docs/WORKTREE_LIFECYCLE.md` contains one table listing, for each
   lifecycle command, where it may run and what `--project` names: primary
   checkout or task worktree. The Lean and Governed workflow text and the host skills
   link that table at the step that switches from `worktree prepare`/`check` to
   `execution start`. If managed text inside capability markers must change,
   the change ships with its migration, and the handoff records that the release
   becomes template-changing; prefer a link outside the markers.
-- [ ] Tests cover:
+- [x] Tests cover:
   - `execution start`, `validate`, `deliver`, and `task close` run from the
     primary checkout and from an unrelated directory with `--project` set to
     the task worktree: each succeeds with the same state and commits as a run
@@ -85,9 +85,9 @@ exact recovery command, and document the two conventions in one place.
   - `--project` set to another task's worktree;
   - the unchanged resume when no worktree is registered.
   Each test asserts the detail fields and the exact resume command.
-- [ ] A changelog fragment `changelog.d/229.md` records the fix under
+- [x] A changelog fragment `changelog.d/229.md` records the fix under
   `Fixed`.
-- [ ] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
+- [x] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
   --parallel`, and `git diff --check` pass.
 
 ## Relevant Files
