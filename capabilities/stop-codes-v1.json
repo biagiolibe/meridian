@@ -738,6 +738,20 @@
       "resume": "inspect the framework checkout, then rerun meridian self-update --check",
       "kind": "stop",
       "summary": "self-update Git operation or final verification failed"
+    },
+    {
+      "code": "BUDGET_ATTEMPT_REQUIRES_AUTHORIZATION",
+      "class": "tool",
+      "workflows": [
+        "governed-sdd",
+        "lean-delivery"
+      ],
+      "emitter": "`meridian worktree prepare`",
+      "human_decision": true,
+      "resume": "only after explicit developer authorization, run meridian worktree prepare {task_id} --project {project} --new-attempt --reason \"<developer reason>\" --format json",
+      "kind": "stop",
+      "summary": "a retired task attempt has inherited budget spends and needs developer authorization for a new attempt",
+      "test": "tests.test_task_worktree_isolation.BoundedWorktreeLifecycleTest.test_prepare_blocks_inherited_budget_spends"
     }
   ]
 }

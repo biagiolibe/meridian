@@ -194,7 +194,7 @@
 - `[x]` 225 — Update the framework checkout with `meridian self-update`.
 - `[x]` 226 — Install the Meridian CLI once, at one path, for every host.
 - `[x]` 227 — Re-deliver a governed task after a handoff-only correction.
-- `[ ]` 228 — Start a new budget attempt only by explicit re-preparation.
+- `[x]` 228 — Start a new budget attempt only by explicit re-preparation.
 - `[ ]` 229 — Name the exact directory and command when a task command runs from the wrong place.
 - `[x]` 140 — Let `integrate stage` complete rows of project-shaped Governed queues.
 - `[x]` 069 — Document Codex install from a tagged checkout.

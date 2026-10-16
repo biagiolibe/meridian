@@ -4034,7 +4034,7 @@ class BudgetCliTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(
             result.stdout.strip(),
-            "Diagnostics 0/3 · Captures 0/2 · Expansions 0/2 · Investigations 0/2",
+            "Attempt 1 · Diagnostics 0/3 · Captures 0/2 · Expansions 0/2 · Investigations 0/2",
         )
 
     def test_show_resolves_nested_project_tasks_and_profile_defaults(self) -> None:
@@ -4061,7 +4061,7 @@ class BudgetCliTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(
             result.stdout.strip(),
-            "Diagnostics 0/4 · Captures 0/5 · Expansions 0/6 · Investigations 0/7",
+            "Attempt 1 · Diagnostics 0/4 · Captures 0/5 · Expansions 0/6 · Investigations 0/7",
         )
 
     def test_show_ignores_nested_review_record_with_the_same_task_id(self) -> None:
@@ -5058,6 +5058,7 @@ Evidence plan:
         self.assertEqual(after.stdout.strip(), "TASK-006: diagnostic 1/3")
 
         state = self.budget_state()
+        self.assertIn("Attempt 2", self.run_cli("budget", "show", "TASK-006").stdout)
         self.assertEqual(state["TASK-006"]["attempt"], 2)
         self.assertEqual(state["TASK-006:1"]["diagnostic"], 3)
         self.assertEqual(state["TASK-006:2"]["diagnostic"], 1)
@@ -8548,6 +8549,7 @@ class WorktreeLifecycleCliTest(unittest.TestCase):
         )
         remaining = (
             "COMMAND_REFUSED", "OS_ACCESS_FAILED", "VALIDATION_ID_UNDECLARED", "BUDGET_EXHAUSTED",
+            "BUDGET_ATTEMPT_REQUIRES_AUTHORIZATION",
             "HOST_IMPACT_DECLARATION_INVALID", "HOST_IMPACT_EVIDENCE_MISSING", "UPGRADE_BLOCKED", "ADOPTION_BLOCKED",
             "WORKFLOW_UNREADABLE", "RULE_CONFLICT", "CONTRACT_EXHAUSTED", "SCOPE_CHANGE_REQUIRED",
             "REVIEW_LOOP_EXHAUSTED", "SELF_UPDATE_PLUGIN_CACHE", "SELF_UPDATE_DIRTY",
