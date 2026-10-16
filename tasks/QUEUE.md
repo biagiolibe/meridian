@@ -36,3 +36,12 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 
 Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, 25, 26, 27, 28, 31, 32, 34, 35, 36, 42, 44, 45, 46, and 47
 are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
+
+### Phase 71 — GitHub issues of 2026-10-16
+
+Authority: GitHub issues #14 (227) and #15 (228), both from a Governed SDD consumer project. Planned for release 1.4.0, before it is prepared. Run 227 and 228 one after the other: both edit `scripts/meridian.py`.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[ ]` | 227 | Re-deliver a governed task after a handoff-only correction | 🔴 P1 | — | [227](227-redeliver-after-handoff-correction.md) |
+| `[ ]` | 228 | Start a new budget attempt only by explicit re-preparation | 🟡 P2 | — | [228](228-budget-attempt-on-re-prepare.md) |
