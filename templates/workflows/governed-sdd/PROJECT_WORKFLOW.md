@@ -270,3 +270,14 @@ test name, reason, and reporting command as `Validation skips:` in the handoff.
 
 Apply `docs/CONTEXT_BUDGET_POLICY.md`. The review-policy restrictions above remain authoritative; use parallel agents only when their scopes and worktrees are independent.
 <!-- MERIDIAN:END -->
+
+## Budget attempts after worktree retirement
+
+Retiring a worktree does not reset its budget. If preparation reports
+`BLOCKED BUDGET_ATTEMPT_REQUIRES_AUTHORIZATION`, the agent stops and reports
+the inherited counters and resume command. Only the developer may authorize
+`meridian worktree prepare <TASK-ID> --new-attempt --reason "<text>" --format json`,
+as with a budget overrun. A general Proceed directive does not authorize this
+option. It requires no registered task worktree, records the reason and prior
+counters in the journal, and starts the next attempt at zero while preserving
+history, task status, and caps.

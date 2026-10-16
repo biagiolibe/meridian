@@ -314,6 +314,7 @@ class QueueBriefingTest(unittest.TestCase):
             "case \"$1 $2\" in\n"
             "  locations*) echo tasks/QUEUE.md ;;\n"
             "  worktree\\ states) echo '[{\"task_id\":\"TASK-001\",\"status\":\"IN_PROGRESS\"},{\"task_id\":\"TASK-002\",\"status\":\"READY_FOR_REVIEW\"}]' ;;\n"
+            "  budget\\ show) echo 'Attempt 2 · Diagnostics 1/3' ;;\n"
             "esac\n",
             encoding="utf-8",
         )
@@ -322,6 +323,7 @@ class QueueBriefingTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("In progress: TASK-001", result.stdout)
         self.assertIn("In review: TASK-002", result.stdout)
+        self.assertIn("Attempt 2 · Diagnostics 1/3", result.stdout)
 
     def test_times_out_only_the_optional_worktree_state_lookup(self) -> None:
         self.write_language_policy("Italian")
