@@ -196,6 +196,7 @@
 - `[x]` 227 — Re-deliver a governed task after a handoff-only correction.
 - `[x]` 228 — Start a new budget attempt only by explicit re-preparation.
 - `[ ]` 229 — Name the exact directory and command when a task command runs from the wrong place.
+- `[ ]` 230 — Give runnable candidate validation commands.
 - `[x]` 140 — Let `integrate stage` complete rows of project-shaped Governed queues.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.
