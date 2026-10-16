@@ -69,6 +69,8 @@ class ExecutionBoundariesTest(unittest.TestCase):
         identity.handoff_path.write_text('## Completion Report — 001\n\n' + '\n'.join(
             '- ' + field + ': ' + ('none' if field in ('Validation skips', 'Isolated exploration') else 'complete')
             for field in meridian.HANDOFF_FIELDS) + '\n')
+        with identity.handoff_path.open('a') as report:
+            report.write('- Current task commit: `Deliver 001 for review`\n')
         self.commit('Finalize handoff')
         return identity
 
@@ -135,6 +137,74 @@ class ExecutionBoundariesTest(unittest.TestCase):
         self.assertEqual(task.status, 'READY_FOR_REVIEW')
         self.assertEqual(task.readiness, 'PENDING DELIVERY/CHANGES')
         self.assertIsNone(task.launch_command)
+
+    def test_handoff_only_corrections_redeliver_twice_without_new_transitions(self):
+        identity = self.implemented()
+        meridian.execution_deliver(self.worker, '001')
+        original = self.state()
+        for correction in ('First', 'Second'):
+            delivered = self.git('rev-parse', 'HEAD')
+            with identity.handoff_path.open('a') as report:
+                report.write(f'\n{correction} correction.\n')
+            self.commit(f'{correction} handoff correction')
+            corrected = self.git('rev-parse', 'HEAD')
+            self.assert_stop('EVIDENCE_INCOMPLETE', lambda: meridian.delivery_readiness(self.worker, '001'))
+            result = meridian.execution_deliver(self.worker, '001')
+            self.assertNotEqual(result['commit'], delivered)
+            self.assertNotEqual(result['commit'], corrected)
+            self.assertEqual(self.git('rev-parse', 'HEAD^'), corrected)
+            self.assertEqual(self.git('log', '-1', '--format=%s'), 'Deliver 001 for review')
+            self.assertEqual(self.git('diff', '--name-only', 'HEAD^', 'HEAD'), '')
+            self.assertEqual(self.state(), original)
+            self.assertEqual(meridian.delivery_readiness(self.worker, '001'), result)
+            self.assertEqual(meridian.execution_deliver(self.worker, '001'), result)
+            self.assertEqual(self.git('status', '--porcelain'), '')
+
+    def reject_later_change(self, relative):
+        self.implemented()
+        meridian.execution_deliver(self.worker, '001')
+        path = self.worker / relative
+        before = path.read_text()
+        # Whitespace keeps JSON and task projections valid.
+        path.write_text(before + '\n')
+        self.commit('Later non-handoff change')
+        self.assert_stop('EVIDENCE_INCOMPLETE', lambda: meridian.execution_deliver(self.worker, '001'))
+        path.write_text(before)
+        self.commit('Restore original contents')
+        self.assert_stop('EVIDENCE_INCOMPLETE', lambda: meridian.execution_deliver(self.worker, '001'))
+
+    def test_later_implementation_change_is_rejected_even_if_reverted(self):
+        self.reject_later_change('feature.txt')
+
+    def test_later_task_record_change_is_rejected_even_if_reverted(self):
+        self.reject_later_change('tasks/001.md')
+
+    def test_later_execution_evidence_change_is_rejected_even_if_reverted(self):
+        self.reject_later_change('.meridian/execution-evidence.json')
+
+    def test_later_state_file_change_is_rejected_even_if_reverted(self):
+        self.reject_later_change('.meridian/tasks/001.json')
+
+    def test_current_commit_field_is_checked_before_first_delivery(self):
+        identity = self.implemented()
+        report = identity.handoff_path
+        original = report.read_text()
+        base = self.git('rev-parse', 'main')
+        cases = ('', f'- Current task commit: `{base}`\n',
+                 '- Current task commit: the task commit (see git log -1 task-001)\n')
+        for field in cases:
+            with self.subTest(field=field):
+                report.write_text(original.replace('- Current task commit: `Deliver 001 for review`\n', field))
+                self.commit('Malformed handoff fixture')
+                head = self.git('rev-parse', 'HEAD')
+                for action in (meridian.delivery_readiness, meridian.execution_deliver):
+                    with self.assertRaises(meridian.MeridianStop) as caught:
+                        action(self.worker, '001')
+                    self.assertEqual(caught.exception.code, 'EVIDENCE_INCOMPLETE')
+                    self.assertIn('Current task commit', str(caught.exception))
+                    self.assertIn('subject', str(caught.exception))
+                    self.assertEqual(self.git('rev-parse', 'HEAD'), head)
+                    self.assertEqual(self.state()['status'], 'IN_PROGRESS')
 
     def test_dirty_incomplete_stale_and_direct_transition_cannot_deliver(self):
         meridian.execution_start(self.worker, '001')
