@@ -159,6 +159,9 @@ requires manual reconciliation. Repair never proves that a running session
 loaded the profile; start a fresh session and probe it.
 <!-- MERIDIAN:END -->
 
+Before switching from worktree prepare/check to execution start, consult the
+[command location table](docs/WORKTREE_LIFECYCLE.md#command-locations).
+
 <!-- MERIDIAN:BEGIN capability=bounded-worktree-lifecycle v5 -->
 For coordinator-launched implementation, review, or remediation work, the
 coordinator runs `meridian worktree prepare` before creating the worker and

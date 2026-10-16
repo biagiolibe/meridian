@@ -9415,7 +9415,7 @@ def transition_task_state(project_root: Path, task_id: str, status: str) -> dict
 def close_task(project_root: Path, task_id: str) -> dict[str, object]:
     """Close a validated Lean task, staging its state and exact record archive."""
     project_root = project_root.resolve()
-    _execution_worktree(project_root, task_id)
+    _execution_worktree(project_root, task_id, command=("task", "close"))
     if detect_mode(project_root) != "lean-delivery":
         raise stop_error("TASK_STATUS_REJECTED", "task close is Lean-only; use meridian task transition for Governed SDD",
                          task_id=task_id, project=project_root)
@@ -11535,17 +11535,49 @@ def readiness_check(project_root: Path, task_id: str, report: Path) -> str:
     return f"READY_FOR_REVIEW gate passed for {task_id}"
 
 
+def _execution_location(project_root: Path, task_id: str, *,
+                        command: tuple[str, ...] = ("execution", "start")) -> dict[str, object]:
+    """Verify the supplied checkout independently of the caller's directory."""
+    supplied = project_root.resolve()
+    # A stale path may still have a Git parent. Never infer a different task
+    # checkout from cwd; cwd is only a fallback for locating the primary.
+    primary = None
+    for candidate in (supplied, *supplied.parents, Path.cwd()):
+        try:
+            primary = canonical_project_root(candidate)
+            break
+        except MeridianError:
+            continue
+    if primary is None:
+        raise MeridianError(f"cannot identify the primary checkout from {supplied}")
+    identity = resolve_task_identity(primary, task_id, "existing", allow_archived_queue_links=True)
+    result, _valid = inspect_task_worktree(
+        task_id, None, primary, require_effective_worktree=False,
+        inspection_directory=primary, identity=identity)
+    expected = Path(str(result["worktree"])).resolve()
+    if supplied != expected or "unregistered-worktree" in result["errors"]:
+        detail = (f"cwd={Path.cwd().resolve()}; --project={supplied}; expected worktree={expected}; "
+                  + ("no registered task worktree" if "unregistered-worktree" in result["errors"]
+                     else "--project does not name the canonical task worktree"))
+        recovery = None
+        if "unregistered-worktree" not in result["errors"]:
+            recovery = shlex.join(("meridian", *command, identity.canonical_id, "--project", str(expected)))
+        error = stop_error("WRONG_WORKTREE", detail, resume=recovery,
+                           task_id=identity.canonical_id, project=shlex.quote(str(primary)))
+        if recovery is not None:
+            error.recovery_worktree = expected
+            error.recovery_detail = detail
+        raise error
+    return result
+
+
 def _execution_worktree(project_root: Path, task_id: str, *, resume: bool = False,
-                        repeated_start: bool = False) -> dict[str, object]:
+                        repeated_start: bool = False,
+                        command: tuple[str, ...] = ("execution", "start"),
+                        inspection: dict[str, object] | None = None) -> dict[str, object]:
     """Reuse canonical worktree verification; Resume is explicit, never inferred."""
     project_root = project_root.resolve()
-    if project_root != Path.cwd().resolve():
-        raise stop_error("WRONG_WORKTREE", "execution --project must name the caller's task worktree",
-                         task_id=task_id, project=canonical_project_root(project_root))
-    primary = canonical_project_root(project_root)
-    result, valid = inspect_task_worktree(
-        task_id, None, primary, identity=resolve_task_identity(
-            primary, task_id, "existing", allow_archived_queue_links=True))
+    result = inspection if inspection is not None else _execution_location(project_root, task_id, command=command)
     errors = list(result["errors"])
     if errors == ["dirty-worktree"] and (resume or repeated_start):
         if repeated_start and not resume:
@@ -11588,6 +11620,7 @@ def _execution_state(project_root: Path, task_id: str) -> dict[str, object]:
 
 def execution_start(project_root: Path, task_id: str, *, resume: bool = False) -> dict[str, object]:
     """Record the first legal start only after worktree and contract preflight."""
+    inspection = _execution_location(project_root, task_id)
     identity = resolve_task_identity(project_root, task_id, "existing", allow_archived_queue_links=True)
     task_id = identity.canonical_id
     workflow = detect_mode(project_root)
@@ -11597,7 +11630,7 @@ def execution_start(project_root: Path, task_id: str, *, resume: bool = False) -
                             review_required=read_task_field(record, "Review") != "NOT_REQUIRED",
                             stop_factory=stop_error) if state_path(project_root, task_id).exists() else None
     _execution_worktree(project_root, task_id, resume=resume,
-                        repeated_start=bool(state and state["status"] == "IN_PROGRESS"))
+                        repeated_start=bool(state and state["status"] == "IN_PROGRESS"), inspection=inspection)
     status = state["status"] if state else "QUEUED"
     if resume and workflow == "lean-delivery" and status == "DONE" and identity.task_path.parent.name == "done":
         dirty = bool(git_output(project_root, "status", "--porcelain"))
@@ -11700,6 +11733,7 @@ def _delivery_later_commits(project_root: Path, task_id: str, state: dict[str, o
 def delivery_readiness(project_root: Path, task_id: str, *, verify_worktree: bool = True,
                        allow_handoff_correction: bool = False) -> dict[str, object]:
     """Read-only delivery gate, also used by direct READY_FOR_REVIEW transitions."""
+    inspection = _execution_location(project_root, task_id, command=("execution", "deliver"))
     identity = resolve_task_identity(project_root, task_id, "existing")
     task_id = identity.canonical_id
     state = _execution_state(project_root, task_id)
@@ -11709,7 +11743,7 @@ def delivery_readiness(project_root: Path, task_id: str, *, verify_worktree: boo
             or state["status"] not in ("IN_PROGRESS", "READY_FOR_REVIEW")):
         raise stop_error("TASK_STATUS_REJECTED", f"delivery requires a review-required Governed task; found {state['status']}", task_id=task_id, project=canonical_project_root(project_root))
     if verify_worktree:
-        worktree = _execution_worktree(project_root, task_id)
+        worktree = _execution_worktree(project_root, task_id, inspection=inspection)
     else:
         if git_output(project_root, "status", "--porcelain"):
             raise stop_error("WRONG_WORKTREE", "delivery requires a clean worktree", task_id=task_id, project=canonical_project_root(project_root))
@@ -12877,9 +12911,9 @@ def _run_cli(journal: LifecycleJournalEntry) -> int:
                     result = delivery_readiness(project_root, arguments.task_id)
                     print(json.dumps(result, sort_keys=True))
                 else:
-                    print(readiness_check(project_root, arguments.task_id, arguments.report or default_handoff_path(project_root, arguments.task_id)))
+                    print(readiness_check(project_root, arguments.task_id, (project_root / arguments.report if arguments.report else default_handoff_path(project_root, arguments.task_id))))
             else:
-                print(check_handoff(project_root, arguments.task_id, arguments.report or default_handoff_path(project_root, arguments.task_id)))
+                print(check_handoff(project_root, arguments.task_id, (project_root / arguments.report if arguments.report else default_handoff_path(project_root, arguments.task_id))))
         elif arguments.command == "generate-claude-md":
             workflow = framework_root / "templates" / "workflows" / arguments.mode
             agents_path = workflow / "AGENTS.md"
@@ -12949,6 +12983,21 @@ def _run_cli(journal: LifecycleJournalEntry) -> int:
                 arguments.stop_before_retirement,
             )
     except MeridianStop as error:
+        if getattr(error, "recovery_worktree", None) is not None:
+            # Preserve the exact invocation, including optional flags and values.
+            rerun = []
+            tokens = iter(sys.argv[1:])
+            for token in tokens:
+                if token == "--project":
+                    next(tokens, None)
+                elif not token.startswith("--project="):
+                    rerun.append(token)
+            rerun.extend(("--project", str(error.recovery_worktree)))
+            detail = error.recovery_detail
+            if str(arguments.project) != str(project_root):
+                detail = detail.replace(f"--project={project_root};",
+                                        f"--project={arguments.project}; resolved project={project_root};", 1)
+            error = stop_error(error.code, detail, resume=shlex.join(("meridian", *rerun)))
         journal.stopped(error.code)
         print(error, file=sys.stderr)
         return 2

@@ -38,6 +38,10 @@ edited to change the choice.
 
 After validation, commit the completed task record and handoff, then run `meridian task close <TASK-ID>` in the clean task worktree. It writes DONE state and stages the exact record archive and state file without committing; commit these closure records together. Never edit status or verdict fields by hand. On explicit Resume, if the record is already archived and its state is DONE, skip `meridian execution start --resume`: commit any staged closure records, then run `meridian worktree advance` with the validation evidence. Task branches own their own `.meridian/tasks/<TASK-ID>.json` in addition to their task record, exact archive, and handoff.
 
+Before switching from prepare/check to execution start, consult the project’s
+command location table in `docs/WORKTREE_LIFECYCLE.md#command-locations`
+([framework reference](../../docs/WORKTREE_LIFECYCLE.md#command-locations)).
+
 <!-- MERIDIAN:BEGIN capability=execution-boundaries v1 -->
 After prepare and worktree check, run `meridian execution start <TASK-ID>
 --project .` before substantive authority/source analysis, advisor consultation,

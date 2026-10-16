@@ -45,5 +45,5 @@ Authority: GitHub issues #14 (227) and #15 (228), both from a Governed SDD consu
 |--------|----|-------|----------|------------|------|
 | `[x]` | 227 | Re-deliver a governed task after a handoff-only correction | 🔴 P1 | — | [227](done/227-redeliver-after-handoff-correction.md) |
 | `[x]` | 228 | Start a new budget attempt only by explicit re-preparation | 🟡 P2 | — | [228](done/228-budget-attempt-on-re-prepare.md) |
-| `[ ]` | 229 | Name the exact directory and command when a task command runs from the wrong place | 🟡 P2 | — | [229](229-precise-wrong-worktree-recovery.md) |
+| `[x]` | 229 | Name the exact directory and command when a task command runs from the wrong place | 🟡 P2 | — | [229](done/229-precise-wrong-worktree-recovery.md) |
 | `[ ]` | 230 | Give runnable candidate validation commands | 🔴 P1 | — | [230](230-runnable-candidate-validation-commands.md) |

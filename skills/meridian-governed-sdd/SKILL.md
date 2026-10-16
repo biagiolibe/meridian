@@ -43,6 +43,10 @@ code never ships. Do not commit SPIKE deliverables directly to `main`.
 
 Use `meridian task transition <TASK-ID> <STATUS>` for lifecycle state changes and `meridian review verdict` for verdicts. Never edit a status or verdict by hand. Review commits include the task state file and its task/review projections. Adopt open legacy tasks with `meridian task state import --project <path> --format json`, inspect the evidence, then repeat with `--apply`. Review headings are human-readable only.
 
+Before switching from prepare/check to execution start, consult the project’s
+command location table in `docs/WORKTREE_LIFECYCLE.md#command-locations`
+([framework reference](../../docs/WORKTREE_LIFECYCLE.md#command-locations)).
+
 <!-- MERIDIAN:BEGIN capability=execution-boundaries v1 -->
 After successful worktree verification, resolve only the task metadata and
 execution contract needed for `meridian execution start <TASK-ID> --project .`.
