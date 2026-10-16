@@ -27,29 +27,29 @@ developer-authorized option.
 
 ## Acceptance Criteria
 
-- [ ] `meridian worktree prepare <TASK-ID>` stops with a registered stop code
+- [x] `meridian worktree prepare <TASK-ID>` stops with a registered stop code
   before creating a worktree when the task's current budget attempt has
   recorded spends and the task has no registered worktree. The message lists
   the inherited counters and the resume command.
-- [ ] `meridian worktree prepare <TASK-ID> --new-attempt --reason "<text>"`
+- [x] `meridian worktree prepare <TASK-ID> --new-attempt --reason "<text>"`
   starts the next attempt: the attempt number increases, the new
   `<TASK-ID>:<attempt>` key starts at zero, and the previous attempt's
   counters stay in the ledger unchanged. The command journals the task, the
   previous and new attempt, the reason, and the counters carried as history.
   It refuses `--new-attempt` without `--reason`, and when the task still has a
   registered worktree.
-- [ ] `--new-attempt` never changes the task record's caps or status and never
+- [x] `--new-attempt` never changes the task record's caps or status and never
   deletes ledger entries.
-- [ ] The governed-SDD workflow text states that only the developer
+- [x] The governed-SDD workflow text states that only the developer
   authorizes `--new-attempt`, as with a budget overrun, and that an agent
   stops with the new stop code instead. If managed text inside capability
   markers must change, the change ships with its migration, and the handoff
   records that the release becomes template-changing.
-- [ ] `meridian budget show <TASK-ID>` prints the current attempt number, and
+- [x] `meridian budget show <TASK-ID>` prints the current attempt number, and
   the queue briefing shows it for a task whose attempt is above 1 or whose
   current attempt has spends.
-- [ ] The existing bump on `READY_FOR_REVIEW -> IN_PROGRESS` keeps working.
-- [ ] Tests cover:
+- [x] The existing bump on `READY_FOR_REVIEW -> IN_PROGRESS` keeps working.
+- [x] Tests cover:
   - the stop on a re-prepare with inherited spends;
   - a re-prepare with no spends, which proceeds as today;
   - `--new-attempt` with a reason, including the journal entry and the
@@ -57,9 +57,9 @@ developer-authorized option.
   - `--new-attempt` refused without a reason and with a registered worktree;
   - the attempt number in `budget show`;
   - the existing review-remediation bump.
-- [ ] A changelog fragment `changelog.d/228.md` records the fix under
+- [x] A changelog fragment `changelog.d/228.md` records the fix under
   `Fixed` and the new option under `Added`.
-- [ ] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
+- [x] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
   --parallel`, and `git diff --check` pass.
 
 ## Relevant Files
@@ -108,3 +108,10 @@ Re-delivery after handoff correction (task 227).
 ```bash
 claude "$(cat tasks/228-budget-attempt-on-re-prepare.md)"$'\n\nExecute this task in the current project.'
 ```
+
+## Completion evidence
+
+Implemented explicit developer-authorized budget attempts with preserved ledger
+history and a dedicated journal event. All acceptance criteria passed; see
+`tasks/handoffs/228.md` for exact validation and release impact. The existing
+queue briefing displays the attempt through its unchanged `budget show` call.
