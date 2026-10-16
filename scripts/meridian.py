@@ -1713,8 +1713,8 @@ def candidate_validation_declaration(project_root: Path) -> tuple[str, dict[str,
 
 def proposed_candidate_validation_declaration(project_root: Path) -> dict[str, object]:
     """Offer conservative detected-stack defaults; setup applies them only on --apply."""
-    repository_check = "scripts/check_repository.py"
-    has_repository_check = (project_root / repository_check).is_file()
+    repository_check = "python3 scripts/check_repository.py"
+    has_repository_check = (project_root / "scripts/check_repository.py").is_file()
     has_python_tests = (project_root / "tests").is_dir()
     if not has_repository_check:
         return {"version": 1, "state": "undeclared"}
@@ -1724,7 +1724,7 @@ def proposed_candidate_validation_declaration(project_root: Path) -> dict[str, o
         "FULL": [repository_check],
     }
     if has_python_tests:
-        outcomes["FULL"].append("unittest discover")
+        outcomes["FULL"].append("python3 -m unittest discover -s tests")
     return {"version": 1, "state": "declared", "outcomes": outcomes}
 
 
@@ -2846,6 +2846,28 @@ def finalize_task_integration(
     }
 
 
+def runnable_candidate_validation_command(command: str, project_root: Path) -> bool:
+    """Check the first POSIX shell token locally, without running the command.
+
+    A path token must name an executable file relative to the primary checkout
+    (or an absolute file). Bare names resolve on PATH, with relative PATH
+    entries anchored to that checkout. Invalid quoting and empty entries fail.
+    This is executable discovery, not validation of arguments or shell syntax.
+    """
+    try:
+        tokens = shlex.split(command)
+    except ValueError:
+        return False
+    if not tokens:
+        return False
+    executable = tokens[0]
+    if "/" in executable:
+        path = project_root / executable
+        return path.is_file() and os.access(path, os.X_OK)
+    search_path = os.pathsep.join(str(project_root / entry) for entry in os.get_exec_path())
+    return shutil.which(executable, path=search_path) is not None
+
+
 def missing_candidate_validation_commands(
     decision: object, commands: list[str], fragments: dict[str, tuple[str, ...]] | None = None
 ) -> tuple[str, ...]:
@@ -2998,6 +3020,7 @@ def advance_task_closure(
         action: str,
         *,
         commands: list[str] | None = None,
+        required_fragments: list[str] | None = None,
         stop_code: str | None = None,
         resume: str | None = None,
         blocked: bool = False,
@@ -3010,6 +3033,7 @@ def advance_task_closure(
             "step": step,
             "action_required": action,
             "commands": commands or [],
+            **({"required_fragments": required_fragments} if required_fragments is not None else {}),
             "stop_code": stop_code,
             "resume": resume,
             "performed": performed,
@@ -3081,9 +3105,16 @@ def advance_task_closure(
         elif step == "C7":
             staged = _read_json_object(integration_path, "staged integration state")
             declaration_state, fragments = candidate_validation_declaration(project_root)
-            commands = ["git diff --check", *fragments.get(str(staged.get("decision")), ())]
+            required = ["git diff --check", *fragments.get(str(staged.get("decision")), ())]
+            commands = [entry for entry in required if runnable_candidate_validation_command(entry, project_root)]
+            instruction = (
+                "Run commands unchanged from the primary checkout. For each required_fragments entry "
+                "not covered by commands, run a project command containing that exact fragment; "
+                "report every command and exit code to advance."
+            )
             if not candidate_commands:
-                return result("C7", "run-candidate-validation", commands=commands, resume=str(status["resume"]))
+                return result("C7", "run-candidate-validation", commands=commands,
+                              required_fragments=required, resume=instruction)
             aborted_resume = (
                 "the integration was aborted; fix the failure on the task branch, rerun validation, "
                 "then rerun advance"
@@ -3107,9 +3138,10 @@ def advance_task_closure(
                 return result(
                     "C7",
                     "run-candidate-validation",
-                    commands=missing,
+                    commands=[entry for entry in missing if runnable_candidate_validation_command(entry, project_root)],
+                    required_fragments=missing,
                     stop_code="UNDECLARED_VALIDATION_COMMANDS",
-                    resume="the integration was aborted; run the listed commands and rerun advance with every result",
+                    resume="the integration was aborted; " + instruction,
                     blocked=True,
                 )
             candidate_evidence = state_path.with_suffix(".candidate-validation.json")

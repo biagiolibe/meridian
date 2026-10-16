@@ -251,8 +251,8 @@ those cases is outside this contract.
   returns one JSON object with `step`, `action_required`, `commands`,
   `stop_code`, `resume`, and the `performed` steps. `action_required` is
   `run-validation` (C1-C2 and missing results), `run-candidate-validation`
-  (C7; `commands` lists `git diff --check` and the declared fragments for the
-  staged outcome), `push` (C9; the agent runs `git push origin main`), `human`
+  (C7; `commands` lists runnable entries, including `git diff --check`,
+  while `required_fragments` lists all requirements for the staged outcome), `push` (C9; the agent runs `git push origin main`), `human`
   (a registered stop with `human_decision: true`), `resolve` (any other
   registered stop; follow `resume`), or `none` (closure is done). It exits `2`
   on a stop and `0` when the agent only has to act. It never runs a command
@@ -265,7 +265,7 @@ those cases is outside this contract.
   `candidate_tree`), runs `integrate finalize` (C8), and returns `push` for
   `git push origin main`. A non-zero exit code stops with
   `CANDIDATE_VALIDATION_FAILED`, and a missing required command stops with
-  `UNDECLARED_VALIDATION_COMMANDS` and lists the commands to run; both run
+  `UNDECLARED_VALIDATION_COMMANDS` and lists runnable commands and required fragments; both run
   `integrate abort` first and never finalize on partial evidence. A candidate
   tree that changed after stage stops with `EVIDENCE_MISMATCH` and leaves the
   staged merge for `integrate abort` and a restage. A rerun after an
@@ -523,6 +523,21 @@ to accept any non-empty successful command list, or `undeclared`. A missing
 file is also `undeclared`. The comparison is literal and executes nothing; it
 accepts a `set -o pipefail;` prefix and output-bounding pipelines because the
 declared fragment remains in the command entry.
+
+Complete commands are valid declaration entries; legacy fragments remain valid.
+At C7, `advance` returns `commands` that can be run unchanged from the primary
+checkout and `required_fragments` containing every checked entry, including
+`git diff --check`. For each fragment not covered by `commands`, run a project
+command containing that exact fragment and report it with its exit code.
+Runnable discovery parses POSIX shell tokens with `shlex.split`: the first
+token must resolve to an executable file on `PATH` or name an existing
+executable file. Relative file paths and relative `PATH` entries resolve from
+the primary checkout. Empty entries and invalid quoting are not runnable.
+Discovery uses local file metadata only, with no network access or execution;
+it does not validate arguments or shell syntax. Setup proposes complete commands
+(`python3 scripts/check_repository.py` and, when tests exist,
+`python3 -m unittest discover -s tests`), shows them under `--check`, and only
+writes a proposed declaration under `--apply`; existing declared entries are preserved.
 
 An undeclared project stops at `integrate stage`, before a lease, merge, or
 staged state exists, with `BLOCKED UNDECLARED_VALIDATION_COMMANDS`. The stop

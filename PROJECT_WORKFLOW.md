@@ -193,6 +193,12 @@ ordinary sandbox, bind its JSON evidence to that tree, then use `integrate
 finalize`; use `integrate abort` after a failed gate. Lifecycle commands never
 execute validation or project code.
 
+At candidate step C7, `advance` returns runnable `commands` and checked
+`required_fragments`. Run the commands unchanged from the primary checkout.
+For any fragment not covered by those commands, run a project command containing
+it and report every result. See `docs/WORKTREE_LIFECYCLE.md` for executable
+discovery and compatibility with existing fragment declarations.
+
 After any required `main` push, run `meridian worktree cleanup`; it removes the
 canonical worktree and non-force-deletes the merged branch only after proving
 integration, push state, clean checkouts, and inactive integration state.
