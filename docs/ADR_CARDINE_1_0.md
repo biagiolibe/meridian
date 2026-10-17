@@ -1,16 +1,14 @@
 # ADR: Cardine 1.0
 
-Status: Proposed
+Status: Accepted
 
-*Drafted on 2026-10-17 from the Cardine 1.0 design review. Decided by the
-developer on 2026-10-17: the project console stays in 1.0; the context budget
-keeps only an automatic limit on failed validation attempts; only open work is
-converted from Meridian; the field trial has an exit criterion; trademark
-registration is deferred until after 1.0; task state lives only in its JSON
-file; Cardine starts in a new repository. Still open: the workflow presets and
-the installation sources. The [open decisions](#open-decisions) section lists
-them. Contoso and Fabrikam are fictitious names for the maintainer's two
-private projects.*
+*Proposed and accepted on 2026-10-17, after the Cardine 1.0 design review.
+The developer decided every point on that date. The decisions cover the console
+in 1.0, the validation retry limit in place of budget counters, conversion of
+open work only, and the field-trial exit criterion. They also cover deferred
+trademark registration, task state only in JSON, the new repository, the
+`lean` and `governed` presets, and pipx as the primary installer. Contoso and
+Fabrikam are fictitious names for the maintainer's two private projects.*
 
 ## Context
 
@@ -270,19 +268,27 @@ single-step lifecycle commands are Internal.
 ### 9. Distribution
 
 Cardine is published on PyPI, with `pyproject.toml`, a registered `cardine`
-command, and `requires-python >= 3.12`. Three installation sources are
-supported, all through the same installers:
+command, and `requires-python >= 3.12`.
 
-| Source | Command | Use |
-| --- | --- | --- |
-| PyPI release (default) | `uv tool install cardine` or `pipx install cardine` | Everyone |
-| Git tag | `uv tool install git+https://github.com/biagiolibe/cardine@v1.0.0` | A pinned release without PyPI |
-| Local clone, editable | `uv tool install --editable <clone>` | Cardine development |
+The documented installer is **pipx**, which the Python Packaging User Guide
+recommends for stand-alone command-line tools. **uv** is the documented
+alternative; GitHub Spec Kit installs through it. Plain `pip` is not
+documented: Python builds that mark themselves externally managed (PEP 668),
+such as Homebrew's and recent Debian and Ubuntu releases, refuse a `pip install`
+outside a virtual environment. On macOS, `brew install pipx` provides the
+installer.
 
-The installer places the `cardine` command in its tool directory (for uv,
-usually `~/.local/bin`). When that directory is not on `PATH`, the installer
-warns, and `uv tool update-shell` or `pipx ensurepath` adds it to the shell
-configuration once. Cardine never edits shell files itself. `cardine doctor`
+Three installation sources are supported with either installer:
+
+| Source | pipx (primary) | uv (alternative) | Use |
+| --- | --- | --- | --- |
+| PyPI release (default) | `pipx install cardine` | `uv tool install cardine` | Everyone |
+| Git tag | `pipx install git+https://github.com/biagiolibe/cardine@v1.0.0` | `uv tool install git+https://github.com/biagiolibe/cardine@v1.0.0` | A pinned release without PyPI |
+| Local clone, editable | `pipx install --editable <clone>` | `uv tool install --editable <clone>` | Cardine development |
+
+The installer places the `cardine` command in its application directory,
+usually `~/.local/bin`. When that directory is not on `PATH`, `pipx ensurepath`
+or `uv tool update-shell` adds it to the shell configuration once. Cardine never edits shell files itself. `cardine doctor`
 checks that a non-interactive shell (`zsh -lc` or `bash -lc`) resolves the
 same `cardine` that the agent hosts run, and prints the fix when it does not.
 The bootstrap task verifies the Git-tag and editable forms against the
@@ -290,8 +296,9 @@ installers' current documentation.
 
 This removes the release checkout, `MERIDIAN_ROOT`, `PATH` edits, the wrapper's
 Python version guard, and the exact-tag requirement. Templates and skills ship
-as package data. Updates use `uv tool upgrade cardine`, then `cardine upgrade`
-in each project.
+as package data. Updates use `pipx upgrade cardine` (or `uv tool upgrade
+cardine`), then `cardine upgrade` in each project. `cardine self-update`
+detects which installer owns the running CLI and runs its upgrade command.
 
 The Claude Code plugin keeps skills and slash commands and calls the installed
 CLI. `cardine doctor` checks that the plugin and the CLI versions match.
@@ -326,7 +333,7 @@ On the maintainer's machine:
 
 - remove the Meridian plugin, `~/.local/share/meridian`, the `MERIDIAN_ROOT`
   and `PATH` lines, and the Meridian blocks under `~/.codex`;
-- install Cardine with `uv tool install cardine`, then run
+- install Cardine with `pipx install cardine`, then run
   `cardine setup --apply`.
 
 Projects stay on Meridian 1.4.x until their conversion. 1.4.x receives fixes
@@ -394,13 +401,11 @@ and leave behavior unchanged; simplification starts after them.
   The presets keep their names and identities without a second engine.
 - **Lean Delivery only.** Drops independent review, which 268 Contoso tasks used.
 - **Task state in Markdown front matter.** Rejected under decision 4.
+- **Document plain `pip` installation.** Externally managed Python builds
+  refuse it outside a virtual environment, and a global install mixes Cardine's
+  dependencies with other tools.
 - **Keep the context budget as it is.** The usage data in decision 5 shows cost
   without a single command-backed stop.
-
-## Open decisions
-
-- The `lean` and `governed` presets and their defaults (decision 3).
-- The three installation sources and the `PATH` handling (decision 9).
 
 ## Out of scope
 
