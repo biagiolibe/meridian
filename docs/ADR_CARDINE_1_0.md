@@ -6,15 +6,17 @@ Status: Proposed
 developer on 2026-10-17: the project console stays in 1.0; the context budget
 keeps only an automatic limit on failed validation attempts; only open work is
 converted from Meridian; the field trial has an exit criterion; trademark
-registration is deferred until after 1.0. Still open: the single workflow
-model, PyPI distribution, task state only in JSON, and a new repository instead
-of a rename. The [open decisions](#open-decisions) section lists them.*
+registration is deferred until after 1.0; task state lives only in its JSON
+file; Cardine starts in a new repository. Still open: the workflow presets and
+the installation sources. The [open decisions](#open-decisions) section lists
+them. Contoso and Fabrikam are fictitious names for the maintainer's two
+private projects.*
 
 ## Context
 
 Meridian is a delivery workflow for AI coding agents. It has one known user,
-the maintainer, with two Governed SDD projects (consumer project A and
-consumer project B) and Meridian itself on Lean Delivery.
+the maintainer, with two Governed SDD projects, Contoso and Fabrikam, and
+Meridian itself on Lean Delivery.
 Over the 14 days to 2026-10-17 the repository had 3 unique visitors, 0 stars,
 0 forks, and 0 release asset downloads; its 676 "unique" clones come from CI,
 plugin refreshes, and crawlers.
@@ -97,25 +99,42 @@ task contract, and an orchestrator can run Cardine inside each worktree. README
 line: *Specs say what to build. Orchestrators run the agents. Cardine makes
 sure what lands on main is right.*
 
-### 3. One workflow, assurances chosen per task
+### 3. One lifecycle, two presets: Lean and Governed
 
-Cardine has one lifecycle and one template set. The assurances that are
-exclusive to Governed SDD today become task options, and the project sets their
-defaults:
+Cardine has one lifecycle, one engine, and one template set. The assurances
+that are exclusive to Governed SDD today become task options:
 
 - `review: required` or `review: not_required`;
 - required `Authority` and `Expected code surface` fields;
 - the `spike` class.
 
+A project chooses a preset, which sets the default of every option. Each task
+can still raise or lower an option. The two presets keep the identities that
+Meridian's workflows established:
+
+| Option | `lean` preset | `governed` preset |
+| --- | --- | --- |
+| Review | not required | required |
+| `Authority` and `Expected code surface` | optional | required |
+| Blocking dependencies | yes | yes |
+| `spike` class | available | available |
+| Validation retry limit | 3 | 3 |
+
+`cardine init` asks for the preset. `lean` replaces Lean Delivery and is the
+default for new projects. `governed` reproduces today's Governed SDD
+behavior. A project can switch preset later; open tasks keep the options they
+were created with.
+
 Task states are `queued`, `in_progress`, `in_review` (only when review is
 required), `done`, and `cancelled`. One skill exists per host.
 
-Consumer project A already chooses review per task: 34 of its 342 task
-records are `Review: NOT_REQUIRED`. A Lean project, for example Meridian itself,
+Contoso already chooses review per task: 34 of its 342 task records are
+`Review: NOT_REQUIRED`. A Lean project, for example Meridian itself,
 cannot require review for one risky task today. Under this decision it can.
 
-Every Governed SDD feature the two consumer projects use maps to Cardine 1.0.
-Counts are task records on 2026-10-17, as consumer project A / consumer project B.
+Every Governed SDD feature that Contoso and Fabrikam use maps to the
+`governed` preset. Counts are task records on 2026-10-17, as Contoso /
+Fabrikam.
 
 | Governed SDD feature | Use today | Cardine 1.0 |
 | --- | --- | --- |
@@ -130,7 +149,7 @@ Counts are task records on 2026-10-17, as consumer project A / consumer project 
 | Blocking dependencies | yes | Blocking for every task |
 | Milestone task identity | yes | Project option |
 | Execution evidence | yes | Recorded by `cardine run` |
-| Context budget counters | consumer project A | Replaced by the validation retry limit (decision 5) |
+| Context budget counters | Contoso | Replaced by the validation retry limit (decision 5) |
 
 ### 4. Task state only in its JSON file
 
@@ -155,11 +174,11 @@ agents edit by hand, which is the failure the machine-state ADR fixed.
 
 The usage data, as of 2026-10-17:
 
-- Consumer project A recorded 261 budget spends across 83 tasks. No command
+- Contoso recorded 261 budget spends across 83 tasks. No command
   emitted `BUDGET_EXHAUSTED` in that time. Two exhaustion stops were declared
   by agents without a command. One of them was the false exhaustion of
   issue #15.
-- Consumer project B recorded 6 spends.
+- Fabrikam recorded 6 spends.
 - Of the four counters, only diagnostic attempts approached their caps.
 
 In Cardine 1.0:
@@ -251,8 +270,23 @@ single-step lifecycle commands are Internal.
 ### 9. Distribution
 
 Cardine is published on PyPI, with `pyproject.toml`, a registered `cardine`
-command, and `requires-python >= 3.12`. It installs with
-`uv tool install cardine` or `pipx install cardine`.
+command, and `requires-python >= 3.12`. Three installation sources are
+supported, all through the same installers:
+
+| Source | Command | Use |
+| --- | --- | --- |
+| PyPI release (default) | `uv tool install cardine` or `pipx install cardine` | Everyone |
+| Git tag | `uv tool install git+https://github.com/biagiolibe/cardine@v1.0.0` | A pinned release without PyPI |
+| Local clone, editable | `uv tool install --editable <clone>` | Cardine development |
+
+The installer places the `cardine` command in its tool directory (for uv,
+usually `~/.local/bin`). When that directory is not on `PATH`, the installer
+warns, and `uv tool update-shell` or `pipx ensurepath` adds it to the shell
+configuration once. Cardine never edits shell files itself. `cardine doctor`
+checks that a non-interactive shell (`zsh -lc` or `bash -lc`) resolves the
+same `cardine` that the agent hosts run, and prints the fix when it does not.
+The bootstrap task verifies the Git-tag and editable forms against the
+installers' current documentation.
 
 This removes the release checkout, `MERIDIAN_ROOT`, `PATH` edits, the wrapper's
 Python version guard, and the exact-tag requirement. Templates and skills ship
@@ -261,7 +295,6 @@ in each project.
 
 The Claude Code plugin keeps skills and slash commands and calls the installed
 CLI. `cardine doctor` checks that the plugin and the CLI versions match.
-Cardine developers use `uv tool install --editable .` from a clone.
 
 ### 10. Transition from Meridian
 
@@ -276,8 +309,8 @@ Cardine developers use `uv tool install --editable .` from a clone.
    archive that Cardine ignores. Conversion runs on copies first, then on the
    originals.
 5. **Field trial with an exit criterion.** Cardine 1.0.0 is released only when,
-   on 0.9, at least one real task of each case has landed on `main` in consumer
-   project A or consumer project B:
+   on 0.9, at least one real task of each case has landed on `main` in Contoso or
+   Fabrikam:
    - required review with one round of requested changes;
    - no review;
    - a spike;
@@ -358,18 +391,16 @@ and leave behavior unchanged; simplification starts after them.
   follows the stability rules for adopters who do not exist, at the cost of
   dual code paths for a full major cycle.
 - **Keep two parallel workflows.** Keeps every cost listed in the context.
-- **Lean Delivery only.** Drops independent review, which 268 tasks in one
-  consumer project used.
+  The presets keep their names and identities without a second engine.
+- **Lean Delivery only.** Drops independent review, which 268 Contoso tasks used.
 - **Task state in Markdown front matter.** Rejected under decision 4.
 - **Keep the context budget as it is.** The usage data in decision 5 shows cost
   without a single command-backed stop.
 
 ## Open decisions
 
-- Single workflow with per-task assurances (decision 3).
-- PyPI distribution instead of a Git checkout (decision 9).
-- Task state only in its JSON file (decision 4).
-- New repository instead of renaming `biagiolibe/meridian` (decision 1).
+- The `lean` and `governed` presets and their defaults (decision 3).
+- The three installation sources and the `PATH` handling (decision 9).
 
 ## Out of scope
 
