@@ -226,7 +226,10 @@ broken `main` cannot block the task lifecycle, and Claude Code already runs the
 released plugin (step 7). To run code that exists only on `main`, call it from
 the development clone explicitly: `./bin/meridian` or
 `python3 scripts/meridian.py --framework-root .`. `bin/meridian` resolves the
-framework from its own location, so it needs no `MERIDIAN_ROOT`.
+framework from its own location when `MERIDIAN_ROOT` is unset. An inherited
+`MERIDIAN_ROOT` takes precedence and selects the release checkout, so in an
+agent session pass `--framework-root .` or run `env -u MERIDIAN_ROOT
+./bin/meridian ...`.
 
 **Check**
 
@@ -574,7 +577,14 @@ available to tasks only after it is released, unless you run it with
 Never part of a normal task: tags, releases, force pushes, history rewrites,
 deleting unmerged branches. Releases go through
 `python3 scripts/release.py` as described in `CONTRIBUTING.md`, run by the
-maintainer.
+maintainer:
+
+- CLI-only release: `python3 scripts/release.py prepare --bump <kind>`, then
+  `publish --confirm v<VERSION>`.
+- Template-changing release: the migration task already bumps `VERSION`, the
+  plugin version, the release ledger, and the changelog. Do not run `prepare`;
+  it only answers `release X.Y.Z is already prepared`. Run
+  `python3 scripts/release.py publish --confirm v<VERSION>`.
 
 ---
 
