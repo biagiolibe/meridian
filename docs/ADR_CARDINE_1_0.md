@@ -10,7 +10,7 @@ trademark registration, task state only in JSON, the new repository, the
 `lean` and `governed` presets, and pipx as the primary installer. Contoso and
 Fabrikam are fictitious names for the maintainer's two private projects.
 Decision 11, landing modes and pull requests, was added and accepted on the
-same day.*
+same day, as were the release-tooling requirements in work item 12.*
 
 ## Context
 
@@ -417,7 +417,17 @@ and leave behavior unchanged; simplification starts after them.
    hooks.
 10. Meridian conversion: open tasks, ADRs, configuration.
 11. Documentation: README positioning, quick start, agent reference.
-12. Release: GitHub and PyPI publication from one script.
+12. Release: GitHub and PyPI publication from one script. Preparing Meridian
+    1.4.0 (task 231) exposed three gaps that this script must close:
+    - The release kind follows what changed. A template change without a
+      migration stops the release; it is never labelled CLI-only.
+    - The repository checks and the release script agree that a migration may
+      target the unreleased next version before preparation.
+    - When Cardine manages its own repository, a template-changing release
+      brings those project files to the new baseline in the prepared commit.
+
+    Its tests run a real preparation in a disposable clone, not only a dry
+    run, because a dry run skips validation.
 13. Release 0.9, run the field trial, release 1.0.0.
 
 ## Consequences
