@@ -41,5 +41,19 @@
     "python3 scripts/check_repository.py",
     "python3 scripts/run_tests.py --parallel",
     "git diff --check"
+  ],
+  "capabilities": [
+    {
+      "capability": "worktree-command-locations",
+      "capabilityVersion": 1
+    },
+    {
+      "capability": "worktree-budget-retirement",
+      "capabilityVersion": 1
+    },
+    {
+      "capability": "handoff-correction-redelivery",
+      "capabilityVersion": 1
+    }
   ]
 }
