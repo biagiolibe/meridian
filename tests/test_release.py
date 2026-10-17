@@ -42,6 +42,7 @@ class ReleasePrepareTest(unittest.TestCase):
         self.git("config", "user.email", "meridian@example.invalid")
         self.git("add", ".")
         self.git("commit", "-qm", "initial")
+        self.git("tag", "v1.0.0")
 
     def git(self, *args: str) -> subprocess.CompletedProcess[str]:
         return subprocess.run(["git", *args], cwd=self.root, text=True, capture_output=True, check=True)
@@ -96,7 +97,6 @@ class ReleasePrepareTest(unittest.TestCase):
         ledger_path.write_text(json.dumps(ledger), encoding="utf-8")
         self.git("add", ".")
         self.git("commit", "-qm", "existing migration")
-        self.git("tag", "v1.0.0")
         with redirect_stdout(io.StringIO()):
             self.assertEqual(self.invoke("prepare", "--bump", "patch", "--dry-run"), 0)
 
@@ -117,6 +117,31 @@ class ReleasePrepareTest(unittest.TestCase):
                 self.assertEqual(self.git("status", "--porcelain").stdout, before)
             self.tearDown()
             self.setUp()
+
+    def test_prepare_refuses_template_changes_without_migration(self) -> None:
+        for relative in ("templates/workflows/lean-delivery/PROJECT_WORKFLOW.md", "templates/skills/example.md"):
+            path = self.root / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("New template text.\n")
+        self.git("add", ".")
+        self.git("commit", "-qm", "unmigrated templates")
+        errors = io.StringIO()
+        with redirect_stderr(errors):
+            self.assertEqual(self.invoke("prepare", "--bump", "minor", "--dry-run"), 1)
+        self.assertIn("cannot label release CLI-only", errors.getvalue())
+        self.assertIn("templates/workflows/lean-delivery/PROJECT_WORKFLOW.md", errors.getvalue())
+        self.assertIn("templates/skills/example.md", errors.getvalue())
+
+    def test_non_template_changes_remain_cli_only(self) -> None:
+        (self.root / "scripts/example.py").write_text("# CLI fix\n")
+        self.git("add", ".")
+        self.git("commit", "-qm", "CLI fix")
+        self.assertEqual(release.preflight(self.root, "1.0.1")[2], release.CLI_ONLY)
+
+    def test_missing_previous_tag_cannot_claim_cli_only(self) -> None:
+        self.git("tag", "-d", "v1.0.0")
+        with self.assertRaisesRegex(release.ReleaseError, "cannot compare templates"):
+            release.preflight(self.root, "1.0.1")
 
     def test_cli_only_dry_run_writes_nothing(self) -> None:
         before = self.git("status", "--porcelain").stdout
@@ -208,7 +233,6 @@ class ReleasePrepareTest(unittest.TestCase):
         self.assertEqual(self.git("status", "--porcelain").stdout, "")
 
     def test_prepare_directs_an_already_prepared_release_to_publish(self) -> None:
-        self.git("tag", "v1.0.0")
         (self.root / "VERSION").write_text("1.0.1\n", encoding="utf-8")
         (self.root / ".claude-plugin/plugin.json").write_text('{"version": "1.0.1"}\n', encoding="utf-8")
         (self.root / "releases/1.0.1.json").write_text(json.dumps({
@@ -437,6 +461,7 @@ class ReleasePublishTest(unittest.TestCase):
         self.git("config", "user.email", "meridian@example.invalid")
         self.git("add", ".")
         self.git("commit", "-qm", "initial")
+        self.git("tag", "v1.0.0")
         self.git("remote", "add", "origin", str(self.remote))
         self.git("push", "-qu", "origin", "main")
         self.prepare_release()
@@ -487,6 +512,15 @@ class ReleasePublishTest(unittest.TestCase):
 
         return gh
 
+    def test_publish_preflight_refuses_unmigrated_templates(self) -> None:
+        path = self.root / "templates/example.md"
+        path.parent.mkdir()
+        path.write_text("Changed template.\n")
+        self.git("add", ".")
+        self.git("commit", "-qm", "unmigrated template")
+        with self.assertRaisesRegex(release.ReleaseError, "templates/example.md"):
+            release.publish_preflight(self.root, "1.0.1")
+
     def test_pending_fragments_block_publish_before_any_push(self) -> None:
         directory = self.root / "changelog.d"
         directory.mkdir()
@@ -504,7 +538,7 @@ class ReleasePublishTest(unittest.TestCase):
         self.assertIn("changelog.d/10.md, changelog.d/20.md", errors.getvalue())
         self.assertIn("changelog render --version 1.0.1 --prepared --write", errors.getvalue())
         self.assertEqual(self.git("ls-remote", "origin").stdout, remote_before)
-        self.assertEqual(self.git("tag", "--list").stdout, "")
+        self.assertEqual(self.git("tag", "--list").stdout, "v1.0.0\n")
 
     def test_readme_only_does_not_block_prepared_release(self) -> None:
         (self.root / "changelog.d").mkdir()

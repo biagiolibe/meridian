@@ -1,6 +1,7 @@
 """Regression coverage for the shared CLI installation and Python guard."""
 
 import ast
+import os
 import subprocess
 import sys
 import unittest
@@ -60,6 +61,7 @@ class CliInstallTest(unittest.TestCase):
     def test_supported_python_runs_cli(self):
         result = subprocess.run(
             [sys.executable, str(ROOT / "bin/meridian"), "--version"],
+            env={key: value for key, value in os.environ.items() if key != "MERIDIAN_ROOT"},
             text=True, capture_output=True, check=False,
         )
         self.assertEqual(result.returncode, 0, result.stderr)

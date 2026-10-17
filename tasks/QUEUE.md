@@ -36,11 +36,3 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 
 Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, 25, 26, 27, 28, 31, 32, 34, 35, 36, 42, 44, 45, 46, and 47
 are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
-
-### Phase 72 — Release 1.4.0 correctness
-
-Authority: the 1.4.0 release dry run of 2026-10-17. Tasks 227–229 changed managed templates without a migration, and `release.py` would label 1.4.0 CLI-only.
-
-| Status | ID | Title | Priority | Depends on | File |
-|--------|----|-------|----------|------------|------|
-| `[ ]` | 231 | Ship the 1.4.0 template changes through a migration | 🔴 P1 | 227, 228, 229 | [231](231-migrate-1-4-0-template-changes.md) |

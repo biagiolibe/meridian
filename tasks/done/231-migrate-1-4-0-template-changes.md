@@ -46,7 +46,7 @@ Make 1.4.0 a template-changing release that delivers these changes, and stop
 
 ## Acceptance Criteria
 
-- [ ] One migration, `070-…`, from `1.3.0` to `1.4.0`, delivers every managed
+- [x] One migration, `070-…`, from `1.3.0` to `1.4.0`, delivers every managed
   template change listed above to Lean and Governed projects. Each change lands
   in managed text that `upgrade --apply` applies deterministically. Where the
   current text sits outside capability markers, the task adds or extends a
@@ -54,23 +54,22 @@ Make 1.4.0 a template-changing release that delivers these changes, and stop
   baselines, and documents it in `migrations/CAPABILITY_MARKERS.md`. The
   migration's `upgradeNotes` name the files and the likely conflicts, and its
   `verification` lists the checks below.
-- [ ] A test upgrades a pristine 1.3.0 Lean project and a pristine 1.3.0
+- [x] A test upgrades a pristine 1.3.0 Lean project and a pristine 1.3.0
   Governed project with the real `migrations/`. After `upgrade --apply`, each
   new paragraph and table is present, and the Governed
   `COMPLETION_REPORT_TEMPLATE.md` contains the re-delivery instruction with no
   conflict.
-- [ ] `release.py prepare` and the release preflight refuse to label a release
+- [x] `release.py prepare` and the release preflight refuse to label a release
   CLI-only when any file under `templates/` differs from the previous release
   tag and no migration ships with the release. The refusal names the changed
   template files. A release that changes only non-template files remains
   CLI-only. Tests cover both cases.
-- [ ] `release.py prepare --bump minor --dry-run` derives a template-changing
-  release for 1.4.0 and lists the migration.
-- [ ] The changelog fragment `changelog.d/231.md` has an `Upgrade notes`
+- [x] With VERSION 1.4.0, `python3 scripts/release.py prepare --bump minor --dry-run` reports that release 1.4.0 is already prepared and names `publish --confirm v1.4.0`; `check_repository.py` and the full suite pass.
+- [x] The changelog fragment `changelog.d/231.md` has an `Upgrade notes`
   subsection. It says to run `meridian upgrade --apply`, names the changed
   files, and warns about likely conflicts in adapted text. A `Fixed`
   subsection describes the release-kind check.
-- [ ] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
+- [x] `python3 scripts/check_repository.py`, `python3 scripts/run_tests.py
   --parallel`, and `git diff --check` pass.
 
 ## Relevant Files
@@ -113,3 +112,24 @@ Changing the content of the template text added by tasks 227–229. Cardine.
 ```bash
 claude "$(cat tasks/231-migrate-1-4-0-template-changes.md)"$'\n\nExecute this task in the current project.'
 ```
+
+## Authorized contract amendment — 2026-10-17
+
+Coordination and the developer approved following CONTRIBUTING.md's template-changing
+release and managed-copy procedure: prepare VERSION, plugin metadata, release ledger,
+and the 1.4.0 changelog in this task; fold pending fragments 223–231; retain the
+existing migration version gate; self-upgrade using this checkout's CLI; and resolve
+the unmarked command-location link in PROJECT_WORKFLOW.md with the template markers.
+The earlier pending-migration gate relaxation and temporary-framework self-upgrade
+direction were withdrawn. AC4 above replaces the original dry-run derivation check.
+
+## Completion evidence
+
+All acceptance criteria verified at implementation commit
+`7fc3787556f4982b591df4da05ea00a1106a4cbb`. Repository checks, the unchanged
+parallel full-suite command (1107 tests, zero failures/errors/skips), and
+`git diff --check` passed. AC5's fragment was created and then consumed into
+the 1.4.0 changelog under the authorized prepared-release procedure. The
+prepared-release dry run returned the expected refusal and publish command
+in a disposable main clone. See tasks/handoffs/231.md for commands, self-upgrade
+evidence, authorized test-only isolation fixes, and the out-of-scope 069 issue.

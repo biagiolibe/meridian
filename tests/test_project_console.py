@@ -391,6 +391,7 @@ class ProjectConsoleTest(unittest.TestCase):
     def test_header_right_aligns_git_and_underlines_active_all_tab(self) -> None:
         self.write_queue()
         state = console.ConsoleState(self.project)
+        state.framework = console.FrameworkIdentity("1.4.0", Path("/fw"))
         state.snapshot = self.snapshot()
         state.last_success = datetime.now().astimezone()
         screen = mock.Mock()

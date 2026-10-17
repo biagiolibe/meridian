@@ -197,7 +197,7 @@
 - `[x]` 228 — Start a new budget attempt only by explicit re-preparation.
 - `[x]` 229 — Name the exact directory and command when a task command runs from the wrong place.
 - `[x]` 230 — Give runnable candidate validation commands.
-- `[ ]` 231 — Ship the 1.4.0 template changes through a migration.
+- `[x]` 231 — Ship the 1.4.0 template changes through a migration.
 - `[x]` 140 — Let `integrate stage` complete rows of project-shaped Governed queues.
 - `[x]` 069 — Document Codex install from a tagged checkout.
 - `[x]` 052 — Make the upgrade planner aware of generated entry routers.

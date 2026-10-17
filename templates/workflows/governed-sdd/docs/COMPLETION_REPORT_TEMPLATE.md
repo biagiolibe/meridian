@@ -43,12 +43,14 @@ only to obtain `T1_CI`, at most once for that attempt. Amend and force-push rema
 - Blockers/deviations: `<none | concrete issue, scope expansion, or context expansion and reason>`
 ```
 
+<!-- MERIDIAN:BEGIN capability=handoff-correction-redelivery v1 -->
 After committing a handoff-only correction on a `READY_FOR_REVIEW` task, rerun
 `meridian execution deliver <TASK-ID> --project .` before beginning the next
 review attempt. The command creates a fresh `Deliver <TASK-ID> for review`
 commit at the corrected handoff and preserves the existing state transitions.
 Changes to any other record or implementation file require renewed implementation
 and validation rather than this correction path.
+<!-- MERIDIAN:END -->
 
 Do not claim completion when validation fails or an acceptance criterion is unresolved. For reviews, retain the same four fields in the review record and add the required verdict from `docs/CODE_REVIEW_PROMPT.md`. For `CHANGES_REQUESTED`, name that review-record path and its local handoff commit in the concise chat report; the record itself remains the canonical evidence.
 

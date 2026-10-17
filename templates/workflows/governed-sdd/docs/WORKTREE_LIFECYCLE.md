@@ -1,5 +1,6 @@
 # Bounded Worktree Lifecycle
 
+<!-- MERIDIAN:BEGIN capability=worktree-command-locations v1 -->
 ## Command locations
 
 After prepare/check, switch `--project` from the primary checkout to the task
@@ -22,6 +23,7 @@ only after an explicit Resume directive.
 | `execution validate`, `preflight`, `contract`, `reconcile`, `handoff-check`, legacy `ready-check`, `evidence`, `investigate` | Any directory; existing contract/evidence checks apply. Contract preparation may also precede a worktree | Task worktree (or project being prepared for contract operations) |
 | `task close` | Any directory; canonical registered task worktree, clean and without active integration | Task worktree |
 | `task transition`, `review verdict` | Task worktree context; existing branch/state checks apply | Task worktree |
+<!-- MERIDIAN:END -->
 
 
 <!-- MERIDIAN:BEGIN capability=worktree-lifecycle v6 -->

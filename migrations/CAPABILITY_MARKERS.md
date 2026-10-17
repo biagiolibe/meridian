@@ -433,3 +433,15 @@ archival, and, in Governed SDD only, the canonical SPIKE execution-evidence
 ledger exception. Other lifecycle template text is unchanged.
 
 **Migration 066 — 1.2.13 machine task state adoption.** The per-mode capability versions and managed paths in `066-machine-task-state-adoption.json` deliver command-owned review, remediation, closure, and owner acceptance. Status and verdict headings are projections only. Task branches own their state file. Run `meridian task state import --project <path> --format json`, inspect the evidence, then repeat with `--apply`; terminal tasks and existing state files are skipped.
+
+## Migration 070 — 1.4.0 template delivery
+
+`worktree-command-locations` v1 manages the command location link in both
+`PROJECT_WORKFLOW.md` templates and the table in both
+`docs/WORKTREE_LIFECYCLE.md` templates. Governed SDD additionally gains
+`worktree-budget-retirement` v1 in `PROJECT_WORKFLOW.md` and
+`handoff-correction-redelivery` v1 in `docs/COMPLETION_REPORT_TEMPLATE.md`.
+These blocks version the previously unmarked additions from tasks 227–229,
+so upgrade cannot treat an older handoff template as already satisfied merely
+because its other markers are current. Per-file marker baselines record each
+new block; the existing wording is unchanged.

@@ -840,3 +840,11 @@ Authority: GitHub issues #14 (227) and #15 (228), both from a Governed SDD consu
 | `[x]` | 228 | Start a new budget attempt only by explicit re-preparation | 🟡 P2 | — | [228](done/228-budget-attempt-on-re-prepare.md) |
 | `[x]` | 229 | Name the exact directory and command when a task command runs from the wrong place | 🟡 P2 | — | [229](done/229-precise-wrong-worktree-recovery.md) |
 | `[x]` | 230 | Give runnable candidate validation commands | 🔴 P1 | — | [230](done/230-runnable-candidate-validation-commands.md) |
+
+### Phase 72 — Release 1.4.0 correctness
+
+Authority: the 1.4.0 release dry run of 2026-10-17. Tasks 227–229 changed managed templates without a migration, and `release.py` would label 1.4.0 CLI-only.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 231 | Ship the 1.4.0 template changes through a migration | 🔴 P1 | 227, 228, 229 | [231](done/231-migrate-1-4-0-template-changes.md) |

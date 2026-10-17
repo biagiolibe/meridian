@@ -1,5 +1,31 @@
 # Bounded Worktree Lifecycle
 
+<!-- MERIDIAN:BEGIN capability=worktree-command-locations v1 -->
+## Command locations
+
+After prepare/check, switch `--project` from the primary checkout to the task
+worktree for execution and closure. An explicit absolute path makes those
+commands independent of the caller’s current directory; repository-relative
+handoff report arguments resolve against that task worktree. Omitting
+`--project` still defaults to the current directory. Agents must still launch
+workers and perform their first worktree check in the prepared worktree.
+Every emitted stop line still stops work; use its exact resume command
+only after an explicit Resume directive.
+
+| Lifecycle command | Where it may run | What `--project` names |
+|---|---|---|
+| `worktree path`, `prepare`, `advance`, `evidence`, `closure-status`, `integrate stage/finalize/abort`, `cleanup` | Primary checkout (coordination); registered task checkout where the command permits it | Primary checkout |
+| `worktree repair-base` | Primary checkout or canonical task worktree | Primary checkout |
+| `worktree states` | Any directory | Primary checkout |
+| `worktree active` | Exact registered task worktree; no `--project` option | Not applicable |
+| `worktree check` | Exact prepared task worktree for worker verification | Primary checkout |
+| `execution start`, `deliver`, state-backed `ready-check` | Any directory; canonical registered task worktree verified through `--project` | Task worktree |
+| `execution validate`, `preflight`, `contract`, `reconcile`, `handoff-check`, legacy `ready-check`, `evidence`, `investigate` | Any directory; existing contract/evidence checks apply. Contract preparation may also precede a worktree | Task worktree (or project being prepared for contract operations) |
+| `task close` | Any directory; canonical registered task worktree, clean and without active integration | Task worktree |
+| `task transition`, `review verdict` | Task worktree context; existing branch/state checks apply | Task worktree |
+<!-- MERIDIAN:END -->
+
+
 <!-- MERIDIAN:BEGIN capability=worktree-lifecycle v6 -->
 Use the host-neutral `meridian worktree` namespace for task checkout lifecycle
 operations. Commands exit `0` on success, `2` when blocked, and `64` on usage

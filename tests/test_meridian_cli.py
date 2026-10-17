@@ -1583,6 +1583,57 @@ worktree before the branch only after validated integration succeeds.
         self.assertEqual(manifest["workflowBaselineVersion"], "1.1.55")
         self.assertEqual(manifest["appliedMigrations"][-1], "057-self-referential-handoff-commits")
 
+    def test_1_4_0_template_capabilities_are_required(self) -> None:
+        requirements = meridian.capability_requirements(ROOT)
+        for capability in ("worktree-command-locations", "worktree-budget-retirement", "handoff-correction-redelivery"):
+            with self.subTest(capability=capability):
+                self.assertEqual(requirements[capability], (1, "070-worktree-template-delivery"))
+
+    def test_pristine_1_3_0_upgrades_all_1_4_0_managed_text(self) -> None:
+        # Frozen git archive of v1.3.0; works in shallow CI checkouts too.
+        archive = ROOT / "tests/fixtures/release-1.3.0-upgrade.tar.gz"
+        self.assertEqual(meridian.read_version(ROOT), "1.4.0")
+        with tarfile.open(archive) as source:
+            for mode in ("lean-delivery", "governed-sdd"):
+                with self.subTest(mode=mode):
+                    self.project = self.framework.parent / mode
+                    self.project.mkdir()
+                    prefix = f"templates/workflows/{mode}/"
+                    for member in source.getmembers():
+                        if member.isfile() and member.name.startswith(prefix):
+                            relative = Path(member.name.removeprefix(prefix))
+                            target = self.project / relative
+                            target.parent.mkdir(parents=True, exist_ok=True)
+                            target.write_bytes(source.extractfile(member).read())
+                    # Lock against the actual 1.3.0 release, then upgrade with
+                    # this checkout's real VERSION, templates, and migrations.
+                    old_framework = self.framework.parent / f"release-{mode}"
+                    with tarfile.open(archive) as old:
+                        old.extractall(old_framework, filter="data")
+                    def cli(framework, *arguments):
+                        return subprocess.run(
+                            [sys.executable, str(CLI), "--framework-root", str(framework),
+                             *arguments, "--project", str(self.project)],
+                            text=True, capture_output=True,
+                        )
+                    locked = cli(old_framework, "lock", "--mode", mode)
+                    self.assertEqual(locked.returncode, 0, locked.stdout + locked.stderr)
+                    checked = cli(ROOT, "upgrade", "--check")
+                    self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+                    self.assertIn("MIGRATION 070-worktree-template-delivery", checked.stdout)
+                    applied = cli(ROOT, "upgrade", "--apply")
+                    self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+                    self.assertNotIn("CONFLICT", applied.stdout)
+                    paths = ["PROJECT_WORKFLOW.md", "docs/WORKTREE_LIFECYCLE.md"]
+                    if mode == "governed-sdd":
+                        paths.append("docs/COMPLETION_REPORT_TEMPLATE.md")
+                    for relative in paths:
+                        expected = ROOT / "templates/workflows" / mode / relative
+                        self.assertEqual((self.project / relative).read_bytes(), expected.read_bytes())
+                    manifest = json.loads((self.project / ".meridian/manifest.json").read_text())
+                    self.assertEqual(manifest["workflowBaselineVersion"], "1.4.0")
+                    self.assertEqual(manifest["appliedMigrations"][-1], "070-worktree-template-delivery")
+
     def test_pristine_1_2_15_lean_upgrade_installs_task_close(self) -> None:
         workflow = self.framework / "templates/workflows/lean-delivery"
         paths = ("AGENTS.md", "CLAUDE.md", "PROJECT_WORKFLOW.md")
@@ -5246,6 +5297,7 @@ class CapabilityMarkerTest(unittest.TestCase):
             self.marker_pairs(completion_report),
             [
                 ("task-worktree-handoff", "5"),
+                ("handoff-correction-redelivery", "1"),
                 ("manual-verification-record", "1"),
                 ("ci-verified-validation", "1"),
             ],
@@ -5278,7 +5330,7 @@ class CapabilityMarkerTest(unittest.TestCase):
         self.assertIn("Manual verification observed:", review_record)
         self.assertIn("independently confirms", review_record)
 
-    def test_project_workflow_carries_all_eight_baseline_capabilities(self) -> None:
+    def test_project_workflow_carries_all_declared_baseline_capabilities(self) -> None:
         text = (self.WORKFLOW / "PROJECT_WORKFLOW.md").read_text(encoding="utf-8")
         pairs = self.marker_pairs(text)
         expected = {
@@ -5302,6 +5354,8 @@ class CapabilityMarkerTest(unittest.TestCase):
         expected["task-identity-policy"] = "1"
         expected["task-lifecycle"] = "4"
         expected["review-policy"] = "3"
+        expected["worktree-command-locations"] = "1"
+        expected["worktree-budget-retirement"] = "1"
         self.assertEqual(sorted(pairs), sorted(expected.items()))
 
     def test_git_workflow_block_drives_closure_through_advance(self) -> None:
