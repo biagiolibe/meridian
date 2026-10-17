@@ -29,6 +29,10 @@ Template-changing release: migration `070-worktree-template-delivery` delivers t
 
 - Install the CLI once at `~/.local/share/meridian` for every host, with persistent shell setup and aligned Claude Code plugin releases.
 
+### Deprecated
+
+- Meridian 1.4.0 is the last planned Meridian release. Meridian will be archived in favor of its successor, Cardine, a new project in the `biagiolibe/cardine` repository. Cardine starts at 1.0.0 and provides no `meridian` command alias. Until Cardine 1.0.0, Meridian 1.4.x receives fixes only for blocking defects. Projects stay on Meridian 1.4.x until they convert their open work to Cardine.
+
 ### Fixed
 
 - Block release publication while changelog fragments remain and provide `changelog render --prepared --write` to merge them into an already-prepared release.
