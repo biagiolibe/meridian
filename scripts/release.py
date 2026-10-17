@@ -169,6 +169,23 @@ def has_upgrade_notes(body: str) -> bool:
     return bool(body[match.end():end].strip())
 
 
+def require_migration_for_template_changes(root: Path, previous: dict[str, object]) -> None:
+    """Fail closed when a CLI-only release would change managed templates."""
+    tag = str(previous["gitTag"])
+    result = run_git(root, "diff", "--name-only", "--no-renames", tag, "--", "templates/")
+    if result.returncode:
+        raise ReleaseError(
+            f"preflight failed: cannot compare templates against previous release tag {tag}: "
+            + result.stderr.strip()
+        )
+    changed = result.stdout.splitlines()
+    if changed:
+        raise ReleaseError(
+            "preflight failed: cannot label release CLI-only; templates changed without a migration "
+            f"since {tag}: " + ", ".join(changed)
+        )
+
+
 def derive_release(root: Path, new_version: str, previous: dict[str, object], body: str) -> tuple[str, list[str], str]:
     previous_baseline = str(previous["workflowBaselineVersion"])
     introduced = [
@@ -176,6 +193,7 @@ def derive_release(root: Path, new_version: str, previous: dict[str, object], bo
         if version_key(str(migration["to"])) > version_key(previous_baseline)
     ]
     if not introduced:
+        require_migration_for_template_changes(root, previous)
         return CLI_ONLY, [], previous_baseline
     targets = {str(migration["to"]) for migration in introduced}
     if targets != {new_version}:
@@ -565,6 +583,15 @@ def release_kind(root: Path, version: str) -> tuple[str, list[str]]:
     if not baseline_changed:
         if migrations:
             raise ReleaseError("preflight failed: a CLI-only release ledger must list no migrations")
+        older = [
+            json.loads(path.read_text(encoding="utf-8"))
+            for path in (root / "releases").glob("*.json")
+            if version_key(path.stem) < version_key(version)
+        ]
+        if not older:
+            raise ReleaseError("preflight failed: no previous release ledger for template comparison")
+        previous = max(older, key=lambda item: version_key(str(item["version"])))
+        require_migration_for_template_changes(root, previous)
         return CLI_ONLY, []
     if not migrations:
         raise ReleaseError("preflight failed: a template-changing release ledger must list migrations")

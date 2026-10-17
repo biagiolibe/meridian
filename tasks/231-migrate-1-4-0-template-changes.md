@@ -64,8 +64,7 @@ Make 1.4.0 a template-changing release that delivers these changes, and stop
   tag and no migration ships with the release. The refusal names the changed
   template files. A release that changes only non-template files remains
   CLI-only. Tests cover both cases.
-- [ ] `release.py prepare --bump minor --dry-run` derives a template-changing
-  release for 1.4.0 and lists the migration.
+- [ ] With VERSION 1.4.0, `python3 scripts/release.py prepare --bump minor --dry-run` reports that release 1.4.0 is already prepared and names `publish --confirm v1.4.0`; `check_repository.py` and the full suite pass.
 - [ ] The changelog fragment `changelog.d/231.md` has an `Upgrade notes`
   subsection. It says to run `meridian upgrade --apply`, names the changed
   files, and warns about likely conflicts in adapted text. A `Fixed`
@@ -113,3 +112,13 @@ Changing the content of the template text added by tasks 227–229. Cardine.
 ```bash
 claude "$(cat tasks/231-migrate-1-4-0-template-changes.md)"$'\n\nExecute this task in the current project.'
 ```
+
+## Authorized contract amendment — 2026-10-17
+
+Coordination and the developer approved following CONTRIBUTING.md's template-changing
+release and managed-copy procedure: prepare VERSION, plugin metadata, release ledger,
+and the 1.4.0 changelog in this task; fold pending fragments 223–231; retain the
+existing migration version gate; self-upgrade using this checkout's CLI; and resolve
+the unmarked command-location link in PROJECT_WORKFLOW.md with the template markers.
+The earlier pending-migration gate relaxation and temporary-framework self-upgrade
+direction were withdrawn. AC4 above replaces the original dry-run derivation check.

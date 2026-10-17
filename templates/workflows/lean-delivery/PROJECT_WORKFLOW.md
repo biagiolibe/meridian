@@ -79,8 +79,10 @@ requires manual reconciliation. Repair never proves that a running session
 loaded the profile; start a fresh session and probe it.
 <!-- MERIDIAN:END -->
 
+<!-- MERIDIAN:BEGIN capability=worktree-command-locations v1 -->
 Before switching from worktree prepare/check to execution start, consult the
 [command location table](docs/WORKTREE_LIFECYCLE.md#command-locations).
+<!-- MERIDIAN:END -->
 
 <!-- MERIDIAN:BEGIN capability=bounded-worktree-lifecycle v7 -->
 `Proceed with <TASK-ID>` runs `meridian worktree prepare <task-id> --project

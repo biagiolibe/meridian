@@ -16,6 +16,48 @@ records which release moved it.
 ## [Unreleased]
 
 
+## [1.4.0]
+
+Template-changing release: migration `070-worktree-template-delivery` delivers the 1.4.0 managed workflow changes.
+
+### Added
+
+- Experimental `meridian self-update --check` and `--apply` plan and update the running CLI checkout to a published release, with explicit tag rollback and guarded Git operations.
+- Add developer-authorized `worktree prepare --new-attempt --reason` with a journaled reason and historical counters; show the current attempt in budget output and active queue briefings.
+
+### Changed
+
+- Install the CLI once at `~/.local/share/meridian` for every host, with persistent shell setup and aligned Claude Code plugin releases.
+
+### Fixed
+
+- Block release publication while changelog fragments remain and provide `changelog render --prepared --write` to merge them into an already-prepared release.
+- Report the required Python version, detected version, and interpreter path before loading the CLI on Python older than 3.12.
+- Governed tasks can be delivered again after committed handoff-only corrections,
+  with a fresh review anchor and unchanged state transitions. Delivery preflight
+  rejects missing or malformed `Current task commit` fields before delivery.
+- Block task worktree re-preparation when the retired budget attempt has inherited spends, preserving its history.
+- Run execution and task closure commands with an explicit task worktree from any directory. Wrong-project stops identify the caller, supplied project, and expected worktree and preserve the invocation in their recovery command. Document lifecycle command locations.
+- Separate runnable candidate validation commands from required fragments in `worktree advance`, preserve fragment declarations, and propose complete setup commands.
+- Release preparation and publish preflight reject a CLI-only release when
+  templates changed since the previous release tag without a migration, naming
+  the changed template files.
+
+### Documentation
+
+- Rewrite the README around one host-neutral description and a short task example; align plugin metadata and move operational detail into linked guides.
+- Use the stable release ref in the quick start and document updates for both stable and tagged local framework checkouts, including release verification and session restart.
+
+### Upgrade notes
+
+- Run `meridian upgrade --apply` for migration `070-worktree-template-delivery`.
+  Both workflows update `PROJECT_WORKFLOW.md` and `docs/WORKTREE_LIFECYCLE.md`;
+  Governed SDD also updates `docs/COMPLETION_REPORT_TEMPLATE.md`. Adapted command
+  location, budget-retirement, or handoff-correction text may conflict and need
+  owner reconciliation. The managed capabilities are `worktree-command-locations`
+  v1, `worktree-budget-retirement` v1, and `handoff-correction-redelivery` v1.
+  No minimum framework or `protocolVersion` change.
+
 ## [1.3.0] - 2026-10-15
 
 Template-changing release: atomic Lean task closure, the public surface and

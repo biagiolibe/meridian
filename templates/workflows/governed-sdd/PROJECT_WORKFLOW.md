@@ -159,8 +159,10 @@ requires manual reconciliation. Repair never proves that a running session
 loaded the profile; start a fresh session and probe it.
 <!-- MERIDIAN:END -->
 
+<!-- MERIDIAN:BEGIN capability=worktree-command-locations v1 -->
 Before switching from worktree prepare/check to execution start, consult the
 [command location table](docs/WORKTREE_LIFECYCLE.md#command-locations).
+<!-- MERIDIAN:END -->
 
 <!-- MERIDIAN:BEGIN capability=bounded-worktree-lifecycle v5 -->
 For coordinator-launched implementation, review, or remediation work, the
@@ -274,6 +276,7 @@ test name, reason, and reporting command as `Validation skips:` in the handoff.
 Apply `docs/CONTEXT_BUDGET_POLICY.md`. The review-policy restrictions above remain authoritative; use parallel agents only when their scopes and worktrees are independent.
 <!-- MERIDIAN:END -->
 
+<!-- MERIDIAN:BEGIN capability=worktree-budget-retirement v1 -->
 ## Budget attempts after worktree retirement
 
 Retiring a worktree does not reset its budget. If preparation reports
@@ -284,3 +287,4 @@ as with a budget overrun. A general Proceed directive does not authorize this
 option. It requires no registered task worktree, records the reason and prior
 counters in the journal, and starts the next attempt at zero while preserving
 history, task status, and caps.
+<!-- MERIDIAN:END -->

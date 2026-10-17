@@ -61,6 +61,14 @@
     "workflow-mode-lock": {
       "sha256": "c78393564487d9bcb41f08180e91c220ad7033e2408c8c2924bd1d574c71e0f5",
       "version": 2
+    },
+    "worktree-budget-retirement": {
+      "sha256": "f71e6003e3b0f2e34dfb6ecc1f8664d3c853917cd86fed91406c30e9724db9c2",
+      "version": 1
+    },
+    "worktree-command-locations": {
+      "sha256": "a7784fa1a78084ce884379510cbf1b13c6517fb18fb8f92dbb7b3eb1e1824a0b",
+      "version": 1
     }
   },
   "templates/workflows/governed-sdd/docs/AUDIT_PROMPT_READ_ONLY.md": {
@@ -84,6 +92,10 @@
   "templates/workflows/governed-sdd/docs/COMPLETION_REPORT_TEMPLATE.md": {
     "ci-verified-validation": {
       "sha256": "40d039a84e8d55de351b190ddefeee70c678212107931ecfe7186123cf1489c9",
+      "version": 1
+    },
+    "handoff-correction-redelivery": {
+      "sha256": "3e71dc960d03d576315aa746a9436a263a2fefd8bd5eccda00551573c1fe01e0",
       "version": 1
     },
     "manual-verification-record": {
@@ -178,6 +190,10 @@
     }
   },
   "templates/workflows/governed-sdd/docs/WORKTREE_LIFECYCLE.md": {
+    "worktree-command-locations": {
+      "sha256": "1237b6520279657674050f09a0fc6eb22982ec1059831e57431b2cc6953c2689",
+      "version": 1
+    },
     "worktree-lifecycle": {
       "sha256": "0ba4ebf470a99249607c9498c7ea23e76cd08d51ba73af363bccc4cbc55b5ab2",
       "version": 6
@@ -327,6 +343,10 @@
     "validation-scoping": {
       "sha256": "e96c1d406eb517daa36e43819dedddc16bb9574b080115d3961fa1c4edac8f2c",
       "version": 2
+    },
+    "worktree-command-locations": {
+      "sha256": "a7784fa1a78084ce884379510cbf1b13c6517fb18fb8f92dbb7b3eb1e1824a0b",
+      "version": 1
     }
   },
   "templates/workflows/lean-delivery/docs/CONTEXT_BUDGET_POLICY.md": {
@@ -362,6 +382,10 @@
     }
   },
   "templates/workflows/lean-delivery/docs/WORKTREE_LIFECYCLE.md": {
+    "worktree-command-locations": {
+      "sha256": "1237b6520279657674050f09a0fc6eb22982ec1059831e57431b2cc6953c2689",
+      "version": 1
+    },
     "worktree-lifecycle": {
       "sha256": "0f3e39fb97e61a4636e83bf2a61ee3a602b3dc2bd0900c3512abb66f716e15ab",
       "version": 6
