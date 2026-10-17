@@ -421,8 +421,10 @@ and leave behavior unchanged; simplification starts after them.
     1.4.0 (task 231) exposed three gaps that this script must close:
     - The release kind follows what changed. A template change without a
       migration stops the release; it is never labelled CLI-only.
-    - The repository checks and the release script agree that a migration may
-      target the unreleased next version before preparation.
+    - One release can ship several migrations, and the version advances once,
+      at preparation. The repository checks, the release script, and the
+      contributor guide describe one procedure. In Meridian they described
+      two, and a release could carry only one migration.
     - When Cardine manages its own repository, a template-changing release
       brings those project files to the new baseline in the prepared commit.
 
