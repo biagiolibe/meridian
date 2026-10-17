@@ -8,7 +8,9 @@ in 1.0, the validation retry limit in place of budget counters, conversion of
 open work only, and the field-trial exit criterion. They also cover deferred
 trademark registration, task state only in JSON, the new repository, the
 `lean` and `governed` presets, and pipx as the primary installer. Contoso and
-Fabrikam are fictitious names for the maintainer's two private projects.*
+Fabrikam are fictitious names for the maintainer's two private projects.
+Decision 11, landing modes and pull requests, was added and accepted on the
+same day.*
 
 ## Context
 
@@ -339,6 +341,57 @@ On the maintainer's machine:
 Projects stay on Meridian 1.4.x until their conversion. 1.4.x receives fixes
 only for blocking defects.
 
+### 11. Landing modes: direct now, pull requests in 1.1
+
+Meridian lands every task locally: it merges in the primary checkout,
+validates the candidate, and pushes `main`. Its `PULL_REQUEST_POLICY.md` opens
+no pull request; it pushes a task branch only to obtain CI. That shape is
+right for one developer and wrong for a team, where review and merge happen on
+a pull request. Cardine supports both as a **landing mode**: an option with a
+project default that one task can override, like the presets.
+
+| | `direct` (default) | `pull-request` |
+| --- | --- | --- |
+| How a task reaches `main` | Local merge, candidate validation, push | A pull request merged on the forge |
+| Candidate validation | Local | Required CI checks on the pull request, plus local validation when the project asks for it |
+| Review | An agent through `cardine review` | People on the forge, an agent that posts its review on the pull request, or both |
+| Who merges | `cardine run` | A person on the forge, or `cardine run` once the pull request is approved and green, when the project allows it |
+| Forge dependency | None | `gh`, authenticated by the user; Cardine stores no token |
+
+In `pull-request` mode, `cardine run` keeps the same next-step logic:
+
+1. Validate the task locally, as in `direct` mode.
+2. Push the task branch, then open or update the pull request. The body is
+   generated from the task contract, the handoff, and the validation evidence.
+3. The task is `in_review` while the pull request is open. Each call reads its
+   checks and reviews and reports what is missing.
+4. Requested changes are new commits on the same branch, never a force push.
+   The verdict stays bound to the reviewed head commit.
+5. When the pull request is merged, `cardine run` records the task as `done`
+   and cleans up the worktree.
+
+`direct` stays the default. A solo developer keeps today's speed, needs no
+forge, and learns no new command. One task can still choose `pull-request` to
+get the forge's full CI and a public record. In `pull-request` mode `main`
+changes only through the pull request. `cardine doctor` checks that the
+branch ruleset requires the pull request's checks and reviews, and it never
+changes the ruleset.
+
+**Scope.** Cardine 1.0 builds the landing mode into the design and ships only
+`direct`. These parts are in 1.0:
+
+- `cardine.integration` with the landing mode as its extension point;
+- a task state that can record a verdict from an external review, bound to the
+  reviewed commit.
+
+Cardine 1.1 ships `pull-request` mode for GitHub, with its own field trial. Two
+further items are open for 1.1:
+
+- **Task ownership for teams:** an `owner` field, and detection of a task
+  already prepared on another machine through its remote branch or open pull
+  request.
+- **Other forges.**
+
 ## Work items to 0.9
 
 Most items are one or more tasks of 2–3 hours. Items 3 and 4 are mechanical
@@ -357,7 +410,9 @@ and leave behavior unchanged; simplification starts after them.
 7. Single source of truth: state in the task JSON, generated queue and plan
    status.
 8. `cardine run` engine: next step, resume, directory independence, runnable
-   commands, validation retry limit. Rebuild the console on this engine.
+   commands, validation retry limit. Rebuild the console on this engine. Build
+   integration around the landing mode, with `direct` as its only 1.0 mode
+   (decision 11).
 9. Hosts: setup and doctor for Claude Code and Codex, two skills, user-level
    hooks.
 10. Meridian conversion: open tasks, ADRs, configuration.
@@ -412,4 +467,5 @@ and leave behavior unchanged; simplification starts after them.
 - Trademark registration, deferred until after 1.0.
 - Hosts other than Claude Code and Codex.
 - Parallel orchestration of several agents. Cardine runs inside each worktree.
+- `pull-request` landing mode, planned for 1.1 (decision 11).
 - Conversion of closed Meridian tasks and review records.
