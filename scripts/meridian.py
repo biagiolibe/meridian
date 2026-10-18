@@ -290,6 +290,9 @@ class LifecycleJournalEntry:
     def write(self, exit_code: int) -> None:
         if self.command is None:
             return
+        if self.command == "check" and self.step == "inspect-dirty" and exit_code == 0:
+            # Accepting an interrupted worktree must leave even its journal untouched.
+            return
         if exit_code == 0:
             outcome = "ok"
         elif self.blocked:
@@ -1411,7 +1414,7 @@ def inspect_task_worktree(
         branch = registered.get("branch", "").removeprefix("refs/heads/")
         if branch != identity.branch_name:
             errors.append("branch-mismatch")
-        status = _run_git(expected, "status", "--porcelain")
+        status = _run_git(expected, "--no-optional-locks", "status", "--porcelain")
         clean = status.returncode == 0 and not status.stdout
         if not clean:
             errors.append("dirty-worktree")
@@ -12763,6 +12766,10 @@ def _run_cli(journal: LifecycleJournalEntry) -> int:
                     arguments.worktree_root,
                     project_root,
                 )
+                if report["errors"] == ["dirty-worktree"]:
+                    report.update(status="ready-dirty", next_action="inspect-dirty",
+                                  **_dirty_summary(Path(str(report["worktree"]))))
+                    ready = True
                 journal.observe(report)
                 print(json.dumps(report, sort_keys=True))
                 if not ready:

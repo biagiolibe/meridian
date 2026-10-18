@@ -98,6 +98,32 @@ class ExecutionBoundariesTest(unittest.TestCase):
         meridian.execution_start(self.worker, '001', resume=True)
         self.assertEqual(self.state(), original)
 
+    def test_dirty_resume_cli_sequence_preserves_fresh_start_guards(self):
+        meridian.execution_start(self.worker, '001')
+        self.commit('Start')
+        original = self.state()
+        (self.worker / 'feature.txt').write_text('partial\n')
+
+        def cli(*arguments):
+            return subprocess.run(
+                [sys.executable, str(Path(meridian.__file__)), *arguments, '--format', 'json'],
+                cwd=self.worker, text=True, capture_output=True)
+
+        for command in (('worktree', 'prepare', '001', '--project', str(self.primary)),
+                        ('execution', 'start', '001', '--project', str(self.worker))):
+            result = cli(*command)
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertIn('BLOCKED', result.stderr)
+
+        for command in (('worktree', 'prepare', '001', '--project', str(self.primary), '--resume'),
+                        ('worktree', 'check', '001', '--project', str(self.primary)),
+                        ('execution', 'start', '001', '--project', str(self.worker), '--resume')):
+            result = cli(*command)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertNotIn('BLOCKED', result.stdout + result.stderr)
+        self.assertEqual(self.state(), original)
+        self.assertEqual((self.worker / 'feature.txt').read_text(), 'partial\n')
+
     def test_preflight_and_worktree_failures_do_not_write_start(self):
         text = (self.worker / self.record).read_text()
         (self.worker / self.record).write_text(text.replace('Profile revision:', 'Missing revision:'))
