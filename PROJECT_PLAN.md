@@ -199,7 +199,7 @@
 - `[x]` 230 — Give runnable candidate validation commands.
 - `[x]` 231 — Ship the 1.4.0 template changes through a migration.
 - `[x]` 232 — Let `worktree check` accept a dirty worktree during Resume.
-- `[ ]` 233 — Resume a Lean closure without state through `task close`.
+- `[x]` 233 — Resume a Lean closure without state through `task close`.
 - `[x]` 235 — Scan only repository files in `check_repository.py`.
 - `[ ]` 234 — Prepare the Meridian 1.4.1 CLI-only release.
 - `[x]` 140 — Let `integrate stage` complete rows of project-shaped Governed queues.
