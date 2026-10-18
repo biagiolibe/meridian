@@ -64,7 +64,6 @@ Publishing the release, and any other fix.
 - `python3 scripts/check_repository.py`
 - `python3 scripts/run_tests.py --parallel`
 - `git diff --check`
-
 - `python3 -m unittest discover -s tests`
 - `python3 scripts/prepare_release.py --tag v1.4.1 --notes-file <temporary file>`
 
@@ -84,3 +83,14 @@ runs `python3 -m unittest discover -s tests -v` outside the agent sandbox
 (the AppleScript test is skipped inside it), then
 `python3 scripts/release.py publish --confirm v1.4.1` from main, then
 `meridian self-update`.
+
+## Validation blocker, 2026-10-18
+
+Release records are committed at `47367641e4f3a1ac5bda8d3547376afb221277ca`.
+Repository checks and release-note preparation pass. The parallel suite fails
+in `test_meridian_cli.MeridianCliTest.test_pristine_1_3_0_upgrades_all_1_4_0_managed_text`
+at `tests/test_meridian_cli.py:1595`: it requires the repository version to
+remain `1.4.0`, but the release sets it to `1.4.1`.
+No test correction was made because other fixes are out of scope. Acceptance
+criteria remain unchecked; closure, integration, and publication were not run.
+See `tasks/handoffs/234.md` for evidence and developer follow-up.
