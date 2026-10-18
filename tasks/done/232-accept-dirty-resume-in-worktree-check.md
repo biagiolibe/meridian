@@ -25,28 +25,28 @@ any template, so that 1.4.1 stays a CLI-only release.
 
 ## Acceptance Criteria
 
-- [ ] When `dirty-worktree` is the only error, `meridian worktree check`
+- [x] When `dirty-worktree` is the only error, `meridian worktree check`
   exits 0, prints no `BLOCKED` line, and writes nothing. Its report says
   `status: ready-dirty`, `next_action: inspect-dirty`, and the changed and
   untracked path counts. Any other error, alone or together with
   `dirty-worktree`, still stops with `BLOCKED WRONG_WORKTREE`.
-- [ ] A fresh start stays protected without the check:
+- [x] A fresh start stays protected without the check:
   - `worktree prepare` without `--resume` still refuses an existing dirty
     worktree;
   - `execution start` without `--resume` still refuses a dirty worktree,
     except for its existing repeated-start case.
 
   Tests prove both.
-- [ ] A test runs the whole dirty Resume, `prepare --resume`, `check`, and
+- [x] A test runs the whole dirty Resume, `prepare --resume`, `check`, and
   `execution start --resume`, with exit 0 at every step and no `BLOCKED`
   line.
-- [ ] `test_resume_accepts_a_dirty_worktree_and_changes_nothing` in
+- [x] `test_resume_accepts_a_dirty_worktree_and_changes_nothing` in
   `tests/test_task_worktree_isolation.py` keeps its `inspect_task_worktree`
   assertions, and adds the CLI exit 0 case.
-- [ ] No file under `templates/`, `migrations/`, or this repository's managed
+- [x] No file under `templates/`, `migrations/`, or this repository's managed
   copies changes. The managed text already allows this state.
-- [ ] `changelog.d/232.md` describes the fix.
-- [ ] Every command under Validation passes.
+- [x] `changelog.d/232.md` describes the fix.
+- [x] Every command under Validation passes.
 
 ## Relevant Files
 

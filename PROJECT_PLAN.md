@@ -198,7 +198,7 @@
 - `[x]` 229 — Name the exact directory and command when a task command runs from the wrong place.
 - `[x]` 230 — Give runnable candidate validation commands.
 - `[x]` 231 — Ship the 1.4.0 template changes through a migration.
-- `[ ]` 232 — Let `worktree check` accept a dirty worktree during Resume.
+- `[x]` 232 — Let `worktree check` accept a dirty worktree during Resume.
 - `[ ]` 233 — Resume a Lean closure without state through `task close`.
 - `[ ]` 235 — Scan only repository files in `check_repository.py`.
 - `[ ]` 234 — Prepare the Meridian 1.4.1 CLI-only release.

@@ -622,6 +622,42 @@ class BoundedWorktreeLifecycleTest(unittest.TestCase):
         report, ready = meridian.inspect_task_worktree("056", self.worktree_root, self.primary)
         self.assertFalse(ready)
         self.assertEqual(report["errors"], ["dirty-worktree"])
+        journal_path = meridian.canonical_git_common_dir(self.primary) / meridian.JOURNAL_NAME
+        journal_before = journal_path.read_bytes() if journal_path.exists() else None
+        result = self.check_cli(worktree)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("BLOCKED", result.stdout + result.stderr)
+        checked = json.loads(result.stdout)
+        self.assertEqual(checked["status"], "ready-dirty")
+        self.assertEqual(checked["next_action"], "inspect-dirty")
+        self.assertEqual((checked["changed_paths"], checked["untracked_paths"]), (1, 1))
+        self.assertEqual(self.snapshot(worktree), before)
+        self.assertEqual(journal_path.read_bytes() if journal_path.exists() else None, journal_before)
+
+    def check_cli(self, worktree: Path) -> subprocess.CompletedProcess[str]:
+        return subprocess.run([
+            sys.executable, str(ROOT / "scripts/meridian.py"), "worktree", "check", "056",
+            "--project", str(self.primary), "--worktree-root", str(self.worktree_root),
+            "--format", "json",
+        ], cwd=worktree, text=True, capture_output=True)
+
+    def test_check_rejects_other_errors_with_or_without_dirty_worktree(self) -> None:
+        prepared = self.prepare()
+        worktree = Path(str(prepared["worktree"]))
+        state_path = next((self.primary / ".git/meridian-worktrees").glob("*.json"))
+        state = json.loads(state_path.read_text())
+        state["branch"] = "other"
+        state_path.write_text(json.dumps(state))
+        for dirty in (False, True):
+            with self.subTest(dirty=dirty):
+                if dirty:
+                    (worktree / "new.txt").write_text("partial\n")
+                result = self.check_cli(worktree)
+                self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                self.assertIn("BLOCKED WRONG_WORKTREE", result.stderr)
+                errors = json.loads(result.stdout)["errors"]
+                self.assertIn("state-branch-mismatch", errors)
+                self.assertEqual("dirty-worktree" in errors, dirty)
 
     def test_resume_never_attempts_a_lifecycle_state_write(self) -> None:
         prepared, worktree = self.dirty_worktree()
