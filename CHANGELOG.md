@@ -16,6 +16,15 @@ records which release moved it.
 ## [Unreleased]
 
 
+## [1.4.1]
+
+CLI-only release: this release introduces no migration.
+
+### Fixed
+
+- Let `worktree check` report `ready-dirty` with changed and untracked path counts when uncommitted work is its only error, so interrupted tasks can Resume without a false stop. Fresh starts still require a clean worktree, and all other worktree mismatches remain blocking.
+- Fix Lean closure recovery when task state is missing: advance now directs unarchived tasks through task close, a commit of staged closure records, and advance again. Already archived records recover only their missing state; Governed SDD keeps its existing recovery.
+
 ## [1.4.0]
 
 Template-changing release: migration `070-worktree-template-delivery` delivers the 1.4.0 managed workflow changes.

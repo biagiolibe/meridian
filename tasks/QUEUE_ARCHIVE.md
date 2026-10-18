@@ -848,3 +848,14 @@ Authority: the 1.4.0 release dry run of 2026-10-17. Tasks 227–229 changed mana
 | Status | ID | Title | Priority | Depends on | File |
 |--------|----|-------|----------|------------|------|
 | `[x]` | 231 | Ship the 1.4.0 template changes through a migration | 🔴 P1 | 227, 228, 229 | [231](done/231-migrate-1-4-0-template-changes.md) |
+
+### Phase 73 — Meridian 1.4.1 blocking fixes
+
+Authority: Cardine ADR decision 10 (1.4.x receives fixes only for blocking defects) and the developer decision of 2026-10-18.
+
+| Status | ID | Title | Priority | Depends on | File |
+|--------|----|-------|----------|------------|------|
+| `[x]` | 232 | Let `worktree check` accept a dirty worktree during Resume | 🔴 P1 | — | [232](done/232-accept-dirty-resume-in-worktree-check.md) |
+| `[x]` | 233 | Resume a Lean closure without state through `task close` | 🔴 P1 | 232 | [233](done/233-lean-closure-resume-uses-task-close.md) |
+| `[x]` | 235 | Scan only repository files in `check_repository.py` | 🔴 P1 | — | [235](done/235-check-repository-scans-only-repository-files.md) |
+| `[x]` | 234 | Prepare the Meridian 1.4.1 CLI-only release | 🔴 P1 | 232, 233, 235 | [234](done/234-prepare-meridian-1-4-1.md) |

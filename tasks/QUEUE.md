@@ -36,14 +36,3 @@ Authority for this queue: [docs/AUDIT_TOKEN_EFFICIENCY.md](../docs/AUDIT_TOKEN_E
 
 Ordered by return, not by effort. Phases 1, 2, 2b, 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 22, 25, 26, 27, 28, 31, 32, 34, 35, 36, 42, 44, 45, 46, and 47
 are fully closed — see `tasks/QUEUE_ARCHIVE.md`.
-
-### Phase 73 — Meridian 1.4.1 blocking fixes
-
-Authority: Cardine ADR decision 10 (1.4.x receives fixes only for blocking defects) and the developer decision of 2026-10-18.
-
-| Status | ID | Title | Priority | Depends on | File |
-|--------|----|-------|----------|------------|------|
-| `[x]` | 232 | Let `worktree check` accept a dirty worktree during Resume | 🔴 P1 | — | [232](done/232-accept-dirty-resume-in-worktree-check.md) |
-| `[x]` | 233 | Resume a Lean closure without state through `task close` | 🔴 P1 | 232 | [233](done/233-lean-closure-resume-uses-task-close.md) |
-| `[x]` | 235 | Scan only repository files in `check_repository.py` | 🔴 P1 | — | [235](done/235-check-repository-scans-only-repository-files.md) |
-| `[ ]` | 234 | Prepare the Meridian 1.4.1 CLI-only release | 🔴 P1 | 232, 233, 235 | [234](234-prepare-meridian-1-4-1.md) |

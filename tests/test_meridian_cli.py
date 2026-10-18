@@ -1592,7 +1592,10 @@ worktree before the branch only after validated integration succeeds.
     def test_pristine_1_3_0_upgrades_all_1_4_0_managed_text(self) -> None:
         # Frozen git archive of v1.3.0; works in shallow CI checkouts too.
         archive = ROOT / "tests/fixtures/release-1.3.0-upgrade.tar.gz"
-        self.assertEqual(meridian.read_version(ROOT), "1.4.0")
+        release = json.loads(
+            (ROOT / "releases" / f"{meridian.read_version(ROOT)}.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(release["workflowBaselineVersion"], "1.4.0")
         with tarfile.open(archive) as source:
             for mode in ("lean-delivery", "governed-sdd"):
                 with self.subTest(mode=mode):
