@@ -14,6 +14,8 @@ Prepare Meridian 1.4.1 with the two blocking fixes from tasks 232 and 233.
 Cardine ADR decision 10 keeps Meridian 1.4.x for blocking fixes until each
 project converts. Cardine's own lifecycle runs on the installed Meridian, so
 these fixes remove the stops that it hits most often.
+Task 235 lands first so that the repository checks of the release do not
+scan host checkouts nested in the primary checkout.
 
 ## Acceptance Criteria
 
@@ -51,7 +53,7 @@ Publishing the release, and any other fix.
 
 ## Dependencies
 
-- **Depends on**: 232, 233
+- **Depends on**: 232, 233, 235
 - **Blocks**: none
 
 ## Validation

@@ -45,4 +45,5 @@ Authority: Cardine ADR decision 10 (1.4.x receives fixes only for blocking defec
 |--------|----|-------|----------|------------|------|
 | `[ ]` | 232 | Let `worktree check` accept a dirty worktree during Resume | 🔴 P1 | — | [232](232-accept-dirty-resume-in-worktree-check.md) |
 | `[ ]` | 233 | Resume a Lean closure without state through `task close` | 🔴 P1 | 232 | [233](233-lean-closure-resume-uses-task-close.md) |
-| `[ ]` | 234 | Prepare the Meridian 1.4.1 CLI-only release | 🔴 P1 | 232, 233 | [234](234-prepare-meridian-1-4-1.md) |
+| `[ ]` | 235 | Scan only repository files in `check_repository.py` | 🔴 P1 | — | [235](235-check-repository-scans-only-repository-files.md) |
+| `[ ]` | 234 | Prepare the Meridian 1.4.1 CLI-only release | 🔴 P1 | 232, 233, 235 | [234](234-prepare-meridian-1-4-1.md) |
