@@ -19,7 +19,7 @@ scan host checkouts nested in the primary checkout.
 
 ## Acceptance Criteria
 
-- [ ] Prepare CLI-only 1.4.1 manually on `task-234`: update `VERSION`,
+- [x] Prepare CLI-only 1.4.1 manually on `task-234`: update `VERSION`,
   `.claude-plugin/plugin.json`, and `releases/1.4.1.json` with release date
   `2026-10-18`, tag `v1.4.1`, protocol 2, baseline `1.4.0`,
   `baselineChanged: false`, and no migrations. Insert the 1.4.1 CLI-only
@@ -27,13 +27,13 @@ scan host checkouts nested in the primary checkout.
   1.4.1 --prepared --write` to consume fragments 232 and 233 and match
   the section produced by the original dry-run on main. Commit these
   records in ordinary task-branch commits.
-- [ ] The repository checks pass on the release commit.
-- [ ] The task does not publish. It never runs `release.py publish`, pushes a
+- [x] The repository checks pass on the release commit.
+- [x] The task does not publish. It never runs `release.py publish`, pushes a
   tag, or pushes `stable`: `Proceed with` does not authorize any of these.
   The handoff gives the developer the exact publish command, `python3
   scripts/release.py publish --confirm v1.4.1`. After publishing, the
   developer updates the installed CLI with `meridian self-update`.
-- [ ] Every command under Validation passes.
+- [x] Every command under Validation passes.
 
 ## Relevant Files
 
@@ -84,13 +84,25 @@ runs `python3 -m unittest discover -s tests -v` outside the agent sandbox
 `python3 scripts/release.py publish --confirm v1.4.1` from main, then
 `meridian self-update`.
 
-## Validation blocker, 2026-10-18
+## Earlier validation blocker — resolved
 
-Release records are committed at `47367641e4f3a1ac5bda8d3547376afb221277ca`.
-Repository checks and release-note preparation pass. The parallel suite fails
-in `test_meridian_cli.MeridianCliTest.test_pristine_1_3_0_upgrades_all_1_4_0_managed_text`
-at `tests/test_meridian_cli.py:1595`: it requires the repository version to
-remain `1.4.0`, but the release sets it to `1.4.1`.
-No test correction was made because other fixes are out of scope. Acceptance
-criteria remain unchecked; closure, integration, and publication were not run.
-See `tasks/handoffs/234.md` for evidence and developer follow-up.
+The first validation of release commit `47367641e4f3a1ac5bda8d3547376afb221277ca`
+failed because the upgrade regression pinned the framework version to 1.4.0.
+The developer-authorized fix below resolves that blocker. Full validation on
+`837ccfa0a8295bd8063e3e6a7ceebdda69cac074` passes: both suites ran 1118 tests,
+with zero failures and errors and one documented AppleScript environment skip.
+Repository checks, release-note preparation, whitespace checks, and the
+repeated disposable-clone dry-run verification pass. See `tasks/handoffs/234.md`.
+
+## Developer-authorized fix, 2026-10-18
+
+The developer authorized replacing only the framework-version assertion in
+`test_pristine_1_3_0_upgrades_all_1_4_0_managed_text` with a guard that
+`releases/<current VERSION>.json` has `workflowBaselineVersion` equal to
+`1.4.0`. All other assertions and tests remain unchanged. The test fix is
+committed separately at `837ccfa0a8295bd8063e3e6a7ceebdda69cac074`.
+Rerun the full task Validation and disposable-clone dry-run verification,
+then record the new validated commit and close through the installed
+`meridian task close` and `meridian worktree advance` commands.
+This scope change resolves the earlier hardcoded-version validation blocker.
+The prohibitions on publication, verify, tags, and stable remain in force.
