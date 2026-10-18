@@ -28,25 +28,25 @@ Claude Code session in a worktree blocks every integration in the same way.
 
 ## Acceptance Criteria
 
-- [ ] `check_local_markdown_links`, `check_json`, and `check_bash` select their
+- [x] `check_local_markdown_links`, `check_json`, and `check_bash` select their
   files from one shared helper that lists repository files with `git ls-files
   -z --cached --others --exclude-standard` and keeps only paths that exist as
   files. Tracked, staged, and untracked-but-not-ignored files are still
   checked, so a new file in a task worktree or a staged candidate merge is
   covered.
-- [ ] A file under a path ignored by `.gitignore` or `.git/info/exclude`, and
+- [x] A file under a path ignored by `.gitignore` or `.git/info/exclude`, and
   any nested checkout such as `.claude/worktrees/<name>/`, is never checked.
-- [ ] The helper fails closed: when `git ls-files` exits non-zero, the check
+- [x] The helper fails closed: when `git ls-files` exits non-zero, the check
   reports a failure instead of passing with an empty file list.
-- [ ] Tests in `tests/test_check_repository.py` cover: a broken link in a file
+- [x] Tests in `tests/test_check_repository.py` cover: a broken link in a file
   under an excluded nested directory is ignored; the same broken link in a
   tracked file and in an untracked, non-ignored file still fails; invalid JSON
   and invalid Bash under an excluded directory are ignored.
-- [ ] The existing exemptions (`templates/`, `tasks/QUEUE_TEMPLATE.md`, and the
+- [x] The existing exemptions (`templates/`, `tasks/QUEUE_TEMPLATE.md`, and the
   archived-queue-row rule) keep their behavior.
-- [ ] No file under `templates/` or `migrations/` changes, and no managed file
+- [x] No file under `templates/` or `migrations/` changes, and no managed file
   of this repository changes.
-- [ ] Every command under Validation passes.
+- [x] Every command under Validation passes.
 
 ## Relevant Files
 
@@ -80,3 +80,11 @@ records. No changelog fragment: the change is repository tooling only.
 - `python3 scripts/check_repository.py`
 - `python3 scripts/run_tests.py --parallel`
 - `git diff --check`
+
+## Completion
+
+Implemented in `fbe8954`. All validation commands passed; the full parallel
+suite ran 1116 tests with no failures, errors, or skips. The fixed scans also
+passed against the primary checkout while its active Claude Code worktree
+remained present. See `handoffs/235.md` for evidence and the additional
+candidate acceptance check.

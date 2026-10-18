@@ -21,11 +21,12 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import check_repository as cr  # noqa: E402
 
 
-class LocalMarkdownLinksTest(unittest.TestCase):
+class RepositoryFilesTest(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
+        subprocess.run(["git", "init", "-q", str(self.root)], check=True)
         root_patch = patch.object(cr, "ROOT", self.root)
         root_patch.start()
         self.addCleanup(root_patch.stop)
@@ -34,6 +35,69 @@ class LocalMarkdownLinksTest(unittest.TestCase):
         path = self.root / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, encoding="utf-8")
+
+    def test_ignored_files_are_not_checked(self) -> None:
+        self.write(".gitignore", "ignored/\n")
+        self.write(".git/info/exclude", ".claude/worktrees/\n")
+        for directory in ("ignored", ".claude/worktrees/session"):
+            self.write(f"{directory}/broken.md", "[Missing](missing.md)")
+            self.write(f"{directory}/invalid.json", "{")
+            self.write(f"{directory}/invalid.sh", "if then")
+        cr.check_local_markdown_links()
+        cr.check_json()
+        cr.check_bash()
+
+    def test_nested_checkout_is_not_checked(self) -> None:
+        nested = self.root / "nested"
+        subprocess.run(["git", "init", "-q", str(nested)], check=True)
+        self.write("nested/broken.md", "[Missing](missing.md)")
+        self.write("nested/invalid.json", "{")
+        self.write("nested/invalid.sh", "if then")
+        cr.check_local_markdown_links()
+        cr.check_json()
+        cr.check_bash()
+
+    def test_tracked_and_untracked_broken_links_fail(self) -> None:
+        for tracked in (False, True):
+            with self.subTest(tracked=tracked):
+                self.write("broken.md", "[Missing](missing.md)")
+                if tracked:
+                    subprocess.run(["git", "-C", str(self.root), "add", "broken.md"], check=True)
+                with contextlib.redirect_stdout(io.StringIO()), self.assertRaises(SystemExit):
+                    cr.check_local_markdown_links()
+
+    def test_untracked_json_and_bash_still_fail(self) -> None:
+        for name, text, check in (
+            ("invalid.json", "{", cr.check_json),
+            ("invalid.sh", "if then", cr.check_bash),
+        ):
+            with self.subTest(name=name):
+                self.write(name, text)
+                with contextlib.redirect_stdout(io.StringIO()), self.assertRaises(SystemExit):
+                    check()
+
+    def test_listing_failure_fails_every_check(self) -> None:
+        failure = subprocess.CompletedProcess([], 1, stdout=b"", stderr=b"failed")
+        for check in (cr.check_local_markdown_links, cr.check_json, cr.check_bash):
+            with self.subTest(check=check.__name__), patch.object(cr.subprocess, "run", return_value=failure):
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output), self.assertRaises(SystemExit):
+                    check()
+                self.assertIn("cannot list repository files", output.getvalue())
+
+    def test_listing_handles_staged_deleted_and_unusual_paths(self) -> None:
+        names = ("space name.md", "line\nbreak.json", "deleted.sh")
+        for name in names:
+            self.write(name)
+        subprocess.run(["git", "-C", str(self.root), "add", "."], check=True)
+        (self.root / "deleted.sh").unlink()
+        (self.root / "directory.md").mkdir()
+        self.assertEqual(set(cr.repository_files()), {self.root / name for name in names[:2]})
+
+    def test_template_exemptions_are_preserved(self) -> None:
+        self.write("templates/example.md", "[Missing](missing.md)")
+        self.write("tasks/QUEUE_TEMPLATE.md", "[Missing](missing.md)")
+        cr.check_local_markdown_links()
 
     def test_queue_link_to_archived_record_is_informational(self) -> None:
         self.write("tasks/QUEUE.md", "[Task](220-example.md#objective)")
